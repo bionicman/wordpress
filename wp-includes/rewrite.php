@@ -1626,10 +1626,16 @@ class WP_Rewrite {
 		}
 
 		$site_root = parse_url(get_option('siteurl'));
-		$site_root = trailingslashit($site_root['path']);
+		if ( isset( $site_root['path'] ) ) {
+			$site_root = trailingslashit($site_root['path']);
+		}
 
 		$home_root = parse_url(get_option('home'));
-		$home_root = trailingslashit($home_root['path']);
+		if ( isset( $home_root['path'] ) ) {
+			$home_root = trailingslashit($home_root['path']);
+		} else {
+			$home_root = '/';
+		}
 
 		$rules = "<IfModule mod_rewrite.c>\n";
 		$rules .= "RewriteEngine On\n";

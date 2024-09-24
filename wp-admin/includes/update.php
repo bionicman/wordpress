@@ -34,9 +34,13 @@ function get_core_updates( $options = array() ) {
 	$dismissed = get_option( 'dismissed_update_core' );
 	if ( !is_array( $dismissed ) ) $dismissed = array();
 	$from_api = get_option( 'update_core' );
-	if ( !is_array( $from_api ) ) return false;
+	if ( empty($from_api) )
+		return false;
+	if ( !is_array( $from_api->updates ) ) return false;
+	$updates = $from_api->updates;
+	if ( !is_array( $updates ) ) return false;
 	$result = array();
-	foreach($from_api as $update) {
+	foreach($updates as $update) {
 		if ( array_key_exists( $update->current.'|'.$update->locale, $dismissed ) ) {
 			if ( $options['dismissed'] ) {
 				$update->dismissed = true;
@@ -68,8 +72,9 @@ function undismiss_core_update( $version, $locale ) {
 
 function find_core_update( $version, $locale ) {
 	$from_api = get_option( 'update_core' );
-	if ( !is_array( $from_api ) ) return false;
-	foreach($from_api as $update) {
+	if ( !is_array( $from_api->updates ) ) return false;
+	$updates = $from_api->updates;
+	foreach($updates as $update) {
 		if ( $update->current == $version && $update->locale == $locale )
 			return $update;
 	}
@@ -89,12 +94,12 @@ function core_update_footer( $msg = '' ) {
 
 	switch ( $cur->response ) {
 	case 'development' :
-		return sprintf( __( 'You are using a development version (%1$s). Cool! Please <a href="%2$s">stay updated</a>.' ), $GLOBALS['wp_version'], 'update.php?action=upgrade-core');
+		return sprintf( __( 'You are using a development version (%1$s). Cool! Please <a href="%2$s">stay updated</a>.' ), $GLOBALS['wp_version'], 'update-core.php');
 	break;
 
 	case 'upgrade' :
 		if ( current_user_can('manage_options') ) {
-			return sprintf( '<strong>'.__( '<a href="%1$s">Get Version %2$s</a>' ).'</strong>', wp_nonce_url('update.php?action=upgrade-core', 'upgrade-core'), $cur->current);
+			return sprintf( '<strong>'.__( '<a href="%1$s">Get Version %2$s</a>' ).'</strong>', 'update-core.php', $cur->current);
 			break;
 		}
 
@@ -113,7 +118,7 @@ function update_nag() {
 		return false;
 
 	if ( current_user_can('manage_options') )
-		$msg = sprintf( __('WordPress %1$s is available! <a href="%2$s">Please update now</a>.'), $cur->current, 'update.php?action=upgrade-core' );
+		$msg = sprintf( __('WordPress %1$s is available! <a href="%2$s">Please update now</a>.'), $cur->current, 'update-core.php' );
 	else
 		$msg = sprintf( __('WordPress %1$s is available! Please notify the site administrator.'), $cur->current );
 
@@ -127,7 +132,7 @@ function update_right_now_message() {
 
 	$msg = sprintf( __('You are using <span class="b">WordPress %s</span>.'), $GLOBALS['wp_version'] );
 	if ( isset( $cur->response ) && $cur->response == 'upgrade' && current_user_can('manage_options') )
-		$msg .= " <a href='update.php?action=upgrade-core' class='button'>" . sprintf( __('Update to %s'), $cur->current ? $cur->current : __( 'Latest' ) ) . '</a>';
+		$msg .= " <a href='update-core.php' class='button'>" . sprintf( __('Update to %s'), $cur->current ? $cur->current : __( 'Latest' ) ) . '</a>';
 
 	echo "<span id='wp-version-message'>$msg</span>";
 }
@@ -241,15 +246,23 @@ function wp_update_plugin($plugin, $feedback = '') {
 	}
 
 	apply_filters('update_feedback', __('Installing the latest version'));
+
+	$filelist = array_keys( $wp_filesystem->dirlist($working_dir) );
+
+	//find base plugin directory
+	$res = update_pluginfiles_base_dir($working_dir . '/' . $filelist[0], $plugins_dir . $filelist[0]);
+
+	//Create folder if not exists.
+	if( ! $wp_filesystem->exists( $res['to'] ) )
+		if ( ! $wp_filesystem->mkdir( $res['to'], 0755 ) )
+			return new WP_Error('mkdir_failed', __('Could not create directory'), $res['to']);	
+
 	// Copy new version of plugin into place.
-	$result = copy_dir($working_dir, $plugins_dir);
+	$result = copy_dir($res['from'], $res['to']);
 	if ( is_wp_error($result) ) {
 		$wp_filesystem->delete($working_dir, true);
 		return $result;
 	}
-
-	//Get a list of the directories in the working directory before we delete it, We need to know the new folder for the plugin
-	$filelist = array_keys( $wp_filesystem->dirlist($working_dir) );
 
 	// Remove working directory
 	$wp_filesystem->delete($working_dir, true);
@@ -257,14 +270,12 @@ function wp_update_plugin($plugin, $feedback = '') {
 	// Force refresh of plugin update information
 	delete_option('update_plugins');
 
-	if( empty($filelist) )
-		return false; //We couldnt find any files in the working dir, therefor no plugin installed? Failsafe backup.
-
-	$folder = $filelist[0];
+	$folder = trailingslashit(str_replace($plugins_dir, '', $res['to']));
 	$plugin = get_plugins('/' . $folder); //Ensure to pass with leading slash
 	$pluginfiles = array_keys($plugin); //Assume the requested plugin is the first in the list
 
-	return  $folder . '/' . $pluginfiles[0];
+	//Return the plugin files name.
+	return $folder . $pluginfiles[0];
 }
 
 function wp_update_theme($theme, $feedback = '') {
@@ -468,7 +479,7 @@ function maintenance_nag() {
 		return false;
 
 	if ( current_user_can('manage_options') )
-		$msg = sprintf( __('An automated WordPress update has failed to complete - <a href="%s">please attempt the update again now</a>.'), 'update.php?action=upgrade-core' );
+		$msg = sprintf( __('An automated WordPress update has failed to complete - <a href="%s">please attempt the update again now</a>.'), 'update-core.php' );
 	else
 		$msg = __('An automated WordPress update has failed to complete! Please notify the site administrator.');
 

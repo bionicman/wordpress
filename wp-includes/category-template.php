@@ -62,7 +62,7 @@ function get_category_link( $category_id ) {
 			return $category;
 		$category_nicename = $category->slug;
 
-		if ( $parent == $category_id ) // recursive recursion
+		if ( $category->parent == $category_id ) // recursive recursion
 			$category->parent = 0;
 
 		if ( $parent = $category->parent )
@@ -664,7 +664,7 @@ function wp_generate_tag_cloud( $tags, $args = '' ) {
 
 	foreach ( $tags as $key => $tag ) {
 		$count = $counts[ $key ];
-		$tag_link = clean_url( $tag->link );
+		$tag_link = '#' != $tag->link ? clean_url( $tag->link ) : '#';
 		$tag_id = isset($tags[ $key ]->id) ? $tags[ $key ]->id : $key;
 		$tag_name = $tags[ $key ]->name;
 		$a[] = "<a href='$tag_link' class='tag-link-$tag_id' title='" . attribute_escape( sprintf( __ngettext( $single_text, $multiple_text, $count ), $count ) ) . "'$rel style='font-size: " .

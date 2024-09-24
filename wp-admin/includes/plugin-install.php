@@ -86,8 +86,8 @@ add_action('install_plugins_search', 'install_search', 10, 1);
  * @param string $page
  */
 function install_search($page) {
-	$type = isset($_REQUEST['type']) ? $_REQUEST['type'] : '';
-	$term = isset($_REQUEST['s']) ? $_REQUEST['s'] : '';
+	$type = isset($_REQUEST['type']) ? stripslashes( $_REQUEST['type'] ) : '';
+	$term = isset($_REQUEST['s']) ? stripslashes( $_REQUEST['s'] ) : '';
 
 	$args = array();
 
@@ -136,7 +136,7 @@ function install_dashboard() {
 	<form method="post" enctype="multipart/form-data" action="<?php echo admin_url('plugin-install.php?tab=upload') ?>">
 		<?php wp_nonce_field( 'plugin-upload') ?>
 		<input type="file" name="pluginzip" />
-		<input type="submit" value="<?php _e('Install Now') ?>" />
+		<input type="submit" class="button" value="<?php _e('Install Now') ?>" />
 	</form>
 	
 	<h4><?php _e('Popular tags') ?></h4>
@@ -162,8 +162,8 @@ function install_dashboard() {
  * @since 2.7.0
  */
 function install_search_form(){
-	$type = isset($_REQUEST['type']) ? $_REQUEST['type'] : '';
-	$term = isset($_REQUEST['s']) ? $_REQUEST['s'] : '';
+	$type = isset($_REQUEST['type']) ? stripslashes( $_REQUEST['type'] ) : '';
+	$term = isset($_REQUEST['s']) ? stripslashes( $_REQUEST['s'] ) : '';
 
 	?><form id="search-plugins" method="post" action="<?php echo admin_url('plugin-install.php?tab=search') ?>">
 		<select name="type" id="typeselector">
@@ -173,7 +173,6 @@ function install_search_form(){
 		</select>
 		<input type="text" name="s" id="search-field" value="<?php echo attribute_escape($term) ?>" />
 		<input type="submit" name="search" value="<?php echo attribute_escape(__('Search')) ?>" class="button" />
-		<?php echo $after_submit ?>
 	</form><?php
 }
 
@@ -250,8 +249,8 @@ function install_updated($page = 1) {
 function display_plugins_table($plugins, $page = 1, $totalpages = 1){
 	global $tab;
 
-	$type = isset($_REQUEST['type']) ? $_REQUEST['type'] : '';
-	$term = isset($_REQUEST['s']) ? $_REQUEST['s'] : '';
+	$type = isset($_REQUEST['type']) ? stripslashes( $_REQUEST['type'] ) : '';
+	$term = isset($_REQUEST['s']) ? stripslashes( $_REQUEST['s'] ) : '';
 
 	$plugins_allowedtags = array('a' => array('href' => array(),'title' => array(), 'target' => array()),
 								'abbr' => array('title' => array()),'acronym' => array('title' => array()),
@@ -376,7 +375,7 @@ add_action('install_plugins_pre_plugin-information', 'install_plugin_information
 function install_plugin_information() {
 	global $tab;
 
-	$api = plugins_api('plugin_information', array('slug' => $_REQUEST['plugin']));
+	$api = plugins_api('plugin_information', array('slug' => stripslashes( $_REQUEST['plugin'] ) ));
 
 	if ( is_wp_error($api) )
 		wp_die($api);
@@ -391,7 +390,7 @@ function install_plugin_information() {
 	foreach ( array('version', 'author', 'requires', 'tested', 'homepage', 'downloaded', 'slug') as $key )
 		$api->$key = wp_kses($api->$key, $plugins_allowedtags);
 
-	$section = isset($_REQUEST['section']) ? $_REQUEST['section'] : 'description'; //Default to the Description tab, Do not translate, API returns English.
+	$section = isset($_REQUEST['section']) ? stripslashes( $_REQUEST['section'] ) : 'description'; //Default to the Description tab, Do not translate, API returns English.
 	if( empty($section) || ! isset($api->sections[ $section ]) )
 		$section = array_shift( $section_titles = array_keys((array)$api->sections) );
 
@@ -553,7 +552,7 @@ add_action('install_plugins_install', 'install_plugin');
  */
 function install_plugin() {
 
-	$plugin = isset($_REQUEST['plugin']) ? $_REQUEST['plugin'] : '';
+	$plugin = isset($_REQUEST['plugin']) ? stripslashes( $_REQUEST['plugin'] ) : '';
 
 	check_admin_referer('install-plugin_' . $plugin);
 	$api = plugins_api('plugin_information', array('slug' => $plugin, 'fields' => array('sections' => false) ) ); //Save on a bit of bandwidth.
@@ -585,10 +584,10 @@ function do_plugin_install($download_url, $plugin_information = null) {
 		return;
 	}
 
-	$plugin = isset($_REQUEST['plugin']) ? $_REQUEST['plugin'] : '';
+	$plugin = isset($_REQUEST['plugin']) ? stripslashes( $_REQUEST['plugin'] ) : '';
 
 	$url = 'plugin-install.php?tab=install';
-	$url = add_query_arg(array('plugin' => $plugin, 'plugin_name' => $_REQUEST['plugin_name'], 'download_url' => $_REQUEST['download_url']), $url);
+	$url = add_query_arg(array('plugin' => $plugin, 'plugin_name' => stripslashes( $_REQUEST['plugin_name'] ), 'download_url' => stripslashes( $_REQUEST['download_url'] ) ), $url);
 
 	$url = wp_nonce_url($url, 'install-plugin_' . $plugin);
 	if ( false === ($credentials = request_filesystem_credentials($url)) )
@@ -745,37 +744,34 @@ function wp_install_plugin($package, $feedback = '') {
 		return $result;
 	}
 
-	//Get a list of the directories in the working directory before we delete it, We need to know the new folder for the plugin
+	apply_filters('install_feedback', __('Installing the plugin'));
+	
 	$filelist = array_keys( $wp_filesystem->dirlist($working_dir) );
 
-	if( $wp_filesystem->exists( $plugins_dir . $filelist[0] ) ) {
-		$wp_filesystem->delete($working_dir, true);
-		return new WP_Error('install_folder_exists', __('Folder allready exists.'), $filelist[0] );
-	}
+	//find base plugin directory
+	$res = update_pluginfiles_base_dir($working_dir . '/' . $filelist[0], $plugins_dir . $filelist[0]);
 
-	apply_filters('install_feedback', __('Installing the plugin'));
+	//Create folder if not exists.
+	if( ! $wp_filesystem->exists( $res['to'] ) )
+		if ( ! $wp_filesystem->mkdir( $res['to'], 0755 ) )
+			return new WP_Error('mkdir_failed', __('Could not create directory'), $res['to']);	
+
 	// Copy new version of plugin into place.
-	$result = copy_dir($working_dir, $plugins_dir);
+	$result = copy_dir($res['from'], $res['to']);
 	if ( is_wp_error($result) ) {
 		$wp_filesystem->delete($working_dir, true);
 		return $result;
 	}
 
-	//Get a list of the directories in the working directory before we delete it, We need to know the new folder for the plugin
-	$filelist = array_keys( $wp_filesystem->dirlist($working_dir) );
-
 	// Remove working directory
 	$wp_filesystem->delete($working_dir, true);
 
-	if( empty($filelist) )
-		return false; //We couldnt find any files in the working dir, therefor no plugin installed? Failsafe backup.
-
-	$folder = $filelist[0];
+	$folder = trailingslashit(str_replace($plugins_dir, '', $res['to']));
 	$plugin = get_plugins('/' . $folder); //Ensure to pass with leading slash
 	$pluginfiles = array_keys($plugin); //Assume the requested plugin is the first in the list
 
 	//Return the plugin files name.
-	return  $folder . '/' . $pluginfiles[0];
+	return $folder . $pluginfiles[0];
 }
 
 /**
@@ -840,37 +836,35 @@ function wp_install_plugin_local_package($package, $feedback = '') {
 		return $result;
 	}
 
-	//Get a list of the directories in the working directory before we delete it, We need to know the new folder for the plugin
+	apply_filters('install_feedback', __('Installing the plugin'));
+	
 	$filelist = array_keys( $wp_filesystem->dirlist($working_dir) );
 
-	if( $wp_filesystem->exists( $plugins_dir . $filelist[0] ) ) {
-		$wp_filesystem->delete($working_dir, true);
-		return new WP_Error('install_folder_exists', __('Folder allready exists.'), $filelist[0] );
-	}
+	//find base plugin directory
+	$res = update_pluginfiles_base_dir($working_dir . '/' . $filelist[0], $plugins_dir . $filelist[0]);
 
-	apply_filters('install_feedback', __('Installing the plugin'));
+	//Create folder if not exists.
+	if( ! $wp_filesystem->exists( $res['to'] ) ) {
+		if ( ! $wp_filesystem->mkdir( $res['to'], 0755 ) )
+			return new WP_Error('mkdir_failed', __('Could not create directory'), $res['to']);
+	}
+	
 	// Copy new version of plugin into place.
-	$result = copy_dir($working_dir, $plugins_dir);
+	$result = copy_dir($res['from'], $res['to']);
 	if ( is_wp_error($result) ) {
 		$wp_filesystem->delete($working_dir, true);
 		return $result;
 	}
 
-	//Get a list of the directories in the working directory before we delete it, We need to know the new folder for the plugin
-	$filelist = array_keys( $wp_filesystem->dirlist($working_dir) );
-
 	// Remove working directory
 	$wp_filesystem->delete($working_dir, true);
 
-	if( empty($filelist) )
-		return false; //We couldnt find any files in the working dir, therefor no plugin installed? Failsafe backup.
-
-	$folder = $filelist[0];
+	$folder = trailingslashit(str_replace($plugins_dir, '', $res['to']));
 	$plugin = get_plugins('/' . $folder); //Ensure to pass with leading slash
 	$pluginfiles = array_keys($plugin); //Assume the requested plugin is the first in the list
 
 	//Return the plugin files name.
-	return  $folder . '/' . $pluginfiles[0];
+	return $folder . $pluginfiles[0];
 }
 
 ?>

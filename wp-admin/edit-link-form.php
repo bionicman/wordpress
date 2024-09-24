@@ -70,7 +70,7 @@ function link_submit_meta_box($link) {
 <?php } ?>
 
 <?php
-if ( 'edit' == $_GET['action'] && current_user_can('manage_links') )
+if ( !empty($_GET['action']) && 'edit' == $_GET['action'] && current_user_can('manage_links') )
 	echo "<a class='submitdelete' href='" . wp_nonce_url("link.php?action=delete&amp;link_id=$link->link_id", 'delete-bookmark_' . $link->link_id) . "' onclick=\"if ( confirm('" . js_escape( sprintf( __("You are about to delete this link '%s'\n'Cancel' to stop, 'OK' to delete."), $link->link_name )) . "') ) { return true;}return false;\">" . __('Delete&nbsp;link') . "</a>";
 ?>
 </p>
@@ -309,40 +309,16 @@ function link_advanced_meta_box($link) {
 }
 add_meta_box('linkadvanceddiv', __('Advanced'), 'link_advanced_meta_box', 'link', 'normal', 'core'); ?>
 
-<?php screen_options('link', 1) ?>
+<?php screen_meta('link', 1) ?>
 
 <div class="wrap">
 <h2><?php echo wp_specialchars( $title ); ?></h2> 
 
-<!--
-<p id="big-add-button">
-<span id="previewview">
-<?php if ( !empty($link_id) ) { ?>
-<a class="button" href="<?php echo $link->link_url; ?>" target="_blank"><?php _e('Visit Link'); ?></a>
-<?php } ?>
-</span>
-</p>
--->
-
-<!-- TODO
-<div class="inside">
-<p><label for="link_private" class="selectit"><input id="link_private" name="link_visible" type="checkbox" value="N" <?php checked($link->link_visible, 'N'); ?> /> <?php _e('Keep this link private') ?></label></p>
-</div>
-
-<div class="side-info">
-<h5><?php _e('Related') ?></h5>
-
-<ul>
-<li><a href="link-manager.php"><?php _e('Manage All Links') ?></a></li>
-<li><a href="edit-link-categories.php"><?php _e('Manage All Link Categories') ?></a></li>
-<li><a href="link-import.php"><?php _e('Import Links') ?></a></li>
-<?php do_action('link_relatedlinks_list'); ?>
-</ul>
-</div>
--->
 <?php
-echo $form;
-echo $link_added;
+if ( !empty($form) )
+	echo $form;
+if ( !empty($link_added) )
+	echo $link_added;
 
 wp_nonce_field( $nonce_action );
 wp_nonce_field( 'closedpostboxes', 'closedpostboxesnonce', false );

@@ -155,9 +155,11 @@ function &get_comment(&$comment, $output = OBJECT) {
 	if ( $output == OBJECT ) {
 		return $_comment;
 	} elseif ( $output == ARRAY_A ) {
-		return get_object_vars($_comment);
+		$__comment = get_object_vars($_comment);
+		return $__comment;
 	} elseif ( $output == ARRAY_N ) {
-		return array_values(get_object_vars($_comment));
+		$__comment = array_values(get_object_vars($_comment));
+		return $__comment;
 	} else {
 		return $_comment;
 	}
@@ -180,8 +182,21 @@ function get_comments( $args = '' ) {
 
 	$defaults = array('status' => '', 'orderby' => 'comment_date_gmt', 'order' => 'DESC', 'number' => '', 'offset' => '', 'post_id' => 0);
 
-	$r = wp_parse_args( $args, $defaults );
-	extract( $r, EXTR_SKIP );
+	$args = wp_parse_args( $args, $defaults );
+	extract( $args, EXTR_SKIP );
+
+	// $args can be whatever, only use the args defined in defaults to compute the key
+	$key = md5( serialize( compact(array_keys($defaults)) )  );
+	$last_changed = wp_cache_get('last_changed', 'comment');
+	if ( !$last_changed ) {
+		$last_changed = time();
+		wp_cache_set('last_changed', $last_changed, 'comment');
+	}
+	$cache_key = "get_comments:$key:$last_changed";
+
+	if ( $cache = wp_cache_get( $cache_key, 'comment' ) ) {
+		return $cache;
+	}
 
 	$post_id = absint($post_id);
 
@@ -216,7 +231,10 @@ function get_comments( $args = '' ) {
 	else
 		$post_where = '';
 
-	return $wpdb->get_results( "SELECT * FROM $wpdb->comments WHERE $post_where $approved ORDER BY $orderby $order $number" );
+	$comments = $wpdb->get_results( "SELECT * FROM $wpdb->comments WHERE $post_where $approved ORDER BY $orderby $order $number" );
+	wp_cache_add( $cache_key, $comments, 'comment' );
+
+	return $comments;
 }
 
 /**
@@ -534,6 +552,8 @@ function get_comment_pages_count( $comments = null, $per_page = null, $threaded 
  * @return int|null Comment page number or null on error.
  */
 function get_page_of_comment( $comment_ID, $per_page = null, $threaded = null ) {
+	global $wpdb;
+
 	if ( !$comment = get_comment( $comment_ID ) )
 		return;
 
@@ -550,25 +570,15 @@ function get_page_of_comment( $comment_ID, $per_page = null, $threaded = null ) 
 	if ( $threaded && 0 != $comment->comment_parent )
 		return get_page_of_comment( $comment->comment_parent, $per_page, $threaded );
 
-	$comments = get_comments( array( 'post_id' => $comment->comment_post_ID, 'order' => 'ASC' ) );
+	// Count comments older than this one
+	$oldercoms = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(comment_ID) FROM $wpdb->comments WHERE comment_post_ID = %d AND comment_parent = 0 AND comment_date_gmt < '%s'", $comment->comment_post_ID, $comment->comment_date_gmt ) );
 
-	// Start going through the comments until we find what page number the above top level comment is on
-	$page = 1;
-	$comthispage = 0;
-	foreach ( $comments as $com ) {
-		if ( $threaded && 0 != $com->comment_parent )
-			continue;
+	// No older comments? Then it's page #1.
+	if ( 0 == $oldercoms )
+		return 1;
 
-		if ( $com->comment_ID == $comment->comment_ID )
-			return $page;
-
-		$comthispage++;
-
-		if ( $comthispage >= $per_page ) {
-			$page++;
-			$comthispage = 0;
-		}
-	}
+	// Divide comments older than this one by comments per page to get this comment's page number
+	return ceil( ( $oldercoms + 1 ) / $per_page );
 }
 
 /**
@@ -778,7 +788,7 @@ function wp_transition_comment_status($new_status, $old_status, $comment) {
 		do_action('transition_comment_status', $new_status, $old_status, $comment);
 		do_action("comment_${old_status}_to_$new_status", $comment);
 	}
-	do_action("comment_${new_status}_$comment->comment_type", $comment->ID, $comment);
+	do_action("comment_${new_status}_$comment->comment_type", $comment->comment_ID, $comment);
 }
 
 /**
@@ -839,6 +849,8 @@ function wp_insert_comment($commentdata) {
 		$comment_approved = 1;
 	if ( ! isset($user_id) )
 		$user_id = 0;
+	if ( ! isset($comment_type) )
+		$comment_type = '';
 
 	$result = $wpdb->query( $wpdb->prepare("INSERT INTO $wpdb->comments
 	(comment_post_ID, comment_author, comment_author_email, comment_author_url, comment_author_IP, comment_date, comment_date_gmt, comment_content, comment_approved, comment_agent, comment_type, comment_parent, user_id)
@@ -1076,6 +1088,7 @@ function wp_update_comment($commentarr) {
 	clean_comment_cache($comment_ID);
 	wp_update_comment_count($comment_post_ID);
 	do_action('edit_comment', $comment_ID);
+	$comment = get_comment($comment_ID);
 	wp_transition_comment_status($comment_approved, $comment->comment_approved, $comment);
 	return $rval;
 }

@@ -131,16 +131,16 @@ $messages[4] = __('Category not added.');
 $messages[5] = __('Category not updated.');
 ?>
 
-<?php screen_options('category') ?>
+<?php screen_meta('category') ?>
+
+<div class="wrap nosubsub">
+<h2><?php echo wp_specialchars( $title ); ?></h2> 
 
 <?php
 if ( isset($_GET['message']) && ( $msg = (int) $_GET['message'] ) ) : ?>
 <div id="message" class="updated fade"><p><?php echo $messages[$msg]; ?></p></div>
 <?php $_SERVER['REQUEST_URI'] = remove_query_arg(array('message'), $_SERVER['REQUEST_URI']);
 endif; ?>
-
-<div class="wrap nosubsub">
-<h2><?php echo wp_specialchars( $title ); ?></h2> 
 
 <form class="search-form topmargin" action="" method="get">
 <p class="search-box">
@@ -230,8 +230,13 @@ if ( $page_links )
 <br class="clear" />
 </div>
 
-<br class="clear" />
 </form>
+
+<div class="form-wrap">
+<p><?php printf(__('<strong>Note:</strong><br />Deleting a category does not delete the posts in that category. Instead, posts that were only assigned to the deleted category are set to the category <strong>%s</strong>.'), apply_filters('the_category', get_catname(get_option('default_category')))) ?></p>
+<p><?php printf(__('Categories can be selectively converted to tags using the <a href="%s">category to tag converter</a>.'), 'admin.php?import=wp-cat2tag') ?></p>
+</div>
+
 </div>
 </div><!-- /col-right -->
 
@@ -239,7 +244,7 @@ if ( $page_links )
 <div class="col-wrap">
 
 <?php if ( current_user_can('manage_categories') ) { ?>
-<?php do_action('add_category_form_pre', $category); ?>
+<?php $category = (object) array(); $category->parent = 0; do_action('add_category_form_pre', $category); ?>
 
 <div class="form-wrap">
 <h3><?php _e('Add Category'); ?></h3>
@@ -277,11 +282,6 @@ if ( $page_links )
 </form></div>
 
 <?php } ?>
-
-<div class="form-wrap">
-<p><?php printf(__('<strong>Note:</strong><br />Deleting a category does not delete the posts in that category. Instead, posts that were only assigned to the deleted category are set to the category <strong>%s</strong>.'), apply_filters('the_category', get_catname(get_option('default_category')))) ?></p>
-<p><?php printf(__('Categories can be selectively converted to tags using the <a href="%s">category to tag converter</a>.'), 'admin.php?import=wp-cat2tag') ?></p>
-</div>
 
 </div>
 </div><!-- /col-left -->

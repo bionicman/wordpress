@@ -60,15 +60,15 @@ $messages[4] = __('Category not added.');
 $messages[5] = __('Category not updated.');
 $messages[6] = __('Categories deleted.'); ?>
 
-<?php screen_options('link-category') ?>
+<?php screen_meta('link-category') ?>
+
+<div class="wrap nosubsub">
+<h2><?php echo wp_specialchars( $title ); ?></h2> 
 
 <?php if ( isset($_GET['message']) && ( $msg = (int) $_GET['message'] ) ) : ?>
 <div id="message" class="updated fade"><p><?php echo $messages[$msg]; ?></p></div>
 <?php $_SERVER['REQUEST_URI'] = remove_query_arg(array('message'), $_SERVER['REQUEST_URI']);
 endif; ?>
-
-<div class="wrap nosubsub">
-<h2><?php echo wp_specialchars( $title ); ?></h2> 
 
 <form class="search-form" action="" method="get">
 <p class="search-box">
@@ -181,7 +181,7 @@ if ( $page_links )
 <div class="col-wrap">
 
 <?php if ( current_user_can('manage_categories') ) {
-	do_action('add_link_category_form_pre', $category); ?>
+	$category = (object) array(); $category->parent = 0; do_action('add_link_category_form_pre', $category); ?>
 
 <div class="form-wrap">
 <h3><?php _e('Add Category'); ?></h3>
@@ -198,7 +198,7 @@ if ( $page_links )
 <div class="form-field">
 	<label for="slug"><?php _e('Category slug') ?></label>
 	<input name="slug" id="slug" type="text" value="" size="40" />
-    <p><?php _e('The &#8220;slug&#8221; is the URL-friendly version of the name. It is usually all lowercase and contains only letters, numbers, and hyphens.'); ?></p>
+	<p><?php _e('The &#8220;slug&#8221; is the URL-friendly version of the name. It is usually all lowercase and contains only letters, numbers, and hyphens.'); ?></p>
 </div>
 
 <div class="form-field">

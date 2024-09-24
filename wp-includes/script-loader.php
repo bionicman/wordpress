@@ -44,7 +44,7 @@ function wp_default_scripts( &$scripts ) {
 	$scripts->add( 'common', '/wp-admin/js/common.js', array('jquery', 'user-settings', 'menu'), '20081013' );
 	$scripts->add( 'sack', '/wp-includes/js/tw-sack.js', false, '1.6.1' );
 
-	$scripts->add( 'quicktags', '/wp-includes/js/quicktags.js', false, '20080823' );
+	$scripts->add( 'quicktags', '/wp-includes/js/quicktags.js', false, '20081103' );
 	$scripts->localize( 'quicktags', 'quicktagsL10n', array(
 		'quickLinks' => __('(Quick Links)'),
 		'wordLookup' => __('Enter a word to look up:'),
@@ -75,7 +75,7 @@ function wp_default_scripts( &$scripts ) {
 		'broken' => __('An unidentified error has occurred.')
 	) );
 
-	$scripts->add( 'autosave', '/wp-includes/js/autosave.js', array('schedule', 'wp-ajax-response'), '20080701' );
+	$scripts->add( 'autosave', '/wp-includes/js/autosave.js', array('schedule', 'wp-ajax-response'), '20081102' );
 
 	$scripts->add( 'wp-lists', '/wp-includes/js/wp-lists.js', array('wp-ajax-response'), '20080729' );
 	$scripts->localize( 'wp-lists', 'wpListL10n', array(
@@ -109,7 +109,7 @@ function wp_default_scripts( &$scripts ) {
 		'is_lighttpd_before_150' => is_lighttpd_before_150(),
 	) );
 	$scripts->add( 'swfupload-queue', '/wp-includes/js/swfupload/plugins/swfupload.queue.js', array('swfupload'), '2.2.0-20081031');
-	$scripts->add( 'swfupload-handlers', '/wp-includes/js/swfupload/handlers.js', array('swfupload'), '2.2.0-20081031');
+	$scripts->add( 'swfupload-handlers', '/wp-includes/js/swfupload/handlers.js', array('swfupload'), '2.2.0-20081101');
 	// these error messages came from the sample swfupload js, they might need changing.
 	$scripts->localize( 'swfupload-handlers', 'swfuploadL10n', array(
 			'queue_limit_exceeded' => __('You have attempted to queue too many files.'),
@@ -166,7 +166,7 @@ function wp_default_scripts( &$scripts ) {
 		$scripts->add( 'admin-forms', '/wp-admin/js/forms.js', array('jquery'), '20080729');
 		$scripts->add( 'xfn', '/wp-admin/js/xfn.js', false, '3517' );
 		$scripts->add( 'upload', '/wp-admin/js/upload.js', array('jquery'), '20070518' );
-		$scripts->add( 'postbox', '/wp-admin/js/postbox.js', array('jquery-ui-sortable'), '20081030' );
+		$scripts->add( 'postbox', '/wp-admin/js/postbox.js', array('jquery-ui-sortable'), '20081104' );
 		$scripts->localize( 'postbox', 'postboxL10n', array(
 			'requestFile' => admin_url('admin-ajax.php'),
 		) );
@@ -176,7 +176,7 @@ function wp_default_scripts( &$scripts ) {
 			'save' => __('Save'),
 			'cancel' => __('Cancel'),
 		) );
-		$scripts->add( 'post', '/wp-admin/js/post.js', array('suggest', 'jquery-ui-tabs', 'wp-lists', 'postbox', 'slug', 'settings-box'), '20081031' );
+		$scripts->add( 'post', '/wp-admin/js/post.js', array('suggest', 'jquery-ui-tabs', 'wp-lists', 'postbox', 'slug', 'settings-box'), '20081105' );
 		$scripts->localize( 'post', 'postL10n', array(
 			'tagsUsed' =>  __('Tags used on this post:'),
 			'add' => attribute_escape(__('Add')),
@@ -192,10 +192,10 @@ function wp_default_scripts( &$scripts ) {
 			'publish' => __('Publish'),
 			'schedule' => __('Schedule'),
 			'update' => __('Update Post'),
-			'savePending' => __('Save Pending'),
+			'savePending' => __('Save as Pending'),
 			'saveDraft' => __('Save Draft')
 		) );
-		$scripts->add( 'page', '/wp-admin/js/page.js', array('jquery', 'slug', 'postbox', 'settings-box'), '20081031' );
+		$scripts->add( 'page', '/wp-admin/js/page.js', array('jquery', 'slug', 'postbox', 'settings-box'), '20081103' );
 		$scripts->localize( 'page', 'postL10n', array(
 			'cancel' => __('Cancel'),
 			'edit' => __('Edit'),
@@ -207,11 +207,11 @@ function wp_default_scripts( &$scripts ) {
 			'publish' => __('Publish'),
 			'schedule' => __('Schedule'),
 			'update' => __('Update Page'),
-			'savePending' => __('Save Pending'),
+			'savePending' => __('Save as Pending'),
 			'saveDraft' => __('Save Draft')
 		) );
 		$scripts->add( 'link', '/wp-admin/js/link.js', array('jquery-ui-tabs', 'wp-lists', 'postbox', 'settings-box'), '20080925' );
-		$scripts->add( 'comment', '/wp-admin/js/comment.js', array('jquery'), '20081030' );
+		$scripts->add( 'comment', '/wp-admin/js/comment.js', array('jquery'), '20081103' );
 		$scripts->localize( 'comment', 'commentL10n', array(
 			'cancel' => __('Cancel'),
 			'edit' => __('Edit'),
@@ -292,12 +292,12 @@ function wp_default_scripts( &$scripts ) {
 			'requestFile' => admin_url('admin-ajax.php'),
 		) );
 
-		$scripts->add( 'settings-box', '/wp-admin/js/settings-box.js', array( 'jquery' ), '20081024' );
+		$scripts->add( 'settings-box', '/wp-admin/js/settings-box.js', array( 'jquery' ), '20081105' );
 
 		$scripts->add( 'dashboard', '/wp-admin/js/dashboard.js', array( 'jquery', 'admin-comments', 'postbox', 'settings-box' ), '20081016' );
 
 		$scripts->add( 'hoverIntent', '/wp-includes/js/hoverIntent.js', array('jquery'), '20070327' );
-		$scripts->add( 'menu', '/wp-admin/js/menu.js', array( 'jquery', 'hoverIntent' ), '20081030' );
+		$scripts->add( 'menu', '/wp-admin/js/menu.js', array( 'jquery', 'hoverIntent' ), '20081105' );
 
 	}
 }
@@ -328,7 +328,7 @@ function wp_default_styles( &$styles ) {
 
 	$rtl_styles = array( 'global', 'colors', 'dashboard', 'ie', 'install', 'login', 'media', 'theme-editor', 'upload', 'widgets', 'press-this', 'press-this-ie' );
 
-	$styles->add( 'wp-admin', '/wp-admin/wp-admin.css', array(), '20081031' );
+	$styles->add( 'wp-admin', '/wp-admin/wp-admin.css', array(), '20081105' );
 	$styles->add_data( 'wp-admin', 'rtl', '/wp-admin/rtl.css' );
 
 	$styles->add( 'ie', '/wp-admin/css/ie.css' );
@@ -341,7 +341,7 @@ function wp_default_styles( &$styles ) {
 	$styles->add( 'global', '/wp-admin/css/global.css', array(), '20081030' );
 	$styles->add( 'media', '/wp-admin/css/media.css', array(), '20080709' );
 	$styles->add( 'widgets', '/wp-admin/css/widgets.css' );
-	$styles->add( 'dashboard', '/wp-admin/css/dashboard.css', array(), '20081030' );
+	$styles->add( 'dashboard', '/wp-admin/css/dashboard.css', array(), '20081105' );
 	$styles->add( 'install', '/wp-admin/css/install.css', array(), '20080708' );
 	$styles->add( 'theme-editor', '/wp-admin/css/theme-editor.css' );
 	$styles->add( 'press-this', '/wp-admin/css/press-this.css', array(), '20080922' );

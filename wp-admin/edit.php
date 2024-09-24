@@ -90,7 +90,10 @@ if ( empty($_GET['mode']) )
 else
 	$mode = attribute_escape($_GET['mode']); ?>
 
-<?php screen_options('post') ?>
+<?php screen_meta('post') ?>
+
+<div class="wrap">
+<h2><?php echo wp_specialchars( $title ); ?></h2>
 
 <?php
 if ( isset($_GET['posted']) && $_GET['posted'] ) : $_GET['posted'] = (int) $_GET['posted']; ?>
@@ -114,9 +117,6 @@ if ( (int) $_GET['locked'] ) {
 } ?>
 </p></div>
 <?php } ?>
-
-<div class="wrap">
-<h2><?php echo wp_specialchars( $title ); ?></h2>
 
 <form id="posts-filter" action="" method="get">
 <ul class="subsubsub">

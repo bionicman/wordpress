@@ -60,12 +60,12 @@ jQuery(document).ready( function($) {
 			$('#publish').val( postL10n.update );
 		}
 		$('#timestamp').html(
-			publishOn + '<br />' +
+			publishOn + ' <b>' +
 			$( '#mm option[value=' + $('#mm').val() + ']' ).text() + ' ' +
 			$('#jj').val() + ', ' +
 			$('#aa').val() + ' @ ' +
 			$('#hh').val() + ':' +
-			$('#mn').val() + ' '
+			$('#mn').val() + '</b> '
 		);
 
 		return false;
@@ -108,8 +108,15 @@ jQuery(document).ready( function($) {
 	
 	// preview
 	$('#post-preview').click(function(e){
+		if ( 1 > $('#post_ID').val() && autosaveFirst ) {
+			autosaveDelayPreview = true;
+			autosave();
+			return false;
+		}
+
 		$('input#wp-preview').val('dopreview');
 		$('form#post').attr('target', 'wp-preview').submit().attr('target', '');
 		$('input#wp-preview').val('');
+		return false;
 	});
 });

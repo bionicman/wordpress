@@ -422,6 +422,29 @@ case 'add-tag' : // From Manage->Tags
 	) );
 	$x->send();
 	break;
+case 'get-tagcloud' :
+	if ( !current_user_can( 'manage_categories' ) )
+		die('-1');
+
+	$tags = get_tags( array( 'number' => 45, 'orderby' => 'count', 'order' => 'DESC' ) );
+	
+	if ( empty( $tags ) )
+		die('0');
+	
+	foreach ( $tags as $key => $tag ) {
+		$tags[ $key ]->link = '#';
+		$tags[ $key ]->id = $tag->term_id;
+	}
+
+	$return = wp_generate_tag_cloud( $tags );
+
+	if ( empty($return) )
+		die('0');
+	
+	echo $return;
+	
+	exit;
+	break;
 case 'add-comment' :
 	check_ajax_referer( $action );
 	if ( !current_user_can( 'edit_post', $id ) )
@@ -494,8 +517,8 @@ case 'replyto-comment' :
 
 	if ( empty($status) )
 		die('1');
-	elseif ( in_array($status->post_status, array('draft', 'pending') ) )
-		die( __('Error: you are replying to comment on a draft post.') );
+	elseif ( in_array($status, array('draft', 'pending') ) )
+		die( __('Error: you are replying to a comment on a draft post.') );
 
 	$user = wp_get_current_user();
 	if ( $user->ID ) {

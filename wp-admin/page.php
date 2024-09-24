@@ -166,7 +166,7 @@ case 'delete':
 	}
 
 	$sendback = wp_get_referer();
-	if (strpos($sendback, 'page.php') !== false) $sendback = admin_url('page.php');
+	if (strpos($sendback, 'page.php') !== false) $sendback = admin_url('page-new.php');
 	elseif (strpos($sendback, 'attachments.php') !== false) $sendback = admin_url('attachments.php');
 	$sendback = preg_replace('|[^a-z0-9-~+_.?#=&;,/:]|i', '', $sendback);
 	wp_redirect($sendback);
@@ -176,20 +176,7 @@ case 'delete':
 case 'preview':
 	check_admin_referer( 'autosave', 'autosavenonce' );
 
-	if ( empty($_POST['post_title']) )
-		wp_die( __('Please enter a title before previewing this page.') );
-
-	$id = post_preview();
-
-	if ( is_wp_error($id) )
-		wp_die( $id->get_error_message() );
-
-	if ( $_POST['post_status'] == 'publish'  ) {
-		$nonce = wp_create_nonce('post_preview_' . $id);
-		$url = site_url('?wp_preview=' . $id . '&preview_nonce=' . $nonce);
-	} else {
-		$url = site_url('?page_id=' . $id . '&preview=true');
-	}
+	$url = post_preview();
 
 	wp_redirect($url);
 	exit();

@@ -148,7 +148,7 @@ ul#widget-list li.widget-list-item h4.widget-title {
 	color: #101010;
 }
 
-.alternate {
+.alternate, .alt {
 	background-color: #f9f9f9;
 }
 
@@ -205,7 +205,7 @@ ul#widget-list li.widget-list-item h4.widget-title {
 	color: #d54e21;
 }
 
-.howto, .nonessential, #edit-slug-box, .form-input-tip, #dashboard_primary span.rss-date, .subsubsub, #dashboard_secondary div.dashboard-widget-content ul li a cite {
+.howto, .nonessential, #edit-slug-box, .form-input-tip, .rss-widget span.rss-date, .subsubsub {
 	color: #999;
 }
 
@@ -362,10 +362,6 @@ div.dashboard-widget-submit input:hover,
 .login .message {
 	background-color: #ffffe0;
 	border-color: #e6db55;
-}
-
-.updated a {
-	border-bottom-color: #2583ad;
 }
 
 a.page-numbers {
@@ -889,7 +885,8 @@ abbr.required,
 }
 
 #timestampdiv input,
-#namediv input {
+#namediv input,
+#tagsdiv #the-tagcloud {
 	border-color: #ddd;
 }
 
@@ -988,12 +985,13 @@ table.diff .diff-addedline ins {
 	border-top-color: #e4f2fd;
 }
 
-#screen-options-wrap {
+#screen-options-wrap,
+#contextual-help-wrap {
 	background-color: #f1f1f1;
 	border-color: #dfdfdf;
 }
 
-#screen-options a.show-settings {
+#screen-meta-links a.show-settings {
 	color: #606060;
 }
 
@@ -1071,4 +1069,8 @@ div.star.select:hover {
 #replyrow #ed_reply_toolbar input:hover {
 	border-color: #aaa;
 	background: #ddd;
+}
+
+.attention {
+	color: #D54E21;
 }

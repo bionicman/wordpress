@@ -129,15 +129,15 @@ $messages[4] = __('Tag not added.');
 $messages[5] = __('Tag not updated.');
 $messages[6] = __('Tags deleted.'); ?>
 
-<?php screen_options('tag') ?>
+<?php screen_meta('tag') ?>
+
+<div class="wrap nosubsub">
+<h2><?php echo wp_specialchars( $title ); ?></h2> 
 
 <?php if ( isset($_GET['message']) && ( $msg = (int) $_GET['message'] ) ) : ?>
 <div id="message" class="updated fade"><p><?php echo $messages[$msg]; ?></p></div>
 <?php $_SERVER['REQUEST_URI'] = remove_query_arg(array('message'), $_SERVER['REQUEST_URI']);
 endif; ?>
-
-<div class="wrap nosubsub">
-<h2><?php echo wp_specialchars( $title ); ?></h2> 
 
 <form class="search-form" action="" method="get">
 <p class="search-box">
@@ -242,7 +242,7 @@ if ( $page_links )
 if ( $can_manage )
 	wp_tag_cloud(array('link' => 'edit')); 
 else
-	wp_tag_cloud(); 
+	wp_tag_cloud();
 ?>
 </div>
 

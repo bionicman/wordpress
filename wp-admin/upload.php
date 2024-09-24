@@ -145,7 +145,7 @@ if ( is_singular() ) {
 
 require_once('admin-header.php'); ?>
 
-<?php screen_options('media') ?>
+<?php screen_meta('media') ?>
 
 <?php
 if ( isset($_GET['posted']) && (int) $_GET['posted'] ) {
@@ -163,12 +163,9 @@ $messages[1] = __('Media attachment updated.');
 $messages[2] = __('Media deleted.');
 $messages[3] = __('Error saving media attachment.');
 
-if ( isset($_GET['message']) && (int) $_GET['message'] )
+if ( isset($_GET['message']) && (int) $_GET['message'] ) {
 	$message = $messages[$_GET['message']];
-
-if ( isset($message) ) { ?>
-<div id="message" class="updated fade"><p><?php echo $message; ?></p></div>
-<?php $_SERVER['REQUEST_URI'] = remove_query_arg(array('message'), $_SERVER['REQUEST_URI']);
+	$_SERVER['REQUEST_URI'] = remove_query_arg(array('message'), $_SERVER['REQUEST_URI']);
 }
 ?>
 
@@ -177,6 +174,13 @@ if ( isset($message) ) { ?>
 <div class="wrap">
 <h2><?php echo wp_specialchars( $title ); ?></h2> 
 
+<?php
+if ( isset($message) ) { ?>
+<div id="message" class="updated fade"><p><?php echo $message; ?></p></div>
+<?php 
+}
+?>
+
 <ul class="subsubsub">
 <?php
 $type_links = array();
@@ -184,7 +188,7 @@ $_num_posts = (array) wp_count_attachments();
 $matches = wp_match_mime_types(array_keys($post_mime_types), array_keys($_num_posts));
 foreach ( $matches as $type => $reals )
 	foreach ( $reals as $real )
-		$num_posts[$type] += $_num_posts[$real];
+		$num_posts[$type] = ( isset( $num_posts[$type] ) ) ? $num_posts[$type] + $_num_posts[$real] : $_num_posts[$real];
 
 $class = empty($_GET['post_mime_type']) && ! isset($_GET['detached']) ? ' class="current"' : '';
 $type_links[] = "<li><a href=\"upload.php\"$class>".__('All Types')."</a>";
@@ -194,7 +198,7 @@ foreach ( $post_mime_types as $mime_type => $label ) {
 	if ( !wp_match_mime_types($mime_type, $avail_post_mime_types) )
 		continue;
 
-	if ( wp_match_mime_types($mime_type, $_GET['post_mime_type']) )
+	if ( !empty($_GET['post_mime_type']) && wp_match_mime_types($mime_type, $_GET['post_mime_type']) )
 		$class = ' class="current"';
 
 	$type_links[] = "<li><a href=\"upload.php?post_mime_type=$mime_type\"$class>" .

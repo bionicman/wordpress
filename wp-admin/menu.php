@@ -54,6 +54,8 @@ $menu[20] = array( __('Pages'), 'edit_pages', 'page-new.php', '', '', 'menu-page
 $menu[25] = array( sprintf( __('Comments %s'), "<span id='awaiting-mod' class='count-$awaiting_mod'><span class='comment-count'>" . number_format_i18n($awaiting_mod) . "</span></span>" ), 'edit_posts', 'edit-comments.php', '', 'menu-top-last', 'menu-comments', 'images/menu/comments.png' );
 	$submenu['edit-comments.php'][15] = array( __('Comments'), 'edit_posts', 'edit-comments.php' );
 
+$_wp_last_object_menu = 25; // The index of the last top-level menu in the object menu group
+
 $menu[29] = array( '', 'read', '', '', 'wp-menu-separator' );
 
 $menu[30] = array( __('Appearance'), 'switch_themes', 'themes.php', '', 'menu-top-first', 'menu-appearance', 'images/menu/appearance.png' );
@@ -61,7 +63,10 @@ $menu[30] = array( __('Appearance'), 'switch_themes', 'themes.php', '', 'menu-to
 	$submenu['themes.php'][10] = array(__('Editor'), 'edit_themes', 'theme-editor.php');
 
 $update_plugins = get_option( 'update_plugins' );
-$update_count = count( $update_plugins->response );	
+$update_count = 0;
+if ( !empty($update_plugins->response) )
+	$update_count = count( $update_plugins->response );
+
 $menu[35] = array( sprintf( __('Plugins %s'), "<span id='update-plugins' class='count-$update_count'><span class='plugin-count'>" . number_format_i18n($update_count) . "</span></span>" ), 'activate_plugins', 'plugins.php', '', '', 'menu-plugins', 'images/menu/plugins.png' );
 	$submenu['plugins.php'][5]  = array( __('Installed'), 'activate_plugins', 'plugins.php' );
 	$submenu['plugins.php'][10] = array(_c('Add New|plugin'), 'install_plugins', 'plugin-install.php');	
@@ -86,7 +91,7 @@ $menu[45] = array( __('Tools'), 'manage_options', 'import.php', '', '', 'menu-to
 	$submenu['import.php'][10] = array( __('Export'), 'import', 'export.php' );
 	if ( ! $is_opera )
 		$submenu['import.php'][20] = array( __('Turbo'), 'read', 'turbo.php' );
-	$submenu['import.php'][30] = array( __('Update'), 'read',  wp_nonce_url('update.php?action=upgrade-core', 'upgrade-core'));
+	$submenu['import.php'][30] = array( __('Update'), 'read',  'update-core.php');
 
 $menu[50] = array( __('Settings'), 'manage_options', 'options-general.php', '', 'menu-top-last', 'menu-settings', 'images/menu/settings.png' );
 	$submenu['options-general.php'][10] = array(__('General'), 'manage_options', 'options-general.php');

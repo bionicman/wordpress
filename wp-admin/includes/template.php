@@ -204,7 +204,8 @@ function inline_edit_term_row($type) {
 
 	$is_tag = $type == 'tag';
 	$columns = $is_tag ? get_column_headers('tag') : get_column_headers('category');
-	$hidden = (array) get_user_option( "manage-$type-columns-hidden" ); ?>
+	$hidden = (array) get_user_option( "manage-$type-columns-hidden" );
+	$output = ''; ?>
 
 <form method="get" action=""><table style="display: none"><tbody id="inlineedit">
 	<tr id="inline-edit" style="display: none"><td colspan="8">
@@ -229,7 +230,7 @@ function inline_edit_term_row($type) {
 				</div>
 				<?php
 
-				$output .= "<td $attributes>$edit</td>";
+				$output .= "<td $attributes></td>";
 				break;
 			case 'slug': ?>
 				<div class="tax-slug quick-edit-div"<?php echo $style ?> title="<?php _e('Slug'); ?>">
@@ -240,7 +241,7 @@ function inline_edit_term_row($type) {
 				</div>
 				<?php
 
-				$output .= "<td $attributes>$category->slug</td>";
+				$output .= "<td $attributes></td>";
 				break;
 			case 'posts':
 				if ( 'category' == $type ) { ?>
@@ -734,6 +735,9 @@ function wp_manage_pages_columns() {
 	$posts_columns['cb'] = '<input type="checkbox" />';
 	$posts_columns['title'] = __('Title');
 	$posts_columns['author'] = __('Author');
+	$post_status = 'all';
+	if ( !empty($_GET['post_status']) )
+		$post_status = $_GET['post_status'];
 	if ( !in_array($post_status, array('pending', 'draft', 'future')) )
 		$posts_columns['comments'] = '<div class="vers"><img alt="" src="images/comment-grey-bubble.png" /></div>';
 	$posts_columns['date'] = __('Date');
@@ -1238,15 +1242,23 @@ function _post_row($a_post, $pending_comments, $mode) {
 			} else {
 				$t_time = get_the_time(__('Y/m/d g:i:s A'));
 				$m_time = $post->post_date;
-				$time = get_post_time('G', true);
+				$time = get_post_time('G', true, $post);
 
-				if ( ( abs(time() - $time) ) < 86400 ) {
-					if ( ( 'future' == $post->post_status) )
+				$time_diff = time() - $time; 
+
+				if ( ( 'future' == $post->post_status) ) {
+					if ( $time_diff <= 0 ) {
 						$h_time = sprintf( __('%s from now'), human_time_diff( $time ) );
-					else
-						$h_time = sprintf( __('%s ago'), human_time_diff( $time ) );
+					} else {
+						$h_time = $t_time;
+						$missed = true;
+					}
 				} else {
-					$h_time = mysql2date(__('Y/m/d'), $m_time);
+
+					if ( $time_diff > 0 && $time_diff < 24*60*60 )
+						$h_time = sprintf( __('%s ago'), human_time_diff( $time ) );
+					else
+						$h_time = mysql2date(__('Y/m/d'), $m_time);
 				}
 			}
 
@@ -1256,10 +1268,16 @@ function _post_row($a_post, $pending_comments, $mode) {
 			else
 				echo '<abbr title="' . $t_time . '">' . apply_filters('post_date_column_time', $h_time, $post, $column_name, $mode) . '</abbr>';
 			echo '<br />';
-			if ( 'publish' == $post->post_status || 'future' == $post->post_status )
+			if ( 'publish' == $post->post_status ) {
 				_e('Published');
-			else
+			} elseif ( 'future' == $post->post_status ) {
+				if ( isset($missed) )
+					echo '<strong class="attention">' . __('Missed schedule') . '</strong>';
+				else
+					_e('Scheduled');
+			} else {
 				_e('Last Modified');
+			}
 			echo '</td>';
 		break;
 
@@ -1286,7 +1304,7 @@ function _post_row($a_post, $pending_comments, $mode) {
 			foreach ( $actions as $action => $link ) {
 				++$i;
 				( $i == $action_count ) ? $sep = '' : $sep = ' | ';
-				echo "<span class='$action'>$link$sep</span>";
+				echo "<span class='$action'>$link</span>$sep";
 			}
 
 			get_inline_data($post);
@@ -1443,7 +1461,7 @@ foreach ($posts_columns as $column_name=>$column_display_name) {
 			}
 		}
 		echo '<td ' . $attributes . '>';
-		echo '<abbr title="' . $t_time . '">' . apply_filters('post_date_column_time', $h_time, $page, $column_name, $mode) . '</abbr>';
+		echo '<abbr title="' . $t_time . '">' . apply_filters('post_date_column_time', $h_time, $page, $column_name, '') . '</abbr>';
 		echo '<br />';
 		if ( 'publish' == $page->post_status || 'future' == $page->post_status )
 			_e('Published');
@@ -1707,6 +1725,7 @@ function user_row( $user_object, $style = '', $role = '' ) {
 	$r = "<tr id='user-$user_object->ID'$style>";
 	$columns = get_column_headers('user');
 	$hidden = (array) get_user_option( 'manage-user-columns-hidden' );
+	$avatar = get_avatar( $user_object->user_email, 32 );
 	foreach ( $columns as $column_name => $column_display_name ) {
 		$class = "class=\"$column_name column-$column_name\"";
 
@@ -1721,7 +1740,7 @@ function user_row( $user_object, $style = '', $role = '' ) {
 				$r .= "<th scope='row' class='check-column'><input type='checkbox' name='users[]' id='user_{$user_object->ID}' class='$role' value='{$user_object->ID}' /></th>";
 				break;
 			case 'username':
-				$r .= "<td $attributes>$edit</td>";
+				$r .= "<td $attributes>$avatar $edit</td>";
 				break;
 			case 'name':
 				$r .= "<td $attributes>$user_object->first_name $user_object->last_name</td>";
@@ -2015,7 +2034,7 @@ function wp_comment_reply($position = '1', $checkbox = false, $mode = 'single', 
 
 	<p id="replysubmit">
 	<a href="#comments-form" class="cancel button" tabindex="106"><?php _e('Cancel'); ?></a>
-	<a href="#comments-form" class="save button" tabindex="105">
+	<a href="#comments-form" class="save button" tabindex="104">
 	<span id="savebtn" style="display:none;"><?php _e('Save'); ?></span>
 	<span id="replybtn" style="display:none;"><?php _e('Submit Reply'); ?></span></a>
 	<img class="waiting" style="display:none;" src="images/loading.gif" alt="" />
@@ -2255,7 +2274,7 @@ function touch_time( $edit = 1, $for_post = 1, $tab_index = 0, $multi = 0 ) {
 	$year = '<input type="text" ' . ( $multi ? '' : 'id="aa" ' ) . 'name="aa" value="' . $aa . '" size="4" maxlength="5"' . $tab_index_attribute . ' autocomplete="off" />';
 	$hour = '<input type="text" ' . ( $multi ? '' : 'id="hh" ' ) . 'name="hh" value="' . $hh . '" size="2" maxlength="2"' . $tab_index_attribute . ' autocomplete="off" />';
 	$minute = '<input type="text" ' . ( $multi ? '' : 'id="mn" ' ) . 'name="mn" value="' . $mn . '" size="2" maxlength="2"' . $tab_index_attribute . ' autocomplete="off" />';
-	printf(_c('%1$s%2$s, %3$s <br />@ %4$s : %5$s|1: month input, 2: day input, 3: year input, 4: hour input, 5: minute input'), $month, $day, $year, $hour, $minute);
+	printf(_c('%1$s%2$s, %3$s @ %4$s : %5$s|1: month input, 2: day input, 3: year input, 4: hour input, 5: minute input'), $month, $day, $year, $hour, $minute);
 
 	if ( $multi ) return;
 
@@ -2843,6 +2862,7 @@ function find_posts_div($found_action = '') {
 		</div>
 	</div>
 	<script type="text/javascript">
+	/* <![CDATA[ */ 
 	(function($){
 		findPosts = {
 			open : function(af_name, af_val) {
@@ -2937,6 +2957,7 @@ function find_posts_div($found_action = '') {
 			});
 		});
 	})(jQuery);
+	/* ]]> */ 
 	</script>
 <?php
 }
@@ -3101,10 +3122,10 @@ function _post_states($post) {
 	}
 }
 
-function screen_options($screen, $metabox = false) {
+function screen_meta($screen, $metabox = false, $page = '') {
 ?>
-<div id="screen-options">
-	<div id="screen-options-wrap" class="hidden">
+<div id="screen-meta">
+<div id="screen-options-wrap" class="hidden">
 	<h5><?php _e('Show on screen') ?></h5>
 	<form id="adv-settings" action="" method="get">
 	<div class="metabox-prefs">
@@ -3118,11 +3139,55 @@ function screen_options($screen, $metabox = false) {
 ?>
 	<br class="clear" />
 	</div></form>
-	</div>
+</div>
 
-	<div id="screen-options-link-wrap" class="hide-if-no-js screen-options-closed">
-	<a href="#screen-options" id="show-settings-link" class="show-settings"><?php _e('Screen Options') ?></a>
+<?php
+	if ( '' != $page ) {
+// Allow a plugin to short-circuit
+		$help = apply_filters('contextual_help', '', $page);
+		if ( !empty($help) )
+			return;
+	
+		global $title;
+
+		$help['edit-post'] =  __('<a href="http://codex.wordpress.org/Writing_Posts" target="_blank">Writing Posts</a>');
+		$help['general-settings'] =  __('<a href="http://codex.wordpress.org/Settings_General_SubPanel" target="_blank">General Settings</a>');
+	?>
+	<div id="contextual-help-wrap" class="hidden">
+	<?php
+		if ( isset($help[$page]) ) {
+			if ( isset($title) && 'edit-post' != $page )
+				echo '<h5>' . sprintf(__('Get help with "%s"'), $title) . '</h5>';
+			else
+				echo '<h5>' . __('Get help with this page') . '</h5>';
+			echo '<div class="metabox-prefs">' . $help[$page] . "</div>\n";
+	
+			echo '<h5>' . __('Other Help') . '</h5>';
+		} else {
+			echo '<h5>' . __('Help') . '</h5>';
+		}
+
+		echo '<div class="metabox-prefs">';
+		_e('<a href="http://codex.wordpress.org/" target="_blank">Documentation</a>');
+		echo '<br />';
+		_e('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>');
+		echo "</div>\n";
+	?>
 	</div>
+	<?php
+	}
+?>
+
+<div id="screen-meta-links">
+<?php if ( '' != $page ) { ?>
+<div id="contextual-help-link-wrap" class="hide-if-no-js screen-meta-toggle">
+<a href="#contextual-help" id="contextual-help-link" class="show-settings"><?php _e('Help') ?></a>
+</div>
+<?php } ?>
+<div id="screen-options-link-wrap" class="hide-if-no-js screen-meta-toggle">
+<a href="#screen-options" id="show-settings-link" class="show-settings"><?php _e('Screen Options') ?></a>
+</div>
+</div>
 </div>
 <?php
 }
