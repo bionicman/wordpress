@@ -172,96 +172,58 @@ function get_usernumposts($userid) {
 
 // examine a url (supposedly from this blog) and try to
 // determine the post ID it represents.
-function url_to_postid($url = '') {
-	global $wpdb;
+function url_to_postid($url) {
+	global $wp_rewrite;
 
-	$siteurl = get_settings('home');
-	// Take a link like 'http://example.com/blog/something'
-	// and extract just the '/something':
-	$uri = preg_replace("#$siteurl#i", '', $url);
-
-	// on failure, preg_replace just returns the subject string
-	// so if $uri and $siteurl are the same, they didn't match:
-	if ($uri == $siteurl) 
-		return 0;
-		
 	// First, check to see if there is a 'p=N' or 'page_id=N' to match against:
-	preg_match('#[?&](p|page_id)=(\d+)#', $uri, $values);
-	$p = intval($values[2]);
-	if ($p) return $p;
-	
-	// Match $uri against our permalink structure
-	$permalink_structure = get_settings('permalink_structure');
-	
-	// Matt's tokenizer code
-	$rewritecode = array(
-		'%year%',
-		'%monthnum%',
-		'%day%',
-		'%hour%',
-		'%minute%',
-		'%second%',
-		'%postname%',
-		'%post_id%'
-	);
-	$rewritereplace = array(
-		'([0-9]{4})?',
-		'([0-9]{1,2})?',
-		'([0-9]{1,2})?',
-		'([0-9]{1,2})?',
-		'([0-9]{1,2})?',
-		'([0-9]{1,2})?',
-		'([_0-9a-z-]+)?',
-		'([0-9]+)?'
-	);
+	preg_match('#[?&](p|page_id)=(\d+)#', $url, $values);
+	$id = intval($values[2]);
+	if ($id) return $id;
 
-	// Turn the structure into a regular expression
-	$matchre = str_replace('/', '/?', $permalink_structure);
-	$matchre = str_replace($rewritecode, $rewritereplace, $matchre);
+	// URI is probably a permalink.
+	$rewrite = $wp_rewrite->wp_rewrite_rules();
 
-	// Extract the key values from the uri:
-	preg_match("#$matchre#",$uri,$values);
+	if ( empty($rewrite) )
+		return 0;
 
-	// Extract the token names from the structure:
-	preg_match_all("#%(.+?)%#", $permalink_structure, $tokens);
+	$req_uri = $url;
 
-	for($i = 0; $i < count($tokens[1]); $i++) {
-		$name = $tokens[1][$i];
-		$value = $values[$i+1];
-
-		// Create a variable named $year, $monthnum, $day, $postname, or $post_id:
-		$$name = $value;
-	}
-	
-	// If using %post_id%, we're done:
-	if (intval($post_id)) return intval($post_id);
-	
-	// Otherwise, build a WHERE clause, making the values safe along the way:
-	if ($year) $where .= " AND YEAR(post_date) = '" . intval($year) . "'";
-	if ($monthnum) $where .= " AND MONTH(post_date) = '" . intval($monthnum) . "'";
-	if ($day) $where .= " AND DAYOFMONTH(post_date) = '" . intval($day) . "'";
-	if ($hour) $where .= " AND HOUR(post_date) = '" . intval($hour) . "'";
-	if ($minute) $where .= " AND MINUTE(post_date) = '" . intval($minute) . "'";
-	if ($second) $where .= " AND SECOND(post_date) = '" . intval($second) . "'";
-	if ($postname) $where .= " AND post_name = '" . $wpdb->escape($postname) . "' ";
-
-	// We got no indication, so we return false:
-	if (!strlen($where)) {
-		return false;
+	if ( false !== strpos($req_uri, get_settings('home')) ) {
+		$req_uri = str_replace(get_settings('home'), '', $req_uri);
+	} else {
+		$home_path = parse_url(get_settings('home'));
+		$home_path = $home_path['path'];
+		$req_uri = str_replace($home_path, '', $req_uri);
 	}
 
-	// if all we got was a postname, it's probably a page, so we'll want to check for a possible subpage
-	if ($postname && !$year && !$monthnum && !$day && !$hour && !$minute && !$second) {
-	$postname = rtrim(strstr($uri, $postname), '/');
-	$uri_array = explode('/', $postname);
-	$postname = $uri_array[count($uri_array) - 1];
-	$where = " AND post_name = '" . $wpdb->escape($postname) . "' ";
-	}
+	$req_uri = trim($req_uri, '/');
+	$request = $req_uri;
 	
-	// Run the query to get the post ID:
-	$id = intval($wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE 1 = 1 " . $where));
+	// Look for matches.
+	$request_match = $request;
+	foreach ($rewrite as $match => $query) {
+		// If the requesting file is the anchor of the match, prepend it
+		// to the path info.
+		if ((! empty($req_uri)) && (strpos($match, $req_uri) === 0)) {
+			$request_match = $req_uri . '/' . $request;
+		}
 
-	return $id;
+		if (preg_match("!^$match!", $request_match, $matches)) {
+			// Got a match.
+			// Trim the query of everything up to the '?'.
+			$query = preg_replace("!^.+\?!", '', $query);
+			
+			// Substitute the substring matches into the query.
+			eval("\$query = \"$query\";");
+			$query = new WP_Query($query);
+			if ( !empty($query->post) )
+				return $query->post->ID;
+			else
+				return 0;
+		}
+	}
+
+	return 0;
 }
 
 
@@ -671,6 +633,10 @@ function generic_ping($post_id = 0) {
 // Send a Trackback
 function trackback($trackback_url, $title, $excerpt, $ID) {
 	global $wpdb, $wp_version;
+
+	if (empty($trackback_url))
+		return;
+
 	$title = urlencode($title);
 	$excerpt = urlencode($excerpt);
 	$blog_name = urlencode(get_settings('blogname'));
@@ -829,7 +795,7 @@ function do_enclose( $content, $post_ID ) {
 function wp_get_http_headers( $url ) {
 	set_time_limit( 60 ); 
 	$parts = parse_url( $url );
-	$file  = $parts['path'] . $parts['query'];
+	$file  = $parts['path'] . ($parts['query'] ? '?'.$parts['query'] : '');
 	$host  = $parts['host'];
 	if ( !isset( $parts['port'] ) )
 		$parts['port'] = 80;
@@ -1859,7 +1825,16 @@ function add_magic_quotes($array) {
 }
 
 function wp_remote_fopen( $uri ) {
-	if ( function_exists('curl_init') ) {
+	if ( ini_get('allow_url_fopen') ) {
+		$fp = fopen( $uri, 'r' );
+		if ( !$fp )
+			return false;
+		$linea = '';
+		while( $remote_read = fread($fp, 4096) )
+			$linea .= $remote_read;
+		fclose($fp);
+		return $linea;		
+	} else if ( function_exists('curl_init') ) {
 		$handle = curl_init();
 		curl_setopt ($handle, CURLOPT_URL, $uri);
 		curl_setopt ($handle, CURLOPT_CONNECTTIMEOUT, 1);
@@ -1868,13 +1843,7 @@ function wp_remote_fopen( $uri ) {
 		curl_close($handle);
 		return $buffer;
 	} else {
-		$fp = fopen( $uri, 'r' );
-		if ( !$fp )
-			return false;
-		$linea = '';
-		while( $remote_read = fread($fp, 4096) )
-			$linea .= $remote_read;
-		return $linea;
+		return false;
 	}	
 }
 
