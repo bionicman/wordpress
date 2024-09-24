@@ -375,7 +375,7 @@ function get_calendar($daylength = 1) {
 
 	if ($next) {
 		echo "\n\t\t".'<td abbr="' . $month[zeroise($next->month, 2)] . '" colspan="3" id="next"><a href="' .
-				get_month_link($previous->year, $next->month) . '" title="View posts for ' . $month[zeroise($next->month, 2)] . ' ' .
+				get_month_link($next->year, $next->month) . '" title="View posts for ' . $month[zeroise($next->month, 2)] . ' ' .
 				date('Y', mktime(0, 0 , 0, $next->month, 1, $next->year)) . '">' . substr($month[zeroise($next->month, 2)], 0, 3) . ' &raquo;</a></td>';
 	} else {
 		echo "\n\t\t".'<td colspan="3" id="next" class="pad">&nbsp;</td>';
@@ -522,6 +522,7 @@ function get_month_link($year, $month) {
 		if ('/' != substr($monthlink, -1)) $monthlink = substr($monthlink, 0, -1);
 		$monthlink = str_replace('%year%', $year, $monthlink);
 		$monthlink = str_replace('%monthnum%', intval($month), $monthlink);
+		$monhtlink = str_replace('%post_id%', '', $monthlink);
 		return $siteurl . $monthlink;
 	} else {
 		return $siteurl.'/'.$blogfilename.$querystring_start.'m'.$querystring_equal.$year.zeroise($month, 2);
@@ -541,6 +542,7 @@ function get_day_link($year, $month, $day) {
 		$daylink = str_replace('%year%', $year, $daylink);
 		$daylink = str_replace('%monthnum%', intval($month), $daylink);
 		$daylink = str_replace('%day%', intval($day), $daylink);
+		$daylink = str_replace('%post_id%', '', $daylink);
 		return $siteurl . $daylink;
 	} else {
 		return $siteurl.'/'.$blogfilename.$querystring_start.'m'.$querystring_equal.$year.zeroise($month, 2).zeroise($day, 2);
