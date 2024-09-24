@@ -466,6 +466,8 @@ class Plugin_Upgrader extends WP_Upgrader {
 			return false;
 		}
 
+		$this->skin->bulk_header();
+
 		$this->maintenance_mode(true);
 
 		$results = array();
@@ -507,7 +509,11 @@ class Plugin_Upgrader extends WP_Upgrader {
 			if ( false === $result )
 				break;
 		} //end foreach $plugins
+
 		$this->maintenance_mode(false);
+
+		$this->skin->bulk_footer();
+
 		$this->skin->footer();
 
 		// Cleanup our hooks, incase something else does a upgrade on this connection.
@@ -704,6 +710,8 @@ class Theme_Upgrader extends WP_Upgrader {
 			return false;
 		}
 
+		$this->skin->bulk_header();
+
 		$this->maintenance_mode(true);
 
 		$results = array();
@@ -745,7 +753,11 @@ class Theme_Upgrader extends WP_Upgrader {
 			if ( false === $result )
 				break;
 		} //end foreach $plugins
+
 		$this->maintenance_mode(false);
+
+		$this->skin->bulk_footer();
+
 		$this->skin->footer();
 
 		// Cleanup our hooks, incase something else does a upgrade on this connection.
@@ -898,6 +910,7 @@ class WP_Upgrader_Skin {
 
 	var $upgrader;
 	var $done_header = false;
+	var $result = false;
 
 	function WP_Upgrader_Skin($args = array()) {
 		return $this->__construct($args);
@@ -1056,9 +1069,11 @@ class Bulk_Upgrader_Skin extends WP_Upgrader_Skin {
 	}
 
 	function add_strings() {
+		$this->upgrader->strings['skin_upgrade_start'] = __('The update process is starting. This process may take awhile on some hosts, so please be patient.');
 		$this->upgrader->strings['skin_update_failed_error'] = __('An error occured while updating %1$s: <strong>%2$s</strong>.');
 		$this->upgrader->strings['skin_update_failed'] = __('The update of %1$s failed.');
 		$this->upgrader->strings['skin_update_successful'] = __('%1$s updated successfully.').' <a onclick="%2$s" href="#" class="hide-if-no-js"><span>'.__('Show Details').'</span><span class="hidden">'.__('Hide Details').'</span>.</a>';
+		$this->upgrader->strings['skin_upgrade_end'] = __('All updates have been completed.');
 	}
 
 	function feedback($string) {
@@ -1099,11 +1114,21 @@ class Bulk_Upgrader_Skin extends WP_Upgrader_Skin {
 			}
 			$this->error = implode(', ', $messages);
 		}
+		echo '<script type="text/javascript">jQuery(\'.waiting-' . esc_js($this->upgrader->update_current) . '\').hide();</script>';
+	}
+
+	function bulk_header() {
+		$this->feedback('skin_upgrade_start');
+	}
+
+	function bulk_footer() {
+		$this->feedback('skin_upgrade_end');
 	}
 
 	function before($title = '') {
 		$this->in_loop = true;
-		printf( '<h4>' . $this->upgrader->strings['skin_before_update_header'] . '</h4>',  $title, $this->upgrader->update_current, $this->upgrader->update_count);
+		printf( '<h4>' . $this->upgrader->strings['skin_before_update_header'] . ' <img alt="" src="' . admin_url( 'images/wpspin_light.gif' ) . '" class="hidden waiting-' . $this->upgrader->update_current . '" style="vertical-align:middle;"></h4>',  $title, $this->upgrader->update_current, $this->upgrader->update_count);
+		echo '<script type="text/javascript">jQuery(\'.waiting-' . esc_js($this->upgrader->update_current) . '\').show();</script>';
 		echo '<div class="update-messages hide-if-js" id="progress-' . esc_attr($this->upgrader->update_current) . '"><p>';
 		$this->flush_output();
 	}
@@ -1120,7 +1145,9 @@ class Bulk_Upgrader_Skin extends WP_Upgrader_Skin {
 		}
 		if ( !empty($this->result) && !is_wp_error($this->result) ) {
 			echo '<div class="updated"><p>' . sprintf($this->upgrader->strings['skin_update_successful'], $title, 'jQuery(\'#progress-' . esc_js($this->upgrader->update_current) . '\').toggle();jQuery(\'span\', this).toggle(); return false;') . '</p></div>';
+			echo '<script type="text/javascript">jQuery(\'.waiting-' . esc_js($this->upgrader->update_current) . '\').hide();</script>';
 		}
+
 		$this->reset();
 		$this->flush_output();
 	}
@@ -1154,6 +1181,17 @@ class Bulk_Plugin_Upgrader_Skin extends Bulk_Upgrader_Skin {
 	function after() {
 		parent::after($this->plugin_info['Title']);
 	}
+	function bulk_footer() {
+		parent::bulk_footer();
+		$update_actions =  array(
+			'plugins_page' => '<a href="' . admin_url('plugins.php') . '" title="' . esc_attr__('Goto plugins page') . '" target="_parent">' . __('Return to Plugins page') . '</a>',
+			'updates_page' => '<a href="' . admin_url('update-core.php') . '" title="' . esc_attr__('Goto WordPress Updates page') . '" target="_parent">' . __('Return to WordPress Updates') . '</a>'
+		);
+
+		$update_actions = apply_filters('update_bulk_plugins_complete_actions', $update_actions, $this->plugin_info);
+		if ( ! empty($update_actions) )
+			$this->feedback('<strong>' . __('Actions:') . '</strong> ' . implode(' | ', (array)$update_actions));
+	}
 }
 
 class Bulk_Theme_Upgrader_Skin extends Bulk_Upgrader_Skin {
@@ -1173,6 +1211,17 @@ class Bulk_Theme_Upgrader_Skin extends Bulk_Upgrader_Skin {
 
 	function after() {
 		parent::after($this->theme_info['Name']);
+	}
+	function bulk_footer() {
+		parent::bulk_footer();
+		$update_actions =  array(
+			'themes_page' => '<a href="' . admin_url('themes.php') . '" title="' . esc_attr__('Goto themes page') . '" target="_parent">' . __('Return to Themes page') . '</a>',
+			'updates_page' => '<a href="' . admin_url('update-core.php') . '" title="' . esc_attr__('Goto WordPress Updates page') . '" target="_parent">' . __('Return to WordPress Updates') . '</a>'
+		);
+
+		$update_actions = apply_filters('update_bulk_theme_complete_actions', $update_actions, $this->theme_info);
+		if ( ! empty($update_actions) )
+			$this->feedback('<strong>' . __('Actions:') . '</strong> ' . implode(' | ', (array)$update_actions));
 	}
 }
 
@@ -1212,14 +1261,21 @@ class Plugin_Installer_Skin extends WP_Upgrader_Skin {
 
 		$plugin_file = $this->upgrader->plugin_info();
 
-		$install_actions = array(
-			'activate_plugin' => '<a href="' . wp_nonce_url('plugins.php?action=activate&amp;plugin=' . $plugin_file, 'activate-plugin_' . $plugin_file) . '" title="' . esc_attr__('Activate this plugin') . '" target="_parent">' . __('Activate Plugin') . '</a>',
-							);
+		$install_actions = array();
+
+		$from = isset($_GET['from']) ? stripslashes($_GET['from']) : 'plugins';
+
+		if ( 'import' == $from )
+			$install_actions['activate_plugin'] = '<a href="' . wp_nonce_url('plugins.php?action=activate&amp;from=import&amp;plugin=' . $plugin_file, 'activate-plugin_' . $plugin_file) . '" title="' . esc_attr__('Activate this plugin') . '" target="_parent">' . __('Activate Plugin &amp; Run Importer') . '</a>';
+		else
+			$install_actions['activate_plugin'] = '<a href="' . wp_nonce_url('plugins.php?action=activate&amp;plugin=' . $plugin_file, 'activate-plugin_' . $plugin_file) . '" title="' . esc_attr__('Activate this plugin') . '" target="_parent">' . __('Activate Plugin') . '</a>';
 
 		if ( is_multisite() && current_user_can( 'manage_network_plugins' ) )
-			$install_actions['network_activate'] = '<a href="' . wp_nonce_url('plugins.php?action=activate&amp;networkwide=1&amp;plugin=' . $plugin_file, 'activate-plugin_' . $plugin_file) . '" title="' . __('Activate this plugin for all sites in this network') . '" target="_parent">' . __('Network Activate') . '</a>'; 
+			$install_actions['network_activate'] = '<a href="' . wp_nonce_url('plugins.php?action=activate&amp;networkwide=1&amp;plugin=' . $plugin_file, 'activate-plugin_' . $plugin_file) . '" title="' . __('Activate this plugin for all sites in this network') . '" target="_parent">' . __('Network Activate') . '</a>';
 
-		if ( $this->type == 'web' )
+		if ( 'import' == $from )
+			$install_actions['importers_page'] = '<a href="' . admin_url('import.php') . '" title="' . esc_attr__('Return to Importers') . '" target="_parent">' . __('Return to Importers') . '</a>';
+		else if ( $this->type == 'web' )
 			$install_actions['plugins_page'] = '<a href="' . admin_url('plugin-install.php') . '" title="' . esc_attr__('Return to Plugin Installer') . '" target="_parent">' . __('Return to Plugin Installer') . '</a>';
 		else
 			$install_actions['plugins_page'] = '<a href="' . admin_url('plugins.php') . '" title="' . esc_attr__('Return to Plugins page') . '" target="_parent">' . __('Return to Plugins page') . '</a>';
@@ -1328,6 +1384,7 @@ class Theme_Upgrader_Skin extends WP_Upgrader_Skin {
 
 	function after() {
 
+		$update_actions = array();
 		if ( !empty($this->upgrader->result['destination_name']) &&
 			($theme_info = $this->upgrader->theme_info()) &&
 			!empty($theme_info) ) {
@@ -1339,10 +1396,9 @@ class Theme_Upgrader_Skin extends WP_Upgrader_Skin {
 			$preview_link = htmlspecialchars( add_query_arg( array('preview' => 1, 'template' => $template, 'stylesheet' => $stylesheet, 'TB_iframe' => 'true' ), trailingslashit(esc_url(get_option('home'))) ) );
 			$activate_link = wp_nonce_url("themes.php?action=activate&amp;template=" . urlencode($template) . "&amp;stylesheet=" . urlencode($stylesheet), 'switch-theme_' . $template);
 
-			$update_actions =  array(
-				'preview' => '<a href="' . $preview_link . '" class="thickbox thickbox-preview" title="' . esc_attr(sprintf(__('Preview &#8220;%s&#8221;'), $name)) . '">' . __('Preview') . '</a>',
-				'activate' => '<a href="' . $activate_link .  '" class="activatelink" title="' . esc_attr( sprintf( __('Activate &#8220;%s&#8221;'), $name ) ) . '">' . __('Activate') . '</a>',
-			);
+			$update_actions['preview'] = '<a href="' . $preview_link . '" class="thickbox thickbox-preview" title="' . esc_attr(sprintf(__('Preview &#8220;%s&#8221;'), $name)) . '">' . __('Preview') . '</a>';
+			$update_actions['activate'] = '<a href="' . $activate_link .  '" class="activatelink" title="' . esc_attr( sprintf( __('Activate &#8220;%s&#8221;'), $name ) ) . '">' . __('Activate') . '</a>';
+
 			if ( ( ! $this->result || is_wp_error($this->result) ) || $stylesheet == get_stylesheet() )
 				unset($update_actions['preview'], $update_actions['activate']);
 		}

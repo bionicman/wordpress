@@ -27,7 +27,7 @@ echo '<?xml version="1.0" encoding="' . get_option('blog_charset') . '" ?' . '>'
 	<updated><?php echo mysql2date('Y-m-d\TH:i:s\Z', get_lastcommentmodified('GMT'), false); ?></updated>
 
 <?php if ( is_singular() ) { ?>
-	<link rel="alternate" type="<?php bloginfo_rss('html_type'); ?>" href="<?php echo get_comments_link(); ?>" />
+	<link rel="alternate" type="<?php bloginfo_rss('html_type'); ?>" href="<?php comments_link_feed(); ?>" />
 	<link rel="self" type="application/atom+xml" href="<?php echo get_post_comments_feed_link('', 'atom'); ?>" />
 	<id><?php echo get_post_comments_feed_link('', 'atom'); ?></id>
 <?php } elseif(is_search()) { ?>
@@ -73,7 +73,7 @@ if ( have_comments() ) : while ( have_comments() ) : the_comment();
 <?php endif; // post pass
 	// Return comment threading information (http://www.ietf.org/rfc/rfc4685.txt)
 	if ( $comment->comment_parent == 0 ) : // This comment is top level ?>
-		<thr:in-reply-to ref="<?php the_guid() ?>" href="<?php the_permalink_rss() ?>" type="<?php bloginfo_rss('html_type'); ?>" />
+		<thr:in-reply-to ref="<?php the_guid(); ?>" href="<?php the_permalink_rss() ?>" type="<?php bloginfo_rss('html_type'); ?>" />
 <?php else : // This comment is in reply to another comment
 	$parent_comment = get_comment($comment->comment_parent);
 	// The rel attribute below and the id tag above should be GUIDs, but WP doesn't create them for comments (unlike posts). Either way, its more important that they both use the same system

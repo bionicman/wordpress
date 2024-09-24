@@ -132,7 +132,7 @@ case 'imgedit-preview' :
 	die();
 	break;
 case 'menu-quick-search':
-	if ( ! current_user_can( 'switch_themes' ) )
+	if ( ! current_user_can( 'edit_theme_options' ) )
 		die('-1');
 
 	require_once ABSPATH . 'wp-admin/includes/nav-menu.php';
@@ -218,8 +218,8 @@ function _wp_ajax_delete_comment_response( $comment_id ) {
 function _wp_ajax_add_hierarchical_term() {
 	$action = $_POST['action'];
 	$taxonomy = get_taxonomy(substr($action, 4));
-	check_ajax_referer( $action );
-	if ( !current_user_can( $taxonomy->edit_cap ) )
+	check_ajax_referer( $action, '_ajax_nonce-add-' . $taxonomy->name );
+	if ( !current_user_can( $taxonomy->cap->edit_terms ) )
 		die('-1');
 	$names = explode(',', $_POST['new'.$taxonomy->name]);
 	$parent = isset($_POST['new'.$taxonomy->name.'_parent']) ? (int) $_POST['new'.$taxonomy->name.'_parent'] : 0;
@@ -281,7 +281,10 @@ function _wp_ajax_add_hierarchical_term() {
 	}
 
 	ob_start();
-		wp_dropdown_categories( array( 'taxonomy' => $taxonomy->name, 'hide_empty' => 0, 'name' => 'new'.$taxonomy->name.'_parent', 'orderby' => 'name', 'hierarchical' => 1, 'show_option_none' => sprintf( __('&mdash; Parent %s &mdash;'), $taxonomy->singular_label ) ) );
+		wp_dropdown_categories( array(
+			'taxonomy' => $taxonomy->name, 'hide_empty' => 0, 'name' => 'new'.$taxonomy->name.'_parent', 'orderby' => 'name',
+			'hierarchical' => 1, 'show_option_none' => '&mdash; '.$taxonomy->labels->parent_item.' &mdash;'
+		) );
 	$sup = ob_get_contents();
 	ob_end_clean();
 	$add['supplemental'] = array( 'newcat_parent' => $sup );
@@ -334,7 +337,7 @@ case 'delete-tag' :
 	$taxonomy = !empty($_POST['taxonomy']) ? $_POST['taxonomy'] : 'post_tag';
 	$tax = get_taxonomy($taxonomy);
 
-	if ( !current_user_can( $tax->delete_cap ) )
+	if ( !current_user_can( $tax->cap->delete_terms ) )
 		die('-1');
 
 	$tag = get_term( $tag_id, $taxonomy );
@@ -392,17 +395,6 @@ case 'delete-link' :
 		die('1');
 
 	if ( wp_delete_link( $id ) )
-		die('1');
-	else
-		die('0');
-	break;
-case 'delete-menu-item' :
-	$menu_item_id = (int) $_POST['menu-item'];
-	check_admin_referer( 'delete-menu_item_' . $menu_item_id );
-	if ( ! current_user_can( 'switch_themes' ) )
-		die('-1');
-
-	if ( is_nav_menu_item( $menu_item_id ) && wp_delete_post( $menu_item_id, true ) )
 		die('1');
 	else
 		die('0');
@@ -566,7 +558,7 @@ case 'add-tag' : // From Manage->Tags
 
 	$x = new WP_Ajax_Response();
 
-	if ( !current_user_can( $tax->edit_cap ) )
+	if ( !current_user_can( $tax->cap->edit_terms ) )
 		die('-1');
 
 	$tag = wp_insert_term($_POST['tag-name'], $taxonomy, $_POST );
@@ -710,7 +702,7 @@ case 'get-comments' :
 	$x->send();
 	break;
 case 'replyto-comment' :
-	check_ajax_referer( $action );
+	check_ajax_referer( $action, '_ajax_nonce-replyto-comment' );
 
 	$comment_post_ID = (int) $_POST['comment_post_ID'];
 	if ( !current_user_can( 'edit_post', $comment_post_ID ) )
@@ -779,7 +771,7 @@ case 'replyto-comment' :
 	$x->send();
 	break;
 case 'edit-comment' :
-	check_ajax_referer( 'replyto-comment' );
+	check_ajax_referer( 'replyto-comment', '_ajax_nonce-replyto-comment' );
 
 	$comment_post_ID = (int) $_POST['comment_post_ID'];
 	if ( ! current_user_can( 'edit_post', $comment_post_ID ) )
@@ -817,21 +809,16 @@ case 'edit-comment' :
 	$x->send();
 	break;
 case 'add-menu-item' :
-	if ( ! current_user_can( 'switch_themes' ) )
+	if ( ! current_user_can( 'edit_theme_options' ) )
 		die('-1');
 
-	check_admin_referer( 'add-menu_item', 'menu-settings-column-nonce' );
+	check_ajax_referer( 'add-menu_item', 'menu-settings-column-nonce' );
 
 	require_once ABSPATH . 'wp-admin/includes/nav-menu.php';
 
-	$menu_id = (int) $_POST['menu'];
-	if ( isset( $_POST['menu-item'] ) ) {
-		$item_ids = wp_save_nav_menu_item( $menu_id, $_POST['menu-item'] );
-		if ( is_wp_error( $item_ids ) )
-			die('-1');
-	} else {
-		$item_ids = array();
-	}
+	$item_ids = wp_save_nav_menu_items( 0, $_POST['menu-item'] );
+	if ( is_wp_error( $item_ids ) )
+		die('-1');
 
 	foreach ( (array) $item_ids as $menu_item_id ) {
 		$menu_obj = get_post( $menu_item_id );
@@ -853,19 +840,27 @@ case 'add-menu-item' :
 	}
 	break;
 case 'add-meta' :
-	check_ajax_referer( 'add-meta' );
+	check_ajax_referer( 'add-meta', '_ajax_nonce-add-meta' );
 	$c = 0;
 	$pid = (int) $_POST['post_id'];
+	$post = get_post( $pid );
+
 	if ( isset($_POST['metakeyselect']) || isset($_POST['metakeyinput']) ) {
 		if ( !current_user_can( 'edit_post', $pid ) )
 			die('-1');
 		if ( isset($_POST['metakeyselect']) && '#NONE#' == $_POST['metakeyselect'] && empty($_POST['metakeyinput']) )
 			die('1');
-		if ( $pid < 0 ) {
+		if ( $post->post_status == 'auto-draft' ) {
+			$save_POST = $_POST; // Backup $_POST
+			$_POST = array(); // Make it empty for edit_post()
+			$_POST['action'] = 'draft'; // Warning fix
+			$_POST['post_ID'] = $pid;
+			$_POST['post_type'] = $post->post_type;
+			$_POST['post_status'] = 'draft';
 			$now = current_time('timestamp', 1);
-			if ( $pid = wp_insert_post( array(
-				'post_title' => sprintf('Draft created on %s at %s', date(get_option('date_format'), $now), date(get_option('time_format'), $now))
-			) ) ) {
+			$_POST['post_title'] = sprintf('Draft created on %s at %s', date(get_option('date_format'), $now), date(get_option('time_format'), $now));
+
+			if ( $pid = edit_post() ) {
 				if ( is_wp_error( $pid ) ) {
 					$x = new WP_Ajax_Response( array(
 						'what' => 'meta',
@@ -873,6 +868,7 @@ case 'add-meta' :
 					) );
 					$x->send();
 				}
+				$_POST = $save_POST; // Now we can restore original $_POST again
 				if ( !$mid = add_meta( $pid ) )
 					die(__('Please provide a custom field value.'));
 			} else {
@@ -1090,8 +1086,47 @@ case 'hidden-columns' :
 
 	die('1');
 	break;
+case 'menu-get-metabox' :
+	if ( ! current_user_can( 'edit_theme_options' ) )
+		die('-1');
+
+	require_once ABSPATH . 'wp-admin/includes/nav-menu.php';
+
+	if ( isset( $_POST['item-type'] ) && 'post_type' == $_POST['item-type'] ) {
+		$type = 'posttype';
+		$callback = 'wp_nav_menu_item_post_type_meta_box';
+		$items = (array) get_post_types( array( 'show_in_nav_menus' => true ), 'object' );
+	} elseif ( isset( $_POST['item-type'] ) && 'taxonomy' == $_POST['item-type'] ) {
+		$type = 'taxonomy';
+		$callback = 'wp_nav_menu_item_taxonomy_meta_box';
+		$items = (array) get_taxonomies( array( 'show_ui' => true ), 'object' );
+	}
+
+	if ( ! empty( $_POST['item-object'] ) && isset( $items[$_POST['item-object']] ) ) {
+		$item = apply_filters( 'nav_menu_meta_box_object', $items[ $_POST['item-object'] ] );
+		ob_start();
+		call_user_func_array($callback, array(
+			null,
+			array(
+				'id' => 'add-' . $item->name,
+				'title' => $item->labels->name,
+				'callback' => $callback,
+				'args' => $item,
+			)
+		));
+		
+		$markup = ob_get_clean();
+		
+		echo json_encode(array(
+			'replace-id' => $type . '-' . $item->name,
+			'markup' => $markup,
+		));
+	}
+
+	exit;
+	break;
 case 'menu-quick-search':
-	if ( ! current_user_can( 'switch_themes' ) )
+	if ( ! current_user_can( 'edit_theme_options' ) )
 		die('-1');
 
 	require_once ABSPATH . 'wp-admin/includes/nav-menu.php';
@@ -1099,6 +1134,15 @@ case 'menu-quick-search':
 	_wp_ajax_menu_quick_search( $_REQUEST );
 
 	exit;
+	break;
+case 'menu-locations-save':
+	if ( ! current_user_can( 'edit_theme_options' ) )
+		die('-1');
+	check_ajax_referer( 'add-menu_item', 'menu-settings-column-nonce' );
+	if ( ! isset( $_POST['menu-locations'] ) )
+		die('0');
+	set_theme_mod( 'nav_menu_locations', $_POST['menu-locations'] );
+	die('1');
 	break;
 case 'meta-box-order':
 	check_ajax_referer( 'meta-box-order' );
@@ -1204,7 +1248,7 @@ case 'inline-save-tax':
 		die( __('Cheatin&#8217; uh?') );
 	$tax = get_taxonomy($taxonomy);
 
-	if ( ! current_user_can( $tax->edit_cap ) )
+	if ( ! current_user_can( $tax->cap->edit_terms ) )
 		die( __('Cheatin&#8217; uh?') );
 
 	if ( ! isset($_POST['tax_ID']) || ! ( $id = (int) $_POST['tax_ID'] ) )
@@ -1253,7 +1297,11 @@ case 'find_posts':
 	if ( empty($_POST['ps']) )
 		exit;
 
-	$what = isset($_POST['pages']) ? 'page' : 'post';
+	if ( !empty($_POST['post_type']) && in_array( $_POST['post_type'], get_post_types() ) )
+		$what = $_POST['post_type'];
+	else
+		$what = 'post';
+
 	$s = stripslashes($_POST['ps']);
 	preg_match_all('/".*?("|$)|((?<=[\\s",+])|^)[^\\s",+]+/', $s, $matches);
 	$search_terms = array_map('_search_terms_tidy', $matches[0]);
@@ -1270,8 +1318,10 @@ case 'find_posts':
 
 	$posts = $wpdb->get_results( "SELECT ID, post_title, post_status, post_date FROM $wpdb->posts WHERE post_type = '$what' AND post_status IN ('draft', 'publish') AND ($search) ORDER BY post_date_gmt DESC LIMIT 50" );
 
-	if ( ! $posts )
-		exit( __('No posts found.') );
+	if ( ! $posts ) {
+		$posttype = get_post_type_object($what);
+		exit($posttype->labels->not_found);
+	}
 
 	$html = '<table class="widefat" cellspacing="0"><thead><tr><th class="found-radio"><br /></th><th>'.__('Title').'</th><th>'.__('Date').'</th><th>'.__('Status').'</th></tr></thead><tbody>';
 	foreach ( $posts as $post ) {
@@ -1328,7 +1378,7 @@ case 'lj-importer' :
 case 'widgets-order' :
 	check_ajax_referer( 'save-sidebar-widgets', 'savewidgets' );
 
-	if ( !current_user_can('switch_themes') )
+	if ( !current_user_can('edit_theme_options') )
 		die('-1');
 
 	unset( $_POST['savewidgets'], $_POST['action'] );
@@ -1358,7 +1408,7 @@ case 'widgets-order' :
 case 'save-widget' :
 	check_ajax_referer( 'save-sidebar-widgets', 'savewidgets' );
 
-	if ( !current_user_can('switch_themes') || !isset($_POST['id_base']) )
+	if ( !current_user_can('edit_theme_options') || !isset($_POST['id_base']) )
 		die('-1');
 
 	unset( $_POST['savewidgets'], $_POST['action'] );
@@ -1450,20 +1500,22 @@ case 'image-editor':
 	die();
 	break;
 case 'set-post-thumbnail':
-	$post_id = intval( $_POST['post_id'] );
-	if ( !current_user_can( 'edit_post', $post_id ) )
+	$post_ID = intval( $_POST['post_id'] );
+	if ( !current_user_can( 'edit_post', $post_ID ) )
 		die( '-1' );
 	$thumbnail_id = intval( $_POST['thumbnail_id'] );
 
+	check_ajax_referer( "set_post_thumbnail-$post_ID" );
+
 	if ( $thumbnail_id == '-1' ) {
-		delete_post_meta( $post_id, '_thumbnail_id' );
+		delete_post_meta( $post_ID, '_thumbnail_id' );
 		die( _wp_post_thumbnail_html() );
 	}
 
 	if ( $thumbnail_id && get_post( $thumbnail_id ) ) {
 		$thumbnail_html = wp_get_attachment_image( $thumbnail_id, 'thumbnail' );
 		if ( !empty( $thumbnail_html ) ) {
-			update_post_meta( $post_id, '_thumbnail_id', $thumbnail_id );
+			update_post_meta( $post_ID, '_thumbnail_id', $thumbnail_id );
 			die( _wp_post_thumbnail_html( $thumbnail_id ) );
 		}
 	}

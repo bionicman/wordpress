@@ -149,9 +149,6 @@ function wp_default_scripts( &$scripts ) {
 	$scripts->add( 'jquery-color', "/wp-includes/js/jquery/jquery.color$suffix.js", array('jquery'), '2.0-4561m');
 	$scripts->add_data( 'jquery-color', 'group', 1 );
 
-	// deprecated, not used in core
-	$scripts->add( 'interface', '/wp-includes/js/jquery/interface.js', array('jquery'), '1.2' );
-
 	$scripts->add( 'suggest', "/wp-includes/js/jquery/suggest$suffix.js", array('jquery'), '1.1-20090125');
 	$scripts->add_data( 'suggest', 'group', 1 );
 
@@ -163,9 +160,6 @@ function wp_default_scripts( &$scripts ) {
 
 	$scripts->add( 'jquery-table-hotkeys', "/wp-includes/js/jquery/jquery.table-hotkeys$suffix.js", array('jquery', 'jquery-hotkeys'), '20090102' );
 	$scripts->add_data( 'jquery-table-hotkeys', 'group', 1 );
-
-	$scripts->add( 'jquery-autocomplete', "/wp-includes/js/jquery/autocomplete$suffix.js", array('jquery'), '1.1' );
-	$scripts->add_data( 'jquery-autocomplete', 'group', 1 );
 
 	$scripts->add( 'thickbox', "/wp-includes/js/thickbox/thickbox.js", array('jquery'), '3.1-20100407');
 	$scripts->add_data( 'thickbox', 'group', 1 );
@@ -196,14 +190,14 @@ function wp_default_scripts( &$scripts ) {
 		$scripts->add( 'swfupload-all', '/wp-includes/js/swfupload/swfupload-all.js', array(), '2201');
 	}
 
-	$scripts->add( 'swfupload-handlers', "/wp-includes/js/swfupload/handlers$suffix.js", array('swfupload-all', 'jquery'), '2201-20100106');
+	$scripts->add( 'swfupload-handlers', "/wp-includes/js/swfupload/handlers$suffix.js", array('swfupload-all', 'jquery'), '2201-20100523');
 	$max_upload_size = ( (int) ( $max_up = @ini_get('upload_max_filesize') ) < (int) ( $max_post = @ini_get('post_max_size') ) ) ? $max_up : $max_post;
 	if ( empty($max_upload_size) )
 		$max_upload_size = __('not configured');
 	// these error messages came from the sample swfupload js, they might need changing.
 	$scripts->localize( 'swfupload-handlers', 'swfuploadL10n', array(
 			'queue_limit_exceeded' => __('You have attempted to queue too many files.'),
-			'file_exceeds_size_limit' => sprintf( __('This file is too big. The maximum upload size for your server is %s.'), $max_upload_size ),
+			'file_exceeds_size_limit' => __('This file exceeds the maximum upload size for this site.'),
 			'zero_byte_file' => __('This file is empty. Please try another.'),
 			'invalid_filetype' => __('This file type is not allowed. Please try another.'),
 			'default_error' => __('An error occurred in the upload. Please try again later.'),
@@ -218,7 +212,8 @@ function wp_default_scripts( &$scripts ) {
 			'dismiss' => __('Dismiss'),
 			'crunching' => __('Crunching&hellip;'),
 			'deleted' => __('moved to the trash.'),
-			'l10n_print_after' => 'try{convertEntities(swfuploadL10n);}catch(e){};'
+			'l10n_print_after' => 'try{convertEntities(swfuploadL10n);}catch(e){};',
+			'error_uploading' => __('&#8220;%s&#8221; has failed to upload due to an error')
 	) );
 
 	$scripts->add( 'comment-reply', "/wp-includes/js/comment-reply$suffix.js", false, '20090102');
@@ -280,7 +275,7 @@ function wp_default_scripts( &$scripts ) {
 		$scripts->add( 'postbox', "/wp-admin/js/postbox$suffix.js", array('jquery-ui-sortable'), '20091012' );
 		$scripts->add_data( 'postbox', 'group', 1 );
 
-		$scripts->add( 'post', "/wp-admin/js/post$suffix.js", array('suggest', 'wp-lists', 'postbox'), '20100418' );
+		$scripts->add( 'post', "/wp-admin/js/post$suffix.js", array('suggest', 'wp-lists', 'postbox'), '20100526' );
 		$scripts->add_data( 'post', 'group', 1 );
 		$scripts->localize( 'post', 'postL10n', array(
 			'tagsUsed' =>  __('Tags used on this post:'),
@@ -310,7 +305,7 @@ function wp_default_scripts( &$scripts ) {
 			'l10n_print_after' => 'try{convertEntities(postL10n);}catch(e){};'
 		) );
 
-		$scripts->add( 'link', "/wp-admin/js/link$suffix.js", array('wp-lists', 'postbox'), '20090506' );
+		$scripts->add( 'link', "/wp-admin/js/link$suffix.js", array('wp-lists', 'postbox'), '20090526' );
 		$scripts->add_data( 'link', 'group', 1 );
 
 		$scripts->add( 'comment', "/wp-admin/js/comment$suffix.js", array('jquery'), '20091202' );
@@ -366,7 +361,7 @@ function wp_default_scripts( &$scripts ) {
 
 		$scripts->add( 'farbtastic', '/wp-admin/js/farbtastic.js', array('jquery'), '1.2' );
 
-		$scripts->add( 'dashboard', "/wp-admin/js/dashboard$suffix.js", array( 'jquery', 'admin-comments', 'postbox' ), '20100213' );
+		$scripts->add( 'dashboard', "/wp-admin/js/dashboard$suffix.js", array( 'jquery', 'admin-comments', 'postbox' ), '20100523' );
 		$scripts->add_data( 'dashboard', 'group', 1 );
 
 		$scripts->add( 'hoverIntent', "/wp-includes/js/hoverIntent$suffix.js", array('jquery'), '20090102' );
@@ -374,16 +369,13 @@ function wp_default_scripts( &$scripts ) {
 
 		$scripts->add( 'list-revisions', "/wp-includes/js/wp-list-revisions$suffix.js", null, '20091223' );
 
-		$scripts->add( 'media', "/wp-admin/js/media$suffix.js", array( 'jquery-ui-draggable' ), '20090415' );
+		$scripts->add( 'media', "/wp-admin/js/media$suffix.js", array( 'jquery-ui-draggable' ), '20100524' );
 		$scripts->add_data( 'media', 'group', 1 );
-
-		$scripts->add( 'codepress', '/wp-includes/js/codepress/codepress.js', false, '0.9.6' );
-		$scripts->add_data( 'codepress', 'group', 1 );
 
 		$scripts->add( 'image-edit', "/wp-admin/js/image-edit$suffix.js", array('jquery', 'json2', 'imgareaselect'), '20091111' );
 		$scripts->add_data( 'image-edit', 'group', 1 );
 
-		$scripts->add( 'set-post-thumbnail', "/wp-admin/js/set-post-thumbnail$suffix.js", array( 'jquery' ), '20091210b' );
+		$scripts->add( 'set-post-thumbnail', "/wp-admin/js/set-post-thumbnail$suffix.js", array( 'jquery' ), '20100518' );
 		$scripts->add_data( 'set-post-thumbnail', 'group', 1 );
 		$scripts->localize( 'set-post-thumbnail', 'setPostThumbnailL10n', array(
 			'setThumbnail' => __( 'Use as featured image' ),
@@ -393,21 +385,18 @@ function wp_default_scripts( &$scripts ) {
 		) );
 
 		// Custom Navigation
-		$scripts->add( 'nav-menu', "/wp-admin/js/nav-menu$suffix.js", false, '20100506b' );
+		$scripts->add( 'nav-menu', "/wp-admin/js/nav-menu$suffix.js", false, '20100527a' );
 		$scripts->localize( 'nav-menu', 'navMenuL10n', array(
-			'home' => _x('Home', 'nav menu home label'),
-			'homeurl' => home_url('/'),
 			'custom' => _x('Custom', 'menu nav item type'),
 			'thickbox' => _x('Edit Menu Item', 'Thickbox Title'),
 			'edit' => _x('Edit', 'menu item edit text'),
 			'noResultsFound' => _x('No results found.', 'search results'),
 			'warnDeleteMenu' => __( "You are about to permanently delete this menu. \n 'Cancel' to stop, 'OK' to delete." ),
-			'warnDeleteMenuItem' => __( "You are about to permanently delete this menu item. \n 'Cancel' to stop, 'OK' to delete." ),
+			'saveAlert' => __('The changes you made will be lost if you navigate away from this page.'),
 		) );
 
-		$scripts->add( 'custom-background', "/wp-admin/js/custom-background$suffix.js", array('farbtastic'), '20100321' );
+		$scripts->add( 'custom-background', "/wp-admin/js/custom-background$suffix.js", array('farbtastic'), '20100527' );
 		$scripts->add_data( 'custom-background', 'group', 1 );
-		// See wp_just_in_time_script_localization() for translation data for this object
 	}
 }
 
@@ -444,13 +433,13 @@ function wp_default_styles( &$styles ) {
 	// Any rtl stylesheets that don't have a .dev version for ltr
 	$no_suffix = array( 'farbtastic' );
 
-	$styles->add( 'wp-admin', "/wp-admin/css/wp-admin$suffix.css", array(), '20100506' );
+	$styles->add( 'wp-admin', "/wp-admin/css/wp-admin$suffix.css", array(), '20100527' );
 
-	$styles->add( 'ie', "/wp-admin/css/ie$suffix.css", array(), '20100219' );
+	$styles->add( 'ie', "/wp-admin/css/ie$suffix.css", array(), '20100527' );
 	$styles->add_data( 'ie', 'conditional', 'lte IE 7' );
 
 	// all colors stylesheets need to have the same query strings (cache manifest compat)
-	$colors_version = '20100503';
+	$colors_version = '20100527';
 
 	// Register "meta" stylesheet for admin colors. All colors-* style sheets should have the same version string.
 	$styles->add( 'colors', true, array(), $colors_version );
@@ -461,22 +450,22 @@ function wp_default_styles( &$styles ) {
 	$styles->add( 'colors-classic', "/wp-admin/css/colors-classic$suffix.css", array(), $colors_version );
 	$styles->add_data( 'colors-classic', 'rtl', true );
 
-	$styles->add( 'ms', "/wp-admin/css/ms$suffix.css", array(), '20100406' );
+	$styles->add( 'ms', "/wp-admin/css/ms$suffix.css", array(), '20100512' );
 	$styles->add( 'global', "/wp-admin/css/global$suffix.css", array(), '20100108' );
-	$styles->add( 'media', "/wp-admin/css/media$suffix.css", array(), '20091029' );
+	$styles->add( 'media', "/wp-admin/css/media$suffix.css", array(), '20100519' );
 	$styles->add( 'widgets', "/wp-admin/css/widgets$suffix.css", array(), '20091118' );
 	$styles->add( 'dashboard', "/wp-admin/css/dashboard$suffix.css", array(), '20100424' );
 	$styles->add( 'install', "/wp-admin/css/install$suffix.css", array(), '20100313' ); // Readme as well
-	$styles->add( 'theme-editor', "/wp-admin/css/theme-editor$suffix.css", array(), '20090625' );
+	$styles->add( 'theme-editor', "/wp-admin/css/theme-editor$suffix.css", array(), '20100514' );
 	$styles->add( 'press-this', "/wp-admin/css/press-this$suffix.css", array(), '20100424' );
 	$styles->add( 'thickbox', '/wp-includes/js/thickbox/thickbox.css', array(), '20090514' );
 	$styles->add( 'login', "/wp-admin/css/login$suffix.css", array(), '20100403' );
 	$styles->add( 'plugin-install', "/wp-admin/css/plugin-install$suffix.css", array(), '20100402' );
-	$styles->add( 'theme-install', "/wp-admin/css/theme-install$suffix.css", array(), '20090610' );
+	$styles->add( 'theme-install', "/wp-admin/css/theme-install$suffix.css", array(), '20100523' );
 	$styles->add( 'farbtastic', '/wp-admin/css/farbtastic.css', array(), '1.2' );
 	$styles->add( 'jcrop', '/wp-includes/js/jcrop/jquery.Jcrop.css', array(), '0.9.8' );
 	$styles->add( 'imgareaselect', '/wp-includes/js/imgareaselect/imgareaselect.css', array(), '0.9.1' );
-	$styles->add( 'nav-menu', "/wp-admin/css/nav-menu$suffix.css", array(), '20100506' );
+	$styles->add( 'nav-menu', "/wp-admin/css/nav-menu$suffix.css", array(), '20100527c' );
 
 	foreach ( $rtl_styles as $rtl_style ) {
 		$styles->add_data( $rtl_style, 'rtl', true );
@@ -529,9 +518,6 @@ function wp_just_in_time_script_localization() {
 		'l10n_print_after' => 'try{convertEntities(autosaveL10n);}catch(e){};'
 	) );
 
-	wp_localize_script( 'custom-background', 'customBackgroundL10n', array(
-		'backgroundcolor' => '#' . get_background_color(),
-	) );
 }
 
 /**

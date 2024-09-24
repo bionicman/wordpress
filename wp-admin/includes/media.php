@@ -379,7 +379,7 @@ function media_buttons() {
 add_action( 'media_buttons', 'media_buttons' );
 
 function _media_button($title, $icon, $type) {
-	return "<a href='" . get_upload_iframe_src($type) . "' id='add_$type' class='thickbox' title='$title'><img src='" . esc_url( admin_url( $icon ) ) . "' alt='$title' /></a>";
+	return "<a href='" . esc_url( get_upload_iframe_src($type) ) . "' id='add_$type' class='thickbox' title='$title'><img src='" . esc_url( admin_url( $icon ) ) . "' alt='$title' /></a>";
 }
 
 function get_upload_iframe_src($type) {
@@ -1247,7 +1247,7 @@ function get_media_item( $attachment_id, $args = null ) {
 			if ( !empty( $media_dims ) )
 				$item .= "<p><strong>" . __('Dimensions:') . "</strong> $media_dims</p>\n";
 
-			echo "</td></tr>\n";
+			$item .= "</td></tr>\n";
 
 
 
@@ -1286,11 +1286,13 @@ function get_media_item( $attachment_id, $args = null ) {
 	$thumbnail = '';
 	$calling_post_id = 0;
 	if ( isset( $_GET['post_id'] ) )
-		$calling_post_id = $_GET['post_id'];
+		$calling_post_id = absint( $_GET['post_id'] );
 	elseif ( isset( $_POST ) && count( $_POST ) ) // Like for async-upload where $_GET['post_id'] isn't set
 		$calling_post_id = $post->post_parent;
-	if ( 'image' == $type && $calling_post_id && current_theme_supports( 'post-thumbnails', get_post_type( $calling_post_id ) ) && get_post_thumbnail_id( $calling_post_id ) != $attachment_id )
-		$thumbnail = "<a class='wp-post-thumbnail' id='wp-post-thumbnail-" . $attachment_id . "' href='#' onclick='WPSetAsThumbnail(\"$attachment_id\");return false;'>" . esc_html__( "Use as featured image" ) . "</a>";
+	if ( 'image' == $type && $calling_post_id && current_theme_supports( 'post-thumbnails', get_post_type( $calling_post_id ) ) && get_post_thumbnail_id( $calling_post_id ) != $attachment_id ) {
+		$ajax_nonce = wp_create_nonce( "set_post_thumbnail-$calling_post_id" );
+		$thumbnail = "<a class='wp-post-thumbnail' id='wp-post-thumbnail-" . $attachment_id . "' href='#' onclick='WPSetAsThumbnail(\"$attachment_id\", \"$ajax_nonce\");return false;'>" . esc_html__( "Use as featured image" ) . "</a>";
+	}
 
 	if ( ( $send || $thumbnail || $delete ) && !isset( $form_fields['buttons'] ) )
 		$form_fields['buttons'] = array( 'tr' => "\t\t<tr class='submit'><td></td><td class='savesend'>$send $thumbnail $delete</td></tr>\n" );
@@ -1398,6 +1400,16 @@ function media_upload_form( $errors = null ) {
 	$flash = apply_filters('flash_uploader', $flash);
 	$post_id = isset($_REQUEST['post_id']) ? intval($_REQUEST['post_id']) : 0;
 
+	$upload_size_unit = $max_upload_size =  wp_max_upload_size();
+	$sizes = array( 'KB', 'MB', 'GB' );
+	for ( $u = -1; $upload_size_unit > 1024 && $u < count( $sizes ) - 1; $u++ )
+		$upload_size_unit /= 1024;
+	if ( $u < 0 ) {
+		$upload_size_unit = 0;
+		$u = 0;
+	} else {
+		$upload_size_unit = (int) $upload_size_unit;
+	}
 ?>
 <script type="text/javascript">
 //<![CDATA[
@@ -1419,11 +1431,12 @@ jQuery(document).ready(function($){
 	<?php echo $errors['upload_error']->get_error_message(); ?>
 <?php } ?>
 </div>
-
 <?php
 // Check quota for this blog if multisite
-if ( is_multisite() && !is_upload_space_available() )
-	wp_die( __('Sorry, you must delete files before you can upload any more.') );
+if ( is_multisite() && !is_upload_space_available() ) {
+	echo '<p>' . sprintf( __( 'Sorry, you have filled your storage quota (%s MB).' ), get_space_allowed() ) . '</p>';
+	return;
+}
 
 do_action('pre-upload-ui');
 
@@ -1433,7 +1446,7 @@ if ( $flash ) : ?>
 var swfu;
 SWFUpload.onload = function() {
 	var settings = {
-			button_text: '<span class="button"><?php _e('Select Files'); ?></span>',
+			button_text: '<span class="button"><?php _e('Select Files'); ?><\/span>',
 			button_text_style: '.button { text-align: center; font-weight: bold; font-family:"Lucida Grande",Verdana,Arial,"Bitstream Vera Sans",sans-serif; font-size: 11px; text-shadow: 0 1px 0 #FFFFFF; color:#464646; }',
 			button_height: "23",
 			button_width: "132",
@@ -1446,14 +1459,14 @@ SWFUpload.onload = function() {
 			file_types: "<?php echo apply_filters('upload_file_glob', '*.*'); ?>",
 			post_params : {
 				"post_id" : "<?php echo $post_id; ?>",
-				"auth_cookie" : "<?php if ( is_ssl() ) echo $_COOKIE[SECURE_AUTH_COOKIE]; else echo $_COOKIE[AUTH_COOKIE]; ?>",
+				"auth_cookie" : "<?php echo (is_ssl() ? $_COOKIE[SECURE_AUTH_COOKIE] : $_COOKIE[AUTH_COOKIE]); ?>",
 				"logged_in_cookie": "<?php echo $_COOKIE[LOGGED_IN_COOKIE]; ?>",
 				"_wpnonce" : "<?php echo wp_create_nonce('media-form'); ?>",
 				"type" : "<?php echo $type; ?>",
 				"tab" : "<?php echo $tab; ?>",
 				"short" : "1"
 			},
-			file_size_limit : "<?php echo wp_max_upload_size(); ?>b",
+			file_size_limit : "<?php echo $max_upload_size; ?>b",
 			file_dialog_start_handler : fileDialogStart,
 			file_queued_handler : fileQueued,
 			upload_start_handler : uploadStart,
@@ -1476,7 +1489,7 @@ SWFUpload.onload = function() {
 //]]>
 </script>
 
-<div id="flash-upload-ui">
+<div id="flash-upload-ui" class="hide-if-no-js">
 <?php do_action('pre-flash-upload-ui'); ?>
 
 	<div>
@@ -1484,6 +1497,7 @@ SWFUpload.onload = function() {
 	<div id="flash-browse-button"></div>
 	<span><input id="cancel-upload" disabled="disabled" onclick="cancelUpload()" type="button" value="<?php esc_attr_e('Cancel Upload'); ?>" class="button" /></span>
 	</div>
+	<p class="media-upload-size"><?php printf( __( 'Maximum upload file size: %d%s' ), $upload_size_unit, $sizes[$u] ); ?></p>
 <?php do_action('post-flash-upload-ui'); ?>
 	<p class="howto"><?php _e('After a file has been uploaded, you can add titles and descriptions.'); ?></p>
 </div>
@@ -1496,6 +1510,7 @@ SWFUpload.onload = function() {
 	<input type="file" name="async-upload" id="async-upload" /> <input type="submit" class="button" name="html-upload" value="<?php esc_attr_e('Upload'); ?>" /> <a href="#" onclick="try{top.tb_remove();}catch(e){}; return false;"><?php _e('Cancel'); ?></a>
 	</p>
 	<div class="clear"></div>
+	<p class="media-upload-size"><?php printf( __( 'Maximum upload file size: %d%s' ), $upload_size_unit, $sizes[$u] ); ?></p>
 	<?php if ( is_lighttpd_before_150() ): ?>
 	<p><?php _e('If you want to use all capabilities of the uploader, like uploading multiple files at once, please upgrade to lighttpd 1.5.'); ?></p>
 	<?php endif;?>
@@ -1517,7 +1532,7 @@ SWFUpload.onload = function() {
 function media_upload_type_form($type = 'file', $errors = null, $id = null) {
 	media_upload_header();
 
-	$post_id = intval($_REQUEST['post_id']);
+	$post_id = isset( $_REQUEST['post_id'] )? intval( $_REQUEST['post_id'] ) : 0;
 
 	$form_action_url = admin_url("media-upload.php?type=$type&tab=type&post_id=$post_id");
 	$form_action_url = apply_filters('media_upload_form_url', $form_action_url, $type);
@@ -1719,7 +1734,7 @@ jQuery(function($){
 <?php _e('Sort Order:'); ?>
 <a href="#" id="asc"><?php _e('Ascending'); ?></a> |
 <a href="#" id="desc"><?php _e('Descending'); ?></a> |
-<a href="#" id="clear"><?php echo _x('Clear', 'verb'); ?></a>
+<a href="#" id="clear"><?php _ex('Clear', 'verb'); ?></a>
 </div>
 <form enctype="multipart/form-data" method="post" action="<?php echo esc_attr($form_action_url); ?>" class="media-upload-form validate" id="gallery-form">
 <?php wp_nonce_field('media-form'); ?>
@@ -2216,7 +2231,7 @@ function media_upload_flash_bypass() {
  * @since unknown
  */
 function media_upload_html_bypass($flash = true) {
-	echo '<p class="upload-html-bypass">';
+	echo '<p class="upload-html-bypass hide-if-no-js">';
 	_e('You are using the Browser uploader.');
 	if ( $flash ) {
 		// the user manually selected the browser uploader, so let them switch back to Flash

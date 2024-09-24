@@ -556,6 +556,11 @@ function wpmu_validate_blog_signup($blogname, $blog_title, $user = '') {
 		add_site_option( 'illegal_names', $illegal_names );
 	}
 
+	// On sub dir installs, Some names are so illegal, only a filter can spring them from jail
+	if (! is_subdomain_install() )
+		$illegal_names = array_merge($illegal_names, apply_filters( 'subdirectory_reserved_names', array( 'page', 'comments', 'blog', 'files', 'feed' ) ) );
+
+
 	if ( empty( $blogname ) )
 		$errors->add('blogname', __('Please enter a site name'));
 
@@ -833,13 +838,13 @@ function wpmu_create_blog($domain, $path, $title, $user_id, $meta = '', $site_id
 	}
 
 	add_option( 'WPLANG', get_site_option( 'WPLANG' ) );
-	update_option( 'blog_public', $meta['public'] );
+	update_option( 'blog_public', (int)$meta['public'] );
 
 	if ( !is_super_admin() && get_user_meta( $user_id, 'primary_blog', true ) == get_site_option( 'dashboard_blog', 1 ) )
 		update_user_meta( $user_id, 'primary_blog', $blog_id );
 
 	restore_current_blog();
-	do_action( 'wpmu_new_blog', $blog_id, $user_id, $domain, $path, $site_id );
+	do_action( 'wpmu_new_blog', $blog_id, $user_id, $domain, $path, $site_id, $meta );
 
 	return $blog_id;
 }
@@ -1209,18 +1214,19 @@ function fix_import_form_size( $size ) {
  * @return int An ID from the global terms table mapped from $term_id.
  */
 function global_terms( $term_id, $deprecated = '' ) {
-	global $wpdb, $global_terms_recurse;
+	global $wpdb;
+	static $global_terms_recurse = null;
 
 	if ( !global_terms_enabled() )
 		return $term_id;
 
 	// prevent a race condition
-	if ( !isset( $global_terms_recurse ) ) {
+	$recurse_start = false;
+	if ( $global_terms_recurse === null ) {
 		$recurse_start = true;
 		$global_terms_recurse = 1;
 	} elseif ( 10 < $global_terms_recurse++ ) {
 		return $term_id;
-		$recurse_start = false;
 	}
 
 	$term_id = intval( $term_id );
@@ -1234,8 +1240,9 @@ function global_terms( $term_id, $deprecated = '' ) {
 			$global_id = $wpdb->insert_id;
 		} else {
 			$max_global_id = $wpdb->get_var( "SELECT MAX(cat_ID) FROM $wpdb->sitecategories" );
-			$max_global_id += mt_rand( 100, 400 );
-			$wpdb->insert( $wpdb->sitecategories, array( 'cat_ID' => $global_id, 'cat_name' => $c->name, 'category_nicename' => $c->slug ) );
+			$max_local_id = $wpdb->get_var( "SELECT MAX(term_id) FROM $wpdb->terms" );
+			$new_global_id = max( $max_global_id, $max_local_id ) + mt_rand( 100, 400 );
+			$wpdb->insert( $wpdb->sitecategories, array( 'cat_ID' => $new_global_id, 'cat_name' => $c->name, 'category_nicename' => $c->slug ) );
 			$global_id = $wpdb->insert_id;
 		}
 	} elseif ( $global_id != $term_id ) {
@@ -1257,7 +1264,7 @@ function global_terms( $term_id, $deprecated = '' ) {
 		clean_term_cache($term_id);
 	}
 	if( $recurse_start )
-		unset( $global_terms_recurse );
+		$global_terms_recurse = null;
 
 	return $global_id;
 }
@@ -1301,7 +1308,7 @@ function signup_nonce_check( $result ) {
 
 function maybe_redirect_404() {
 	global $current_site;
-	if ( is_main_site() && is_404() && defined( 'NOBLOGREDIRECT' ) && ( $destination = NOBLOGREDIRECT ) ) {
+	if ( is_main_site() && is_404() && defined( 'NOBLOGREDIRECT' ) && ( $destination = apply_filters( 'blog_redirect_404', NOBLOGREDIRECT ) ) ) {
 		if ( $destination == '%siteurl%' )
 			$destination = network_home_url();
 		wp_redirect( $destination );

@@ -14,6 +14,9 @@
 if ( !defined('WP_ADMIN') )
 	define('WP_ADMIN', TRUE);
 
+if ( isset($_GET['import']) && !defined('WP_LOAD_IMPORTERS') )
+	define('WP_LOAD_IMPORTERS', true);
+
 require_once(dirname(dirname(__FILE__)) . '/wp-load.php');
 
 if ( get_option('db_upgraded') ) {
@@ -83,6 +86,9 @@ else
 	$typenow = '';
 
 require(ABSPATH . 'wp-admin/menu.php');
+
+if ( current_user_can( 'manage_options' ) )
+	@ini_set( 'memory_limit', apply_filters( 'admin_memory_limit', '256M' ) );
 
 do_action('admin_init');
 
@@ -154,14 +160,13 @@ if ( isset($plugin_page) ) {
 	if ( ! current_user_can('import') )
 		wp_die(__('You are not allowed to import.'));
 
-	if ( validate_file($importer) ) {
-		wp_die(__('Invalid importer.'));
-	}
+	if ( validate_file($importer) )
+		wp_redirect( admin_url( 'import.php?invalid=' . $importer ) );
 
 	// Allow plugins to define importers as well
 	if ( !isset($wp_importers) || !isset($wp_importers[$importer]) || ! is_callable($wp_importers[$importer][2])) {
 		if (! file_exists(ABSPATH . "wp-admin/import/$importer.php"))
-			wp_die(__('Cannot load importer.'));
+			wp_redirect( admin_url( 'import.php?invalid=' . $importer ) );
 		include(ABSPATH . "wp-admin/import/$importer.php");
 	}
 

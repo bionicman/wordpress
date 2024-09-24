@@ -518,13 +518,16 @@ function setup_userdata($for_user_id = '') {
 	else
 		$user = new WP_User($for_user_id);
 
-	if ( 0 == $user->ID )
-		return;
+	$userdata   = $user->data;
+	$user_ID    = (int) $user->ID;
+	$user_level = (int) isset($user->user_level) ? $user->user_level : 0;
 
-	$userdata = $user->data;
+	if ( 0 == $user->ID ) {
+		$user_login = $user_email = $user_url = $user_pass_md5 = $user_identity = '';
+		return;
+	}
+
 	$user_login	= $user->user_login;
-	$user_level	= (int) isset($user->user_level) ? $user->user_level : 0;
-	$user_ID = (int) $user->ID;
 	$user_email	= $user->user_email;
 	$user_url	= $user->user_url;
 	$user_pass_md5	= md5($user->user_pass);
@@ -611,19 +614,21 @@ function wp_dropdown_users( $args = '' ) {
 		if ( $multi && ! $id )
 			$id = '';
 		else
-			$id = $id ? " id='" . esc_attr( $id ) . "'" : "id='$name'";
+			$id = $id ? " id='" . esc_attr( $id ) . "'" : " id='$name'";
 
 		$output = "<select name='{$name}'{$id} class='$class'>\n";
 
 		if ( $show_option_all )
 			$output .= "\t<option value='0'>$show_option_all</option>\n";
 
-		if ( $show_option_none )
-			$output .= "\t<option value='-1'>$show_option_none</option>\n";
+		if ( $show_option_none ) {
+			$_selected = selected( -1, $selected, false );
+			$output .= "\t<option value='-1'$_selected>$show_option_none</option>\n";
+		}
 
 		foreach ( (array) $users as $user ) {
 			$user->ID = (int) $user->ID;
-			$_selected = $user->ID == $selected ? " selected='selected'" : '';
+			$_selected = selected( $user->ID, $selected, false );
 			$display = !empty($user->$show) ? $user->$show : '('. $user->user_login . ')';
 			$output .= "\t<option value='$user->ID'$_selected>" . esc_html($display) . "</option>\n";
 		}
@@ -726,7 +731,6 @@ function _fill_single_user( &$user, &$metavalues ) {
  *
  * @since 3.0.0
  * @param array $users User objects
- * @param array $metas User metavalues objects
  */
 function _fill_many_users( &$users ) {
 	$ids = array();

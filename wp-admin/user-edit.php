@@ -33,6 +33,19 @@ else
 	$submenu_file = 'profile.php';
 $parent_file = 'users.php';
 
+// contextual help - choose Help on the top right of admin panel to preview this.
+add_contextual_help($current_screen,
+    '<p>' . __('Your profile contains information about you (your "account") as well as some personal options related to using WordPress.') . '</p>' .
+    '<p>' . __('You can change your password, turn on keyboard shortcuts, change the color scheme of your WordPress administration screens, and turn off the WYSIWYG (Visual) editor, among other things.') . '</p>' . 
+    '<p>' . __('Your username cannot be changed, but you can use other fields to enter your real name or a nickname, and change which name to display on your posts.') . '</p>' .
+    '<p>' . __('Required fields are indicated; the rest are optional. Profile information will only be displayed if your theme is set up to do so.') . '</p>' .
+    '<p>' . __('Remember to click the Update Profile button when you are finished.') . '</p>' . 
+    '<p><strong>' . __('For more information:') . '</strong></p>' . 
+    '<p>' . __('<a target="_blank" href="http://codex.wordpress.org/Users_Your_Profile_SubPanel">User Profile</a>') . '</p>' .
+    '<p>' . __('<a target="_blank" href="http://wordpress.org/support/">Support Forums</a>') . '</p>' 
+);
+
+
 $wp_http_referer = remove_query_arg(array('update', 'delete_count'), stripslashes($wp_http_referer));
 
 $all_post_caps = array('posts', 'pages');
@@ -74,6 +87,10 @@ if ( is_multisite() && IS_PROFILE_PAGE && isset( $_GET[ 'newuseremail' ] ) && $c
 		wp_redirect( add_query_arg( array('updated' => 'true'), admin_url( 'profile.php' ) ) );
 		die();
 	}
+} elseif ( is_multisite() && IS_PROFILE_PAGE && !empty( $_GET['dismiss'] ) && $current_user->ID . '_new_email' == $_GET['dismiss'] ) {
+	delete_option( $current_user->ID . '_new_email' );
+	wp_redirect( add_query_arg( array('updated' => 'true'), admin_url( 'profile.php' ) ) );
+	die();
 }
 
 switch ($action) {
@@ -285,7 +302,15 @@ else
 <table class="form-table">
 <tr>
 	<th><label for="email"><?php _e('E-mail'); ?> <span class="description"><?php _e('(required)'); ?></span></label></th>
-	<td><input type="text" name="email" id="email" value="<?php echo esc_attr($profileuser->user_email) ?>" class="regular-text" /></td>
+	<td><input type="text" name="email" id="email" value="<?php echo esc_attr($profileuser->user_email) ?>" class="regular-text" />
+	<?php
+	$new_email = get_option( $current_user->ID . '_new_email' );
+	if ( $new_email && $new_email != $current_user->user_email ) : ?>
+	<div class="updated inline">
+	<p><?php printf( __('There is a pending change of your e-mail to <code>%1$s</code>. <a href="%2$s">Cancel</a>'), $new_email['newemail'], esc_url( admin_url( 'profile.php?dismiss=' . $current_user->ID . '_new_email' ) ) ); ?></p>
+	</div>
+	<?php endif; ?>
+	</td>
 </tr>
 
 <tr>

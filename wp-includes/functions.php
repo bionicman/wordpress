@@ -192,24 +192,15 @@ function get_weekstartend( $mysqlstring, $start_of_week = '' ) {
 	$md = substr( $mysqlstring, 5, 2 ); // Mysql string day
 	$day = mktime( 0, 0, 0, $md, $mm, $my ); // The timestamp for mysqlstring day.
 	$weekday = date( 'w', $day ); // The day of the week from the timestamp
-	$i = 86400; // One day
 	if ( !is_numeric($start_of_week) )
 		$start_of_week = get_option( 'start_of_week' );
 
 	if ( $weekday < $start_of_week )
-		$weekday = 7 - $start_of_week - $weekday;
+		$weekday += 7;
 
-	while ( $weekday > $start_of_week ) {
-		$weekday = date( 'w', $day );
-		if ( $weekday < $start_of_week )
-			$weekday = 7 - $start_of_week - $weekday;
-
-		$day -= 86400;
-		$i = 0;
-	}
-	$week['start'] = $day + 86400 - $i;
-	$week['end'] = $week['start'] + 604799;
-	return $week;
+	$start = $day - 86400 * ( $weekday - $start_of_week ); // The most recent week start day on or before $day
+	$end = $start + 604799; // $start + 7 days - 1 second
+	return compact( 'start', 'end' );
 }
 
 /**
@@ -319,41 +310,41 @@ function get_option( $option, $default = false ) {
 	if ( defined( 'WP_SETUP_CONFIG' ) )
 		return false;
 
-	// prevent non-existent options from triggering multiple queries
-	if ( defined( 'WP_INSTALLING' ) && is_multisite() ) {
-		$notoptions = array();
-	} else {
+	if ( ! defined( 'WP_INSTALLING' ) ) {
+		// prevent non-existent options from triggering multiple queries
 		$notoptions = wp_cache_get( 'notoptions', 'options' );
 		if ( isset( $notoptions[$option] ) )
 			return $default;
-	}
 
-	if ( ! defined( 'WP_INSTALLING' ) ) {
 		$alloptions = wp_load_alloptions();
-	}
 
-	if ( isset( $alloptions[$option] ) ) {
-		$value = $alloptions[$option];
-	} else {
-		$value = wp_cache_get( $option, 'options' );
+		if ( isset( $alloptions[$option] ) ) {
+			$value = $alloptions[$option];
+		} else {
+			$value = wp_cache_get( $option, 'options' );
 
-		if ( false === $value ) {
-			if ( defined( 'WP_INSTALLING' ) )
-				$suppress = $wpdb->suppress_errors();
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT option_value FROM $wpdb->options WHERE option_name = %s LIMIT 1", $option ) );
-			if ( defined( 'WP_INSTALLING' ) )
-				$wpdb->suppress_errors( $suppress );
+			if ( false === $value ) {
+				$row = $wpdb->get_row( $wpdb->prepare( "SELECT option_value FROM $wpdb->options WHERE option_name = %s LIMIT 1", $option ) );
 
-			// Has to be get_row instead of get_var because of funkiness with 0, false, null values
-			if ( is_object( $row ) ) {
-				$value = $row->option_value;
-				wp_cache_add( $option, $value, 'options' );
-			} else { // option does not exist, so we must cache its non-existence
-				$notoptions[$option] = true;
-				wp_cache_set( 'notoptions', $notoptions, 'options' );
-				return $default;
+				// Has to be get_row instead of get_var because of funkiness with 0, false, null values
+				if ( is_object( $row ) ) {
+					$value = $row->option_value;
+					wp_cache_add( $option, $value, 'options' );
+				} else { // option does not exist, so we must cache its non-existence
+					$notoptions[$option] = true;
+					wp_cache_set( 'notoptions', $notoptions, 'options' );
+					return $default;
+				}
 			}
 		}
+	} else {
+		$suppress = $wpdb->suppress_errors();
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT option_value FROM $wpdb->options WHERE option_name = %s LIMIT 1", $option ) );
+		$wpdb->suppress_errors( $suppress );
+		if ( is_object( $row ) )
+			$value = $row->option_value;
+		else
+			return $default;
 	}
 
 	// If home is not set use siteurl.
@@ -495,6 +486,9 @@ function update_option( $option, $newvalue ) {
 
 	wp_protect_special_option( $option );
 
+	if ( is_object($newvalue) )
+		$newvalue = wp_clone($newvalue);
+
 	$newvalue = sanitize_option( $option, $newvalue );
 	$oldvalue = get_option( $option );
 	$newvalue = apply_filters( 'pre_update_option_' . $option, $newvalue, $oldvalue );
@@ -574,6 +568,10 @@ function add_option( $option, $value = '', $deprecated = '', $autoload = 'yes' )
 		return false;
 
 	wp_protect_special_option( $option );
+
+	if ( is_object($value) )
+		$value = wp_clone($value);
+
 	$value = sanitize_option( $option, $value );
 
 	// Make sure the option doesn't already exist. We can check the 'notoptions' cache before we ask for a db query
@@ -1187,7 +1185,7 @@ function do_enclose( $content, $post_ID ) {
 		if ( !in_array( $link_test, $post_links_temp[0] ) ) { // link no longer in post
 			$mid = $wpdb->get_col( $wpdb->prepare("SELECT meta_id FROM $wpdb->postmeta WHERE post_id = %d AND meta_key = 'enclosure' AND meta_value LIKE (%s)", $post_ID, $link_test . '%') );
 			do_action( 'delete_postmeta', $mid );
-			$wpdb->query( $wpdb->prepare("DELETE FROM $wpdb->postmeta WHERE post_id IN(%s)", implode( ',', $mid ) ) );
+			$wpdb->query( $wpdb->prepare("DELETE FROM $wpdb->postmeta WHERE meta_id IN(%s)", implode( ',', $mid ) ) );
 			do_action( 'deleted_postmeta', $mid );
 		}
 	}
@@ -1920,7 +1918,7 @@ function wp_nonce_field( $action = -1, $name = "_wpnonce", $referer = true , $ec
 		echo $nonce_field;
 
 	if ( $referer )
-		wp_referer_field( $echo, 'previous' );
+		wp_referer_field( $echo );
 
 	return $nonce_field;
 }
@@ -1938,7 +1936,7 @@ function wp_nonce_field( $action = -1, $name = "_wpnonce", $referer = true , $ec
  * @param bool $echo Whether to echo or return the referer field.
  * @return string Referer field.
  */
-function wp_referer_field( $echo = true) {
+function wp_referer_field( $echo = true ) {
 	$ref = esc_attr( $_SERVER['REQUEST_URI'] );
 	$referer_field = '<input type="hidden" name="_wp_http_referer" value="'. $ref . '" />';
 
@@ -2122,15 +2120,18 @@ function path_join( $base, $path ) {
  * @return array See above for description.
  */
 function wp_upload_dir( $time = null ) {
+	global $switched;
 	$siteurl = get_option( 'siteurl' );
 	$upload_path = get_option( 'upload_path' );
 	$upload_path = trim($upload_path);
+	$main_override = false;
 	if ( empty($upload_path) ) {
 		$dir = WP_CONTENT_DIR . '/uploads';
 	} else {
 		$dir = $upload_path;
 		if ( 'wp-content/uploads' == $upload_path ) {
 			$dir = WP_CONTENT_DIR . '/uploads';
+			$main_override = defined( 'MULTISITE' ) && is_main_site();
 		} elseif ( 0 !== strpos($dir, ABSPATH) ) {
 			// $dir is absolute, $upload_path is (maybe) relative to ABSPATH
 			$dir = path_join( ABSPATH, $dir );
@@ -2144,12 +2145,12 @@ function wp_upload_dir( $time = null ) {
 			$url = trailingslashit( $siteurl ) . $upload_path;
 	}
 
-	if ( defined('UPLOADS') && ( WP_CONTENT_DIR . '/uploads' != ABSPATH . $upload_path ) ) {
+	if ( defined('UPLOADS') && ( !$main_override || WP_CONTENT_DIR . '/uploads' != ABSPATH . $upload_path ) && ( !isset( $switched ) || $switched === false ) ) {
 		$dir = ABSPATH . UPLOADS;
 		$url = trailingslashit( $siteurl ) . UPLOADS;
 	}
 
-	if ( is_multisite() && ( WP_CONTENT_DIR . '/uploads' != ABSPATH . $upload_path ) ) {
+	if ( is_multisite() && ( !$main_override || WP_CONTENT_DIR . '/uploads' != ABSPATH . $upload_path ) && ( !isset( $switched ) || $switched === false ) ) {
 		if ( defined( 'BLOGUPLOADDIR' ) )
 			$dir = untrailingslashit(BLOGUPLOADDIR);
 		$url = str_replace( UPLOADS, 'files', $url );
@@ -2368,6 +2369,74 @@ function wp_check_filetype( $filename, $mimes = null ) {
 	}
 
 	return compact( 'ext', 'type' );
+}
+
+/**
+ * Attempt to determine the real file type of a file.
+ * If unable to, the file name extension will be used to determine type.
+ *
+ * If it's determined that the extension does not match the file's real type,
+ * then the "proper_filename" value will be set with a proper filename and extension.
+ *
+ * Currently this function only supports validating images known to getimagesize().
+ *
+ * @since 3.0.0
+ *
+ * @param string $file Full path to the image.
+ * @param string $filename The filename of the image (may differ from $file due to $file being in a tmp directory)
+ * @param array $mimes Optional. Key is the file extension with value as the mime type.
+ * @return array Values for the extension, MIME, and either a corrected filename or false if original $filename is valid
+ */
+function wp_check_filetype_and_ext( $file, $filename, $mimes = null ) {
+
+	$proper_filename = false;
+
+	// Do basic extension validation and MIME mapping
+	$wp_filetype = wp_check_filetype( $filename, $mimes );
+	extract( $wp_filetype );
+
+	// We can't do any further validation without a file to work with
+	if ( ! file_exists( $file ) )
+		return compact( 'ext', 'type', 'proper_filename' );
+
+	// We're able to validate images using GD
+	if ( $type && 0 === strpos( $type, 'image/' ) && function_exists('getimagesize') ) {
+
+		// Attempt to figure out what type of image it actually is
+		$imgstats = @getimagesize( $file );
+
+		// If getimagesize() knows what kind of image it really is and if the real MIME doesn't match the claimed MIME
+		if ( !empty($imgstats['mime']) && $imgstats['mime'] != $type ) {
+			// This is a simplified array of MIMEs that getimagesize() can detect and their extensions
+			// You shouldn't need to use this filter, but it's here just in case
+			$mime_to_ext = apply_filters( 'getimagesize_mimes_to_exts', array(
+				'image/jpeg' => 'jpg',
+				'image/png'  => 'png',
+				'image/gif'  => 'gif',
+				'image/bmp'  => 'bmp',
+				'image/tiff' => 'tif',
+			) );
+
+			// Replace whatever is after the last period in the filename with the correct extension
+			if ( ! empty( $mime_to_ext[ $imgstats['mime'] ] ) ) {
+				$filename_parts = explode( '.', $filename );
+				array_pop( $filename_parts );
+				$filename_parts[] = $mime_to_ext[ $imgstats['mime'] ];
+				$new_filename = implode( '.', $filename_parts );
+
+				if ( $new_filename != $filename )
+					$proper_filename = $new_filename; // Mark that it changed
+
+				// Redefine the extension / MIME
+				$wp_filetype = wp_check_filetype( $new_filename, $mimes );
+				extract( $wp_filetype );
+			}
+		}
+	}
+
+	// Let plugins try and validate other types of files
+	// Should return an array in the style of array( 'ext' => $ext, 'type' => $type, 'proper_filename' => $proper_filename )
+	return apply_filters( 'wp_check_filetype_and_ext', compact( 'ext', 'type', 'proper_filename' ), $file, $filename, $mimes );
 }
 
 /**
@@ -2933,8 +3002,12 @@ function wp_filter_object_list( $list, $args = array(), $operator = 'and', $fiel
 
 	foreach ( $list as $key => $obj ) {
 		$matched = count(array_intersect_assoc(get_object_vars($obj), $args));
-		if ( ('and' == $operator && $matched == $count) || ('or' == $operator && $matched <= $count) )
-			$filtered[$key] = $field ? $obj->$field : $obj;
+		if ( ('and' == $operator && $matched == $count) || ('or' == $operator && $matched <= $count) ) {
+			if ( $field )
+				$filtered[] = $obj->$field;
+			else
+				$filtered[$key] = $obj;
+		}
 	}
 
 	return $filtered;
@@ -2978,7 +3051,7 @@ function wp_maybe_load_widgets() {
  */
 function wp_widgets_add_menu() {
 	global $submenu;
-	$submenu['themes.php'][7] = array( __( 'Widgets' ), 'switch_themes', 'widgets.php' );
+	$submenu['themes.php'][7] = array( __( 'Widgets' ), 'edit_theme_options', 'widgets.php' );
 	ksort( $submenu['themes.php'], SORT_NUMERIC );
 }
 
@@ -3756,7 +3829,7 @@ function is_main_site( $blog_id = '' ) {
 }
 
 /**
- * are global terms enabled
+ * Whether global terms are enabled.
  *
  *
  * @since 3.0.0
@@ -3769,8 +3842,13 @@ function global_terms_enabled() {
 		return false;
 
 	static $global_terms = null;
-	if ( is_null( $global_terms ) )
-		$global_terms = (bool) get_site_option( 'global_terms_enabled' );
+	if ( is_null( $global_terms ) ) {
+		$filter = apply_filters( 'global_terms_enabled', null );
+		if ( ! is_null( $filter ) )
+			$global_terms = (bool) $filter;
+		else
+			$global_terms = (bool) get_site_option( 'global_terms_enabled', false );
+	}
 	return $global_terms;
 }
 
@@ -4132,6 +4210,7 @@ function _search_terms_tidy($t) {
  *
  * Useful for returning true to filters easily
  *
+ * @since 3.0.0
  * @see __return_false()
  * @return bool true
  */
@@ -4144,11 +4223,38 @@ function __return_true() {
  *
  * Useful for returning false to filters easily
  *
+ * @since 3.0.0
  * @see __return_true()
  * @return bool false
  */
 function __return_false() {
 	return false;
+}
+
+/**
+ * Returns 0
+ *
+ * Useful for returning 0 to filters easily
+ *
+ * @since 3.0.0
+ * @see __return_zero()
+ * @return int 0
+ */
+function __return_zero() {
+	return 0;
+}
+
+/**
+ * Returns an empty array
+ *
+ * Useful for returning an empty array to filters easily
+ *
+ * @since 3.0.0
+ * @see __return_zero()
+ * @return array Empty array
+ */
+function __return_empty_array() {
+	return array();
 }
 
 /**
@@ -4162,6 +4268,30 @@ function __return_false() {
  */
 function send_nosniff_header() {
 	@header( 'X-Content-Type-Options: nosniff' );
+}
+
+/**
+ * Returns a MySQL expression for selecting the week number based on the start_of_week option.
+ *
+ * @internal
+ * @since 3.0.0
+ * @param string $column
+ * @return string
+ */
+function _wp_mysql_week( $column ) {
+	switch ( $start_of_week = (int) get_option( 'start_of_week' ) ) {
+	default :
+	case 0 :
+		return "WEEK( $column, 0 )";
+	case 1 :
+		return "WEEK( $column, 1 )";
+	case 2 :
+	case 3 :
+	case 4 :
+	case 5 :
+	case 6 :
+		return "WEEK( DATE_SUB( $column, INTERVAL $start_of_week DAY ), 0 )";
+	}
 }
 
 ?>

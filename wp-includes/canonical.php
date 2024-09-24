@@ -75,7 +75,7 @@ function redirect_canonical($requested_url=null, $do_redirect=true) {
 				$id = $vars->post_parent;
 
 			if ( $redirect_url = get_permalink($id) )
-				$redirect['query'] = remove_query_arg(array('p', 'page_id', 'attachment_id'), $redirect['query']);
+				$redirect['query'] = remove_query_arg(array('p', 'page_id', 'attachment_id', 'post_type'), $redirect['query']);
 		}
 	}
 
@@ -83,9 +83,14 @@ function redirect_canonical($requested_url=null, $do_redirect=true) {
 	if ( is_404() ) {
 
 		// Redirect ?page_id, ?p=, ?attachment_id= to their respective url's
-		$id = max( get_query_var('p'), get_query_var('page_id'), get_query_var('attachment_id'));
-		if ( $id && $redirect_url = get_permalink($id) )
-			$redirect['query'] = remove_query_arg(array('p', 'page_id', 'attachment_id'), $redirect['query']);
+		$id = max( get_query_var('p'), get_query_var('page_id'), get_query_var('attachment_id') );
+		if ( $id && $redirect_post = get_post($id) ) {
+			$post_type_obj = get_post_type_object($redirect_post->post_type);
+			if ( $post_type_obj->public ) {
+				$redirect_url = get_permalink($redirect_post);
+				$redirect['query'] = remove_query_arg(array('p', 'page_id', 'attachment_id', 'post_type'), $redirect['query']);
+			}
+		}
 
 		if ( ! $redirect_url )
 			$redirect_url = redirect_guess_404_permalink();
@@ -97,7 +102,7 @@ function redirect_canonical($requested_url=null, $do_redirect=true) {
 				$redirect['query'] = remove_query_arg('attachment_id', $redirect['query']);
 		} elseif ( is_single() && !empty($_GET['p']) && ! $redirect_url ) {
 			if ( $redirect_url = get_permalink(get_query_var('p')) )
-				$redirect['query'] = remove_query_arg('p', $redirect['query']);
+				$redirect['query'] = remove_query_arg(array('p', 'post_type'), $redirect['query']);
 			if ( get_query_var( 'page' ) ) {
 				$redirect_url = trailingslashit( $redirect_url ) . user_trailingslashit( get_query_var( 'page' ), 'single_paged' );
 				$redirect['query'] = remove_query_arg( 'page', $redirect['query'] );
@@ -176,8 +181,8 @@ function redirect_canonical($requested_url=null, $do_redirect=true) {
 			}
 		} elseif ( is_single() && strpos($wp_rewrite->permalink_structure, '%category%') !== false ) {
 			$category = get_term_by('slug', get_query_var('category_name'), 'category');
-			$post_terms = wp_get_object_terms($wp_query->get_queried_object_id(), 'category');
-			if ( (!$category || is_wp_error($category)) || ( !is_wp_error($post_terms) && !empty($post_terms) && !in_array($category, $post_terms) ) )
+			$post_terms = wp_get_object_terms($wp_query->get_queried_object_id(), 'category', array('fields' => 'tt_ids'));
+			if ( (!$category || is_wp_error($category)) || ( !is_wp_error($post_terms) && !empty($post_terms) && !in_array($category->term_taxonomy_id, $post_terms) ) )
 				$redirect_url = get_permalink($wp_query->get_queried_object_id());
 		}
 

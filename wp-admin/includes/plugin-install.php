@@ -169,7 +169,7 @@ function install_search_form(){
 		<select name="type" id="typeselector">
 			<option value="term"<?php selected('term', $type) ?>><?php _e('Term'); ?></option>
 			<option value="author"<?php selected('author', $type) ?>><?php _e('Author'); ?></option>
-			<option value="tag"<?php selected('tag', $type) ?>><?php echo _x('Tag', 'Plugin Installer'); ?></option>
+			<option value="tag"<?php selected('tag', $type) ?>><?php _ex('Tag', 'Plugin Installer'); ?></option>
 		</select>
 		<input type="text" name="s" value="<?php echo esc_attr($term) ?>" />
 		<label class="screen-reader-text" for="plugin-search-input"><?php _e('Search Plugins'); ?></label>
@@ -473,6 +473,8 @@ function install_plugin_install_status($api, $loop = false) {
 				$url = wp_nonce_url(admin_url('update.php?action=install-plugin&plugin=' . $api->slug), 'install-plugin_' . $api->slug);
 		}
 	}
+	if ( isset($_GET['from']) )
+		$url .= '&amp;from=' . urlencode(stripslashes($_GET['from']));
 
 	return compact('status', 'url', 'version');
 }

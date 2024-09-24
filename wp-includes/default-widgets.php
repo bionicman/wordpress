@@ -554,7 +554,9 @@ class WP_Widget_Recent_Posts extends WP_Widget {
 		</ul>
 		<?php echo $after_widget; ?>
 <?php
-			wp_reset_query();  // Restore global post data stomped by the_post().
+		// Reset the global $the_post as this query will have stomped on it
+		wp_reset_postdata();
+
 		endif;
 
 		$cache[$args['widget_id']] = ob_get_flush();
@@ -587,7 +589,7 @@ class WP_Widget_Recent_Posts extends WP_Widget {
 		<input class="widefat" id="<?php echo $this->get_field_id('title'); ?>" name="<?php echo $this->get_field_name('title'); ?>" type="text" value="<?php echo $title; ?>" /></p>
 
 		<p><label for="<?php echo $this->get_field_id('number'); ?>"><?php _e('Number of posts to show:'); ?></label>
-		<input id="<?php echo $this->get_field_id('number'); ?>" name="<?php echo $this->get_field_name('number'); ?>" type="text" value="<?php echo $number; ?>" size="3" /><br />
+		<input id="<?php echo $this->get_field_id('number'); ?>" name="<?php echo $this->get_field_name('number'); ?>" type="text" value="<?php echo $number; ?>" size="3" /></p>
 <?php
 	}
 }
@@ -622,12 +624,12 @@ class WP_Widget_Recent_Comments extends WP_Widget {
 
 	function widget( $args, $instance ) {
 		global $comments, $comment;
-		
+
 		$cache = wp_cache_get('widget_recent_comments', 'widget');
-		
+
 		if ( ! is_array( $cache ) )
 			$cache = array();
-		
+
 		if ( isset( $cache[$args['widget_id']] ) ) {
 			echo $cache[$args['widget_id']];
 			return;
@@ -642,13 +644,13 @@ class WP_Widget_Recent_Comments extends WP_Widget {
  		else if ( $number < 1 )
  			$number = 1;
 
-		$comments = get_comments(array('number' => $number));
+		$comments = get_comments( array( 'number' => $number, 'status' => 'approve' ) );
 		$output .= $before_widget;
-		if ( $title ) 
+		if ( $title )
 			$output .= $before_title . $title . $after_title;
 
 		$output .= '<ul id="recentcomments">';
-		if ( $comments ) { 
+		if ( $comments ) {
 			foreach ( (array) $comments as $comment) {
 				$output .=  '<li class="recentcomments">' . /* translators: comments widget: 1: comment author, 2: post link */ sprintf(_x('%1$s on %2$s', 'widgets'), get_comment_author_link(), '<a href="' . esc_url( get_comment_link($comment->comment_ID) ) . '">' . get_the_title($comment->comment_post_ID) . '</a>') . '</li>';
 			}
@@ -682,7 +684,7 @@ class WP_Widget_Recent_Comments extends WP_Widget {
 		<input class="widefat" id="<?php echo $this->get_field_id('title'); ?>" name="<?php echo $this->get_field_name('title'); ?>" type="text" value="<?php echo $title; ?>" /></p>
 
 		<p><label for="<?php echo $this->get_field_id('number'); ?>"><?php _e('Number of comments to show:'); ?></label>
-		<input id="<?php echo $this->get_field_id('number'); ?>" name="<?php echo $this->get_field_name('number'); ?>" type="text" value="<?php echo $number; ?>" size="3" /><br />
+		<input id="<?php echo $this->get_field_id('number'); ?>" name="<?php echo $this->get_field_name('number'); ?>" type="text" value="<?php echo $number; ?>" size="3" /></p>
 <?php
 	}
 }
@@ -1001,7 +1003,7 @@ class WP_Widget_Tag_Cloud extends WP_Widget {
 				$title = __('Tags');
 			} else {
 				$tax = get_taxonomy($current_taxonomy);
-				$title = $tax->label;
+				$title = $tax->labels->name;
 			}
 		}
 		$title = apply_filters('widget_title', $title, $instance, $this->id_base);
@@ -1030,10 +1032,10 @@ class WP_Widget_Tag_Cloud extends WP_Widget {
 	<select class="widefat" id="<?php echo $this->get_field_id('taxonomy'); ?>" name="<?php echo $this->get_field_name('taxonomy'); ?>">
 	<?php foreach ( get_object_taxonomies('post') as $taxonomy ) :
 				$tax = get_taxonomy($taxonomy);
-				if ( !$tax->show_tagcloud || empty($tax->label) )
+				if ( !$tax->show_tagcloud || empty($tax->labels->name) )
 					continue;
 	?>
-		<option value="<?php echo esc_attr($taxonomy) ?>" <?php selected($taxonomy, $current_taxonomy) ?>><?php echo $tax->label ?></option>
+		<option value="<?php echo esc_attr($taxonomy) ?>" <?php selected($taxonomy, $current_taxonomy) ?>><?php echo $tax->labels->name; ?></option>
 	<?php endforeach; ?>
 	</select></p><?php
 	}
@@ -1054,8 +1056,8 @@ class WP_Widget_Tag_Cloud extends WP_Widget {
  class WP_Nav_Menu_Widget extends WP_Widget {
 
 	function WP_Nav_Menu_Widget() {
-		$widget_ops = array( 'description' => __('Use this widget to add one of your navigation menus as a widget.') );
-		parent::WP_Widget( 'nav_menu', __('Navigation Menu'), $widget_ops );
+		$widget_ops = array( 'description' => __('Use this widget to add one of your custom menus as a widget.') );
+		parent::WP_Widget( 'nav_menu', __('Custom Menu'), $widget_ops );
 	}
 
 	function widget($args, $instance) {
@@ -1067,7 +1069,7 @@ class WP_Widget_Tag_Cloud extends WP_Widget {
 
 		echo $args['before_widget'];
 
-		if ( isset($instance['title']) )
+		if ( !empty($instance['title']) )
 			echo $args['before_title'] . $instance['title'] . $args['after_title'];
 
 		wp_nav_menu( array( 'menu' => $nav_menu ) );

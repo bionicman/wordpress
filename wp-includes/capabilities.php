@@ -823,7 +823,7 @@ function map_meta_cap( $cap, $user_id ) {
 		$post = get_post( $args[0] );
 		$post_type = get_post_type_object( $post->post_type );
 		if ( $post_type && 'post' != $post_type->capability_type ) {
-			$args = array_merge( array( $post_type->delete_cap, $user_id ), $args );
+			$args = array_merge( array( $post_type->cap->delete_post, $user_id ), $args );
 			return call_user_func_array( 'map_meta_cap', $args );
 		}
 
@@ -835,7 +835,7 @@ function map_meta_cap( $cap, $user_id ) {
 		}
 
 		// If the user is the author...
-		if ( $user_id == $post_author_data->ID ) {
+		if ( is_object( $post_author_data ) && $user_id == $post_author_data->ID ) {
 			// If the post is published...
 			if ( 'publish' == $post->post_status ) {
 				$caps[] = 'delete_published_posts';
@@ -871,7 +871,7 @@ function map_meta_cap( $cap, $user_id ) {
 			$page_author_data = $author_data;
 		}
 
-		if ( $user_id == $page_author_data->ID ) {
+		if ( is_object( $page_author_data ) && $user_id == $page_author_data->ID ) {
 			// If the page is published...
 			if ( $page->post_status == 'publish' ) {
 				$caps[] = 'delete_published_pages';
@@ -900,13 +900,13 @@ function map_meta_cap( $cap, $user_id ) {
 		$post = get_post( $args[0] );
 		$post_type = get_post_type_object( $post->post_type );
 		if ( $post_type && 'post' != $post_type->capability_type ) {
-			$args = array_merge( array( $post_type->edit_cap, $user_id ), $args );
+			$args = array_merge( array( $post_type->cap->edit_post, $user_id ), $args );
 			return call_user_func_array( 'map_meta_cap', $args );
 		}
 		$post_author_data = get_userdata( $post->post_author );
 		//echo "current user id : $user_id, post author id: " . $post_author_data->ID . "<br />";
 		// If the user is the author...
-		if ( $user_id == $post_author_data->ID ) {
+		if ( is_object( $post_author_data ) && $user_id == $post_author_data->ID ) {
 			// If the post is published...
 			if ( 'publish' == $post->post_status ) {
 				$caps[] = 'edit_published_posts';
@@ -934,7 +934,7 @@ function map_meta_cap( $cap, $user_id ) {
 		$page_author_data = get_userdata( $page->post_author );
 		//echo "current user id : $user_id, page author id: " . $page_author_data->ID . "<br />";
 		// If the user is the author...
-		if ( $user_id == $page_author_data->ID ) {
+		if ( is_object( $page_author_data ) && $user_id == $page_author_data->ID ) {
 			// If the page is published...
 			if ( 'publish' == $page->post_status ) {
 				$caps[] = 'edit_published_pages';
@@ -959,7 +959,7 @@ function map_meta_cap( $cap, $user_id ) {
 		$post = get_post( $args[0] );
 		$post_type = get_post_type_object( $post->post_type );
 		if ( $post_type && 'post' != $post_type->capability_type ) {
-			$args = array_merge( array( $post_type->read_cap, $user_id ), $args );
+			$args = array_merge( array( $post_type->cap->read_post, $user_id ), $args );
 			return call_user_func_array( 'map_meta_cap', $args );
 		}
 
@@ -970,7 +970,7 @@ function map_meta_cap( $cap, $user_id ) {
 
 		$author_data = get_userdata( $user_id );
 		$post_author_data = get_userdata( $post->post_author );
-		if ( $user_id == $post_author_data->ID )
+		if ( is_object( $post_author_data ) && $user_id == $post_author_data->ID )
 			$caps[] = 'read';
 		else
 			$caps[] = 'read_private_posts';
@@ -985,7 +985,7 @@ function map_meta_cap( $cap, $user_id ) {
 
 		$author_data = get_userdata( $user_id );
 		$page_author_data = get_userdata( $page->post_author );
-		if ( $user_id == $page_author_data->ID )
+		if ( is_object( $page_author_data ) && $user_id == $page_author_data->ID )
 			$caps[] = 'read';
 		else
 			$caps[] = 'read_private_pages';

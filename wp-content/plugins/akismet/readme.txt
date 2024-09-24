@@ -2,7 +2,8 @@
 Contributors: matt, ryan, andy, mdawaffe, tellyworth, automattic
 Tags: akismet, comments, spam
 Requires at least: 2.0
-Tested up to: 2.9
+Tested up to: 3.0
+Stable tag: 2.2.8
 
 Akismet checks your comments against the Akismet web service to see if they look like spam or not.
 
@@ -25,10 +26,14 @@ Upload the Akismet plugin to your blog, Activate it, then enter your [WordPress.
 
 == Changelog ==
 
+= 2.2.8 =
+
 * Fix bug in initial comment check for ipv6 addresses
 * Report comments as ham when they are moved from spam to moderation
 * Report comments as ham when clicking undo after spam
 * Use transition_comment_status action when available instead of older actions for spam/ham submissions
+* Better diagnostic messages when PHP network functions are unavailable
+* Better handling of comments by logged-in users
 
 = 2.2.7 =
 

@@ -16,6 +16,14 @@ if ( !current_user_can('edit_files') )
 require_once('./includes/export.php');
 $title = __('Export');
 
+add_contextual_help($current_screen,
+	'<p>' . __('You can export a file of your site&#8217;s content in order to import it into another installation or platform. The export file will be an XML file format called WXR. Posts, pages, comments, custom fields, categories, and tags can be included. You can set filters to have the WXR file only include a certain date, author, category, tag, all posts or all pages, certain publishing statuses.') . '</p>' .
+	'<p>' . __('Once generated, your WXR file can be imported by another WordPress site or by another blogging platform able to access this format.') . '</p>' .
+	'<p><strong>' . __('For more information:') . '</strong></p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Tools_Export_SubPanel">Export Documentation</a>') . '</p>' .
+	'<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>'
+);
+
 if ( isset( $_GET['download'] ) ) {
 		$author = isset($_GET['author']) ? $_GET['author'] : 'all';
 		$taxonomy = array();
@@ -42,10 +50,15 @@ if ( isset( $_GET['download'] ) ) {
 
 require_once ('admin-header.php');
 
-$dateoptions = '';
-if ( $monthyears = $wpdb->get_results( "SELECT YEAR(post_date) AS `year`, MONTH(post_date) AS `month`, count(ID) as posts FROM $wpdb->posts WHERE post_type = 'post' AND post_status = 'publish' GROUP BY YEAR(post_date), MONTH(post_date) ORDER BY post_date DESC " ) ) {
-	foreach ( $monthyears as $monthyear ) {
-		$dateoptions .= "\t<option value=\"" . $monthyear->year . '-' . zeroise( $monthyear->month, 2 ) . '">' . $wp_locale->get_month( $monthyear->month ) . ' ' . $monthyear->year . "</option>\n";
+$dateoptions = $edateoptions = '';
+$types = "'" . implode("', '", get_post_types( array( 'public' => true, 'can_export' => true ), 'names' )) . "'";
+$stati = "'" . implode("', '", get_post_stati( array( 'internal' => false ), 'names' )) . "'";
+if ( $monthyears = $wpdb->get_results("SELECT DISTINCT YEAR(post_date) AS `year`, MONTH(post_date) AS `month`, YEAR(DATE_ADD(post_date, INTERVAL 1 MONTH)) AS `eyear`, MONTH(DATE_ADD(post_date, INTERVAL 1 MONTH)) AS `emonth` FROM $wpdb->posts WHERE post_type IN ($types) AND post_status IN ($stati) ORDER BY post_date ASC ") ) {
+	foreach ( $monthyears as $k => $monthyear )
+		$monthyears[$k]->lmonth = $wp_locale->get_month( $monthyear->month, 2 );
+	for( $s = 0, $e = count( $monthyears ) - 1; $e >= 0; $s++, $e-- ) {
+		$dateoptions .= "\t<option value=\"" . $monthyears[$s]->year . '-' . zeroise( $monthyears[$s]->month, 2 ) . '">' . $monthyears[$s]->lmonth . ' ' . $monthyears[$s]->year . "</option>\n";
+		$edateoptions .= "\t<option value=\"" . $monthyears[$e]->eyear . '-' . zeroise( $monthyears[$e]->emonth, 2 ) . '">' . $monthyears[$e]->lmonth . ' ' . $monthyears[$e]->year . "</option>\n";
 	}
 }
 
@@ -59,25 +72,29 @@ if ( $monthyears = $wpdb->get_results( "SELECT YEAR(post_date) AS `year`, MONTH(
 <p><?php _e('This format, which we call WordPress eXtended RSS or WXR, will contain your posts, pages, comments, custom fields, categories, and tags.'); ?></p>
 <p><?php _e('Once you&#8217;ve saved the download file, you can use the Import function on another WordPress site to import this site.'); ?></p>
 <form action="" method="get">
-<h3><?php _e('Options'); ?></h3>
+<h3><?php _e('Filters'); ?></h3>
 
 <table class="form-table">
 <tr>
-<th><label for="mm_start"><?php _e('Restrict Date'); ?></label></th>
-<td><strong><?php _e('Start:'); ?></strong> 
+<th><label for="mm_start"><?php _e('Start Date'); ?></label></th>
+<td>
 <select name="mm_start" id="mm_start">
-	<option value="all" selected="selected"><?php _e('All Dates'); ?></option>
-<?php echo ($dateoptions); ?>
-</select> <br/>
-<strong><?php _e('End:'); ?></strong> 
-<select name="mm_end" id="mm_end">
 	<option value="all" selected="selected"><?php _e('All Dates'); ?></option>
 <?php echo $dateoptions; ?>
 </select>
 </td>
 </tr>
 <tr>
-<th><label for="author"><?php _e('Restrict Author'); ?></label></th>
+<th><label for="mm_end" id="mm_end"><?php _e('End Date'); ?></label></th>
+<td>
+<select name="mm_end" id="mm_end">
+	<option value="all" selected="selected"><?php _e('All Dates'); ?></option>
+<?php echo $edateoptions; ?>
+</select>
+</td>
+</tr>
+<tr>
+<th><label for="author"><?php _e('Authors'); ?></label></th>
 <td>
 <select name="author" id="author">
 <option value="all" selected="selected"><?php _e('All Authors'); ?></option>
@@ -90,30 +107,25 @@ foreach ( (array) $authors as $author ) {
 </select>
 </td>
 </tr>
-<tr>
-<th><?php _e('Restrict Taxonomies'); ?></th>
-<td>
 <?php foreach ( get_taxonomies( array( 'show_ui' => true ), 'objects' ) as $tax_obj ) {
 	$term_dropdown = wp_dropdown_categories( array( 'taxonomy' => $tax_obj->name, 'hide_if_empty' => true, 'show_option_all' => __( 'All Terms' ), 'name' => 'taxonomy[' . $tax_obj->name . ']', 'id' => 'taxonomy-' . $tax_obj->name, 'class' => '', 'echo' => false ) );
 	if ( $term_dropdown )
-		echo '<label for="taxonomy-' . $tax_obj->name . '">' . $tax_obj->label . '</label>: ' . $term_dropdown . '<br/>';
+		echo '<tr><th><label for="taxonomy-' . $tax_obj->name . '">' . $tax_obj->labels->name . '</label></th><td>' . $term_dropdown . '</td></tr>';
 }
 ?>
-</td>
-</tr>
 <tr>
-<th><label for="post_type"><?php _e('Restrict Content'); ?></label></th>
+<th><label for="post_type"><?php _e('Content Types'); ?></label></th>
 <td>
 <select name="post_type" id="post_type">
 	<option value="all" selected="selected"><?php _e('All Content'); ?></option>
 	<?php foreach ( get_post_types( array( 'public' => true, 'can_export' => true ), 'objects' ) as $post_type_obj ) { ?>
-		<option value="<?php echo $post_type_obj->name; ?>"><?php echo $post_type_obj->label; ?></option>
+		<option value="<?php echo $post_type_obj->name; ?>"><?php echo $post_type_obj->labels->name; ?></option>
 	<?php } ?>
 </select>
 </td>
 </tr>
 <tr>
-<th><label for="status"><?php _e('Restrict Status'); ?></label></th>
+<th><label for="status"><?php _e('Statuses'); ?></label></th>
 <td>
 <select name="status" id="status">
 	<option value="all" selected="selected"><?php _e('All Statuses'); ?></option>

@@ -86,8 +86,12 @@ foreach ( array( 'comment_author', 'term_name', 'link_name', 'link_description',
 	add_filter( $filter, 'esc_html'      );
 }
 
+// Format WordPress
+foreach ( array( 'the_content', 'the_title', 'comment_text' ) as $filter )
+	add_filter( $filter, 'capital_P_dangit' );
+
 // Format titles
-foreach ( array( 'single_post_title', 'single_cat_title', 'single_tag_title', 'single_month_title' ) as $filter ) {
+foreach ( array( 'single_post_title', 'single_cat_title', 'single_tag_title', 'single_month_title', 'nav_menu_attr_title', 'nav_menu_description' ) as $filter ) {
 	add_filter( $filter, 'wptexturize' );
 	add_filter( $filter, 'strip_tags'  );
 }
@@ -235,10 +239,11 @@ add_action( 'begin_fetch_post_thumbnail_html', '_wp_post_thumbnail_class_filter_
 add_action( 'end_fetch_post_thumbnail_html',   '_wp_post_thumbnail_class_filter_remove' );
 
 // Redirect Old Slugs
-add_action( 'template_redirect',  'wp_old_slug_redirect'       );
-add_action( 'edit_post',          'wp_check_for_changed_slugs' );
-add_action( 'edit_form_advanced', 'wp_remember_old_slug'       );
-add_action( 'init',               '_show_post_preview'         );
+add_action( 'template_redirect', 'wp_old_slug_redirect'              );
+add_action( 'post_updated',      'wp_check_for_changed_slugs', 12, 3 );
+
+// Nonce check for Post Previews
+add_action( 'init', '_show_post_preview' );
 
 // Timezone
 add_filter( 'pre_option_gmt_offset','wp_timezone_override_offset' );
@@ -246,3 +251,5 @@ add_filter( 'pre_option_gmt_offset','wp_timezone_override_offset' );
 // Admin Color Schemes
 add_action( 'admin_init', 'register_admin_color_schemes', 1);
 add_action( 'admin_color_scheme_picker', 'admin_color_scheme_picker' );
+
+?>

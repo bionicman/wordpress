@@ -1,3 +1,9 @@
+/*
+Theme Name: Twenty Ten
+*/
+/*
+Used to style the TinyMCE editor.
+*/
 html .mceContentBody {
 	max-width:640px;
 }
@@ -25,7 +31,7 @@ thead th {
 pre {
 	font-family: "Courier 10 Pitch", Courier, monospace;
 }
-code {
+code, code var {
 	font-family: Monaco, Consolas, "Andale Mono", "DejaVu Sans Mono", monospace;
 }
 body, input, textarea {
@@ -40,13 +46,16 @@ hr {
 	clear:both;
 }
 /* Text elements */
+p {
+	margin-bottom: 18px;
+}
 ul {
 	list-style: square;
-	margin: 0 0 18px -18px;
+	margin: 0 0 18px 1.5em;
 }
 ol {
 	list-style: decimal;
-	margin: 0 0 18px -18px;
+	margin: 0 0 18px 1.5em;
 }
 ol ol {
 	list-style:upper-alpha;
@@ -57,7 +66,10 @@ ol ol ol {
 ol ol ol ol {
 	list-style:lower-alpha;
 }
-ul ul, ol ol, ul ol, ol ul {
+ul ul,
+ol ol,
+ul ol,
+ol ul {
 	margin-bottom:0;
 }
 dl {
@@ -68,15 +80,16 @@ dt {
 }
 dd {
 	margin-bottom: 18px;
-	margin-left: 0;
 }
 strong {
 	font-weight: bold;
 	color: #000;
 }
-cite, em, i {
+cite,
+em,
+i {
 	font-style: italic;
-	border:none;
+	border: none;
 }
 big {
 	font-size: 131.25%;
@@ -93,8 +106,6 @@ del {
 blockquote {
 	font-style: italic;
 	padding: 0 3em;
-	margin-left: 0;
-	margin-right: 0;
 }
 blockquote cite,
 blockquote em,
@@ -139,13 +150,6 @@ a:visited {
 a:active,
 a:hover {
 	color: #FF4B33;
-}
-
-input,
-textarea {
-	color: #444;
-	font-size: 16px;
-	line-height: 24px;
 }
 p,
 ul,
@@ -231,7 +235,7 @@ tr td {
 
 
 img {
-	margin: 0 0 24px 0;
+	margin: 0;
 	max-width: 640px;
 }
 .alignleft,
@@ -255,7 +259,9 @@ img.aligncenter {
 	margin-left: auto;
 	margin-right: auto;
 }
-img.alignleft, img.alignright, img.aligncenter {
+img.alignleft,
+img.alignright,
+img.aligncenter {
 	margin-bottom: 12px;
 }
 .wp-caption {

@@ -306,9 +306,13 @@ function wp_handle_upload( &$file, $overrides = false, $time = null ) {
 
 	// A correct MIME type will pass this test. Override $mimes or use the upload_mimes filter.
 	if ( $test_type ) {
-		$wp_filetype = wp_check_filetype( $file['name'], $mimes );
+		$wp_filetype = wp_check_filetype_and_ext( $file['tmp_name'], $file['name'], $mimes );
 
 		extract( $wp_filetype );
+
+		// Check to see if wp_check_filetype_and_ext() determined the filename was incorrect
+		if ( $proper_filename )
+			$file['name'] = $proper_filename;
 
 		if ( ( !$type || !$ext ) && !current_user_can( 'unfiltered_upload' ) )
 			return call_user_func($upload_error_handler, $file, __( 'File type does not meet security guidelines. Try another.' ));
@@ -416,39 +420,13 @@ function wp_handle_sideload( &$file, $overrides = false ) {
 
 	// A correct MIME type will pass this test. Override $mimes or use the upload_mimes filter.
 	if ( $test_type ) {
-		$wp_filetype = wp_check_filetype( $file['name'], $mimes );
+		$wp_filetype = wp_check_filetype_and_ext( $file['tmp_name'], $file['name'], $mimes );
 
 		extract( $wp_filetype );
 
-		// If the file claims to be an image, validate it's extension
-		if ( function_exists('getimagesize') && !empty( $type ) && 'image/' == substr( $type, 0, 6 ) && is_uploaded_file( $file['tmp_name'] ) ) {
-			// Attempt to figure out what type of image it really is
-			$imgstats = @getimagesize( $file['tmp_name'] );
-
-			// If getimagesize() knows what kind of image it really is and if the real MIME doesn't match the claimed MIME
-			if ( !empty($imgstats['mime']) && $imgstats['mime'] != $type ) {
-				// This is a simplified array of MIMEs that getimagesize() can detect and their extensions
-				$mime_to_ext = apply_filters( 'getimagesize_mimes_to_exts', array(
-					'image/jpeg' => 'jpg',
-					'image/png'  => 'png',
-					'image/gif'  => 'gif',
-					'image/bmp'  => 'bmp',
-					'image/tiff' => 'tif',
-				) );
-
-				// Replace whatever's after the last period in the filename with the correct extension
-				if ( !empty($mime_to_ext[$imgstats['mime']]) ) {
-					$filename_parts = explode( '.', $file['name'] );
-					array_pop( $filename_parts );
-					$filename_parts[] = $mime_to_ext[$imgstats['mime']];
-					$file['name'] = implode( '.', $filename_parts );
-
-					// Re-validate the extension / MIME
-					$wp_filetype = wp_check_filetype( $file['name'], $mimes );
-					extract( $wp_filetype );
-				}
-			}
-		}
+		// Check to see if wp_check_filetype_and_ext() determined the filename was incorrect
+		if ( $proper_filename )
+			$file['name'] = $proper_filename;
 
 		if ( ( !$type || !$ext ) && !current_user_can( 'unfiltered_upload' ) )
 			return $upload_error_handler( $file, __( 'File type does not meet security guidelines. Try another.' ));
@@ -607,7 +585,7 @@ function _unzip_file_ziparchive($file, $to, $needed_dirs = array() ) {
 
 	// PHP4-compat - php4 classes can't contain constants
 	$zopen = $z->open($file, /* ZIPARCHIVE::CHECKCONS */ 4);
-	if ( true !== $zopen || /* ZIPARCHIVE::ZIP_ER_OK */ 0 !== $zopen ) // may return true, or (int)0 ZIP_ER_OK under certain versions
+	if ( true !== $zopen && /* ZIPARCHIVE::ZIP_ER_OK */ 0 !== $zopen ) // may return true, or (int)0 ZIP_ER_OK under certain versions
 		return new WP_Error('incompatible_archive', __('Incompatible Archive.'));
 
 	for ( $i = 0; $i < $z->numFiles; $i++ ) {
@@ -624,6 +602,17 @@ function _unzip_file_ziparchive($file, $to, $needed_dirs = array() ) {
 	}
 
 	$needed_dirs = array_unique($needed_dirs);
+	foreach ( $needed_dirs as $dir ) {
+		// Check the parent folders of the folders all exist within the creation array.
+		if ( untrailingslashit($to) == $dir ) // Skip over the working directory, We know this exists (or will exist)
+			continue;
+
+		$parent_folder = dirname($dir);
+		while ( !empty($parent_folder) && untrailingslashit($to) != $parent_folder && !in_array($parent_folder, $needed_dirs) ) {
+			$needed_dirs[] = $parent_folder;
+			$parent_folder = dirname($parent_folder);
+		}
+	}
 	asort($needed_dirs);
 
 	// Create those directories if need be:
@@ -692,11 +681,22 @@ function _unzip_file_pclzip($file, $to, $needed_dirs = array()) {
 	}
 
 	$needed_dirs = array_unique($needed_dirs);
+	foreach ( $needed_dirs as $dir ) {
+		// Check the parent folders of the folders all exist within the creation array.
+		if ( untrailingslashit($to) == $dir ) // Skip over the working directory, We know this exists (or will exist)
+			continue;
+
+		$parent_folder = dirname($dir);
+		while ( !empty($parent_folder) && untrailingslashit($to) != $parent_folder && !in_array($parent_folder, $needed_dirs) ) {
+			$needed_dirs[] = $parent_folder;
+			$parent_folder = dirname($parent_folder);
+		}
+	}
 	asort($needed_dirs);
 
 	// Create those directories if need be:
 	foreach ( $needed_dirs as $_dir ) {
-		if ( ! $wp_filesystem->mkdir($_dir, FS_CHMOD_DIR) && ! $wp_filesystem->is_dir($_dir) ) // Only check to see if the Dir exists upon creation failure. Less I/O this way.
+		if ( ! $wp_filesystem->mkdir($_dir, FS_CHMOD_DIR) && ! $wp_filesystem->is_dir($_dir) ) // Only check to see if the dir exists upon creation failure. Less I/O this way.
 			return new WP_Error('mkdir_failed', __('Could not create directory.'), $_dir);
 	}
 	unset($needed_dirs);

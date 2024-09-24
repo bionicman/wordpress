@@ -127,7 +127,7 @@ function core_upgrade_preamble() {
 
 	if ( !isset($updates[0]->response) || 'latest' == $updates[0]->response ) {
 		echo '<h3>';
-		_e('You have the latest version of WordPress. You do not need to update');
+		_e('You have the latest version of WordPress.');
 		echo '</h3>';
 	} else {
 		echo '<div class="updated"><p>';
@@ -135,7 +135,7 @@ function core_upgrade_preamble() {
 		echo '</p></div>';
 
 		echo '<h3 class="response">';
-		_e( 'There is a new version of WordPress available for update' );
+		_e( 'An updated version of WordPress is available.' );
 		echo '</h3>';
 	}
 
@@ -149,6 +149,7 @@ function core_upgrade_preamble() {
 		echo '</li>';
 	}
 	echo '</ul>';
+	echo '<p>' . __( 'While your site is being updated, it will be in maintenance mode. As soon as your updates are complete, your site will return to normal.' ) . '</p>';
 	dismissed_updates();
 
 	list_plugin_updates();
@@ -164,8 +165,11 @@ function list_plugin_updates() {
 
 	require_once(ABSPATH . 'wp-admin/includes/plugin-install.php');
 	$plugins = get_plugin_updates();
-	if ( empty($plugins) )
+	if ( empty( $plugins ) ) {
+		echo '<h3>' . __( 'Plugins' ) . '</h3>';
+		echo '<p>' . __( 'Your plugins are all up to date.' ) . '</p>';
 		return;
+	}
 	$form_action = 'update-core.php?action=do-plugin-upgrade';
 
 	$core_updates = get_core_updates();
@@ -224,7 +228,7 @@ function list_plugin_updates() {
 		echo "
 	<tr class='active'>
 		<th scope='row' class='check-column'><input type='checkbox' name='checked[]' value='" . esc_attr($plugin_file) . "' /></th>
-		<td class='plugin-title'><strong>{$plugin_data->Name}</strong>" . sprintf(__('You are running version %1$s. Update to %2$s.'), $plugin_data->Version, $plugin_data->update->new_version) . $compat . $upgrade_notice . "</td>
+		<td class='plugin-title'><strong>{$plugin_data->Name}</strong>" . sprintf(__('You have version %1$s installed. Update to %2$s.'), $plugin_data->Version, $plugin_data->update->new_version) . $compat . $upgrade_notice . "</td>
 	</tr>";
 	}
 ?>
@@ -237,8 +241,11 @@ function list_plugin_updates() {
 
 function list_theme_updates() {
 	$themes = get_theme_updates();
-	if ( empty($themes) )
+	if ( empty( $themes ) ) {
+		echo '<h3>' . __( 'Themes' ) . '</h3>';
+		echo '<p>' . __( 'Your themes are all up to date.' ) . '</p>';
 		return;
+	}
 
 	$form_action = 'update-core.php?action=do-theme-upgrade';
 
@@ -271,7 +278,7 @@ function list_theme_updates() {
 		echo "
 	<tr class='active'>
 		<th scope='row' class='check-column'><input type='checkbox' name='checked[]' value='" . esc_attr($stylesheet) . "' /></th>
-		<td class='plugin-title'><img src='$screenshot' width='64' height='64' style='float:left; padding: 5px' /><strong>{$theme_data->Name}</strong>" .  sprintf(__('You are running version %1$s. Update to %2$s.'), $theme_data->Version, $theme_data->update['new_version']) . "</td>
+		<td class='plugin-title'><img src='$screenshot' width='64' height='64' style='float:left; padding: 5px' /><strong>{$theme_data->Name}</strong>" .  sprintf(__('You have version %1$s installed. Update to %2$s.'), $theme_data->Version, $theme_data->update['new_version']) . "</td>
 	</tr>";
 	}
 ?>
@@ -374,6 +381,12 @@ if ( 'do-plugin-upgrade' == $action && !isset($_GET['plugins']) && !isset($_POST
 $title = __('WordPress Updates');
 $parent_file = 'tools.php';
 
+add_contextual_help($current_screen,
+	'<p>' . __('This screen lets you update to the latest version of WordPress as well as update your themes and plugins from the WordPress.org repository. When updates are available, the number of available updates will appear in a bubble on the left hand menu as a notification. It is very important to keep your WordPress installation up to date for security reasons, so when you see a number appear, make sure you take the time to update, which is an easy process.') . '</p>' .
+	'<p>' . __('Updating your WordPress installation is a simple one-click procedure; just click on the Update button when it says a new version is available. ') . '</p>' .
+	'<p>' . __('To upgrade themes or plugins from this screen, use the checkboxes to make your selection and click on the appropriate Update button. Check the box at the top of the Themes or Plugins section to select all and update them all at once.') . '</p>'
+);
+
 if ( 'upgrade-core' == $action ) {
 	wp_version_check();
 	require_once('./admin-header.php');
@@ -418,7 +431,7 @@ if ( 'upgrade-core' == $action ) {
 	echo '<div class="wrap">';
 	screen_icon('plugins');
 	echo '<h2>' . esc_html__('Update Plugins') . '</h2>';
-	echo "<iframe src='$url' style='width: 100%; height:100%; min-height:850px;'></iframe>";
+	echo "<iframe src='$url' style='width: 100%; height: 100%; min-height: 750px;' frameborder='0'></iframe>";
 	echo '</div>';
 } elseif ( 'do-theme-upgrade' == $action ) {
 	check_admin_referer('upgrade-core');
@@ -441,7 +454,7 @@ if ( 'upgrade-core' == $action ) {
 	echo '<div class="wrap">';
 	screen_icon('themes');
 	echo '<h2>' . esc_html__('Update Themes') . '</h2>';
-	echo "<iframe src='$url' style='width: 100%; height:100%; min-height:850px;'></iframe>";
+	echo "<iframe src='$url' style='width: 100%; height: 100%; min-height: 750px;' frameborder='0'></iframe>";
 	echo '</div>';
 }
 

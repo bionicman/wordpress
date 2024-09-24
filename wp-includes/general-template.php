@@ -228,13 +228,17 @@ function wp_logout_url($redirect = '') {
  * @uses apply_filters() calls 'login_url' hook on final login url
  *
  * @param string $redirect Path to redirect to on login.
+ * @param bool $force_reauth Whether to force reauthorization, even if a cookie is present. Default is false.
+ * @return string A log in url
  */
-function wp_login_url($redirect = '') {
+function wp_login_url($redirect = '', $force_reauth = false) {
 	$login_url = site_url('wp-login.php', 'login');
 
-	if ( !empty($redirect) ) {
+	if ( !empty($redirect) )
 		$login_url = add_query_arg('redirect_to', urlencode($redirect), $login_url);
-	}
+
+	if ( $force_reauth )
+		$login_url = add_query_arg('reauth', '1', $login_url);
 
 	return apply_filters('login_url', $login_url, $redirect);
 }
@@ -267,7 +271,7 @@ function wp_login_form( $args = array() ) {
 
 	$form = '
 		<form name="' . $args['form_id'] . '" id="' . $args['form_id'] . '" action="' . site_url( 'wp-login.php', 'login' ) . '" method="post">
-			' . do_action( 'login_form_top' ) . '
+			' . apply_filters( 'login_form_top', '' ) . '
 			<p class="login-username">
 				<label for="' . esc_attr( $args['id_username'] ) . '">' . esc_html( $args['label_username'] ) . '</label>
 				<input type="text" name="log" id="' . esc_attr( $args['id_username'] ) . '" class="input" value="' . esc_attr( $args['value_username'] ) . '" size="20" tabindex="10" />
@@ -276,13 +280,13 @@ function wp_login_form( $args = array() ) {
 				<label for="' . esc_attr( $args['id_password'] ) . '">' . esc_html( $args['label_password'] ) . '</label>
 				<input type="password" name="pwd" id="' . esc_attr( $args['id_password'] ) . '" class="input" value="" size="20" tabindex="20" />
 			</p>
-			' . do_action( 'login_form_middle' ) . '
+			' . apply_filters( 'login_form_middle', '' ) . '
 			' . ( $args['remember'] ? '<p class="login-remember"><label><input name="rememberme" type="checkbox" id="' . esc_attr( $args['id_remember'] ) . '" value="forever" tabindex="90"' . ( $args['value_remember'] ? ' checked="checked"' : '' ) . ' /> ' . esc_html( $args['label_remember'] ) . '</label></p>' : '' ) . '
 			<p class="login-submit">
 				<input type="submit" name="wp-submit" id="' . esc_attr( $args['id_submit'] ) . '" class="button-primary" value="' . esc_attr( $args['label_log_in'] ) . '" tabindex="100" />
 				<input type="hidden" name="redirect_to" value="' . esc_attr( $args['redirect'] ) . '" />
 			</p>
-			' . do_action( 'login_form_bottom' ) . '
+			' . apply_filters( 'login_form_bottom', '' ) . '
 		</form>';
 
 	if ( $args['echo'] )
@@ -459,7 +463,11 @@ function get_bloginfo( $show = '', $filter = 'raw' ) {
 			break;
 		case 'text_direction':
 			//_deprecated_argument( __FUNCTION__, '2.2', sprintf( __('The <code>%s</code> option is deprecated for the family of <code>bloginfo()</code> functions.' ), $show ) . ' ' . sprintf( __( 'Use the <code>%s</code> function instead.' ), 'is_rtl()'  ) );
-			return function_exists( 'is_rtl' ) ? is_rtl() : 'ltr';
+			if ( function_exists( 'is_rtl' ) ) {
+				$output = is_rtl() ? 'rtl' : 'ltr';
+			} else {
+				$output = 'ltr';
+			}
 			break;
 		case 'name':
 		default:
@@ -584,10 +592,9 @@ function wp_title($sep = '&raquo;', $display = true, $seplocation = '') {
 	if ( is_tax() ) {
 		$taxonomy = get_query_var( 'taxonomy' );
 		$tax = get_taxonomy( $taxonomy );
-		$tax = $tax->label;
 		$term = $wp_query->get_queried_object();
 		$term = $term->name;
-		$title = $tax . $t_sep . $term;
+		$title = $tax->labels->name . $t_sep . $term;
 	}
 
 	//If it's a search
@@ -965,8 +972,8 @@ function wp_get_archives($args = '') {
 			}
 		}
 	} elseif ( 'weekly' == $type ) {
-		$start_of_week = get_option('start_of_week');
-		$query = "SELECT DISTINCT WEEK(post_date, $start_of_week) AS `week`, YEAR(post_date) AS yr, DATE_FORMAT(post_date, '%Y-%m-%d') AS yyyymmdd, count(ID) as posts FROM $wpdb->posts $join $where GROUP BY WEEK(post_date, $start_of_week), YEAR(post_date) ORDER BY post_date DESC $limit";
+		$week = _wp_mysql_week( '`post_date`' );
+		$query = "SELECT DISTINCT $week AS `week`, YEAR( `post_date` ) AS `yr`, DATE_FORMAT( `post_date`, '%Y-%m-%d' ) AS `yyyymmdd`, count( `ID` ) AS `posts` FROM `$wpdb->posts` $join $where GROUP BY $week, YEAR( `post_date` ) ORDER BY `post_date` DESC $limit";
 		$key = md5($query);
 		$cache = wp_cache_get( 'wp_get_archives' , 'general');
 		if ( !isset( $cache[ $key ] ) ) {
@@ -1190,7 +1197,7 @@ function get_calendar($initial = true, $echo = true) {
 		$ak_title_separator = ', ';
 
 	$ak_titles_for_day = array();
-	$ak_post_titles = $wpdb->get_results("SELECT post_title, DAYOFMONTH(post_date) as dom "
+	$ak_post_titles = $wpdb->get_results("SELECT ID, post_title, DAYOFMONTH(post_date) as dom "
 		."FROM $wpdb->posts "
 		."WHERE YEAR(post_date) = '$thisyear' "
 		."AND MONTH(post_date) = '$thismonth' "
@@ -1200,7 +1207,7 @@ function get_calendar($initial = true, $echo = true) {
 	if ( $ak_post_titles ) {
 		foreach ( (array) $ak_post_titles as $ak_post_title ) {
 
-				$post_title = esc_attr( apply_filters( 'the_title', $ak_post_title->post_title ) );
+				$post_title = esc_attr( apply_filters( 'the_title', $ak_post_title->post_title, $ak_post_title->ID ) );
 
 				if ( empty($ak_titles_for_day['day_'.$ak_post_title->dom]) )
 					$ak_titles_for_day['day_'.$ak_post_title->dom] = '';

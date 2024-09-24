@@ -51,7 +51,7 @@ if ( !empty($action) ) {
 
 			$result = activate_plugin($plugin, 'plugins.php?error=true&plugin=' . $plugin, $network_wide);
 			if ( is_wp_error( $result ) ) {
-				if ('unexpected_output' == $result->get_error_code()) {
+				if ( 'unexpected_output' == $result->get_error_code() ) {
 					$redirect = 'plugins.php?error=true&charsout=' . strlen($result->get_error_data()) . '&plugin=' . $plugin;
 					wp_redirect(add_query_arg('_error_nonce', wp_create_nonce('plugin-activation-error_' . $plugin), $redirect));
 					exit;
@@ -65,8 +65,11 @@ if ( !empty($action) ) {
 				unset($recent[ $plugin ]);
 				update_option('recently_activated', $recent);
 			}
-
-			wp_redirect("plugins.php?activate=true&plugin_status=$status&paged=$page"); // overrides the ?error=true one above
+			if ( isset($_GET['from']) && 'import' == $_GET['from'] ) {
+				wp_redirect("import.php?import=" . str_replace('-importer', '', dirname($plugin)) ); // overrides the ?error=true one above and redirects to the Imports page, striping the -importer suffix
+			} else {
+				wp_redirect("plugins.php?activate=true&plugin_status=$status&paged=$page"); // overrides the ?error=true one above
+			}
 			exit;
 			break;
 		case 'activate-selected':
@@ -302,13 +305,15 @@ if ( !empty($action) ) {
 wp_enqueue_script('plugin-install');
 add_thickbox();
 
-$help = '<p>' . __('Plugins extend and expand the functionality of WordPress. Once a plugin is installed, you may activate it or deactivate it here.') . '</p>';
-if ( current_user_can('edit_plugins') ) {
-$help .= '<p>' . sprintf(__('If something goes wrong with a plugin and you can&#8217;t use WordPress, delete or rename that file in the <code>%s</code> directory and it will be automatically deactivated.'), WP_PLUGIN_DIR) . '</p>';
-$help .= '<p>' . sprintf(__('You can find additional plugins for your site by using the new <a href="%1$s">Plugin Browser/Installer</a> functionality or by browsing the <a href="http://wordpress.org/extend/plugins/">WordPress Plugin Directory</a> directly and installing manually.  To <em>manually</em> install a plugin you generally just need to upload the plugin file into your <code>%2$s</code> directory.  Once a plugin has been installed, you may activate it here.'), 'plugin-install.php', WP_PLUGIN_DIR) . '</p>';
-}
-
-add_contextual_help($current_screen, $help);
+add_contextual_help($current_screen,
+	'<p>' . __('Plugins extend and expand the functionality of WordPress. Once a plugin is installed, you may activate it or deactivate it here.') . '</p>' .
+	'<p>' . sprintf(__('You can find additional plugins for your site by using the <a href="%1$s">Plugin Browser/Installer</a> functionality or by browsing the <a href="%2$s">WordPress Plugin Directory</a> directly and installing new plugins manually. To manually install a plugin you generally just need to upload the plugin file into your <code>/wp-content/plugins</code> directory. Once a plugin has been installed, you can activate it here.'), 'plugin-install.php', 'http://wordpress.org/extend/plugins/') . '</p>' .
+	'<p>' . __('Most of the time, plugins play nicely with the core of WordPress and with other plugins. Sometimes, though, a plugin&#8217;s code will get in the way of another plugin, causing compatibility issues. If your site starts doing strange things, this may be the problem. Try deactivating all your plugins and re-activating them in various combinations until you isolate which one(s) caused the issue.') . '</p>' .
+	'<p>' . sprintf( __('If something goes wrong with a plugin and you can&#8217;t use WordPress, delete or rename that file in the <code>%s</code> directory and it will be automatically deactivated.'), WP_PLUGIN_DIR) . '</p>' .	
+	'<p><strong>' . __('For more information:') . '</strong></p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Managing_Plugins#Plugin_Management">Documentation on Managing Plugins</a>') . '</p>' .
+	'<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>'
+);
 
 if ( is_multisite() && is_super_admin() ) {
 	$menu_perms = get_site_option('menu_items', array());
@@ -317,7 +322,8 @@ if ( is_multisite() && is_super_admin() ) {
 	unset($menu_perms);
 }
 
-$title = __('Manage Plugins');
+$title = __('Plugins');
+
 require_once('./admin-header.php');
 
 $invalid = validate_active_plugins();
@@ -328,15 +334,14 @@ if ( !empty($invalid) )
 
 <?php if ( isset($_GET['error']) ) :
 
-	if (isset($_GET['charsout']))
-		$errmsg = sprintf(__('Plugin could not be activated because it generated %d characters of <strong>unexpected output</strong>.'), $_GET['charsout']);
+	if ( isset($_GET['charsout']) )
+		$errmsg = sprintf(__('The plugin generated %d characters of <strong>unexpected output</strong> during activation.  If you notice &#8220;headers already sent&#8221; messages, problems with syndication feeds or other issues, try deactivating or removing this plugin.'), $_GET['charsout']);
 	else
 		$errmsg = __('Plugin could not be activated because it triggered a <strong>fatal error</strong>.');
-
 	?>
 	<div id="message" class="updated"><p><?php echo $errmsg; ?></p>
 	<?php
-		if ( wp_verify_nonce($_GET['_error_nonce'], 'plugin-activation-error_' . $plugin) ) { ?>
+		if ( !isset($_GET['charsout']) && wp_verify_nonce($_GET['_error_nonce'], 'plugin-activation-error_' . $plugin) ) { ?>
 	<iframe style="border:0" width="100%" height="70px" src="<?php echo admin_url('plugins.php?action=error_scrape&amp;plugin=' . esc_attr($plugin) . '&amp;_wpnonce=' . esc_attr($_GET['_error_nonce'])); ?>"></iframe>
 	<?php
 		}
@@ -435,8 +440,8 @@ $total_network_plugins = count($network_plugins);
 $total_mustuse_plugins = count($mustuse_plugins);
 $total_dropins_plugins = count($dropins_plugins);
 
-//Searching.
-if ( isset($_GET['s']) ) {
+// Searching.
+if ( !empty($_GET['s']) ) {
 	function _search_plugins_filter_callback($plugin) {
 		static $term;
 		if ( is_null($term) )
@@ -457,7 +462,7 @@ if ( isset($_GET['s']) ) {
 }
 
 $plugin_array_name = "${status}_plugins";
-if ( empty($$plugin_array_name) && $status != 'all' ) {
+if ( empty($$plugin_array_name) && !in_array($status, array('all', 'search')) ) {
 	$status = 'all';
 	$plugin_array_name = "${status}_plugins";
 }
@@ -674,7 +679,7 @@ function print_plugin_actions($context, $field_name = 'action' ) {
 <p class="search-box">
 	<label class="screen-reader-text" for="plugin-search-input"><?php _e( 'Search Plugins' ); ?>:</label>
 	<input type="text" id="plugin-search-input" name="s" value="<?php _admin_search_query(); ?>" />
-	<input type="submit" value="<?php esc_attr_e( 'Search Plugins' ); ?>" class="button" />
+	<input type="submit" value="<?php esc_attr_e( 'Search Installed Plugins' ); ?>" class="button" />
 </p>
 </form>
 

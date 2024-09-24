@@ -50,7 +50,17 @@ function add_js() {
 }
 add_filter('admin_head', 'add_js');
 
-add_contextual_help($current_screen, __('<a href="http://codex.wordpress.org/Settings_General_SubPanel" target="_blank">General Settings</a>'));
+add_contextual_help($current_screen, 
+	'<p>' . __('The fields on this screen determine some of the basics of your site setup.') . '</p>' .
+	'<p>' . __('Most themes display the site title at the top of every page, in the title bar of the browser, and as the identifying name for syndicated feeds, unless not allowed by your theme. The tagline is also displayed by many themes.') . '</p>' .
+	'<p>' . __('The WordPress URL and the Site URL can be the same (example.com) or different; for example, having the WordPress core files (example.com/wordpress) in a subdirectory instead of the root directory.') . '</p>' .
+	'<p>' . __('If you want site visitors to be able to register themselves, as opposed to being registered by the site administrator, check the membership box. A default user role can be set for all new users, whether self-registered or registered by the site administrator.') . '</p>' .
+	'<p>' . __('UTC means Coordinated Universal Time.') . '</p>' .
+	'<p>' . __('Remember to click the Save Changes button at the bottom of the screen for new settings to take effect.') . '</p>' .
+	'<p><strong>' . __('For more information:') . '</strong></p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Settings_General_SubPanel">General Settings Documentation</a>') . '</p>' .
+	'<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>'
+);
 
 include('./admin-header.php');
 ?>
@@ -183,7 +193,7 @@ if ( empty($tzstring) ) { // Create a UTC+- zone if no timezone string exists
 </select>
 
     <span id="utc-time"><?php printf(__('<abbr title="Coordinated Universal Time">UTC</abbr> time is <code>%s</code>'), date_i18n($timezone_format, false, 'gmt')); ?></span>
-<?php if ( get_option('timezone_string') ) : ?>
+<?php if ( get_option('timezone_string') || !empty($current_offset) ) : ?>
 	<span id="local-time"><?php printf(__('Local time is <code>%1$s</code>'), date_i18n($timezone_format)); ?></span>
 <?php endif; ?>
 <br />

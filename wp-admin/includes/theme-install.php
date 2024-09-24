@@ -156,7 +156,7 @@ function install_theme_search_form() {
 	<select	name="type" id="typeselector">
 	<option value="term" <?php selected('term', $type) ?>><?php _e('Term'); ?></option>
 	<option value="author" <?php selected('author', $type) ?>><?php _e('Author'); ?></option>
-	<option value="tag" <?php selected('tag', $type) ?>><?php echo _x('Tag', 'Theme Installer'); ?></option>
+	<option value="tag" <?php selected('tag', $type) ?>><?php _ex('Tag', 'Theme Installer'); ?></option>
 	</select>
 	<input type="text" name="s" size="30" value="<?php echo esc_attr($term) ?>" />
 	<input type="submit" name="search" value="<?php esc_attr_e('Search'); ?>" class="button" />
@@ -301,7 +301,7 @@ function display_theme($theme, $actions = null, $show_details = true) {
 	if ( !is_array($actions) ) {
 		$actions = array();
 		$actions[] = '<a href="' . admin_url('theme-install.php?tab=theme-information&amp;theme=' . $theme->slug .
-										'&amp;TB_iframe=true&amp;tbWidth=500&amp;tbHeight=350') . '" class="thickbox thickbox-preview onclick" title="' . esc_attr(sprintf(__('Install &#8220;%s&#8221;'), $name)) . '">' . __('Install') . '</a>';
+										'&amp;TB_iframe=true&amp;tbWidth=500&amp;tbHeight=385') . '" class="thickbox thickbox-preview onclick" title="' . esc_attr(sprintf(__('Install &#8220;%s&#8221;'), $name)) . '">' . __('Install') . '</a>';
 		$actions[] = '<a href="' . $preview_link . '" class="thickbox thickbox-preview onclick previewlink" title="' . esc_attr(sprintf(__('Preview &#8220;%s&#8221;'), $name)) . '">' . __('Preview') . '</a>';
 		$actions = apply_filters('theme_install_action_links', $actions, $theme);
 	}

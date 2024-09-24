@@ -80,7 +80,7 @@ if ( is_multisite() || is_super_admin() ) {
 $menu[4] = array( '', 'read', 'separator1', '', 'wp-menu-separator' );
 
 $menu[5] = array( __('Posts'), 'edit_posts', 'edit.php', '', 'open-if-no-js menu-top menu-icon-post', 'menu-posts', 'div' );
-	$submenu['edit.php'][5]  = array( __('Edit'), 'edit_posts', 'edit.php' );
+	$submenu['edit.php'][5]  = array( __('Posts'), 'edit_posts', 'edit.php' );
 	/* translators: add new post */
 	$submenu['edit.php'][10]  = array( _x('Add New', 'post'), 'edit_posts', 'post-new.php' );
 
@@ -89,7 +89,7 @@ $menu[5] = array( __('Posts'), 'edit_posts', 'edit.php', '', 'open-if-no-js menu
 		if ( ! $tax->show_ui || ! in_array('post', (array) $tax->object_type, true) )
 			continue;
 
-		$submenu['edit.php'][$i++] = array( esc_attr($tax->label), $tax->manage_cap, 'edit-tags.php?taxonomy=' . $tax->name );
+		$submenu['edit.php'][$i++] = array( esc_attr( $tax->labels->name ), $tax->cap->manage_terms, 'edit-tags.php?taxonomy=' . $tax->name );
 	}
 	unset($tax);
 
@@ -99,26 +99,35 @@ $menu[10] = array( __('Media'), 'upload_files', 'upload.php', '', 'menu-top menu
 	$submenu['upload.php'][10] = array( _x('Add New', 'file'), 'upload_files', 'media-new.php');
 
 $menu[15] = array( __('Links'), 'manage_links', 'link-manager.php', '', 'menu-top menu-icon-links', 'menu-links', 'div' );
-	$submenu['link-manager.php'][5] = array( __('Edit'), 'manage_links', 'link-manager.php' );
+	$submenu['link-manager.php'][5] = array( __('Links'), 'manage_links', 'link-manager.php' );
 	/* translators: add new links */
 	$submenu['link-manager.php'][10] = array( _x('Add New', 'link'), 'manage_links', 'link-add.php' );
 	$submenu['link-manager.php'][15] = array( __('Link Categories'), 'manage_categories', 'edit-link-categories.php' );
 
 $menu[20] = array( __('Pages'), 'edit_pages', 'edit.php?post_type=page', '', 'menu-top menu-icon-page', 'menu-pages', 'div' );
-	$submenu['edit.php?post_type=page'][5] = array( __('Edit'), 'edit_pages', 'edit.php?post_type=page' );
+	$submenu['edit.php?post_type=page'][5] = array( __('Pages'), 'edit_pages', 'edit.php?post_type=page' );
 	/* translators: add new page */
 	$submenu['edit.php?post_type=page'][10] = array( _x('Add New', 'page'), 'edit_pages', 'post-new.php?post_type=page' );
+	$i = 15;
+	foreach ( $wp_taxonomies as $tax ) {
+		if ( ! $tax->show_ui || ! in_array('page', (array) $tax->object_type, true) )
+			continue;
+
+		$submenu['edit.php?post_type=page'][$i++] = array( esc_attr( $tax->labels->name ), $tax->cap->manage_terms, 'edit-tags.php?taxonomy=' . $tax->name );
+	}
+	unset($tax);
 
 $menu[25] = array( sprintf( __('Comments %s'), "<span id='awaiting-mod' class='count-$awaiting_mod'><span class='pending-count'>" . number_format_i18n($awaiting_mod) . "</span></span>" ), 'edit_posts', 'edit-comments.php', '', 'menu-top menu-icon-comments', 'menu-comments', 'div' );
 
 $_wp_last_object_menu = 25; // The index of the last top-level menu in the object menu group
 
-foreach ( (array) get_post_types( array('show_ui' => true) ) as $ptype ) {
+foreach ( (array) get_post_types( array('show_ui' => true, '_builtin' => false) ) as $ptype ) {
 	$ptype_obj = get_post_type_object( $ptype );
 	$ptype_menu_position = is_int( $ptype_obj->menu_position ) ? $ptype_obj->menu_position : $_wp_last_object_menu++; // If we're to use $_wp_last_object_menu, increment it first.
+	$ptype_for_id = sanitize_html_class( $ptype );
 	if ( is_string( $ptype_obj->menu_icon ) ) {
 		$menu_icon   = esc_url( $ptype_obj->menu_icon );
-		$ptype_class = sanitize_html_class( $ptype );
+		$ptype_class = $ptype_for_id;
 	} else {
 		$menu_icon   = 'div';
 		$ptype_class = 'post';
@@ -129,26 +138,33 @@ foreach ( (array) get_post_types( array('show_ui' => true) ) as $ptype ) {
 	while ( isset($menu[$ptype_menu_position]) || in_array($ptype_menu_position, $core_menu_positions) )
 		$ptype_menu_position++;
 
-	$menu[$ptype_menu_position] = array( esc_attr( $ptype_obj->label ), $ptype_obj->edit_type_cap, "edit.php?post_type=$ptype", '', 'menu-top menu-icon-' . $ptype_class, 'menu-' . $ptype_class, $menu_icon );
-	$submenu["edit.php?post_type=$ptype"][5]  = array( __('Edit'), $ptype_obj->edit_type_cap,  "edit.php?post_type=$ptype");
-	/* translators: add new custom post type */
-	$submenu["edit.php?post_type=$ptype"][10]  = array( _x('Add New', 'post'), $ptype_obj->edit_type_cap, "post-new.php?post_type=$ptype" );
+	$menu[$ptype_menu_position] = array( esc_attr( $ptype_obj->labels->name ), $ptype_obj->cap->edit_posts, "edit.php?post_type=$ptype", '', 'menu-top menu-icon-' . $ptype_class, 'menu-posts-' . $ptype_for_id, $menu_icon );
+	$submenu["edit.php?post_type=$ptype"][5]  = array( $ptype_obj->labels->name, $ptype_obj->cap->edit_posts,  "edit.php?post_type=$ptype");
+	$submenu["edit.php?post_type=$ptype"][10]  = array( $ptype_obj->labels->add_new, $ptype_obj->cap->edit_posts, "post-new.php?post_type=$ptype" );
 
 	$i = 15;
 	foreach ( $wp_taxonomies as $tax ) {
 		if ( ! $tax->show_ui || ! in_array($ptype, (array) $tax->object_type, true) )
 			continue;
 
-		$submenu["edit.php?post_type=$ptype"][$i++] = array( esc_attr($tax->label), $tax->manage_cap, "edit-tags.php?taxonomy=$tax->name&amp;post_type=$ptype" );
+		$submenu["edit.php?post_type=$ptype"][$i++] = array( esc_attr( $tax->labels->name ), $tax->cap->manage_terms, "edit-tags.php?taxonomy=$tax->name&amp;post_type=$ptype" );
 	}
 }
 unset($ptype, $ptype_obj);
 
 $menu[59] = array( '', 'read', 'separator2', '', 'wp-menu-separator' );
 
-$menu[60] = array( __('Appearance'), 'switch_themes', 'themes.php', '', 'menu-top menu-icon-appearance', 'menu-appearance', 'div' );
-	$submenu['themes.php'][5]  = array(__('Themes'), 'switch_themes', 'themes.php');
-	$submenu['themes.php'][10] = array(__('Menus'), 'switch_themes', 'nav-menus.php');
+if ( current_user_can( 'switch_themes') ) {
+	$menu[60] = array( __('Appearance'), 'switch_themes', 'themes.php', '', 'menu-top menu-icon-appearance', 'menu-appearance', 'div' );
+		$submenu['themes.php'][5]  = array(__('Themes'), 'switch_themes', 'themes.php');
+		if ( current_theme_supports( 'nav-menus' ) || current_theme_supports( 'widgets' ) )
+			$submenu['themes.php'][10] = array(__('Menus'), 'edit_theme_options', 'nav-menus.php');
+} else {
+	$menu[60] = array( __('Appearance'), 'edit_theme_options', 'themes.php', '', 'menu-top menu-icon-appearance', 'menu-appearance', 'div' );
+		$submenu['themes.php'][5]  = array(__('Themes'), 'edit_theme_options', 'themes.php');
+		if ( current_theme_supports( 'nav-menus' ) || current_theme_supports( 'widgets' ) )
+			$submenu['themes.php'][10] = array(__('Menus'), 'edit_theme_options', 'nav-menus.php' );
+}
 
 // Add 'Editor' to the bottom of the Appearence menu.
 add_action('admin_menu', '_add_themes_utility_last', 101);
@@ -165,7 +181,7 @@ if ( !empty($update_plugins->response) )
 $menu_perms = get_site_option('menu_items', array());
 if ( is_super_admin() || ( is_multisite() && isset($menu_perms['plugins']) && $menu_perms['plugins'] ) ) {
 	$menu[65] = array( sprintf( __('Plugins %s'), "<span class='update-plugins count-$update_count'><span class='plugin-count'>" . number_format_i18n($update_count) . "</span></span>" ), 'activate_plugins', 'plugins.php', '', 'menu-top menu-icon-plugins', 'menu-plugins', 'div' );
-		$submenu['plugins.php'][5]  = array( __('Installed'), 'activate_plugins', 'plugins.php' );
+		$submenu['plugins.php'][5]  = array( __('Plugins'), 'activate_plugins', 'plugins.php' );
 		/* translators: add new plugin */
 		$submenu['plugins.php'][10] = array(_x('Add New', 'plugin'), 'install_plugins', 'plugin-install.php');
 		$submenu['plugins.php'][15] = array( _x('Editor', 'plugin editor'), 'edit_plugins', 'plugin-editor.php' );
@@ -179,7 +195,7 @@ else
 
 if ( current_user_can('list_users') ) {
 	$_wp_real_parent_file['profile.php'] = 'users.php'; // Back-compat for plugins adding submenus to profile.php.
-	$submenu['users.php'][5] = array(__('Authors & Users'), 'list_users', 'users.php');
+	$submenu['users.php'][5] = array(__('Users'), 'list_users', 'users.php');
 	$submenu['users.php'][10] = array(_x('Add New', 'user'), 'create_users', 'user-new.php');
 
 	$submenu['users.php'][15] = array(__('Your Profile'), 'read', 'profile.php');
@@ -282,7 +298,7 @@ foreach ( array( 'submenu' ) as $sub_loop ) {
 unset($sub_loop);
 
 // Loop over the top-level menu.
-// Menus for which the original parent is not acessible due to lack of privs will have the next
+// Menus for which the original parent is not accessible due to lack of privs will have the next
 // submenu in line be assigned as the new menu parent.
 foreach ( $menu as $id => $data ) {
 	if ( empty($submenu[$data[2]]) )

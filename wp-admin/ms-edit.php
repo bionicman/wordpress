@@ -103,7 +103,8 @@ switch ( $_GET['action'] ) {
 			$users = get_users_of_blog( get_site_option( 'dashboard_blog' ) );
 			$move_users = array();
 			foreach ( (array)$users as $user ) {
-				if ( array_pop( array_keys( unserialize( $user->meta_value ) ) ) == 'subscriber' )
+				$user_meta_value = unserialize( $user->meta_value );
+				if ( is_array( $user_meta_value ) && array_pop( array_keys( $user_meta_value ) ) == 'subscriber' )
 					$move_users[] = $user->user_id;
 			}
 			if ( false == empty( $move_users ) ) {
@@ -115,12 +116,7 @@ switch ( $_GET['action'] ) {
 			}
 		}
 		update_site_option( 'dashboard_blog', $dashboard_blog_id );
-		// global terms
-		if ( !global_terms_enabled() && ! empty( $_POST['global_terms_enabled'] ) ) {
-			require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
-			// create global terms table
-			install_global_terms();
-		}
+
 		$options = array( 'registrationnotification', 'registration', 'add_new_users', 'menu_items', 'mu_media_buttons', 'upload_space_check_disabled', 'blog_upload_space', 'upload_filetypes', 'site_name', 'first_post', 'first_page', 'first_comment', 'first_comment_url', 'first_comment_author', 'welcome_email', 'welcome_user_email', 'fileupload_maxk', 'admin_notice_feed', 'global_terms_enabled' );
 		$checked_options = array( 'mu_media_buttons' => array(), 'menu_items' => array(), 'registrationnotification' => 'no', 'upload_space_check_disabled' => 1 );
 		foreach ( $checked_options as $option_name => $option_unchecked_value ) {
@@ -141,7 +137,7 @@ switch ( $_GET['action'] ) {
 		exit();
 	break;
 	case 'addblog':
-		check_admin_referer( 'add-blog' );
+		check_admin_referer( 'add-blog', '_wpnonce_add-blog' );
 
 		if ( ! current_user_can( 'manage_sites' ) )
 			wp_die( __( 'You do not have permission to access this page.' ) );
@@ -152,6 +148,14 @@ switch ( $_GET['action'] ) {
 		$domain = '';
 		if ( ! preg_match( '/(--)/', $blog['domain'] ) && preg_match( '|^([a-zA-Z0-9-])+$|', $blog['domain'] ) )
 			$domain = strtolower( $blog['domain'] );
+
+		// If not a subdomain install, make sure the domain isn't a reserved word
+		if ( ! is_subdomain_install() ) {
+			$subdirectory_reserved_names = apply_filters( 'subdirectory_reserved_names', array( 'page', 'comments', 'blog', 'files', 'feed' ) );
+			if ( in_array( $domain, $subdirectory_reserved_names ) )
+				wp_die( sprintf( __('The following words are reserved for use by WordPress functions and cannot be used as blog names: <code>%s</code>' ), implode( '</code>, <code>', $subdirectory_reserved_names ) ) );
+		}
+
 		$email = sanitize_email( $blog['email'] );
 		$title = $blog['title'];
 
@@ -325,7 +329,7 @@ switch ( $_GET['action'] ) {
 
 	case 'allblogs':
 		if ( isset( $_POST['doaction']) || isset($_POST['doaction2'] ) ) {
-			check_admin_referer( 'bulk-ms-sites' );
+			check_admin_referer( 'bulk-ms-sites', '_wpnonce_bulk-ms-sites' );
 
 			if ( ! current_user_can( 'manage_sites' ) )
 				wp_die( __( 'You do not have permission to access this page.' ) );
@@ -472,7 +476,7 @@ switch ( $_GET['action'] ) {
 					<input type="hidden" name="id" value="<?php echo esc_attr( $id ); ?>" />
 					<input type="hidden" name="_wp_http_referer" value="<?php echo esc_attr( wp_get_referer() ); ?>" />
 					<?php wp_nonce_field( $_GET['action2'], '_wpnonce', false ); ?>
-					<p><?php esc_html_e( stripslashes( $_GET['msg'] ) ); ?></p>
+					<p><?php echo esc_html( stripslashes( $_GET['msg'] ) ); ?></p>
 					<p class="submit"><input class="button" type="submit" value="<?php _e( 'Confirm' ); ?>" /></p>
 				</form>
 			</body>
@@ -507,7 +511,7 @@ switch ( $_GET['action'] ) {
 			wp_die( __( 'You do not have permission to access this page.' ) );
 
 		if ( isset( $_POST['doaction']) || isset($_POST['doaction2'] ) ) {
-			check_admin_referer( 'bulk-ms-users' );
+			check_admin_referer( 'bulk-ms-users', '_wpnonce_bulk-ms-users' );
 
 			if ( $_GET['action'] != -1 || $_POST['action2'] != -1 )
 				$doaction = $_POST['action'] != -1 ? $_POST['action'] : $_POST['action2'];
@@ -590,7 +594,7 @@ switch ( $_GET['action'] ) {
 	break;
 
 	case 'adduser':
-		check_admin_referer( 'add-user' );
+		check_admin_referer( 'add-user', '_wpnonce_add-user' );
 		if ( ! current_user_can( 'manage_network_users' ) )
 			wp_die( __( 'You do not have permission to access this page.' ) );
 

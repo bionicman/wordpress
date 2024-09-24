@@ -101,10 +101,22 @@ if ( isset($_REQUEST['doaction']) ||  isset($_REQUEST['doaction2']) || isset($_R
 }
 
 if ( $post_id )
-	$title = sprintf(__('Edit Comments on &#8220;%s&#8221;'), wp_html_excerpt(_draft_or_post_title($post_id), 50));
+	$title = sprintf(__('Comments on &#8220;%s&#8221;'), wp_html_excerpt(_draft_or_post_title($post_id), 50));
 else
-	$title = __('Edit Comments');
+	$title = __('Comments');
 
+add_contextual_help( $current_screen, '<p>' . __('You can manage comments made on your site similar to the way you manage Posts and other content. This screen is customizable in the same ways as other management screens, and you can act on comments using the on-hover action links or the Bulk Actions.') . '</p>' .
+	'<p>' . __('A yellow row means the comment is waiting for you to moderate it.') . '</p>' .
+	'<p>' . __('In the Author column, in addition to the author&#8217;s name, email address, and blog URL, the commenter&#8217;s IP address is shown. Clicking on this link will show you all the comments made from this IP address.') . '</p>' .
+	'<p>' . __('In the Comment column, above each comment it says "Submitted on," followed by the date and time the comment was left on your site. Clicking on the date/time link will take you to that comment on your live site. ') . '</p>' .
+	'<p>' . __('In the In Response To column, there are three elements. The text is the name of the post that inspired the comment, and links to the post editor for that entry. The "#" permalink symbol below leads to that post on your live site. The small bubble with the number in it shows how many comments that post has received. If the bubble is gray, you have moderated all comments for that post. If it is blue, there are pending comments. Clicking the bubble will filter the comments screen to show only comments on that post.') . '</p>' .
+	'<p>' . __('Many people take advantage of keyboard shortcuts to moderate their comments more quickly. Use the link below to learn more.') . '</p>' .
+	'<p><strong>' . __( 'For more information:' ) . '</strong></p>' .
+	'<p>' . __( '<a href="http://codex.wordpress.org/Administration_Panels#Comments">Comments Documentation</a>' ) . '</p>' .
+	'<p>' . __( '<a href="http://codex.wordpress.org/Comment_Spam">Comment Spam Documentation</a>') . '</p>' .
+	'<p>' . __( '<a href="http://codex.wordpress.org/Keyboard_Shortcuts">Keyboard Shortcuts Documentation</a>') . '</p>' .
+	'<p>' . __( '<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>'
+);
 require_once('./admin-header.php');
 
 $mode = ( empty($_GET['mode']) ) ? 'detail' : esc_attr($_GET['mode']);
@@ -219,8 +231,6 @@ foreach ( $stati as $status => $label ) {
 
 	if ( !isset( $num_comments->$status ) )
 		$num_comments->$status = 10;
-	if ( empty( $num_comments->$status ) )
-		continue;
 	$link = add_query_arg( 'comment_status', $status, $link );
 	if ( $post_id )
 		$link = add_query_arg( 'p', absint( $post_id ), $link );
@@ -293,7 +303,6 @@ $page_links = paginate_links( array(
 
 <div class="tablenav">
 
-<?php if ( $comments ) { ?>
 <?php if ( $page_links ) : ?>
 <div class="tablenav-pages"><?php $page_links_text = sprintf( '<span class="displaying-num">' . __( 'Displaying %s&#8211;%s of %s' ) . '</span>%s',
 	number_format_i18n( $start + 1 ),
@@ -306,6 +315,7 @@ $page_links = paginate_links( array(
 <input type="hidden" name="_page" value="<?php echo esc_attr($page); ?>" />
 <?php endif; ?>
 
+<?php if ( $comments ) : ?>
 <div class="alignleft actions">
 <select name="action">
 <option value="-1" selected="selected"><?php _e('Bulk Actions') ?></option>
@@ -316,12 +326,12 @@ $page_links = paginate_links( array(
 <option value="approve"><?php _e('Approve'); ?></option>
 <?php endif; ?>
 <?php if ( 'all' == $comment_status || 'approved' == $comment_status || 'moderated' == $comment_status ): ?>
-<option value="spam"><?php echo _x('Mark as Spam', 'comment'); ?></option>
+<option value="spam"><?php _ex('Mark as Spam', 'comment'); ?></option>
 <?php endif; ?>
 <?php if ( 'trash' == $comment_status ): ?>
 <option value="untrash"><?php _e('Restore'); ?></option>
 <?php elseif ( 'spam' == $comment_status ): ?>
-<option value="unspam"><?php echo _x('Not Spam', 'comment'); ?></option>
+<option value="unspam"><?php _ex('Not Spam', 'comment'); ?></option>
 <?php endif; ?>
 <?php if ( 'trash' == $comment_status || 'spam' == $comment_status || !EMPTY_TRASH_DAYS ): ?>
 <option value="delete"><?php _e('Delete Permanently'); ?></option>
@@ -331,6 +341,8 @@ $page_links = paginate_links( array(
 </select>
 <input type="submit" name="doaction" id="doaction" value="<?php esc_attr_e('Apply'); ?>" class="button-secondary apply" />
 <?php wp_nonce_field('bulk-comments'); ?>
+
+<?php endif; ?>
 
 <select name="comment_type">
 	<option value="all"><?php _e('Show all comment types'); ?></option>
@@ -369,6 +381,7 @@ if ( ( 'spam' == $comment_status || 'trash' == $comment_status) && current_user_
 </div>
 
 <div class="clear"></div>
+<?php if ( $comments ) { ?>
 
 <table class="widefat comments fixed" cellspacing="0">
 <thead>
@@ -413,7 +426,7 @@ if ( $page_links )
 <option value="approve"><?php _e('Approve'); ?></option>
 <?php endif; ?>
 <?php if ( 'all' == $comment_status || 'approved' == $comment_status || 'moderated' == $comment_status ): ?>
-<option value="spam"><?php echo _x('Mark as Spam', 'comment'); ?></option>
+<option value="spam"><?php _ex('Mark as Spam', 'comment'); ?></option>
 <?php endif; ?>
 <?php if ( 'trash' == $comment_status ): ?>
 <option value="untrash"><?php _e('Restore'); ?></option>
@@ -421,7 +434,7 @@ if ( $page_links )
 <?php if ( 'trash' == $comment_status || 'spam' == $comment_status || !EMPTY_TRASH_DAYS ): ?>
 <option value="delete"><?php _e('Delete Permanently'); ?></option>
 <?php elseif ( 'spam' == $comment_status ): ?>
-<option value="unspam"><?php echo _x('Not Spam', 'comment'); ?></option>
+<option value="unspam"><?php _ex('Not Spam', 'comment'); ?></option>
 <?php else: ?>
 <option value="trash"><?php _e('Move to Trash'); ?></option>
 <?php endif; ?>
@@ -456,10 +469,12 @@ if ( $page_links )
 
 <?php } elseif ( 'moderated' == $comment_status ) { ?>
 <p><?php _e('No comments awaiting moderation&hellip; yet.') ?></p>
+</div>
 </form>
 
 <?php } else { ?>
 <p><?php _e('No comments found.') ?></p>
+</div>
 </form>
 
 <?php } ?>

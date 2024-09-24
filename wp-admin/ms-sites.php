@@ -18,6 +18,35 @@ if ( ! current_user_can( 'manage_sites' ) )
 $title = __( 'Sites' );
 $parent_file = 'ms-admin.php';
 
+if ( isset( $_GET['action'] ) && 'editblog' == $_GET['action'] ) {
+	add_contextual_help($current_screen, 
+		'<p>' . __('The network admin arrives at this screen to make choices for a given site by clicking on the Edit link on the Sites screen available to them in the Super Admin navigation menu.') . '</p>' .
+		'<p>' . __('This extensive list of options has five modules: Site Info, Site Options, allowing Site Themes for this given site, changing the Site User(s) roles and passwords for that site, Adding a new user, and Miscellaneous Site Actions (upload size limits).') . '</p>' .
+		'<p>' . __('Note that some fields in Site Options are grayed out and say Serialized Data. These are stored values in the database which you cannot change from here.') . '</p>' .
+		'<p><strong>' . __('For more information:') . '</strong></p>' .
+		'<p>' . __('<a href="http://codex.wordpress.org/Super_Admin_Sites_Edit_Site">Site Editing Documentation</a>') . '</p>' .
+		'<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>'
+	);
+} else {
+	add_contextual_help($current_screen, 
+		'<p>' . __('Add New takes you farther down on this same page. You can search for a site by Name, ID number, or IP address. Screen Options allows you to choose how many sites to display on one page.') . '</p>' .
+		'<p>' . __('This is the main table of all sites on this network. Switch between list and excerpt views by using the icons above the right side of the table.') . '</p>' .
+		'<p>' . __('Hovering over each site reveals seven options (only three for the primary or originating site for the network):') . '</p>' .
+		'<ul><li>' . __('an Edit link to a separate Edit Site screen') . '</li>' .
+		'<li>' . __('Backend means the Dashboard for that site') . '</li>' .
+		'<li>' . __('Deactivate, Archive, and Spam which lead to confirmation screens. These actions can be reversed later by hover links attached to those sites in this table.') . '</li>' .
+		'<li>' . __('Delete which is a permanent action after the confirmations screen.') . '</li>' .
+		'<li>' . __('Visit to go the the frontend site live.') . '</li></ul>' .
+		'<p>' . __('The site ID is used internally, and not shown on the front end of the site or to users/viewers.') . '</p>' .
+		'<p>' . __('Clicking on bold settings can re-sort this table. The upper right icons switch between list and excerpt views.') . '</p>' .
+		'<p>' . __('Clicking on Add Site after filling out the address, title, and email adds that new site instantly to the network and this table. You may want to then click on the hover link to edit options for that site.') . '</p>' .
+		'<p>' . __('Make sure you do not add slashes or dots when you fill in the new site name. If the admin email for the new site does not exist in the database, a new user will also be created.') . '</p>' .
+		'<p><strong>' . __('For more information:') . '</strong></p>' .
+		'<p>' . __('<a href="http://codex.wordpress.org/Super_Admin_Sites_SubPanel">Sites Documentation</a>') . '</p>' .
+		'<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>'
+	);
+}
+
 wp_enqueue_script( 'admin-forms' );
 
 require_once( './admin-header.php' );
@@ -113,7 +142,7 @@ switch ( $action ) {
 							<?php } ?>
 						</tr>
 						<tr class="form-field">
-							<th scope="row"><?php echo _x( 'Registered', 'site' ) ?></th>
+							<th scope="row"><?php _ex( 'Registered', 'site' ) ?></th>
 							<td><input name="blog[registered]" type="text" id="blog_registered" value="<?php echo esc_attr( $details->registered ) ?>" size="40" /></td>
 						</tr>
 						<tr class="form-field">
@@ -133,10 +162,10 @@ switch ( $action ) {
 						<tr>
 							<th scope="row"><?php echo $field_label; ?></th>
 							<td>
-								<input type="radio" name="blog[<?php echo $field_key; ?>]" id="blog_<?php $field_key; ?>_1" value="1"<?php checked( $details->$field_key, 1 ); ?> />
+								<input type="radio" name="blog[<?php echo $field_key; ?>]" id="blog_<?php echo $field_key; ?>_1" value="1"<?php checked( $details->$field_key, 1 ); ?> />
 								<label for="blog_<?php echo $field_key; ?>_1"><?php _e('Yes'); ?></label>
-								<input type="radio" name="blog[<?php echo $field_key; ?>]" id="blog_<?php $field_key; ?>_0" value="0"<?php checked( $details->$field_key, 0 ); ?> />
-								<label for="blog_<?php echo $field_key; ?>"><?php _e('No'); ?></label>
+								<input type="radio" name="blog[<?php echo $field_key; ?>]" id="blog_<?php echo $field_key; ?>_0" value="0"<?php checked( $details->$field_key, 0 ); ?> />
+								<label for="blog_<?php echo $field_key; ?>_0"><?php _e('No'); ?></label>
 							</td>
 						</tr>
 						<?php } ?>
@@ -175,9 +204,9 @@ switch ( $action ) {
 							} else {
 							?>
 								<tr class="form-field">
-									<th scope="row"><?php esc_html_e( ucwords( str_replace( "_", " ", $option->option_name ) ) ); ?></th>
+									<th scope="row"><?php echo esc_html( ucwords( str_replace( "_", " ", $option->option_name ) ) ); ?></th>
 									<?php if ( $is_main_site && in_array( $option->option_name, array( 'siteurl', 'home' ) ) ) { ?>
-									<td><code><?php esc_html_e( $option->option_value ) ?></code></td>
+									<td><code><?php echo esc_html( $option->option_value ) ?></code></td>
 									<?php } else { ?>
 									<td><input class="<?php echo $class; ?>" name="option[<?php echo esc_attr( $option->option_name ) ?>]" type="text" id="<?php echo esc_attr( $option->option_name ) ?>" value="<?php echo esc_attr( $option->option_value ) ?>" size="40" <?php disabled( $disabled ) ?> /></td>
 									<?php } ?>
@@ -246,10 +275,10 @@ switch ( $action ) {
 						if ( $val->user_id != $current_user->data->ID ) {
 							?>
 							<td>
-								<select name="role[<?php echo $val->user_id ?>]" id="new_role"><?php
+								<select name="role[<?php echo $val->user_id ?>]" id="new_role_1"><?php
 									foreach ( $editblog_roles as $role => $role_assoc ){
 										$name = translate_user_role( $role_assoc['name'] );
-										echo '<option ' . selected( $role, $existing_role ) . ' value="' . esc_attr( $role ) . '">' . esc_html( $name ) . '</option>';
+										echo '<option ' . selected( $role, $existing_role, false ) . ' value="' . esc_attr( $role ) . '">' . esc_html( $name ) . '</option>';
 									}
 									?>
 								</select>
@@ -282,7 +311,7 @@ switch ( $action ) {
 							<tr>
 								<th scope="row"><?php _e( 'Role:' ) ?></th>
 								<td>
-									<select name="new_role" id="new_role">
+									<select name="new_role" id="new_role_0">
 									<?php
 									reset( $editblog_roles );
 									foreach ( $editblog_roles as $role => $role_assoc ){
@@ -414,11 +443,11 @@ switch ( $action ) {
 			<select name="action">
 				<option value="-1" selected="selected"><?php _e( 'Bulk Actions' ); ?></option>
 				<option value="delete"><?php _e( 'Delete' ); ?></option>
-				<option value="spam"><?php echo _x( 'Mark as Spam', 'site' ); ?></option>
-				<option value="notspam"><?php echo _x( 'Not Spam', 'site' ); ?></option>
+				<option value="spam"><?php _ex( 'Mark as Spam', 'site' ); ?></option>
+				<option value="notspam"><?php _ex( 'Not Spam', 'site' ); ?></option>
 			</select>
 			<input type="submit" value="<?php esc_attr_e( 'Apply' ); ?>" name="doaction" id="doaction" class="button-secondary action" />
-			<?php wp_nonce_field( 'bulk-ms-sites' ); ?>
+			<?php wp_nonce_field( 'bulk-ms-sites', '_wpnonce_bulk-ms-sites' ); ?>
 		</div>
 
 		<?php if ( $page_links ) { ?>
@@ -546,7 +575,7 @@ switch ( $action ) {
 										'visit' => '',
 									);
 
-									$actions['edit']	= '<span class="edit"><a href="' . esc_url( admin_url( 'ms-sites.php?action=editblog&amp;id=' . $blog['blog_id'] ) ) . '">' . __( 'Edit' ) . '</a><span>';
+									$actions['edit']	= '<span class="edit"><a href="' . esc_url( admin_url( 'ms-sites.php?action=editblog&amp;id=' . $blog['blog_id'] ) ) . '">' . __( 'Edit' ) . '</a></span>';
 									$actions['backend']	= "<span class='backend'><a href='" . esc_url( get_admin_url($blog['blog_id']) ) . "' class='edit'>" . __( 'Backend' ) . '</a></span>';
 									if ( $current_site->blog_id != $blog['blog_id'] ) {
 										if ( get_blog_status( $blog['blog_id'], 'deleted' ) == '1' )
@@ -567,7 +596,7 @@ switch ( $action ) {
 										$actions['delete']	= '<span class="delete"><a href="' . esc_url( admin_url( 'ms-edit.php?action=confirm&amp;action2=deleteblog&amp;id=' . $blog['blog_id'] . '&amp;msg=' . urlencode( sprintf( __( 'You are about to delete the site %s.' ), $blogname ) ) ) ) . '">' . __( 'Delete' ) . '</a></span>';
 									}
 
-									$actions['visit']	= "<span class='view'><a href='" . esc_url( get_home_url( $blog['blog_id'] ) ) . "' rel='permalink'>" . __( 'Visit' ) . '</a>';
+									$actions['visit']	= "<span class='view'><a href='" . esc_url( get_home_url( $blog['blog_id'] ) ) . "' rel='permalink'>" . __( 'Visit' ) . '</a></span>';
 									$actions = array_filter( $actions );
 									if ( count( $actions ) ) : ?>
 									<div class="row-actions">
@@ -665,8 +694,8 @@ switch ( $action ) {
 			<select name="action2">
 				<option value="-1" selected="selected"><?php _e( 'Bulk Actions' ); ?></option>
 				<option value="delete"><?php _e( 'Delete' ); ?></option>
-				<option value="spam"><?php echo _x( 'Mark as Spam', 'site' ); ?></option>
-				<option value="notspam"><?php echo _x( 'Not Spam', 'site' ); ?></option>
+				<option value="spam"><?php _ex( 'Mark as Spam', 'site' ); ?></option>
+				<option value="notspam"><?php _ex( 'Not Spam', 'site' ); ?></option>
 			</select>
 			<input type="submit" value="<?php esc_attr_e( 'Apply' ); ?>" name="doaction2" id="doaction2" class="button-secondary action" />
 			</div>
@@ -679,7 +708,7 @@ switch ( $action ) {
 		<div id="form-add-site" class="wrap">
 			<h3><?php _e( 'Add Site' ) ?></h3>
 			<form method="post" action="ms-edit.php?action=addblog">
-				<?php wp_nonce_field( 'add-blog' ) ?>
+				<?php wp_nonce_field( 'add-blog', '_wpnonce_add-blog' ) ?>
 				<table class="form-table">
 					<tr class="form-field form-required">
 						<th scope="row"><?php _e( 'Site Address' ) ?></th>

@@ -18,6 +18,21 @@ if ( ! current_user_can( 'manage_network_options' ) )
 $title = __( 'Network Options' );
 $parent_file = 'ms-admin.php';
 
+add_contextual_help($current_screen, 
+	'<p>' . __('This screen sets and changes options for the network as a whole. The first site is the main site in the network and network options are pulled from that original site&#8217;s options.') . '</p>' .
+	'<p>' . __('Operational settings has fields for the network&#8217;s name, admin email, and whether global terms will be disabled (the default) or maintained across all sites on the network.') . '</p>' .
+	'<p>' . __('Dashboard Site is an option to give a site to users who do not have a site on the system. Their default role is subscribed but that default can be changed. The Admin Notice Feed can provide a notice on all dashboards of the latest post via RSS or Atom, or provide no such notice if left blank.') . '</p>' .
+	'<p>' . __('Registration settings can disable/enable public signups. If you let others sign up for a site, install spam plugins. Spaces, not commas, should separate names banned as sites for this network.') . '</p>' .
+	'<p>' . __('New site settings are defaults applied when a new site is created in the network. These include welcome email for when a new site or user account is registered, and what&#8127;s put in the first post, page, comment, comment author, and comment URL.') . '</p>' .
+	'<p>' . __('Upload settings control the size of the uploaded files and the amount of available upload space for each site You can change the default value for specific sites when you edit a particular site. Allowed file types are also listed (space separated only).') . '</p>' .
+	'<p>' . __('Checkboxes for media upload buttons set which are shown in the visual editor. If unchecked, a generic upload button is still visible; other media types can still be uploaded if on the allowed file types list.') . '</p>' .
+	'<p>' . __('Menu setting enables/disables the plugin menus from appearing for non super admins, so that only super admins, not site admins, have access to activate plugins.') . '</p>' .
+	'<p>' . __('Super admins can no longer be added on the Options screen. You must now go to the list of existing users on Super Admin > Users and click on Username or the Edit hover link below that name. This goes to an Edit User page where you can check a box to grant super admin privileges.') . '</p>' .
+	'<p><strong>' . __('For more information:') . '</strong></p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Super_Admin_Options_SubPanel">Network Options Documentation</a>') . '</p>' .
+	'<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>'
+);
+
 include( './admin-header.php' );
 
 if (isset($_GET['updated'])) {
@@ -50,13 +65,6 @@ if (isset($_GET['updated'])) {
 					<br />
 					<?php printf( __( 'Registration and support emails will come from this address. An address such as <code>support@%s</code> is recommended.' ), $current_site->domain ); ?>
 				</td>
-			</tr>
-
-			<tr valign="top">
-				<th scope="row"><?php _e( 'Global Terms' ) ?></th>
-				<td>
-				<label><input type="radio" id="global_terms_enabled" name="global_terms_enabled" value="1"<?php checked( get_site_option( 'global_terms_enabled' ), 1 ) ?>/> <?php _e( 'Maintain a global list of terms from all sites across the network.' ); ?></label><br />
-				<label><input type="radio" id="global_terms_enabled" name="global_terms_enabled" value="0"<?php checked( get_site_option( 'global_terms_enabled' ), 0 ) ?>/> <?php _e( 'Disabled' ); ?></label></td>
 			</tr>
 		</table>
 		<h3><?php _e( 'Dashboard Settings' ); ?></h3>
@@ -150,7 +158,8 @@ if (isset($_GET['updated'])) {
 				<td>
 					<?php $limited_email_domains = get_site_option( 'limited_email_domains' );
 					$limited_email_domains = str_replace( ' ', "\n", $limited_email_domains ); ?>
-					<textarea name="limited_email_domains" id="limited_email_domains" cols="45" rows="5"><?php echo wp_htmledit_pre( $limited_email_domains == '' ? '' : implode( "\n", (array) $limited_email_domains ) ); ?></textarea>
+					<textarea name="limited_email_domains" id="limited_email_domains" cols="45" rows="5">
+<?php echo wp_htmledit_pre( $limited_email_domains == '' ? '' : implode( "\n", (array) $limited_email_domains ) ); ?></textarea>
 					<br />
 					<?php _e( 'If you want to limit site registrations to certain domains. One domain per line.' ) ?>
 				</td>
@@ -159,7 +168,8 @@ if (isset($_GET['updated'])) {
 			<tr valign="top">
 				<th scope="row"><label for="banned_email_domains"><?php _e('Banned Email Domains') ?></label></th>
 				<td>
-					<textarea name="banned_email_domains" id="banned_email_domains" cols="45" rows="5"><?php echo wp_htmledit_pre( get_site_option( 'banned_email_domains' ) == '' ? '' : implode( "\n", (array) get_site_option( 'banned_email_domains' ) ) ); ?></textarea>
+					<textarea name="banned_email_domains" id="banned_email_domains" cols="45" rows="5">
+<?php echo wp_htmledit_pre( get_site_option( 'banned_email_domains' ) == '' ? '' : implode( "\n", (array) get_site_option( 'banned_email_domains' ) ) ); ?></textarea>
 					<br />
 					<?php _e( 'If you want to ban domains from site registrations. One domain per line.' ) ?>
 				</td>
@@ -172,7 +182,8 @@ if (isset($_GET['updated'])) {
 			<tr valign="top">
 				<th scope="row"><label for="welcome_email"><?php _e( 'Welcome Email' ) ?></label></th>
 				<td>
-					<textarea name="welcome_email" id="welcome_email" rows="5" cols="45" class="large-text"><?php echo stripslashes( get_site_option( 'welcome_email' ) ) ?></textarea>
+					<textarea name="welcome_email" id="welcome_email" rows="5" cols="45" class="large-text">
+<?php echo wp_htmledit_pre( stripslashes( get_site_option( 'welcome_email' ) ) ) ?></textarea>
 					<br />
 					<?php _e( 'The welcome email sent to new site owners.' ) ?>
 				</td>
@@ -180,7 +191,8 @@ if (isset($_GET['updated'])) {
 			<tr valign="top">
 				<th scope="row"><label for="welcome_user_email"><?php _e( 'Welcome User Email' ) ?></label></th>
 				<td>
-			    	<textarea name="welcome_user_email" id="welcome_user_email" rows="5" cols="45" class="large-text"><?php echo stripslashes( get_site_option( 'welcome_user_email' ) ) ?></textarea>
+			    	<textarea name="welcome_user_email" id="welcome_user_email" rows="5" cols="45" class="large-text">
+<?php echo wp_htmledit_pre( stripslashes( get_site_option( 'welcome_user_email' ) ) ) ?></textarea>
 					<br />
 					<?php _e( 'The welcome email sent to new users.' ) ?>
 				</td>
@@ -188,7 +200,8 @@ if (isset($_GET['updated'])) {
 			<tr valign="top">
 				<th scope="row"><label for="first_post"><?php _e( 'First Post' ) ?></label></th>
 				<td>
-					<textarea name="first_post" id="first_post" rows="5" cols="45" class="large-text"><?php echo stripslashes( get_site_option( 'first_post' ) ) ?></textarea>
+					<textarea name="first_post" id="first_post" rows="5" cols="45" class="large-text">
+<?php echo wp_htmledit_pre( stripslashes( get_site_option( 'first_post' ) ) ) ?></textarea>
 					<br />
 					<?php _e( 'The first post on a new site.' ) ?>
 				</td>
@@ -196,7 +209,8 @@ if (isset($_GET['updated'])) {
 			<tr valign="top">
 				<th scope="row"><label for="first_page"><?php _e( 'First Page' ) ?></label></th>
 				<td>
-					<textarea name="first_page" id="first_page" rows="5" cols="45" class="large-text"><?php echo stripslashes( get_site_option('first_page') ) ?></textarea>
+					<textarea name="first_page" id="first_page" rows="5" cols="45" class="large-text">
+<?php echo wp_htmledit_pre( stripslashes( get_site_option('first_page') ) ) ?></textarea>
 					<br />
 					<?php _e( 'The first page on a new site.' ) ?>
 				</td>
@@ -204,7 +218,8 @@ if (isset($_GET['updated'])) {
 			<tr valign="top">
 				<th scope="row"><label for="first_comment"><?php _e( 'First Comment' ) ?></label></th>
 				<td>
-					<textarea name="first_comment" id="first_comment" rows="5" cols="45" class="large-text"><?php echo stripslashes( get_site_option('first_comment') ) ?></textarea>
+					<textarea name="first_comment" id="first_comment" rows="5" cols="45" class="large-text">
+<?php echo wp_htmledit_pre( stripslashes( get_site_option('first_comment') ) ) ?></textarea>
 					<br />
 					<?php _e( 'The first comment on a new site.' ) ?>
 				</td>
@@ -240,7 +255,8 @@ if (isset($_GET['updated'])) {
 			<tr valign="top">
 				<th scope="row"><?php _e( 'Site upload space' ) ?></th>
 				<td>
-				<label><input type="checkbox" id="upload_space_check_disabled" name="upload_space_check_disabled" value="0"<?php checked( get_site_option( 'upload_space_check_disabled' ), 0 ) ?>/> <?php printf( __( 'Limit total size of files uploaded to %s MB' ), '<input name="blog_upload_space" type="text" id="blog_upload_space" value="' . esc_attr( get_site_option('blog_upload_space', 10) ) . '" size="3" />' ); ?></label><br />
+				<label><input type="checkbox" id="upload_space_check_disabled" name="upload_space_check_disabled" value="0"<?php checked( get_site_option( 'upload_space_check_disabled' ), 0 ) ?>/> <?php printf( __( 'Limit total size of files uploaded to %s MB' ), '</label><label><input name="blog_upload_space" type="text" id="blog_upload_space" value="' . esc_attr( get_site_option('blog_upload_space', 10) ) . '" size="3" />' ); ?></label><br />
+				</td>
 			</tr>
 
 			<tr valign="top">

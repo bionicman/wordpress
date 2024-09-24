@@ -46,7 +46,7 @@ function _wp_translate_postdata( $update = false, $post_data = null ) {
 
 	$ptype = get_post_type_object( $post_data['post_type'] );
 	if ( isset($post_data['user_ID']) && ($post_data['post_author'] != $post_data['user_ID']) ) {
-		if ( !current_user_can( $ptype->edit_others_cap ) ) {
+		if ( !current_user_can( $ptype->cap->edit_others_posts ) ) {
 			if ( 'page' == $post_data['post_type'] ) {
 				return new WP_Error( 'edit_others_pages', $update ?
 					__( 'You are not allowed to edit pages as this user.' ) :
@@ -81,7 +81,7 @@ function _wp_translate_postdata( $update = false, $post_data = null ) {
 
 	// Posts 'submitted for approval' present are submitted to $_POST the same as if they were being published.
 	// Change status from 'publish' to 'pending' if user lacks permissions to publish or to resave published posts.
-	if ( isset($post_data['post_status']) && ('publish' == $post_data['post_status'] && !current_user_can( $ptype->publish_cap )) )
+	if ( isset($post_data['post_status']) && ('publish' == $post_data['post_status'] && !current_user_can( $ptype->cap->publish_posts )) )
 		if ( $previous_status != 'publish' || !current_user_can( 'edit_post', $post_id ) )
 			$post_data['post_status'] = 'pending';
 
@@ -138,7 +138,7 @@ function edit_post( $post_data = null ) {
 	$post_ID = (int) $post_data['post_ID'];
 
 	$ptype = get_post_type_object($post_data['post_type']);
-	if ( !current_user_can( $ptype->edit_cap, $post_ID ) ) {
+	if ( !current_user_can( $ptype->cap->edit_post, $post_ID ) ) {
 		if ( 'page' == $post_data['post_type'] )
 			wp_die( __('You are not allowed to edit this page.' ));
 		else
@@ -156,6 +156,8 @@ function edit_post( $post_data = null ) {
 	}
 
 	$post_data = _wp_translate_postdata( true, $post_data );
+	if ( 'autosave' != $post_data['action']  && 'auto-draft' == $post_data['post_status'] )
+		$post_data['post_status'] = 'draft';
 	if ( is_wp_error($post_data) )
 		wp_die( $post_data->get_error_message() );
 
@@ -235,7 +237,7 @@ function bulk_edit_posts( $post_data = null ) {
 	else
 		$ptype = get_post_type_object('post');
 
-	if ( !current_user_can( $ptype->edit_type_cap ) ) {
+	if ( !current_user_can( $ptype->cap->edit_posts ) ) {
 		if ( 'page' == $ptype->name )
 			wp_die( __('You are not allowed to edit pages.'));
 		else
@@ -309,20 +311,25 @@ function bulk_edit_posts( $post_data = null ) {
 		}
 
 		$tax_names = get_object_taxonomies( get_post($post_ID) );
+		foreach ( $tax_names as $tax_name ) {
+			$taxonomy_obj = get_taxonomy($tax_name);
+			if (  isset( $tax_input[$tax_name]) && current_user_can( $taxonomy_obj->cap->assign_terms ) )
+				$new_terms = $tax_input[$tax_name];
+			else
+				$new_terms = array();
+
+			if ( $taxonomy_obj->hierarchical )
+				$current_terms = (array) wp_get_object_terms( $post_ID, $tax_name, array('fields' => 'ids') );
+			else
+				$current_terms = (array) wp_get_object_terms( $post_ID, $tax_name, array('fields' => 'names') );
+
+			$post_data['tax_input'][$tax_name] = array_merge( $current_terms, $new_terms );
+		}
 
 		if ( isset($new_cats) && in_array( 'category', $tax_names ) ) {
 			$cats = (array) wp_get_post_categories($post_ID);
 			$post_data['post_category'] = array_unique( array_merge($cats, $new_cats) );
-		}
-
-		foreach ( $tax_names as $tax_name ) {
-			if( isset( $tax_input[$tax_name])  ) {
-				if ( is_taxonomy_hierarchical( $tax_name ) )
-					$terms = (array) wp_get_object_terms( $post_ID, $tax_name, array('fields' => 'ids') );
-				else
-					$terms = (array) wp_get_object_terms( $post_ID, $tax_name, array('fields' => 'names') );
-				$post_data['tax_input'][$tax_name] = array_merge( $terms, $tax_input[$tax_name] );
-			}
+			unset( $post_data['tax_input']['category'] );
 		}
 
 		$post_data['ID'] = $post_ID;
@@ -379,11 +386,7 @@ function get_default_post_to_edit( $post_type = 'post', $create_in_db = false ) 
 		$post->post_status = 'draft';
 		$post->to_ping = '';
 		$post->pinged = '';
-		if ( 'page' == $post_type ) {
-			$post->comment_status = get_option( 'default_comment_status_page' );
-		} else {
-			$post->comment_status = get_option( 'default_comment_status' );
-		}
+		$post->comment_status = get_option( 'default_comment_status' );
 		$post->ping_status = get_option( 'default_ping_status' );
 		$post->post_pingback = get_option( 'default_pingback_flag' );
 		$post->post_category = get_option( 'default_category' );
@@ -488,7 +491,7 @@ function wp_write_post() {
 	else
 		$ptype = get_post_type_object('post');
 
-	if ( !current_user_can( $ptype->edit_type_cap ) ) {
+	if ( !current_user_can( $ptype->cap->edit_posts ) ) {
 		if ( 'page' == $ptype->name )
 			return new WP_Error( 'edit_pages', __( 'You are not allowed to create pages on this site.' ) );
 		else
@@ -1077,14 +1080,8 @@ function get_sample_permalink_html( $id, $new_title = null, $new_slug = null ) {
 	list($permalink, $post_name) = get_sample_permalink($post->ID, $new_title, $new_slug);
 
 	if ( 'publish' == $post->post_status ) {
-		if ( 'post' == $post->post_type ) {
-			$view_post = __('View Post');
-		} elseif ( 'page' == $post->post_type ) {
-			$view_post = __('View Page');
-		} else {
-			$ptype = get_post_type_object($post->post_type);
-			$view_post = sprintf(__('View %s'), $ptype->singular_label);
-		}
+		$ptype = get_post_type_object($post->post_type);
+		$view_post = $ptype->labels->view_item;
 		$title = __('Click to edit this part of the permalink');
 	} else {
 		$title = __('Temporary permalink. Click to edit this part.');
@@ -1141,9 +1138,8 @@ function get_sample_permalink_html( $id, $new_title = null, $new_slug = null ) {
  * @return string html
  */
 function _wp_post_thumbnail_html( $thumbnail_id = NULL ) {
-	global $content_width, $_wp_additional_image_sizes;
-
-	$set_thumbnail_link = '<p class="hide-if-no-js"><a title="' . esc_attr__( 'Set featured image' ) . '" href="' . get_upload_iframe_src('image') . '" id="set-post-thumbnail" class="thickbox">%s</a></p>';
+	global $content_width, $_wp_additional_image_sizes, $post_ID;
+	$set_thumbnail_link = '<p class="hide-if-no-js"><a title="' . esc_attr__( 'Set featured image' ) . '" href="' . esc_url( get_upload_iframe_src('image') ) . '" id="set-post-thumbnail" class="thickbox">%s</a></p>';
 	$content = sprintf($set_thumbnail_link, esc_html__( 'Set featured image' ));
 
 	if ( $thumbnail_id && get_post( $thumbnail_id ) ) {
@@ -1154,8 +1150,9 @@ function _wp_post_thumbnail_html( $thumbnail_id = NULL ) {
 		else
 			$thumbnail_html = wp_get_attachment_image( $thumbnail_id, 'post-thumbnail' );
 		if ( !empty( $thumbnail_html ) ) {
+			$ajax_nonce = wp_create_nonce( "set_post_thumbnail-$post_ID" );
 			$content = sprintf($set_thumbnail_link, $thumbnail_html);
-			$content .= '<p class="hide-if-no-js"><a href="#" id="remove-post-thumbnail" onclick="WPRemoveThumbnail();return false;">' . esc_html__( 'Remove featured image' ) . '</a></p>';
+			$content .= '<p class="hide-if-no-js"><a href="#" id="remove-post-thumbnail" onclick="WPRemoveThumbnail(\'' . $ajax_nonce . '\');return false;">' . esc_html__( 'Remove featured image' ) . '</a></p>';
 		}
 		$content_width = $old_content_width;
 	}
@@ -1283,7 +1280,8 @@ function wp_create_post_autosave( $post_id ) {
 function post_preview() {
 
 	$post_ID = (int) $_POST['post_ID'];
-	if ( $post_ID < 1 )
+	$status = get_post_status( $post_ID );
+	if ( 'auto-draft' == $status )
 		wp_die( __('Preview not available. Please save as a draft first.') );
 
 	if ( isset($_POST['catslist']) )
@@ -1553,7 +1551,9 @@ function wp_tiny_mce( $teeny = false, $settings = false ) {
 		script_concat_settings();
 
 	$language = $initArray['language'];
-	$zip = $compress_scripts ? 1 : 0;
+
+	$compressed = $compress_scripts && $concatenate_scripts && isset($_SERVER['HTTP_ACCEPT_ENCODING'])
+		&& false !== strpos( strtolower($_SERVER['HTTP_ACCEPT_ENCODING']), 'gzip');
 
 	/**
 	 * Deprecated
@@ -1587,8 +1587,8 @@ tinyMCEPreInit = {
 </script>
 
 <?php
-	if ( $concatenate_scripts )
-		echo "<script type='text/javascript' src='$baseurl/wp-tinymce.php?c=$zip&amp;$version'></script>\n";
+	if ( $compressed )
+		echo "<script type='text/javascript' src='$baseurl/wp-tinymce.php?c=1&amp;$version'></script>\n";
 	else
 		echo "<script type='text/javascript' src='$baseurl/tiny_mce.js?$version'></script>\n";
 
@@ -1601,7 +1601,7 @@ tinyMCEPreInit = {
 <script type="text/javascript">
 /* <![CDATA[ */
 <?php if ( $ext_plugins ) echo "$ext_plugins\n"; ?>
-<?php if ( $concatenate_scripts ) { ?>
+<?php if ( $compressed ) { ?>
 tinyMCEPreInit.go();
 <?php } else { ?>
 (function(){var t=tinyMCEPreInit,sl=tinymce.ScriptLoader,ln=t.mceInit.language,th=t.mceInit.theme,pl=t.mceInit.plugins;sl.markDone(t.base+'/langs/'+ln+'.js');sl.markDone(t.base+'/themes/'+th+'/langs/'+ln+'.js');sl.markDone(t.base+'/themes/'+th+'/langs/'+ln+'_dlg.js');tinymce.each(pl.split(','),function(n){if(n&&n.charAt(0)!='-'){sl.markDone(t.base+'/plugins/'+n+'/langs/'+ln+'.js');sl.markDone(t.base+'/plugins/'+n+'/langs/'+ln+'_dlg.js');}});})();

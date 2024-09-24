@@ -45,6 +45,13 @@ switch( $action ) {
 case 'editcomment' :
 	$title = __('Edit Comment');
 
+	add_contextual_help( $current_screen, '<p>' . __( 'You can edit the information left in a comment if needed. This is often useful when you notice that a commenter has made a typographical error.' ) . '</p>' .
+	'<p>' . __( 'You can also moderate the comment from this screen using the Status box, where you can also change the timestamp of the comment.' ) . '</p>' .
+	'<p><strong>' . __( 'For more information:' ) . '</strong></p>' .
+	'<p>' . __( '<a href="http://codex.wordpress.org/Administration_Panels#Comments">Comments Documentation</a>' ) . '</p>' .
+	'<p>' . __( '<a href="http://wordpress.org/support/">Support Forums</a>' ) . '</p>'
+	);
+
 	wp_enqueue_script('comment');
 	require_once('./admin-header.php');
 
@@ -159,7 +166,7 @@ if ( $comment->comment_approved != '0' ) { // if not unapproved
 </tr>
 <?php } ?>
 <tr>
-<th scope="row" valign="top"><?php /* translators: field name in comment form */ echo _x('Comment', 'noun'); ?></th>
+<th scope="row" valign="top"><?php /* translators: field name in comment form */ _ex('Comment', 'noun'); ?></th>
 <td><?php echo $comment->comment_content; ?></td>
 </tr>
 </table>

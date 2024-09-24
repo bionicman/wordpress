@@ -127,13 +127,15 @@ function get_the_title( $id = 0 ) {
  * The guid will appear to be a link, but should not be used as an link to the
  * post. The reason you should not use it as a link, is because of moving the
  * blog across domains.
+ * 
+ * Url is escaped to make it xml safe
  *
  * @since 1.5.0
  *
  * @param int $id Optional. Post ID.
  */
 function the_guid( $id = 0 ) {
-	echo get_the_guid($id);
+	echo esc_url( get_the_guid($id) );
 }
 
 /**
@@ -550,9 +552,11 @@ function sticky_class( $post_id = null ) {
  * 'after' - Default is '</p>' (string). The html or text to append to each
  *      bookmarks.
  * 'link_before' - Default is '' (string). The html or text to prepend to each
- *      Pages link inside the <a> tag.
+ *      Pages link inside the <a> tag. Also prepended to the current item, which
+ *      is not linked.
  * 'link_after' - Default is '' (string). The html or text to append to each
- *      Pages link inside the <a> tag.
+ *      Pages link inside the <a> tag. Also appended to the current item, which
+ *      is not linked.
  *
  * @since 1.2.0
  * @access private
@@ -1167,12 +1171,12 @@ function wp_list_post_revisions( $post_id = 0, $args = null ) {
 			$class = $class ? '' : " class='alternate'";
 
 			if ( $post->ID != $revision->ID && $can_edit_post )
-				$actions = '<a href="' . wp_nonce_url( add_query_arg( array( 'revision' => $revision->ID, 'diff' => false, 'action' => 'restore' ) ), "restore-post_$post->ID|$revision->ID" ) . '">' . __( 'Restore' ) . '</a>';
+				$actions = '<a href="' . wp_nonce_url( add_query_arg( array( 'revision' => $revision->ID, 'action' => 'restore' ) ), "restore-post_$post->ID|$revision->ID" ) . '">' . __( 'Restore' ) . '</a>';
 			else
 				$actions = '';
 
 			$rows .= "<tr$class>\n";
-			$rows .= "\t<th style='white-space: nowrap' scope='row'><input type='radio' name='left' value='$revision->ID'$left_checked />\n";
+			$rows .= "\t<th style='white-space: nowrap' scope='row'><input type='radio' name='left' value='$revision->ID'$left_checked /></th>\n";
 			$rows .= "\t<th style='white-space: nowrap' scope='row'><input type='radio' name='right' value='$revision->ID'$right_checked /></th>\n";
 			$rows .= "\t<td>$date</td>\n";
 			$rows .= "\t<td>$name</td>\n";
@@ -1206,9 +1210,9 @@ function wp_list_post_revisions( $post_id = 0, $args = null ) {
 	<col style="width: 33%" />
 <thead>
 <tr>
-	<th scope="col"><?php _e( 'Old' ); ?></th>
-	<th scope="col"><?php _e( 'New' ); ?></th>
-	<th scope="col"><?php _e( 'Date Created' ); ?></th>
+	<th scope="col"><?php /* translators: column name in revisons */ _ex( 'Old', 'revisions column name' ); ?></th>
+	<th scope="col"><?php /* translators: column name in revisons */ _ex( 'New', 'revisions column name' ); ?></th>
+	<th scope="col"><?php /* translators: column name in revisons */ _ex( 'Date Created', 'revisions column name' ); ?></th>
 	<th scope="col"><?php _e( 'Author' ); ?></th>
 	<th scope="col" class="action-links"><?php _e( 'Actions' ); ?></th>
 </tr>

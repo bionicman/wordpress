@@ -198,7 +198,7 @@ function wp_install_defaults($user_id) {
 		if ( empty($first_post) )
 			$first_post = stripslashes( __( 'Welcome to <a href="SITE_URL">SITE_NAME</a>. This is your first post. Edit or delete it, then start blogging!' ) );
 
-		$first_post = str_replace( "SITE_URL", esc_url("http://" . $current_site->domain . $current_site->path), $first_post );
+		$first_post = str_replace( "SITE_URL", esc_url( network_home_url() ), $first_post );
 		$first_post = str_replace( "SITE_NAME", $current_site->site_name, $first_post );
 	} else {
 		$first_post = __('Welcome to WordPress. This is your first post. Edit or delete it, then start blogging!');
@@ -229,7 +229,7 @@ function wp_install_defaults($user_id) {
 	$first_comment = __('Hi, this is a comment.<br />To delete a comment, just log in and view the post&#039;s comments. There you will have the option to edit or delete them.');
 	if ( is_multisite() ) {
 		$first_comment_author = get_site_option( 'first_comment_author', $first_comment_author );
-		$first_comment_url = get_site_option( 'first_comment_url', 'http://' . $current_site->domain . $current_site->path );
+		$first_comment_url = get_site_option( 'first_comment_url', network_home_url() );
 		$first_comment = get_site_option( 'first_comment', $first_comment );
 	}
 	$wpdb->insert( $wpdb->comments, array(
@@ -440,7 +440,7 @@ function upgrade_all() {
 	if ( $wp_current_db_version < 11958 )
 		upgrade_290();
 
-	if ( $wp_current_db_version < 14217 )
+	if ( $wp_current_db_version < 14984 )
 		upgrade_300();
 
 	maybe_disable_automattic_widgets();
@@ -1108,17 +1108,11 @@ function upgrade_290() {
 function upgrade_300() {
 	global $wp_current_db_version, $wpdb;
 
-	if ( $wp_current_db_version < 14139 ) {
+	if ( $wp_current_db_version < 14984 )
 		populate_roles_300();
-		if ( is_multisite() && is_main_site() && ! defined( 'MULTISITE' ) && get_site_option( 'siteurl' ) === false )
-			add_site_option( 'siteurl', '' );
-	}
 
-	// #11866 (Convert the taxonomy children cache into a transient) - Remove old cache.
-	if ( $wp_current_db_version < 14139 ) {
-		foreach ( get_taxonomies( array('hierarchical' => true) )  as $taxonomy )
-			delete_option($taxonomy . '_children');
-	}
+	if ( $wp_current_db_version < 14139 && is_multisite() && is_main_site() && ! defined( 'MULTISITE' ) && get_site_option( 'siteurl' ) === false )
+		add_site_option( 'siteurl', '' );
 
 	// 3.0-alpha nav menu postmeta changes. can be removed before release. // r13802
 	if ( $wp_current_db_version >= 13226 && $wp_current_db_version < 13974 )
@@ -1135,9 +1129,11 @@ function upgrade_300() {
 	if ( $wp_current_db_version >= 13802 && $wp_current_db_version < 13974 )
 		$wpdb->update( $wpdb->postmeta, array( 'meta_value' => '' ), array( 'meta_key' => '_menu_item_target', 'meta_value' => '_self' ) );
 
-	// 3.0-beta metabox changes. can be removed before release. // r13551
-	if ( ( !is_multisite() || is_main_site() ) && $wp_current_db_version >= 13309 && $wp_current_db_version < 14217 )
-		$wpdb->query( "DELETE FROM $wpdb->usermeta WHERE meta_key LIKE '{$wpdb->base_prefix}%meta-box-hidden%' OR meta_key LIKE '{$wpdb->base_prefix}%closedpostboxes%'" );
+	// 3.0-beta metabox changes. can be removed before release (except metaboxorder). // r13551
+	if ( ( !is_multisite() || is_main_site() ) && $wp_current_db_version >= 13309 && $wp_current_db_version < 14726 ) {
+		$prefix = like_escape($wpdb->base_prefix);
+		$wpdb->query( "DELETE FROM $wpdb->usermeta WHERE meta_key LIKE '{$prefix}%meta-box-hidden%' OR meta_key LIKE '{$prefix}%closedpostboxes%' OR meta_key LIKE '{$prefix}%manage-%-columns-hidden%' OR meta_key LIKE '{$prefix}%meta-box-order%' OR meta_key LIKE '{$prefix}%metaboxorder%' OR meta_key LIKE '{$prefix}%screen_layout%'" );
+	}
 
 }
 

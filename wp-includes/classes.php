@@ -1155,7 +1155,7 @@ class Walker_Page extends Walker {
 	 */
 	function start_lvl(&$output, $depth) {
 		$indent = str_repeat("\t", $depth);
-		$output .= "\n$indent<ul>\n";
+		$output .= "\n$indent<ul class='children'>\n";
 	}
 
 	/**
@@ -1202,7 +1202,7 @@ class Walker_Page extends Walker {
 
 		$css_class = implode(' ', apply_filters('page_css_class', $css_class, $page));
 
-		$output .= $indent . '<li class="' . $css_class . '"><a href="' . get_page_link($page->ID) . '" title="' . esc_attr( wp_strip_all_tags( apply_filters( 'the_title', $page->post_title ) ) ) . '">' . $link_before . apply_filters( 'the_title', $page->post_title ) . $link_after . '</a>';
+		$output .= $indent . '<li class="' . $css_class . '"><a href="' . get_page_link($page->ID) . '" title="' . esc_attr( wp_strip_all_tags( apply_filters( 'the_title', $page->post_title, $page->ID ) ) ) . '">' . $link_before . apply_filters( 'the_title', $page->post_title, $page->ID ) . $link_after . '</a>';
 
 		if ( !empty($show_date) ) {
 			if ( 'modified' == $show_date )
@@ -1356,7 +1356,7 @@ class Walker_Category extends Walker {
 			if ( empty($feed_image) )
 				$link .= '(';
 
-			$link .= '<a href="' . get_category_feed_link($category->term_id, $feed_type) . '"';
+			$link .= '<a href="' . get_term_feed_link( $category->term_id, $category->taxonomy, $feed_type ) . '"';
 
 			if ( empty($feed) )
 				$alt = ' alt="' . sprintf(__( 'Feed for all posts filed under %s' ), $cat_name ) . '"';

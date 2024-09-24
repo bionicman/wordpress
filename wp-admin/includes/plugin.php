@@ -238,11 +238,14 @@ function get_plugins($plugin_folder = '') {
 					$plugin_files[] = $file;
 			}
 		}
+	} else {
+		return $wp_plugins;
 	}
+
 	@closedir( $plugins_dir );
 	@closedir( $plugins_subdir );
 
-	if ( !$plugins_dir || empty($plugin_files) )
+	if ( empty($plugin_files) )
 		return $wp_plugins;
 
 	foreach ( $plugin_files as $plugin_file ) {
@@ -285,11 +288,13 @@ function get_mu_plugins() {
 			if ( substr( $file, -4 ) == '.php' )
 				$plugin_files[] = $file;
 		}
+	} else {
+		return $wp_plugins;
 	}
 
 	@closedir( $plugins_dir );
 
-	if ( !$plugins_dir || empty($plugin_files) )
+	if ( empty($plugin_files) )
 		return $wp_plugins;
 
 	foreach ( $plugin_files as $plugin_file ) {
@@ -329,21 +334,23 @@ function get_dropins() {
 		while ( ( $file = readdir( $plugins_dir ) ) !== false ) {
 			if ( isset( $_dropins[ $file ] ) )
 				$plugin_files[] = $file;
-			}
+		}
+	} else {
+		return $dropins;
 	}
 
 	@closedir( $plugins_dir );
 
-	if ( !$plugins_dir || empty($plugin_files) )
-			return $dropins;
+	if ( empty($plugin_files) )
+		return $dropins;
 
 	foreach ( $plugin_files as $plugin_file ) {
-			if ( !is_readable( WP_CONTENT_DIR . "/$plugin_file" ) )
-					continue;
-			$plugin_data = get_plugin_data( WP_CONTENT_DIR . "/$plugin_file", false, false ); //Do not apply markup/translate as it'll be cached.
-			if ( empty ( $plugin_data['Name'] ) )
-				$plugin_data['Name'] = $plugin_file;
-			$dropins[ $plugin_file ] = $plugin_data;
+		if ( !is_readable( WP_CONTENT_DIR . "/$plugin_file" ) )
+			continue;
+		$plugin_data = get_plugin_data( WP_CONTENT_DIR . "/$plugin_file", false, false ); //Do not apply markup/translate as it'll be cached.
+		if ( empty( $plugin_data['Name'] ) )
+			$plugin_data['Name'] = $plugin_file;
+		$dropins[ $plugin_file ] = $plugin_data;
 	}
 
 	uksort( $dropins, create_function( '$a, $b', 'return strnatcasecmp( $a, $b );' ));
@@ -475,10 +482,6 @@ function activate_plugin( $plugin, $redirect = '', $network_wide = false) {
 			wp_redirect(add_query_arg('_error_nonce', wp_create_nonce('plugin-activation-error_' . $plugin), $redirect)); // we'll override this later if the plugin can be included without fatal error
 		ob_start();
 		include(WP_PLUGIN_DIR . '/' . $plugin);
-		if ( ob_get_length() > 0 ) {
-			$output = ob_get_clean();
-			return new WP_Error('unexpected_output', __('The plugin generated unexpected output.'), $output);
-		}
 		do_action( 'activate_plugin', trim( $plugin) );
 		if ( $network_wide ) {
 			$current[$plugin] = time();
@@ -490,6 +493,10 @@ function activate_plugin( $plugin, $redirect = '', $network_wide = false) {
 		}
 		do_action( 'activate_' . trim( $plugin ) );
 		do_action( 'activated_plugin', trim( $plugin) );
+		if ( ob_get_length() > 0 ) {
+			$output = ob_get_clean();
+			return new WP_Error('unexpected_output', __('The plugin generated unexpected output.'), $output);
+		}
 		ob_end_clean();
 	}
 

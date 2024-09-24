@@ -75,6 +75,17 @@ function &query_posts($query) {
 function wp_reset_query() {
 	unset($GLOBALS['wp_query']);
 	$GLOBALS['wp_query'] =& $GLOBALS['wp_the_query'];
+	wp_reset_postdata();
+}
+
+/**
+ * After looping through a separate query, this function restores
+ * the $post global to the current post in the main query
+ *
+ * @since 3.0.0
+ * @uses $wp_query
+ */
+function wp_reset_postdata() {
 	global $wp_query;
 	if ( !empty($wp_query->post) ) {
 		$GLOBALS['post'] = $wp_query->post;
@@ -134,7 +145,7 @@ function is_attachment() {
  * @param string|int $author Optional. Is current page this author.
  * @return bool True if page is author or $author (if set).
  */
-function is_author ($author = '') {
+function is_author($author = '') {
 	global $wp_query;
 
 	if ( !$wp_query->is_author )
@@ -169,7 +180,7 @@ function is_author ($author = '') {
  * @param string|array $category Optional.
  * @return bool
  */
-function is_category ($category = '') {
+function is_category($category = '') {
 	global $wp_query;
 
 	if ( !$wp_query->is_category )
@@ -398,7 +409,7 @@ function is_month() {
  * @param mixed $page Either page or list of pages to test against.
  * @return bool
  */
-function is_page ($page = '') {
+function is_page($page = '') {
 	global $wp_query;
 
 	if ( !$wp_query->is_page )
@@ -518,7 +529,7 @@ function is_single($post = '') {
 	if ( !$wp_query->is_single )
 		return false;
 
-	if ( empty( $post) )
+	if ( empty($post) )
 		return true;
 
 	$post_obj = $wp_query->get_queried_object();
@@ -541,12 +552,18 @@ function is_single($post = '') {
  * @since 1.5.0
  * @uses $wp_query
  *
+ * @param string|array $post_types Optional. Post type or types to check in current query.
  * @return bool
  */
-function is_singular() {
+function is_singular($post_types = '') {
 	global $wp_query;
 
-	return $wp_query->is_singular;
+	if ( empty($post_types) || !$wp_query->is_singular )
+		return $wp_query->is_singular;
+
+	$post_obj = $wp_query->get_queried_object();
+
+	return in_array($post_obj->post_type, (array) $post_types);
 }
 
 /**
@@ -1226,7 +1243,7 @@ class WP_Query {
 	 *
 	 * @param string|array $query
 	 */
-	function parse_query($query ) {
+	function parse_query($query) {
 		if ( !empty($query) || !isset($this->query) ) {
 			$this->init();
 			if ( is_array($query) )
@@ -1544,7 +1561,7 @@ class WP_Query {
 		$this->init_query_flags();
 		$this->is_404 = true;
 
-		//$this->is_feed = $is_feed;
+		$this->is_feed = $is_feed;
 	}
 
 	/**
@@ -1589,7 +1606,7 @@ class WP_Query {
 	 * @return array List of posts.
 	 */
 	function &get_posts() {
-		global $wpdb, $user_ID;
+		global $wpdb, $user_ID, $_wp_using_ext_object_cache;
 
 		do_action_ref_array('pre_get_posts', array(&$this));
 
@@ -1618,8 +1635,18 @@ class WP_Query {
 		if ( !isset($q['suppress_filters']) )
 			$q['suppress_filters'] = false;
 
-		if ( !isset($q['cache_results']) )
-			$q['cache_results'] = true;
+		if ( !isset($q['cache_results']) ) {
+			if ( $_wp_using_ext_object_cache )
+				$q['cache_results'] = false;
+			else
+				$q['cache_results'] = true;
+		}
+
+		if ( !isset($q['update_post_term_cache']) )
+			$q['update_post_term_cache'] = true;
+
+		if ( !isset($q['update_post_meta_cache']) )
+			$q['update_post_meta_cache'] = true;
 
 		if ( !isset($q['post_type']) ) {
 			if ( $this->is_search )
@@ -1780,7 +1807,7 @@ class WP_Query {
 		}
 
 		if ( $q['w'] )
-			$where .= " AND WEEK($wpdb->posts.post_date, 1)='" . $q['w'] . "'";
+			$where .= ' AND ' . _wp_mysql_week( "`$wpdb->posts`.`post_date`" ) . " = '" . $q['w'] . "'";
 
 		if ( intval($q['comments_popup']) )
 			$q['p'] = absint($q['comments_popup']);
@@ -1837,6 +1864,8 @@ class WP_Query {
 					$search .= " AND ($wpdb->posts.post_password = '') ";
 			}
 		}
+
+		// Allow plugins to contextually add/remove/modify the search section of the database query
 		$search = apply_filters_ref_array('posts_search', array( $search, &$this ) );
 
 		// Category stuff
@@ -2186,10 +2215,10 @@ class WP_Query {
 
 		if ( !empty($post_type_object) ) {
 			$post_type_cap = $post_type_object->capability_type;
-			$edit_cap = $post_type_object->edit_cap;
-			$read_cap = $post_type_object->read_cap;
-			$edit_others_cap = $post_type_object->edit_others_cap;
-			$read_private_cap = $post_type_object->read_private_cap;
+			$edit_cap = $post_type_object->cap->edit_post;
+			$read_cap = $post_type_object->cap->read_post;
+			$edit_others_cap = $post_type_object->cap->edit_others_posts;
+			$read_private_cap = $post_type_object->cap->read_private_posts;
 		} else {
 			$edit_cap = 'edit_' . $post_type_cap;
 			$read_cap = 'read_' . $post_type_cap;
@@ -2504,7 +2533,7 @@ class WP_Query {
 		}
 
 		if ( $q['cache_results'] )
-			update_post_caches($this->posts, $post_type);
+			update_post_caches($this->posts, $post_type, $q['update_post_term_cache'], $q['update_post_meta_cache']);
 
 		if ( $this->post_count > 0 ) {
 			$this->post = $this->posts[0];
@@ -2842,7 +2871,7 @@ function setup_postdata($post) {
 		$pages = explode('<!--nextpage-->', $content);
 		$numpages = count($pages);
 	} else {
-		$pages[0] = $post->post_content;
+		$pages = array( $post->post_content );
 		$multipage = 0;
 	}
 

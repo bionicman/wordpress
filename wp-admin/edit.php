@@ -11,7 +11,7 @@ require_once('./admin.php');
 
 if ( !isset($_GET['post_type']) )
 	$post_type = 'post';
-elseif ( in_array( $_GET['post_type'], get_post_types( array('public' => true ) ) ) )
+elseif ( in_array( $_GET['post_type'], get_post_types( array('show_ui' => true ) ) ) )
 	$post_type = $_GET['post_type'];
 else
 	wp_die( __('Invalid post type') );
@@ -19,7 +19,7 @@ $_GET['post_type'] = $post_type;
 
 $post_type_object = get_post_type_object($post_type);
 
-if ( !current_user_can($post_type_object->edit_type_cap) )
+if ( !current_user_can($post_type_object->cap->edit_posts) )
 	wp_die(__('Cheatin&#8217; uh?'));
 
 // Back-compat for viewing comments of an entry
@@ -46,7 +46,7 @@ if ( empty($pagenum) )
 $per_page = 'edit_' . $post_type . '_per_page';
 $per_page = (int) get_user_option( $per_page );
 if ( empty( $per_page ) || $per_page < 1 )
-	$per_page = 15;
+	$per_page = 20;
 // @todo filter based on type
 $per_page = apply_filters( 'edit_posts_per_page', $per_page );
 
@@ -73,7 +73,7 @@ if ( isset($_GET['doaction']) || isset($_GET['doaction2']) || isset($_GET['delet
 		case 'trash':
 			$trashed = 0;
 			foreach( (array) $post_ids as $post_id ) {
-				if ( !current_user_can($post_type_object->delete_cap, $post_id) )
+				if ( !current_user_can($post_type_object->cap->delete_post, $post_id) )
 					wp_die( __('You are not allowed to move this item to the Trash.') );
 
 				if ( !wp_trash_post($post_id) )
@@ -86,7 +86,7 @@ if ( isset($_GET['doaction']) || isset($_GET['doaction2']) || isset($_GET['delet
 		case 'untrash':
 			$untrashed = 0;
 			foreach( (array) $post_ids as $post_id ) {
-				if ( !current_user_can($post_type_object->delete_cap, $post_id) )
+				if ( !current_user_can($post_type_object->cap->delete_post, $post_id) )
 					wp_die( __('You are not allowed to restore this item from the Trash.') );
 
 				if ( !wp_untrash_post($post_id) )
@@ -101,7 +101,7 @@ if ( isset($_GET['doaction']) || isset($_GET['doaction2']) || isset($_GET['delet
 			foreach( (array) $post_ids as $post_id ) {
 				$post_del = & get_post($post_id);
 
-				if ( !current_user_can($post_type_object->delete_cap, $post_id) )
+				if ( !current_user_can($post_type_object->cap->delete_post, $post_id) )
 					wp_die( __('You are not allowed to delete this item.') );
 
 				if ( $post_del->post_type == 'attachment' ) {
@@ -137,12 +137,10 @@ if ( isset($_GET['doaction']) || isset($_GET['doaction2']) || isset($_GET['delet
 	 exit;
 }
 
-$title = sprintf(__('Edit %s'), $post_type_object->label);
-
 wp_enqueue_script('inline-edit-post');
 
 $user_posts = false;
-if ( !current_user_can($post_type_object->edit_others_cap) ) {
+if ( !current_user_can($post_type_object->cap->edit_others_posts) ) {
 	$user_posts_count = $wpdb->get_var( $wpdb->prepare("SELECT COUNT(1) FROM $wpdb->posts WHERE post_type = '%s' AND post_status NOT IN ('trash', 'auto-draft') AND post_author = %d", $post_type, $current_user->ID) );
 	$user_posts = true;
 	if ( $user_posts_count && empty($_GET['post_status']) && empty($_GET['all_posts']) && empty($_GET['author']) )
@@ -156,6 +154,40 @@ if ( $post_type_object->hierarchical )
 else
 	$num_pages = $wp_query->max_num_pages;
 
+$title = $post_type_object->labels->name;
+
+if ( 'post' == $post_type ) {
+	add_contextual_help($current_screen,
+	'<p>' . __('You can customize the display of this screen in a number of ways:') . '</p>' .
+	'<ul>' .
+	'<li>' . __('You can hide/display columns based on your needs and decide how many posts to list per screen using the Screen Options tab.') . '</li>' .
+	'<li>' . __('You can filter the list of posts by post status using the text links in the upper left to show All, Published, Draft, or Trashed posts. The default view is to show all posts.') . '</li>' .
+	'<li>' . __('You can view posts in a simple title list or with an excerpt. Choose the view you prefer by clicking on the icons at the top of the list on the right.') . '</li>' .
+	'<li>' . __('You can refine the list to show only posts in a specific category or from a specific month by using the dropdown menus above the posts list. Click the Filter button after making your selection. You also can refine the list by clicking on the post author, category or tag in the posts list.') . '</li>' .
+	'</ul>' .
+	'<p>' . __('Hovering over a row in the posts list will display action links that allow you to manage your post. You can perform the following actions:') . '</p>' .
+	'<ul>' .
+	'<li>' . __('Edit takes you to the editing screen for that post. You can also reach that screen by clicking on the post title.') . '</li>' .
+	'<li>' . __('Quick Edit provides inline access to the metadata of your post, allowing you to update post details without leaving this screen.') . '</li>' .
+	'<li>' . __('Trash removes your post from this list and places it in the trash, from which you can permanently delete it.') . '</li>' .
+	'<li>' . __('Preview will show you what your draft post will look like if you publish it. View will take you to your live site to view the post. Which link is available depends on your post&#8217;s status.') . '</li>' .
+	'</ul>' .
+	'<p>' . __('You can also edit multiple posts at once. Select the posts you want to edit using the checkboxes, select Edit from the Bulk Actions menu and click Apply. You will be able to change the metadata (categories, author, etc.) for all selected posts at once. To remove a post from the grouping, just click the x next to its name in the Bulk Edit area that appears.') . '</p>' .
+	'<p><strong>' . __('For more information:') . '</strong></p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Posts_Edit_SubPanel">Edit Posts Documentation</a>') . '</p>' .
+	'<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>'
+	);
+} elseif ( 'page' == $post_type ) {
+	add_contextual_help($current_screen,
+	'<p>' . __('Pages are similar to to Posts in that they have a title, body text, and associated metadata, but they are different in that they are not part of the chronological blog stream, kind of like permanent posts. Pages are not categorized or tagged, but can have a hierarchy. You can nest Pages under other Pages by making one the "Parent" of the other, creating a group of Pages.') . '</p>' .
+	'<p>' . __('Managing Pages is very similar to managing Posts, and the screens can be customized in the same way. ') . '</p>' .
+	'<p>' . __('You can also perform the same types of actions, including narrowing the list by using the filters, acting on a Page using the action links that appear when you hover over a row, or using the Bulk Actions menu to edit the metadata for multiple Pages at once.') . '</p>' .
+	'<p><strong>' . __('For more information:') . '</strong></p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Pages_Edit_SubPanel">Page Management Documentation</a>') . '</p>' .
+	'<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>'
+	);
+}
+
 require_once('./admin-header.php');
 
 if ( empty($_GET['mode']) )
@@ -165,7 +197,7 @@ else
 
 <div class="wrap">
 <?php screen_icon(); ?>
-<h2><?php echo esc_html( $title ); ?> <a href="<?php echo $post_new_file ?>" class="button add-new-h2"><?php echo esc_html_x('Add New', 'post'); ?></a> <?php
+<h2><?php echo esc_html( $post_type_object->labels->name ); ?> <a href="<?php echo $post_new_file ?>" class="button add-new-h2"><?php echo esc_html($post_type_object->labels->add_new); ?></a> <?php
 if ( isset($_GET['s']) && $_GET['s'] )
 	printf( '<span class="subtitle">' . __('Search results for &#8220;%s&#8221;') . '</span>', get_search_query() ); ?>
 </h2>
@@ -262,9 +294,9 @@ endif;
 </ul>
 
 <p class="search-box">
-	<label class="screen-reader-text" for="post-search-input"><?php printf( _x('Search %s', '%s: post type name'), $post_type_object->label ); ?>:</label>
+	<label class="screen-reader-text" for="post-search-input"><?php echo $post_type_object->labels->search_items; ?>:</label>
 	<input type="text" id="post-search-input" name="s" value="<?php the_search_query(); ?>" />
-	<input type="submit" value="<?php echo esc_attr( sprintf( _x('Search %s', '%s: post type name'), $post_type_object->label ) ); ?>" class="button" />
+	<input type="submit" value="<?php echo esc_attr( $post_type_object->labels->search_items  ); ?>" class="button" />
 </p>
 
 <input type="hidden" name="post_status" class="post_status_page" value="<?php echo !empty($_GET['post_status']) ? esc_attr($_GET['post_status']) : 'all'; ?>" />
@@ -347,7 +379,7 @@ do_action('restrict_manage_posts');
 <input type="submit" id="post-query-submit" value="<?php esc_attr_e('Filter'); ?>" class="button-secondary" />
 <?php }
 
-if ( $is_trash && current_user_can($post_type_object->edit_others_cap) ) { ?>
+if ( $is_trash && current_user_can($post_type_object->cap->edit_others_posts) ) { ?>
 <input type="submit" name="delete_all" id="delete_all" value="<?php esc_attr_e('Empty Trash'); ?>" class="button-secondary apply" />
 <?php } ?>
 </div>
@@ -363,13 +395,18 @@ if ( $is_trash && current_user_can($post_type_object->edit_others_cap) ) { ?>
 						);
 	echo $page_links_text;
 	?></div>
-<?php } ?>
+<?php
+}
+
+if ( !$post_type_object->hierarchical ) {
+?>
 
 <div class="view-switch">
 	<a href="<?php echo esc_url(add_query_arg('mode', 'list', $_SERVER['REQUEST_URI'])) ?>"><img <?php if ( 'list' == $mode ) echo 'class="current"'; ?> id="view-switch-list" src="<?php echo esc_url( includes_url( 'images/blank.gif' ) ); ?>" width="20" height="20" title="<?php _e('List View') ?>" alt="<?php _e('List View') ?>" /></a>
 	<a href="<?php echo esc_url(add_query_arg('mode', 'excerpt', $_SERVER['REQUEST_URI'])) ?>"><img <?php if ( 'excerpt' == $mode ) echo 'class="current"'; ?> id="view-switch-excerpt" src="<?php echo esc_url( includes_url( 'images/blank.gif' ) ); ?>" width="20" height="20" title="<?php _e('Excerpt View') ?>" alt="<?php _e('Excerpt View') ?>" /></a>
 </div>
 
+<?php } ?>
 <div class="clear"></div>
 </div>
 
@@ -398,7 +435,7 @@ if ( $page_links )
 <?php } ?>
 </select>
 <input type="submit" value="<?php esc_attr_e('Apply'); ?>" name="doaction2" id="doaction2" class="button-secondary action" />
-<?php if ( $is_trash && current_user_can($post_type_object->edit_others_cap) ) { ?>
+<?php if ( $is_trash && current_user_can($post_type_object->cap->edit_others_posts) ) { ?>
 <input type="submit" name="delete_all2" id="delete_all2" value="<?php esc_attr_e('Empty Trash'); ?>" class="button-secondary apply" />
 <?php } ?>
 <br class="clear" />
@@ -410,9 +447,9 @@ if ( $page_links )
 <div class="clear"></div>
 <p><?php
 if ( isset($_GET['post_status']) && 'trash' == $_GET['post_status'] )
-	printf( __( 'No %s found in the Trash.' ), $post_type_object->label );
+	echo $post_type_object->labels->not_found_in_trash;
 else
-	printf( __( 'No %s found.' ), $post_type_object->label );
+	echo $post_type_object->labels->not_found;
 ?></p>
 <?php } ?>
 

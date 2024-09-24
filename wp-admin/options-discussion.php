@@ -15,6 +15,14 @@ if ( ! current_user_can( 'manage_options' ) )
 $title = __('Discussion Settings');
 $parent_file = 'options-general.php';
 
+add_contextual_help($current_screen, 
+	'<p>' . __('This screen provides many options for controlling the management and display of comments and links to your posts/pages. So many, in fact, they won&#8217;t all fit here! :) Use the documentation link below to get information on what each discussion setting does.') . '</p>' .
+	'<p>' . __('You must click the Save Changes button at the bottom of the screen for new settings to take effect.') . '</p>' .
+	'<p><strong>' . __('For more information:') . '</strong></p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Settings_Discussion_SubPanel">Discussion Settings Documentation</a>') . '</p>' .
+	'<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>'
+);
+
 include('./admin-header.php');
 ?>
 
@@ -42,12 +50,6 @@ include('./admin-header.php');
 <?php _e('Allow people to post comments on new articles') ?></label>
 <br />
 <small><em><?php echo '(' . __('These settings may be overridden for individual articles.') . ')'; ?></em></small>
-<br />
-<label for="default_comment_status_page">
-<input name="default_comment_status_page" type="checkbox" id="default_comment_status_page" value="open" <?php checked('open', get_option('default_comment_status_page')); ?> />
-<?php _e('Allow people to post comments on new pages') ?></label>
-<br />
-<small><em><?php echo '(' . __('These settings may be overridden for individual pages.') . ')'; ?></em></small>
 </fieldset></td>
 </tr>
 <tr valign="top">

@@ -1226,7 +1226,17 @@ function addslashes_gpc($gpc) {
  * @return array|string Stripped array (or string in the callback).
  */
 function stripslashes_deep($value) {
-	$value = is_array($value) ? array_map('stripslashes_deep', $value) : stripslashes($value);
+	if ( is_array($value) ) {
+		$value = array_map('stripslashes_deep', $value);
+	} elseif ( is_object($value) ) {
+		$vars = get_object_vars( $value );
+		foreach ($vars as $key=>$data) {
+			$value->{$key} = stripslashes_deep( $data );
+		}
+	} else {
+		$value = stripslashes($value);
+	}
+
 	return $value;
 }
 
@@ -2805,6 +2815,17 @@ function sanitize_text_field($str) {
 	}
 
 	return apply_filters('sanitize_text_field', $filtered, $str);
+}
+
+/**
+ * Forever eliminate "Wordpress" from the planet (or at least the little bit we can influence).
+ *
+ * Violating our coding standards for a good function name.
+ *
+ * @since 3.0.0
+ */
+function capital_P_dangit( $text ) {
+       return str_replace( 'Wordpress', 'WordPress', $text );
 }
 
 ?>

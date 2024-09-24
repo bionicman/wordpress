@@ -9,10 +9,10 @@
 /** WordPress Administration Bootstrap */
 require_once('./admin.php');
 
-if ( !current_user_can('switch_themes') )
+if ( !current_user_can('switch_themes') && !current_user_can('edit_theme_options') )
 	wp_die( __( 'Cheatin&#8217; uh?' ) );
 
-if ( isset($_GET['action']) ) {
+if ( current_user_can('switch_themes') && isset($_GET['action']) ) {
 	if ( 'activate' == $_GET['action'] ) {
 		check_admin_referer('switch-theme_' . $_GET['template']);
 		switch_theme($_GET['template'], $_GET['stylesheet']);
@@ -20,7 +20,7 @@ if ( isset($_GET['action']) ) {
 		exit;
 	} else if ( 'delete' == $_GET['action'] ) {
 		check_admin_referer('delete-theme_' . $_GET['template']);
-		if ( !current_user_can('update_themes') )
+		if ( !current_user_can('delete_themes') )
 			wp_die( __( 'Cheatin&#8217; uh?' ) );
 		delete_theme($_GET['template']);
 		wp_redirect('themes.php?deleted=true');
@@ -31,16 +31,22 @@ if ( isset($_GET['action']) ) {
 $title = __('Manage Themes');
 $parent_file = 'themes.php';
 
-$help = '<p>' . __('Themes give your WordPress style. Once a theme is installed, you may preview it, activate it or deactivate it here.') . '</p>';
-if ( current_user_can('install_themes') ) {
-	$help .= '<p>' . sprintf(__('You can find additional themes for your site by using the new <a href="%1$s">Theme Browser/Installer</a> functionality or by browsing the <a href="http://wordpress.org/extend/themes/">WordPress Theme Directory</a> directly and installing manually.  To install a theme <em>manually</em>, <a href="%2$s">upload its ZIP archive with the new uploader</a> or copy its folder via FTP into your <code>wp-content/themes</code> directory.'), 'theme-install.php', 'theme-install.php?tab=upload' ) . '</p>';
-	$help .= '<p>' . __('Once a theme is uploaded, you should see it on this screen.') . '</p>' ;
-}
+if ( current_user_can( 'switch_themes' ) ) :
 
+$help = '<p>' . __('Aside from the default theme included with your WordPress installation, themes are designed and developed by third parties.') . '</p>';
+$help .= '<p>' . __('You can see your active theme at the top of the screen. Below are the other themes you have installed that are not currently in use. You can see what your site would look like with one of these themes by clicking the Preview link. To change themes, click the Activate link.') . '</p>';
+if ( current_user_can('install_themes') )
+	$help .= '<p>' . sprintf(__('If you would like to see more themes to choose from, click on the "Install Themes" tab and you will be able to browse or search for additional themes from the <a href="%s">WordPress.org theme repository</a>. Themes in the WordPress.org theme repository are designed and developed by third parties, and are licensed under the GNU General Public License, version 2, just like WordPress. Oh, and they&#8217;re free!'), 'http://wordpress.org/extend/themes/') . '</p>';
+	
+$help .= '<p><strong>' . __('For more information:') . '</strong></p>';
+$help .= '<p>' . __('<a href="http://codex.wordpress.org/Using_Themes">Documentation on Using Themes</a>') . '</p>';
+$help .= '<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>';
 add_contextual_help($current_screen, $help);
 
 add_thickbox();
 wp_enqueue_script( 'theme-preview' );
+
+endif;
 
 require_once('./admin-header.php');
 if ( is_multisite() && current_user_can('edit_themes') ) {
@@ -51,7 +57,7 @@ if ( is_multisite() && current_user_can('edit_themes') ) {
 <?php if ( ! validate_current_theme() ) : ?>
 <div id="message1" class="updated"><p><?php _e('The active theme is broken.  Reverting to the default theme.'); ?></p></div>
 <?php elseif ( isset($_GET['activated']) ) :
-		if ( isset($wp_registered_sidebars) && count( (array) $wp_registered_sidebars ) ) { ?>
+		if ( isset($wp_registered_sidebars) && count( (array) $wp_registered_sidebars ) && current_user_can('edit_theme_options') ) { ?>
 <div id="message2" class="updated"><p><?php printf( __('New theme activated. This theme supports widgets, please visit the <a href="%s">widgets settings</a> screen to configure them.'), admin_url( 'widgets.php' ) ); ?></p></div><?php
 		} else { ?>
 <div id="message2" class="updated"><p><?php printf( __( 'New theme activated. <a href="%s">Visit site</a>' ), home_url( '/' ) ); ?></p></div><?php
@@ -114,6 +120,13 @@ $themes = array_slice( $themes, $start, $per_page );
 </div>
 
 <div class="clear"></div>
+<?php
+if ( ! current_user_can( 'switch_themes' ) ) {
+	echo '</div>';
+	require( './admin-footer.php' );
+	exit;
+}
+?>
 <h3><?php _e('Available Themes'); ?></h3>
 <div class="clear"></div>
 
@@ -180,8 +193,8 @@ foreach ( $cols as $col => $theme_name ) {
 	$actions = array();
 	$actions[] = '<a href="' . $activate_link .  '" class="activatelink" title="' . $activate_text . '">' . __('Activate') . '</a>';
 	$actions[] = '<a href="' . $preview_link . '" class="thickbox thickbox-preview" title="' . esc_attr(sprintf(__('Preview &#8220;%s&#8221;'), $theme_name)) . '">' . __('Preview') . '</a>';
-	if ( current_user_can('update_themes') )
-		$actions[] = '<a class="submitdelete deletion" href="' . wp_nonce_url("themes.php?action=delete&amp;template=$stylesheet", 'delete-theme_' . $stylesheet) . '" onclick="' . "if ( confirm('" . esc_js(sprintf( __("You are about to delete this theme '%s'\n  'Cancel' to stop, 'OK' to delete."), $theme_name )) . "') ) {return true;}return false;" . '">' . __('Delete') . '</a>';
+	if ( current_user_can('delete_themes') )
+		$actions[] = '<a class="submitdelete deletion" href="' . wp_nonce_url("themes.php?action=delete&amp;template=$stylesheet", 'delete-theme_' . $stylesheet) . '" onclick="' . "return confirm('" . esc_js(sprintf( __("You are about to delete this theme '%s'\n  'Cancel' to stop, 'OK' to delete."), $theme_name )) . "');" . '">' . __('Delete') . '</a>';
 	$actions = apply_filters('theme_action_links', $actions, $themes[$theme_name]);
 
 	$actions = implode ( ' | ', $actions );

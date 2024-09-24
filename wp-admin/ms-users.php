@@ -18,6 +18,20 @@ if ( ! current_user_can( 'manage_network_users' ) )
 $title = __( 'Users' );
 $parent_file = 'ms-admin.php';
 
+add_contextual_help($current_screen, 
+	'<p>' . __('This table shows all users across the network and the sites to which they are assigned.') . '</p>' .
+	'<p>' . __('Hover over any user on the list to make the edit links appear. The Edit link on the left will take you to his or her Edit User profile page; the Edit link on the right by any site name goes to an Edit Site screen for that site.') . '</p>' .
+	'<p>' . __('You can also go to the user&#8217;s profile page for by clicking on the individual Username.') . '</p>' .
+	'<p>' . __('You can sort the table by clicking on any of the bold headings and switch between list and excerpt views by using the icons in the upper right.') . '</p>' .
+	'<p>' . __('The bulk action will permanently delete selected users, or mark/unmark those selected as spam. Spam users will have posts removed and will be unable to sign up again with the same emails.') . '</p>' .
+	'<p>' . __('Add User will add that person to this table and send them an email.') . '</p>' .
+	'<p>' . __('Users who are signed up to the network without a site are added as subscribers to the main or primary dashboard site, giving them profile pages to manage their accounts. These users will only see Dashboard and My Sites in the main navigation until a site is created for them.') . '</p>' .
+	'<p>' . __('You can make an existing user an additional super admin by going to the Edit User profile page and checking the box to grant that privilege.') . '</p>' .
+	'<p><strong>' . __('For more information:') . '</strong></p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Super_Admin_Users_SubPanel">Network Users Documentation</a>') . '</p>' .
+	'<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>'
+);
+
 wp_enqueue_script( 'admin-forms' );
 
 require_once( './admin-header.php' );
@@ -130,11 +144,11 @@ if ( isset( $_GET['updated'] ) && $_GET['updated'] == 'true' && ! empty( $_GET['
 				<select name="action">
 					<option value="-1" selected="selected"><?php _e( 'Bulk Actions' ); ?></option>
 					<option value="delete"><?php _e( 'Delete' ); ?></option>
-					<option value="spam"><?php echo _x( 'Mark as Spam', 'user' ); ?></option>
-					<option value="notspam"><?php echo _x( 'Not Spam', 'user' ); ?></option>
+					<option value="spam"><?php _ex( 'Mark as Spam', 'user' ); ?></option>
+					<option value="notspam"><?php _ex( 'Not Spam', 'user' ); ?></option>
 				</select>
 				<input type="submit" value="<?php esc_attr_e( 'Apply' ); ?>" name="doaction" id="doaction" class="button-secondary action" />
-				<?php wp_nonce_field( 'bulk-ms-users' ); ?>
+				<?php wp_nonce_field( 'bulk-ms-users', '_wpnonce_bulk-ms-users' ); ?>
 			</div>
 
 			<?php if ( $page_links ) { ?>
@@ -170,7 +184,7 @@ if ( isset( $_GET['updated'] ) && $_GET['updated'] == 'true' && ! empty( $_GET['
 		<table class="widefat">
 			<thead>
 			<tr>
-				<th class="manage-column column-cb check-column" id="cb" scope="col">
+				<th class="manage-column column-cb check-column" scope="col">
 					<input type="checkbox" />
 				</th>
 				<?php
@@ -190,7 +204,7 @@ if ( isset( $_GET['updated'] ) && $_GET['updated'] == 'true' && ! empty( $_GET['
 			</thead>
 			<tfoot>
 			<tr>
-				<th class="manage-column column-cb check-column" id="cb" scope="col">
+				<th class="manage-column column-cb check-column" scope="col">
 					<input type="checkbox" />
 				</th>
 				<?php echo $col_url; ?>
@@ -324,8 +338,8 @@ if ( isset( $_GET['updated'] ) && $_GET['updated'] == 'true' && ! empty( $_GET['
 				<select name="action2">
 					<option value="-1" selected="selected"><?php _e( 'Bulk Actions' ); ?></option>
 					<option value="delete"><?php _e( 'Delete' ); ?></option>
-					<option value="spam"><?php echo _x( 'Mark as Spam', 'user' ); ?></option>
-					<option value="notspam"><?php echo _x( 'Not Spam', 'user' ); ?></option>
+					<option value="spam"><?php _ex( 'Mark as Spam', 'user' ); ?></option>
+					<option value="notspam"><?php _ex( 'Not Spam', 'user' ); ?></option>
 				</select>
 				<input type="submit" value="<?php esc_attr_e( 'Apply' ); ?>" name="doaction2" id="doaction2" class="button-secondary action" />
 			</div>
@@ -355,7 +369,7 @@ if ( apply_filters( 'show_adduser_fields', true ) ) :
 		</tr>
 	</table>
 	<p class="submit">
-		<?php wp_nonce_field( 'add-user' ) ?>
+		<?php wp_nonce_field( 'add-user', '_wpnonce_add-user' ) ?>
 		<input class="button" type="submit" value="<?php esc_attr_e( 'Add user' ) ?>" /></p>
 	</form>
 </div>

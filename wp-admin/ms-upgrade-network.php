@@ -16,6 +16,16 @@ require_once( ABSPATH . WPINC . '/http.php' );
 
 $title = __( 'Update Network' );
 $parent_file = 'ms-admin.php';
+
+add_contextual_help($current_screen, 
+	'<p>' . __('Only use this screen once you have updated to a new version of WordPress through Dashboard > Updates. Clicking the Update Network button will step through each site in the network, five at a time, and make sure any database upgrades are applied.') . '</p>' .
+	'<p>' . __('If a version update to core has not happened, clicking this button won&#8217;t affect anything.') . '</p>' .
+	'<p>' . __('If this process fails for any reason, users logging in to their sites will force the same update.') . '</p>' .
+	'<p><strong>' . __('For more information:') . '</strong></p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Super_Admin_Update_SubPanel">Update Network Documentation</a>') . '</p>' .
+	'<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>'
+);
+
 require_once('admin-header.php');
 
 if ( ! current_user_can( 'manage_network' ) )
@@ -43,15 +53,13 @@ switch ( $action ) {
 		}
 		echo "<ul>";
 		foreach ( (array) $blogs as $details ) {
-			if ( $details['spam'] == 0 && $details['deleted'] == 0 && $details['archived'] == 0 ) {
-				$siteurl = get_blog_option( $details['blog_id'], 'siteurl' );
-				echo "<li>$siteurl</li>";
-				$response = wp_remote_get( trailingslashit( $siteurl ) . "wp-admin/upgrade.php?step=1", array( 'timeout' => 120, 'httpversion' => '1.1' ) );
-				if ( is_wp_error( $response ) )
-					wp_die( "<strong>Warning!</strong> Problem updating {$siteurl}. Your server may not be able to connect to sites running on it.<br /> Error message: <em>" . $response->get_error_message() ."</em>" );
-				do_action( 'after_mu_upgrade', $response );
-				do_action( 'wpmu_upgrade_site', $details[ 'blog_id' ] );
-			}
+			$siteurl = get_blog_option( $details['blog_id'], 'siteurl' );
+			echo "<li>$siteurl</li>";
+			$response = wp_remote_get( trailingslashit( $siteurl ) . "wp-admin/upgrade.php?step=upgrade_db", array( 'timeout' => 120, 'httpversion' => '1.1' ) );
+			if ( is_wp_error( $response ) )
+				wp_die( sprintf( __( 'Warning! Problem updating %1$s. Your server may not be able to connect to sites running on it. Error message: <em>%2$s</em>' ), $siteurl, $response->get_error_message() ) );
+			do_action( 'after_mu_upgrade', $response );
+			do_action( 'wpmu_upgrade_site', $details[ 'blog_id' ] );
 		}
 		echo "</ul>";
 		?><p><?php _e( 'If your browser doesn&#8217;t start loading the next page automatically, click this link:' ); ?> <a class="button" href="ms-upgrade-network.php?action=upgrade&amp;n=<?php echo ($n + 5) ?>"><?php _e("Next Sites"); ?></a></p>

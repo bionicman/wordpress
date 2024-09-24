@@ -15,6 +15,19 @@ if ( ! current_user_can( 'manage_options' ) )
 $title = __('Permalink Settings');
 $parent_file = 'options-general.php';
 
+add_contextual_help($current_screen, 
+	'<p>' . __('This screen provides some common options for your default permalinks URL structure.') . '</p>' .
+	'<p>' . __('If you pick an option other than Default, your general URL path with structure tags, terms surrounded by %, will also appear in the custom structure field and your path can be further modified there.') . '</p>' .
+	'<p>' . __('When you assign multiple categories or tags to a post, only one can show up in the permalink: the lowest numbered category. This applies if your custom structure includes %category% or %tag%.') . '</p>' .
+	'<p>' . __('Note that permalinks beginning with structure tags calling Category, Tag, Author, or Postname require more advanced server resources. Double-check your hosting details to make sure those are in place or start your permalinks with other structure tags.') . '</p>' .
+	'<p>' . __('The Optional fields lets you have add a base name that will appear in archive URLs intead of &#8220;category&#8221; or &#8220;tag.&#8221; For example, the page listing all posts in the category &#8220;uncategorized&#8221; could be /topics/uncategorized instead of category/uncategorized.') . '</p>' .
+	'<p>' . __('You must click the Save Changes button at the bottom of the screen for new settings to take effect.') . '</p>' .
+	'<p><strong>' . __('For more information:') . '</strong></p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Settings_Permalinks_SubPanel">Permalinks Settings Documentation</a>') . '</p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Using_Permalinks">Using Permalinks Documentation</a>') . '</p>' .
+	'<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>'
+);
+
 /**
  * Display JavaScript on the page.
  *
@@ -75,33 +88,38 @@ include('./admin-header.php');
 $home_path = get_home_path();
 $iis7_permalinks = iis7_supports_permalinks();
 
-$prefix = '';
+$prefix = $blog_prefix = '';
 if ( ! got_mod_rewrite() && ! $iis7_permalinks )
-	$prefix .= '/index.php';
+	$prefix = '/index.php';
 if ( is_multisite() && !is_subdomain_install() && is_main_site() )
-	$prefix .= '/blog';
+	$blog_prefix = '/blog';
 
 if ( isset($_POST['permalink_structure']) || isset($_POST['category_base']) ) {
 	check_admin_referer('update-permalink');
 
 	if ( isset( $_POST['permalink_structure'] ) ) {
 		$permalink_structure = $_POST['permalink_structure'];
-		if ( ! empty( $permalink_structure ) )
-			$permalink_structure = $prefix . preg_replace( '#/+#', '/', '/' . str_replace( '#', '', $permalink_structure ) );
+		if ( ! empty( $permalink_structure ) ) {
+			$permalink_structure = preg_replace( '#/+#', '/', '/' . str_replace( '#', '', $permalink_structure ) );
+			if ( $prefix && $blog_prefix )
+				$permalink_structure = $prefix . preg_replace( '#^/?index\.php#', '', $permalink_structure );
+			else
+				$permalink_structure = $blog_prefix . $permalink_structure;
+		}
 		$wp_rewrite->set_permalink_structure( $permalink_structure );
 	}
 
 	if ( isset( $_POST['category_base'] ) ) {
 		$category_base = $_POST['category_base'];
 		if ( ! empty( $category_base ) )
-			$category_base = $prefix . preg_replace('#/+#', '/', '/' . str_replace( '#', '', $category_base ) );
+			$category_base = $blog_prefix . preg_replace('#/+#', '/', '/' . str_replace( '#', '', $category_base ) );
 		$wp_rewrite->set_category_base( $category_base );
 	}
 
 	if ( isset( $_POST['tag_base'] ) ) {
 		$tag_base = $_POST['tag_base'];
 		if ( ! empty( $tag_base ) )
-			$tag_base = $prefix . preg_replace('#/+#', '/', '/' . str_replace( '#', '', $tag_base ) );
+			$tag_base = $blog_prefix . preg_replace('#/+#', '/', '/' . str_replace( '#', '', $tag_base ) );
 		$wp_rewrite->set_tag_base( $tag_base );
 	}
 }
@@ -163,9 +181,6 @@ if ( ! is_multisite() ) {
   <p><?php _e('By default WordPress uses web <abbr title="Universal Resource Locator">URL</abbr>s which have question marks and lots of numbers in them, however WordPress offers you the ability to create a custom URL structure for your permalinks and archives. This can improve the aesthetics, usability, and forward-compatibility of your links. A <a href="http://codex.wordpress.org/Using_Permalinks">number of tags are available</a>, and here are some examples to get you started.'); ?></p>
 
 <?php
-if ( ! got_mod_rewrite() && ! $iis7_permalinks )
-	$permalink_structure = preg_replace( '|^/?index\.php|', '', $permalink_structure );
-
 if ( is_multisite() && !is_subdomain_install() && is_main_site() ) {
 	$permalink_structure = preg_replace( '|^/?blog|', '', $permalink_structure );
 	$category_base = preg_replace( '|^/?blog|', '', $category_base );
@@ -174,9 +189,9 @@ if ( is_multisite() && !is_subdomain_install() && is_main_site() ) {
 
 $structures = array(
 	'',
-	'/%year%/%monthnum%/%day%/%postname%/',
-	'/%year%/%monthnum%/%postname%/',
-	'/archives/%post_id%'
+	$prefix . '/%year%/%monthnum%/%day%/%postname%/',
+	$prefix . '/%year%/%monthnum%/%postname%/',
+	$prefix . '/archives/%post_id%'
 	);
 ?>
 <h3><?php _e('Common settings'); ?></h3>
@@ -187,15 +202,15 @@ $structures = array(
 	</tr>
 	<tr>
 		<th><label><input name="selection" type="radio" value="<?php echo esc_attr($structures[1]); ?>" class="tog" <?php checked($structures[1], $permalink_structure); ?> /> <?php _e('Day and name'); ?></label></th>
-		<td><code><?php echo get_option('home') . $prefix . '/' . date('Y') . '/' . date('m') . '/' . date('d') . '/sample-post/'; ?></code></td>
+		<td><code><?php echo get_option('home') . $blog_prefix . $prefix . '/' . date('Y') . '/' . date('m') . '/' . date('d') . '/sample-post/'; ?></code></td>
 	</tr>
 	<tr>
 		<th><label><input name="selection" type="radio" value="<?php echo esc_attr($structures[2]); ?>" class="tog" <?php checked($structures[2], $permalink_structure); ?> /> <?php _e('Month and name'); ?></label></th>
-		<td><code><?php echo get_option('home') . $prefix . '/' . date('Y') . '/' . date('m') . '/sample-post/'; ?></code></td>
+		<td><code><?php echo get_option('home') . $blog_prefix . $prefix . '/' . date('Y') . '/' . date('m') . '/sample-post/'; ?></code></td>
 	</tr>
 	<tr>
 		<th><label><input name="selection" type="radio" value="<?php echo esc_attr($structures[3]); ?>" class="tog" <?php checked($structures[3], $permalink_structure); ?> /> <?php _e('Numeric'); ?></label></th>
-		<td><code><?php echo get_option('home') . $prefix  ; ?>/archives/123</code></td>
+		<td><code><?php echo get_option('home') . $blog_prefix . $prefix; ?>/archives/123</code></td>
 	</tr>
 	<tr>
 		<th>
@@ -204,7 +219,7 @@ $structures = array(
 			</label>
 		</th>
 		<td>
-			<?php echo $prefix; ?>
+			<?php echo $blog_prefix; ?>
 			<input name="permalink_structure" id="permalink_structure" type="text" value="<?php echo esc_attr($permalink_structure); ?>" class="regular-text code" />
 		</td>
 	</tr>
@@ -220,11 +235,11 @@ $structures = array(
 <table class="form-table">
 	<tr>
 		<th><label for="category_base"><?php /* translators: prefix for category permalinks */ _e('Category base'); ?></label></th>
-		<td><?php echo $prefix; ?> <input name="category_base" id="category_base" type="text" value="<?php echo esc_attr( $category_base ); ?>" class="regular-text code" /></td>
+		<td><?php echo $blog_prefix; ?> <input name="category_base" id="category_base" type="text" value="<?php echo esc_attr( $category_base ); ?>" class="regular-text code" /></td>
 	</tr>
 	<tr>
 		<th><label for="tag_base"><?php _e('Tag base'); ?></label></th>
-		<td><?php echo $prefix; ?> <input name="tag_base" id="tag_base" type="text" value="<?php echo esc_attr($tag_base); ?>" class="regular-text code" /></td>
+		<td><?php echo $blog_prefix; ?> <input name="tag_base" id="tag_base" type="text" value="<?php echo esc_attr($tag_base); ?>" class="regular-text code" /></td>
 	</tr>
 	<?php do_settings_fields('permalink', 'optional'); ?>
 </table>

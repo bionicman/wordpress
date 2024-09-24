@@ -4,7 +4,7 @@ Theme URI: http://wordpress.org/
 Description: The 2010 default theme for WordPress.
 Author: the WordPress team
 Version: 1.0
-Tags: black, blue, white, two-columns, fixed-width, custom-header, theme-options, threaded-comments, sticky-post, translation-ready, microformats, rtl-language-support, editor-style
+Tags: black, blue, white, two-columns, fixed-width, custom-header, custom-background, theme-options, threaded-comments, sticky-post, translation-ready, microformats, rtl-language-support, editor-style
 */
 
 
@@ -87,7 +87,7 @@ LAYOUT: One column, no sidebar
 DESCRIPTION: One centered column with no sidebar
 */
 
-.onecolumn #content {
+.one-column #content {
 	margin: 0 auto;
 	width: 640px;
 }
@@ -136,7 +136,6 @@ h3#reply-title,
 .page-title,
 .pingback p,
 .reply,
-.widget_search label,
 .widget-title,
 input[type=submit]
 {
@@ -201,6 +200,7 @@ div.menu,
 body {
 	background: #f1f1f1;
 }
+
 body,
 input,
 textarea {
@@ -264,7 +264,8 @@ big {
 	font-size: 131.25%;
 }
 ins {
-	background: #FFFFCC;
+	background: #ffc;
+	text-decoration: none;
 }
 blockquote {
 	font-style: italic;
@@ -287,9 +288,7 @@ acronym {
 	border-bottom: 1px dotted #666;
 	cursor: help;
 }
-ins {
-	text-decoration: none;
-}
+
 sup,
 sub {
 	height: 0;
@@ -411,6 +410,9 @@ div.menu li {
 	-webkit-box-shadow: 0px 3px 3px rgba(0,0,0,0.2);
 	z-index: 99999;
 }
+#access ul ul li {
+	min-width: 180px;	
+}
 #access ul ul ul {
 	left:100%;
 	top:0;
@@ -420,7 +422,7 @@ div.menu li {
 	height:auto;
 	line-height:1em;
 	padding:10px;
-	width: 130px;
+	width: 160px;
 }
 #access li:hover > a,
 #access ul ul :hover > a {
@@ -430,8 +432,20 @@ div.menu li {
 #access ul li:hover > ul {
 	display:block;
 }
+#access ul li.current_page_item > a,
+#access ul li.current-menu-ancestor > a,
+#access ul li.current-menu-item > a,
+#access ul li.current-menu-parent > a {
+	color: #fff;
+}
 
-
+* html #access ul li.current_page_item a,
+* html #access ul li.current-menu-ancestor a,
+* html #access ul li.current-menu-item a,
+* html #access ul li.current-menu-parent a,
+* html #access ul li a:hover {
+	color:#fff;
+}
 
 /* =Content
 -------------------------------------------------------------- */
@@ -1062,13 +1076,12 @@ h3#reply-title {
 #respond textarea {
 	width:98%;
 }
-#respond dt,
-#respond dd {
+#respond .form-allowed-tags {
 	color: #888;
 	font-size: 12px;
 	line-height: 18px;
 }
-#respond dd code {
+#respond .form-allowed-tags code {
 	font-size: 11px;
 }
 #respond .form-submit {
@@ -1105,10 +1118,7 @@ h3#reply-title {
 	width: 60%;
 }
 .widget_search label {
-	font-size: 14px;
-	font-weight: bold;
-	color: #222;
-	display: block;
+	display:none;
 }
 .widget-container {
 	margin: 0 0 18px 0;
@@ -1124,6 +1134,9 @@ h3#reply-title {
 .widget-area a:active,
 .widget-area a:hover {
 	text-decoration: underline;
+}
+.widget-area .entry-meta {
+	font-size: 11px;
 }
 #wp_tag_cloud div {
 	line-height: 1.6em;
@@ -1218,9 +1231,8 @@ h3#reply-title {
 	display:inline-block;
 	text-decoration: none;
 	background: url(images/wordpress.png) center left no-repeat;
-	padding-left: 19px;
+	padding-left: 20px;
 	line-height: 16px;
-	margin-left: 1px;
 }
 #site-generator a:hover {
 	text-decoration: underline;
@@ -1244,7 +1256,6 @@ code {
 #access,
 .entry-meta,
 .entry-utility,
-.widget_search label,
 .navigation,
 .widget-area {
 	-webkit-text-size-adjust: 120%;
@@ -1309,7 +1320,7 @@ code {
 		margin: 0;
 	}
 	#content,
-	.onecolumn #content {
+	.one-column #content {
 		width: 100%;
 		margin: 24pt 0 0;
 	}

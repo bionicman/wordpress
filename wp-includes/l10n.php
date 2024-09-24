@@ -190,6 +190,21 @@ function _x( $single, $context, $domain = 'default' ) {
 	return translate_with_gettext_context( $single, $context, $domain );
 }
 
+/**
+ * Displays translated string with gettext context
+ *
+ * @see _x
+ * @since 3.0.0
+ *
+ * @param string $text Text to translate
+ * @param string $context Context information for the translators
+ * @param string $domain Optional. Domain to retrieve the translated text
+ * @return string Translated context string without pipe
+ */
+function _ex( $single, $context, $domain = 'default' ) {
+	echo _x( $single, $context, $domain );
+}
+
 function esc_attr_x( $single, $context, $domain = 'default' ) {
 	return esc_attr( translate_with_gettext_context( $single, $context, $domain ) );
 }
@@ -491,13 +506,13 @@ function translate_user_role( $name ) {
  * @return array Array of language codes or an empty array if no languages are present.  Language codes are formed by stripping the .mo extension from the language file names.
  */
 function get_available_languages( $dir = null ) {
-	$languages = array();	
-		
+	$languages = array();
+
 	foreach( (array)glob( ( is_null( $dir) ? WP_LANG_DIR : $dir ) . '/*.mo' ) as $lang_file ) {
 		if ( false === strpos( $lang_file, 'continents-cities' ) ) {
 			$languages[] = basename($lang_file, '.mo');
 		}
 	}
-	
+
 	return $languages;
 }

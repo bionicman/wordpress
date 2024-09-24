@@ -51,6 +51,13 @@ wp_enqueue_script('admin-categories');
 if ( current_user_can('manage_categories') )
 	wp_enqueue_script('inline-edit-tax');
 
+add_contextual_help($current_screen, '<p>' . __('You can create groups of links by using link categories. Link category names must be unique and link categories are separate from the categories you use for posts.') . '</p>' .
+	'<p>' . __('You can delete link categories, but that action does not delete the links within the category. Instead, it moves them to the default link category.') . '</p>' .
+	'<p><strong>' . __('For more information:') . '</strong></p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Links_Link_Categories_SubPanel">Link Categories Documentation</a>') . '</p>' .
+	'<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>'
+);
+
 require_once ('admin-header.php');
 
 $messages[1] = __('Category added.');
