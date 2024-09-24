@@ -20,6 +20,7 @@ class wpdb {
 	var $last_query;
 	var $col_info;
 	var $queries;
+	var $ready = false;
 
 	// Our tables
 	var $posts;
@@ -74,7 +75,10 @@ class wpdb {
 </ul>
 <p>If you're unsure what these terms mean you should probably contact your host. If you still need help you can always visit the <a href='http://wordpress.org/support/'>WordPress Support Forums</a>.</p>
 ");
+			return;
 		}
+
+		$this->ready = true;
 
 		if ( !empty($this->charset) && version_compare(mysql_get_server_info(), '4.1.0', '>=') )
  			$this->query("SET NAMES '$this->charset'");
@@ -92,6 +96,7 @@ class wpdb {
 	 */
 	function select($db) {
 		if (!@mysql_select_db($db, $this->dbh)) {
+			$this->ready = false;
 			$this->bail("
 <h1>Can&#8217;t select database</h1>
 <p>We were able to connect to the database server (which means your username and password is okay) but not able to select the <code>$db</code> database.</p>
@@ -101,6 +106,7 @@ class wpdb {
 <li>On some systems the name of your database is prefixed with your username, so it would be like username_wordpress. Could that be the problem?</li>
 </ul>
 <p>If you don't know how to setup a database you should <strong>contact your host</strong>. If all else fails you may find help at the <a href='http://wordpress.org/support/'>WordPress Support Forums</a>.</p>");
+			return;
 		}
 	}
 
@@ -151,8 +157,6 @@ class wpdb {
 		array ('query' => $this->last_query, 'error_str' => $str);
 
 		$error_str = "WordPress database error $str for query $this->last_query";
-		if ( $caller = $this->get_caller() )
-			$error_str .= " made by $caller";
 		error_log($error_str, 0);
 
 		// Is error output turned on or not..
@@ -197,6 +201,9 @@ class wpdb {
 	//	Basic Query	- see docs for more detail
 
 	function query($query) {
+		if ( ! $this->ready )
+			return false;
+
 		// filter the query, if filters are available
 		// NOTE: some queries are made before the plugins have been loaded, and thus cannot be filtered with this method
 		if ( function_exists('apply_filters') )
