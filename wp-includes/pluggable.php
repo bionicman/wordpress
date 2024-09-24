@@ -281,7 +281,7 @@ function wp_mail( $to, $subject, $message, $headers = '', $attachments = array()
 	if ( !is_object( $phpmailer ) || !is_a( $phpmailer, 'PHPMailer' ) ) {
 		require_once ABSPATH . WPINC . '/class-phpmailer.php';
 		require_once ABSPATH . WPINC . '/class-smtp.php';
-		$phpmailer = new PHPMailer();
+		$phpmailer = new PHPMailer( true );
 	}
 
 	// Headers
@@ -400,7 +400,11 @@ function wp_mail( $to, $subject, $message, $headers = '', $attachments = array()
 		$to = explode( ',', $to );
 
 	foreach ( (array) $to as $recipient ) {
-		$phpmailer->AddAddress( trim( $recipient ) );
+		try {
+			$phpmailer->AddAddress( trim( $recipient ) );
+		} catch ( phpmailerException $e ) {
+			continue;
+		}
 	}
 
 	// Set mail's subject and body
@@ -410,13 +414,21 @@ function wp_mail( $to, $subject, $message, $headers = '', $attachments = array()
 	// Add any CC and BCC recipients
 	if ( !empty( $cc ) ) {
 		foreach ( (array) $cc as $recipient ) {
-			$phpmailer->AddCc( trim($recipient) );
+			try {
+				$phpmailer->AddCc( trim($recipient) );
+			} catch ( phpmailerException $e ) {
+				continue;
+			}
 		}
 	}
 
 	if ( !empty( $bcc ) ) {
 		foreach ( (array) $bcc as $recipient) {
-			$phpmailer->AddBcc( trim($recipient) );
+			try {
+				$phpmailer->AddBcc( trim($recipient) );
+			} catch ( phpmailerException $e ) {
+				continue;
+			}
 		}
 	}
 
@@ -455,16 +467,24 @@ function wp_mail( $to, $subject, $message, $headers = '', $attachments = array()
 
 	if ( !empty( $attachments ) ) {
 		foreach ( $attachments as $attachment ) {
-			$phpmailer->AddAttachment($attachment);
+			try {
+				$phpmailer->AddAttachment($attachment);
+			} catch ( phpmailerException $e ) {
+				continue;
+			}
 		}
 	}
 
 	do_action_ref_array( 'phpmailer_init', array( &$phpmailer ) );
 
 	// Send!
-	$result = @$phpmailer->Send();
+	try {
+		$phpmailer->Send();
+	} catch ( phpmailerException $e ) {
+		return false;
+	}
 
-	return $result;
+	return true;
 }
 endif;
 
@@ -688,23 +708,11 @@ function wp_set_auth_cookie($user_id, $remember = false, $secure = '') {
 	do_action('set_auth_cookie', $auth_cookie, $expire, $expiration, $user_id, $scheme);
 	do_action('set_logged_in_cookie', $logged_in_cookie, $expire, $expiration, $user_id, 'logged_in');
 
-	// Set httponly if the php version is >= 5.2.0
-	if ( version_compare(phpversion(), '5.2.0', 'ge') ) {
-		setcookie($auth_cookie_name, $auth_cookie, $expire, PLUGINS_COOKIE_PATH, COOKIE_DOMAIN, $secure, true);
-		setcookie($auth_cookie_name, $auth_cookie, $expire, ADMIN_COOKIE_PATH, COOKIE_DOMAIN, $secure, true);
-		setcookie(LOGGED_IN_COOKIE, $logged_in_cookie, $expire, COOKIEPATH, COOKIE_DOMAIN, $secure_logged_in_cookie, true);
-		if ( COOKIEPATH != SITECOOKIEPATH )
-			setcookie(LOGGED_IN_COOKIE, $logged_in_cookie, $expire, SITECOOKIEPATH, COOKIE_DOMAIN, $secure_logged_in_cookie, true);
-	} else {
-		$cookie_domain = COOKIE_DOMAIN;
-		if ( !empty($cookie_domain) )
-			$cookie_domain .= '; HttpOnly';
-		setcookie($auth_cookie_name, $auth_cookie, $expire, PLUGINS_COOKIE_PATH, $cookie_domain, $secure);
-		setcookie($auth_cookie_name, $auth_cookie, $expire, ADMIN_COOKIE_PATH, $cookie_domain, $secure);
-		setcookie(LOGGED_IN_COOKIE, $logged_in_cookie, $expire, COOKIEPATH, $cookie_domain, $secure_logged_in_cookie);
-		if ( COOKIEPATH != SITECOOKIEPATH )
-			setcookie(LOGGED_IN_COOKIE, $logged_in_cookie, $expire, SITECOOKIEPATH, $cookie_domain, $secure_logged_in_cookie);
-	}
+	setcookie($auth_cookie_name, $auth_cookie, $expire, PLUGINS_COOKIE_PATH, COOKIE_DOMAIN, $secure, true);
+	setcookie($auth_cookie_name, $auth_cookie, $expire, ADMIN_COOKIE_PATH, COOKIE_DOMAIN, $secure, true);
+	setcookie(LOGGED_IN_COOKIE, $logged_in_cookie, $expire, COOKIEPATH, COOKIE_DOMAIN, $secure_logged_in_cookie, true);
+	if ( COOKIEPATH != SITECOOKIEPATH )
+		setcookie(LOGGED_IN_COOKIE, $logged_in_cookie, $expire, SITECOOKIEPATH, COOKIE_DOMAIN, $secure_logged_in_cookie, true);
 }
 endif;
 

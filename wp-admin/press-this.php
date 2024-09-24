@@ -225,7 +225,7 @@ if ( !empty($_REQUEST['ajax']) ) {
 						$src = 'http://'.str_replace('//','/', $host['host'].'/'.$src);
 					else
 						$src = 'http://'.str_replace('//','/', $host['host'].'/'.dirname($host['path']).'/'.$src);
-				$sources[] = esc_url($src);
+				$sources[] = esc_attr($src);
 			}
 			return "'" . implode("','", $sources) . "'";
 		}
@@ -332,7 +332,6 @@ die;
 	wp_enqueue_style( 'press-this-ie');
 	wp_enqueue_style( 'colors' );
 	wp_enqueue_script( 'post' );
-	wp_enqueue_script( 'editor' );
 ?>
 <script type="text/javascript">
 //<![CDATA[
@@ -350,7 +349,6 @@ var photostorage = false;
 
 	if ( user_can_richedit() ) {
 		wp_tiny_mce( true, array( 'height' => '370' ) );
-		add_action( 'admin_print_footer_scripts', 'wp_tiny_mce_preload_dialogs', 30 );
 	}
 ?>
 	<script type="text/javascript">

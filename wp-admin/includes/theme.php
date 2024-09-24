@@ -163,7 +163,7 @@ function get_allowed_themes() {
  *
  * @since 1.5.0
  *
- * @return array Key is template name, Value is template name
+ * @return array Key is the template name, value is the filename of the template
  */
 function get_page_templates() {
 	$themes = get_themes();
@@ -179,6 +179,9 @@ function get_page_templates() {
 
 			// don't allow template files in subdirectories
 			if ( false !== strpos($basename, '/') )
+				continue;
+
+			if ( 'functions.php' == $basename )
 				continue;
 
 			$template_data = implode( '', file( $template ));

@@ -1,4 +1,4 @@
-var tagBox, commentsBox, editPermalink, makeSlugeditClickable, WPSetThumbnailHTML, WPSetThumbnailID, WPRemoveThumbnail;
+var tagBox, commentsBox, editPermalink, makeSlugeditClickable, WPSetThumbnailHTML, WPSetThumbnailID, WPRemoveThumbnail, wptitlehint;
 
 // return an array with any duplicate, whitespace or values removed
 function array_unique_noempty(a) {
@@ -220,7 +220,7 @@ WPSetThumbnailHTML = function(html){
 };
 
 WPSetThumbnailID = function(id){
-	var field = $('input[value=_thumbnail_id]', '#list-table');
+	var field = $('input[value="_thumbnail_id"]', '#list-table');
 	if ( field.size() > 0 ) {
 		$('#meta\\[' + field.attr('id').match(/[0-9]+/) + '\\]\\[value\\]').text(id);
 	}
@@ -369,7 +369,7 @@ jQuery(document).ready( function($) {
 
 		function updateText() {
 			var attemptedDate, originalDate, currentDate, publishOn, postStatus = $('#post_status'),
-				optPublish = $('option[value=publish]', postStatus), aa = $('#aa').val(),
+				optPublish = $('option[value="publish"]', postStatus), aa = $('#aa').val(),
 				mm = $('#mm').val(), jj = $('#jj').val(), hh = $('#hh').val(), mn = $('#mn').val();
 
 			attemptedDate = new Date( aa, mm - 1, jj, hh, mn );
@@ -398,7 +398,7 @@ jQuery(document).ready( function($) {
 			} else {
 				$('#timestamp').html(
 					publishOn + ' <b>' +
-					$('option[value=' + $('#mm').val() + ']', '#mm').text() + ' ' +
+					$('option[value="' + $('#mm').val() + '"]', '#mm').text() + ' ' +
 					jj + ', ' +
 					aa + ' @ ' +
 					hh + ':' +
@@ -413,7 +413,7 @@ jQuery(document).ready( function($) {
 				} else {
 					optPublish.html( postL10n.privatelyPublished );
 				}
-				$('option[value=publish]', postStatus).attr('selected', true);
+				$('option[value="publish"]', postStatus).attr('selected', true);
 				$('.edit-post-status', '#misc-publishing-actions').hide();
 			} else {
 				if ( $('#original_post_status').val() == 'future' || $('#original_post_status').val() == 'draft' ) {
@@ -444,14 +444,14 @@ jQuery(document).ready( function($) {
 		$('.edit-visibility', '#visibility').click(function () {
 			if ($('#post-visibility-select').is(":hidden")) {
 				updateVisibility();
-				$('#post-visibility-select').slideDown("normal");
+				$('#post-visibility-select').slideDown('fast');
 				$(this).hide();
 			}
 			return false;
 		});
 
 		$('.cancel-post-visibility', '#post-visibility-select').click(function () {
-			$('#post-visibility-select').slideUp("normal");
+			$('#post-visibility-select').slideUp('fast');
 			$('#visibility-radio-' + $('#hidden-post-visibility').val()).attr('checked', true);
 			$('#post_password').val($('#hidden_post_password').val());
 			$('#sticky').attr('checked', $('#hidden-post-sticky').attr('checked'));
@@ -464,7 +464,7 @@ jQuery(document).ready( function($) {
 		$('.save-post-visibility', '#post-visibility-select').click(function () { // crazyhorse - multiple ok cancels
 			var pvSelect = $('#post-visibility-select');
 
-			pvSelect.slideUp("normal");
+			pvSelect.slideUp('fast');
 			$('.edit-visibility', '#visibility').show();
 			updateText();
 
@@ -488,14 +488,14 @@ jQuery(document).ready( function($) {
 
 		$('#timestampdiv').siblings('a.edit-timestamp').click(function() {
 			if ($('#timestampdiv').is(":hidden")) {
-				$('#timestampdiv').slideDown("normal");
+				$('#timestampdiv').slideDown('fast');
 				$(this).hide();
 			}
 			return false;
 		});
 
 		$('.cancel-timestamp', '#timestampdiv').click(function() {
-			$('#timestampdiv').slideUp("normal");
+			$('#timestampdiv').slideUp('fast');
 			$('#mm').val($('#hidden_mm').val());
 			$('#jj').val($('#hidden_jj').val());
 			$('#aa').val($('#hidden_aa').val());
@@ -508,7 +508,7 @@ jQuery(document).ready( function($) {
 
 		$('.save-timestamp', '#timestampdiv').click(function () { // crazyhorse - multiple ok cancels
 			if ( updateText() ) {
-				$('#timestampdiv').slideUp("normal");
+				$('#timestampdiv').slideUp('fast');
 				$('#timestampdiv').siblings('a.edit-timestamp').show();
 			}
 			return false;
@@ -516,21 +516,21 @@ jQuery(document).ready( function($) {
 
 		$('#post-status-select').siblings('a.edit-post-status').click(function() {
 			if ($('#post-status-select').is(":hidden")) {
-				$('#post-status-select').slideDown("normal");
+				$('#post-status-select').slideDown('fast');
 				$(this).hide();
 			}
 			return false;
 		});
 
 		$('.save-post-status', '#post-status-select').click(function() {
-			$('#post-status-select').slideUp("normal");
+			$('#post-status-select').slideUp('fast');
 			$('#post-status-select').siblings('a.edit-post-status').show();
 			updateText();
 			return false;
 		});
 
 		$('.cancel-post-status', '#post-status-select').click(function() {
-			$('#post-status-select').slideUp("normal");
+			$('#post-status-select').slideUp('fast');
 			$('#post_status').val($('#hidden_post_status').val());
 			$('#post-status-select').siblings('a.edit-post-status').show();
 			updateText();
@@ -600,18 +600,29 @@ jQuery(document).ready( function($) {
 		makeSlugeditClickable();
 	}
 
-	if ( $('#title').val() == '' )
-		$('#title').siblings('#title-prompt-text').css('visibility', '');
-	$('#title-prompt-text').click(function(){
-		$(this).css('visibility', 'hidden').siblings('#title').focus();
-	});
-	$('#title').blur(function(){
-		if (this.value == '')
-			$(this).siblings('#title-prompt-text').css('visibility', '');
-	}).focus(function(){
-		$(this).siblings('#title-prompt-text').css('visibility', 'hidden');
-	}).keydown(function(e){
-		$(this).siblings('#title-prompt-text').css('visibility', 'hidden');
-		$(this).unbind(e);
-	});
+	wptitlehint = function(id) {
+		id = id || 'title';
+
+		var title = $('#' + id), titleprompt = $('#' + id + '-prompt-text');
+
+		if ( title.val() == '' )
+			titleprompt.css('visibility', '');
+
+		titleprompt.click(function(){
+			$(this).css('visibility', 'hidden');
+			title.focus();
+		});
+
+		title.blur(function(){
+			if ( this.value == '' )
+				titleprompt.css('visibility', '');
+		}).focus(function(){
+			titleprompt.css('visibility', 'hidden');
+		}).keydown(function(e){
+			titleprompt.css('visibility', 'hidden');
+			$(this).unbind(e);
+		});
+	}
+
+	wptitlehint();
 });

@@ -403,7 +403,7 @@ add_contextual_help($current_screen,
 	'<p>' . __('Updating your WordPress installation is a simple one-click procedure; just click on the Update button when it says a new version is available.') . '</p>' .
 	'<p>' . __('To update themes or plugins from this screen, use the checkboxes to make your selection and click on the appropriate Update button. Check the box at the top of the Themes or Plugins section to select all and update them all at once.') . '</p>' .
 	'<p><strong>' . __('For more information:') . '</strong></p>' .
-	'<p>' . __('<a href="http://codex.wordpress.org/Dashboard_Updates_SubPanel" target="_blank">Documentation on Updating WordPress</a>') . '</p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Dashboard_Updates_Screen" target="_blank">Documentation on Updating WordPress</a>') . '</p>' .
 	'<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
 );
 
@@ -412,6 +412,7 @@ if ( 'upgrade-core' == $action ) {
 	wp_version_check();
 	require_once(ABSPATH . 'wp-admin/admin-header.php');
 	core_upgrade_preamble();
+	include(ABSPATH . 'wp-admin/admin-footer.php');
 
 } elseif ( 'do-core-upgrade' == $action || 'do-core-reinstall' == $action ) {
 	check_admin_referer('upgrade-core');
@@ -431,6 +432,8 @@ if ( 'upgrade-core' == $action ) {
 
 	if ( isset( $_POST['upgrade'] ) )
 		do_core_upgrade($reinstall);
+
+	include(ABSPATH . 'wp-admin/admin-footer.php');
 
 } elseif ( 'do-plugin-upgrade' == $action ) {
 
@@ -459,6 +462,7 @@ if ( 'upgrade-core' == $action ) {
 	echo '<h2>' . esc_html__('Update Plugins') . '</h2>';
 	echo "<iframe src='$url' style='width: 100%; height: 100%; min-height: 750px;' frameborder='0'></iframe>";
 	echo '</div>';
+	include(ABSPATH . 'wp-admin/admin-footer.php');
 
 } elseif ( 'do-theme-upgrade' == $action ) {
 
@@ -487,6 +491,8 @@ if ( 'upgrade-core' == $action ) {
 	echo '<h2>' . esc_html__('Update Themes') . '</h2>';
 	echo "<iframe src='$url' style='width: 100%; height: 100%; min-height: 750px;' frameborder='0'></iframe>";
 	echo '</div>';
-}
+	include(ABSPATH . 'wp-admin/admin-footer.php');
 
-include(ABSPATH . 'wp-admin/admin-footer.php');
+} else {
+	do_action('update-core-custom_' . $action);
+}

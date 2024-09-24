@@ -23,7 +23,8 @@ function wp_version_check() {
 	if ( defined('WP_INSTALLING') )
 		return;
 
-	global $wp_version, $wpdb, $wp_local_package;
+	global $wpdb, $wp_local_package;
+	include ABSPATH . WPINC . '/version.php'; // include an unmodified $wp_version
 	$php_version = phpversion();
 
 	$current = get_site_transient( 'update_core' );
@@ -119,7 +120,7 @@ function wp_version_check() {
  * @return mixed Returns null if update is unsupported. Returns false if check is too soon.
  */
 function wp_update_plugins() {
-	global $wp_version;
+	include ABSPATH . WPINC . '/version.php'; // include an unmodified $wp_version
 
 	if ( defined('WP_INSTALLING') )
 		return false;
@@ -203,8 +204,8 @@ function wp_update_plugins() {
  *
  * @return mixed Returns null if update is unsupported. Returns false if check is too soon.
  */
-function wp_update_themes( ) {
-	global $wp_version;
+function wp_update_themes() {
+	include ABSPATH . WPINC . '/version.php'; // include an unmodified $wp_version
 
 	if ( defined( 'WP_INSTALLING' ) )
 		return false;
@@ -280,17 +281,17 @@ function wp_update_themes( ) {
 
 	$new_update = new stdClass;
 	$new_update->last_checked = time( );
+	$new_update->checked = $checked;
+
 	$response = unserialize( $raw_response['body'] );
-	if ( $response ) {
-		$new_update->checked = $checked;
+	if ( false !== $response )
 		$new_update->response = $response;
-	}
 
 	set_site_transient( 'update_themes', $new_update );
 }
 
 function _maybe_update_core() {
-	global $wp_version;
+	include ABSPATH . WPINC . '/version.php'; // include an unmodified $wp_version
 
 	$current = get_site_transient( 'update_core' );
 

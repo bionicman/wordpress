@@ -9,7 +9,7 @@
  */
 class WP_Plugins_List_Table extends WP_List_Table {
 
-	function WP_Plugins_List_Table() {
+	function __construct() {
 		global $status, $page;
 
 		$default_status = get_user_option( 'plugins_last_view' );
@@ -23,7 +23,7 @@ class WP_Plugins_List_Table extends WP_List_Table {
 
 		$page = $this->get_pagenum();
 
-		parent::WP_List_Table( array(
+		parent::__construct( array(
 			'plural' => 'plugins',
 		) );
 	}
@@ -287,9 +287,9 @@ class WP_Plugins_List_Table extends WP_List_Table {
 		if ( 'recently_activated' == $status )
 			submit_button( __( 'Clear List' ), 'secondary', 'clear-recent-list', false );
 		elseif ( 'top' == $which && 'mustuse' == $status )
-			echo '<p>' . __( 'Files in the <code>/wp-content/mu-plugins</code> directory are executed automatically.' ) . '</p>';
+			echo '<p>' . sprintf( __( 'Files in the <code>%s</code> directory are executed automatically.' ), str_replace( ABSPATH, '/', WPMU_PLUGIN_DIR ) ) . '</p>';
 		elseif ( 'top' == $which && 'dropins' == $status )
-			echo '<p>' . __( 'Drop-ins are advanced plugins in the <code>/wp-content</code> directory that replace WordPress functionality when present.' ) . '</p>';
+			echo '<p>' . sprintf( __( 'Drop-ins are advanced plugins in the <code>%s</code> directory that replace WordPress functionality when present.' ), str_replace( ABSPATH, '', WP_CONTENT_DIR ) ) . '</p>';
 
 		echo '</div>';
 	}

@@ -465,10 +465,6 @@ function list_meta( $meta ) {
  */
 function _list_meta_row( $entry, &$count ) {
 	static $update_nonce = false;
-
-	if ( is_protected_meta( $entry['meta_key'] ) )
-		return;
-
 	if ( !$update_nonce )
 		$update_nonce = wp_create_nonce( 'add-meta' );
 
@@ -1627,16 +1623,16 @@ function _post_states($post) {
 		$post_status = '';
 
 	if ( !empty($post->post_password) )
-		$post_states[] = __('Password protected');
+		$post_states['protected'] = __('Password protected');
 	if ( 'private' == $post->post_status && 'private' != $post_status )
-		$post_states[] = __('Private');
+		$post_states['private'] = __('Private');
 	if ( 'draft' == $post->post_status && 'draft' != $post_status )
-		$post_states[] = __('Draft');
+		$post_states['draft'] = __('Draft');
 	if ( 'pending' == $post->post_status && 'pending' != $post_status )
 		/* translators: post state */
-		$post_states[] = _x('Pending', 'post state');
+		$post_states['pending'] = _x('Pending', 'post state');
 	if ( is_sticky($post->ID) )
-		$post_states[] = __('Sticky');
+		$post_states['sticky'] = __('Sticky');
 
 	$post_states = apply_filters( 'display_post_states', $post_states );
 
@@ -1653,6 +1649,36 @@ function _post_states($post) {
 
 	if ( get_post_format( $post->ID ) )
 		echo ' - <span class="post-state-format">' . get_post_format_string( get_post_format( $post->ID ) ) . '</span>';
+}
+
+function _media_states( $post ) {
+	$media_states = array();
+	$stylesheet = get_option('stylesheet');
+
+	if ( current_theme_supports( 'custom-header') ) {
+		$meta_header = get_post_meta($post->ID, '_wp_attachment_is_custom_header', true );
+		if ( ! empty( $meta_header ) && $meta_header == $stylesheet )
+			$media_states[] = __( 'Header Image' );
+	}
+
+	if ( current_theme_supports( 'custom-background') ) {
+		$meta_background = get_post_meta($post->ID, '_wp_attachment_is_custom_background', true );
+		if ( ! empty( $meta_background ) && $meta_background == $stylesheet )
+			$media_states[] = __( 'Background Image' );
+	}
+
+	$media_states = apply_filters( 'display_media_states', $media_states );
+
+	if ( ! empty( $media_states ) ) {
+		$state_count = count( $media_states );
+		$i = 0;
+		echo ' - ';
+		foreach ( $media_states as $state ) {
+			++$i;
+			( $i == $state_count ) ? $sep = '' : $sep = ', ';
+			echo "<span class='post-state'>$state$sep</span>";
+		}
+	}
 }
 
 /**
@@ -1716,6 +1742,8 @@ function screen_meta($screen) {
 
 	if ( !empty($wp_current_screen_options) )
 		$show_screen = true;
+		
+	$show_screen = apply_filters('screen_options_show_screen', $show_screen, $screen);
 
 ?>
 <div id="screen-meta">
@@ -1922,7 +1950,11 @@ function screen_options($screen) {
 	return $return;
 }
 
-function screen_icon($screen = '') {
+function screen_icon( $screen = '' ) {
+	echo get_screen_icon( $screen );
+}
+
+function get_screen_icon( $screen = '' ) {
 	global $current_screen, $typenow;
 
 	if ( empty($screen) )
@@ -1950,9 +1982,7 @@ function screen_icon($screen = '') {
 			$class .= ' ' . sanitize_html_class( 'icon32-posts-' . $post_type );
 	}
 
-?>
-	<div id="icon-<?php echo $name; ?>" class="<?php echo $class; ?>"><br /></div>
-<?php
+	return '<div id="icon-' . esc_attr( $name ) . '" class="' . $class . '"><br /></div>';
 }
 
 /**
@@ -2189,4 +2219,3 @@ function get_submit_button( $text = NULL, $type = 'primary', $name = 'submit', $
 
 	return $button;
 }
-

@@ -22,21 +22,21 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
  *
  * @global string $wp_version
  */
-$wp_version = '3.1.4';
+$wp_version = '3.2-beta1';
 
 /**
  * Holds the WordPress DB revision, increments when changes are made to the WordPress DB schema.
  *
  * @global int $wp_db_version
  */
-$wp_db_version = 17516;
+$wp_db_version = 17517;
 
 /**
  * Holds the TinyMCE version
  *
  * @global string $tinymce_version
  */
-$tinymce_version = '3393a';
+$tinymce_version = '342-20110510';
 
 /**
  * Holds the cache manifest version
@@ -50,11 +50,11 @@ $manifest_version = '20111113';
  *
  * @global string $required_php_version
  */
-$required_php_version = '4.3';
+$required_php_version = '5.2.4';
 
 /**
  * Holds the required MySQL version
  *
  * @global string $required_mysql_version
  */
-$required_mysql_version = '4.1.2';
+$required_mysql_version = '5.0';

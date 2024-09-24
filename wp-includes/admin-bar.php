@@ -75,8 +75,8 @@ add_action( 'admin_footer', 'wp_admin_bar_render', 1000 );
  *
  * @since 3.1.0
  */
-function wp_admin_bar_my_account_menu() {
-	global $wp_admin_bar, $user_identity;
+function wp_admin_bar_my_account_menu( $wp_admin_bar ) {
+	global $user_identity;
 
 	$user_id = get_current_user_id();
 
@@ -102,8 +102,8 @@ function wp_admin_bar_my_account_menu() {
  *
  * @since 3.1.0
  */
-function wp_admin_bar_my_sites_menu() {
-	global $wpdb, $wp_admin_bar;
+function wp_admin_bar_my_sites_menu( $wp_admin_bar ) {
+	global $wpdb;
 
 	/* Add the 'My Sites' menu if the user has more than one site. */
 	if ( count( $wp_admin_bar->user->blogs ) <= 1 )
@@ -137,9 +137,7 @@ function wp_admin_bar_my_sites_menu() {
  *
  * @since 3.1.0
  */
-function wp_admin_bar_shortlink_menu() {
-	global $wp_admin_bar;
-
+function wp_admin_bar_shortlink_menu( $wp_admin_bar ) {
 	$short = wp_get_shortlink( 0, 'query' );
 	$id = 'get-shortlink';
 
@@ -161,15 +159,13 @@ function wp_admin_bar_shortlink_menu() {
  *
  * @since 3.1.0
  */
-function wp_admin_bar_edit_menu () {
-	global $wp_admin_bar;
-
+function wp_admin_bar_edit_menu( $wp_admin_bar ) {
 	$current_object = get_queried_object();
 
 	if ( empty($current_object) )
 		return;
 
-	if ( ! empty( $current_object->post_type ) && ( $post_type_object = get_post_type_object( $current_object->post_type ) ) && current_user_can( $post_type_object->cap->edit_post, $current_object->ID ) && $post_type_object->show_ui ) {
+	if ( ! empty( $current_object->post_type ) && ( $post_type_object = get_post_type_object( $current_object->post_type ) ) && current_user_can( $post_type_object->cap->edit_post, $current_object->ID ) && ( $post_type_object->show_ui || 'attachment' == $current_object->post_type ) ) {
 		$wp_admin_bar->add_menu( array( 'id' => 'edit', 'title' => $post_type_object->labels->edit_item,  'href' => get_edit_post_link( $current_object->ID ) ) );
 	} elseif ( ! empty( $current_object->taxonomy ) &&  ( $tax = get_taxonomy( $current_object->taxonomy ) ) && current_user_can( $tax->cap->edit_terms ) && $tax->show_ui ) {
 		$wp_admin_bar->add_menu( array( 'id' => 'edit', 'title' => $tax->labels->edit_item, 'href' => get_edit_term_link( $current_object->term_id, $current_object->taxonomy ) ) );
@@ -181,9 +177,7 @@ function wp_admin_bar_edit_menu () {
  *
  * @since 3.1.0
  */
-function wp_admin_bar_new_content_menu() {
-	global $wp_admin_bar;
-
+function wp_admin_bar_new_content_menu( $wp_admin_bar ) {
 	$actions = array();
 	foreach ( (array) get_post_types( array( 'show_ui' => true ), 'objects' ) as $ptype_obj ) {
 		if ( true !== $ptype_obj->show_in_menu || ! current_user_can( $ptype_obj->cap->edit_posts ) )
@@ -192,6 +186,21 @@ function wp_admin_bar_new_content_menu() {
 		$actions[ 'post-new.php?post_type=' . $ptype_obj->name ] = array( $ptype_obj->labels->singular_name, $ptype_obj->cap->edit_posts, 'new-' . $ptype_obj->name );
 	}
 
+	if ( current_user_can( 'upload_files' ) )
+		$actions[ 'upload.php' ] = array( __( 'Media' ), 'upload_files', 'new-media' );
+
+	if ( current_user_can( 'manage_links' ) )
+		$actions[ 'link-add.php' ] = array( __( 'Link' ), 'manage_links', 'new-link' );
+
+	if ( current_user_can( 'create_users' ) || current_user_can( 'promote_users' ) )
+		$actions[ 'user-new.php' ] = array( __( 'User' ), 'create_users', 'new-user' );
+
+	if ( ! is_multisite() && current_user_can( 'install_themes' ) )
+		$actions[ 'theme-install.php' ] = array( __( 'Theme' ), 'install_themes', 'new-theme' );
+
+	if ( ! is_multisite() && current_user_can( 'install_plugins' ) )
+		$actions[ 'plugin-install.php' ] = array( __( 'Plugin' ), 'install_plugins', 'new-plugin' );
+			
 	if ( empty( $actions ) )
 		return;
 
@@ -207,9 +216,7 @@ function wp_admin_bar_new_content_menu() {
  *
  * @since 3.1.0
  */
-function wp_admin_bar_comments_menu() {
-	global $wp_admin_bar;
-
+function wp_admin_bar_comments_menu( $wp_admin_bar ) {
 	if ( !current_user_can('edit_posts') )
 		return;
 
@@ -225,22 +232,30 @@ function wp_admin_bar_comments_menu() {
  *
  * @since 3.1.0
  */
-function wp_admin_bar_appearance_menu() {
-	global $wp_admin_bar;
-
-	if ( !current_user_can('switch_themes') )
+function wp_admin_bar_appearance_menu( $wp_admin_bar ) {
+	// You can have edit_theme_options but not switch_themes.
+	if ( ! current_user_can('switch_themes') && ! current_user_can( 'edit_theme_options' ) )
 		return;
 
 	$wp_admin_bar->add_menu( array( 'id' => 'appearance', 'title' => __('Appearance'), 'href' => admin_url('themes.php') ) );
 
-	if ( !current_user_can('edit_theme_options') )
+	if ( ! current_user_can( 'edit_theme_options' ) )
 		return;
+
+	if ( current_user_can( 'switch_themes' ) )
+		$wp_admin_bar->add_menu( array( 'parent' => 'appearance', 'id' => 'themes', 'title' => __('Themes'), 'href' => admin_url('themes.php') ) );
 
 	if ( current_theme_supports( 'widgets' )  )
 		$wp_admin_bar->add_menu( array( 'parent' => 'appearance', 'id' => 'widgets', 'title' => __('Widgets'), 'href' => admin_url('widgets.php') ) );
 
 	 if ( current_theme_supports( 'menus' ) || current_theme_supports( 'widgets' ) )
 		$wp_admin_bar->add_menu( array( 'parent' => 'appearance', 'id' => 'menus', 'title' => __('Menus'), 'href' => admin_url('nav-menus.php') ) );
+
+	if ( current_theme_supports( 'custom-background' ) )
+		$wp_admin_bar->add_menu( array( 'parent' => 'appearance', 'id' => 'background', 'title' => __('Background'), 'href' => admin_url('themes.php?page=custom-background') ) );
+
+	if ( current_theme_supports( 'custom-header' ) )
+		$wp_admin_bar->add_menu( array( 'parent' => 'appearance', 'id' => 'header', 'title' => __('Header'), 'href' => admin_url('themes.php?page=custom-header') ) );
 }
 
 /**
@@ -248,9 +263,7 @@ function wp_admin_bar_appearance_menu() {
  *
  * @since 3.1.0
  */
-function wp_admin_bar_updates_menu() {
-	global $wp_admin_bar;
-
+function wp_admin_bar_updates_menu( $wp_admin_bar ) {
 	if ( !current_user_can('install_plugins') )
 		return;
 

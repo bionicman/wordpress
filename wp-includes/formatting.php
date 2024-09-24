@@ -28,14 +28,10 @@
  */
 function wptexturize($text) {
 	global $wp_cockneyreplace;
-	static $static_setup = false, $opening_quote, $closing_quote, $default_no_texturize_tags, $default_no_texturize_shortcodes, $static_characters, $static_replacements, $dynamic_characters, $dynamic_replacements;
-	$output = '';
-	$curl = '';
-	$textarr = preg_split('/(<.*>|\[.*\])/Us', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
-	$stop = count($textarr);
+	static $opening_quote, $closing_quote, $default_no_texturize_tags, $default_no_texturize_shortcodes, $static_characters, $static_replacements, $dynamic_characters, $dynamic_replacements;
 
-	// No need to set up these variables more than once
-	if (!$static_setup) {
+	// No need to set up these static variables more than once
+	if ( empty( $opening_quote ) ) {
 		/* translators: opening curly quote */
 		$opening_quote = _x('&#8220;', 'opening curly quote');
 		/* translators: closing curly quote */
@@ -58,8 +54,6 @@ function wptexturize($text) {
 
 		$dynamic_characters = array('/\'(\d\d(?:&#8217;|\')?s)/', '/\'(\d)/', '/(\s|\A|[([{<]|")\'/', '/(\d)"/', '/(\d)\'/', '/(\S)\'([^\'\s])/', '/(\s|\A|[([{<])"(?!\s)/', '/"(\s|\S|\Z)/', '/\'([\s.]|\Z)/', '/\b(\d+)x(\d+)\b/');
 		$dynamic_replacements = array('&#8217;$1','&#8217;$1', '$1&#8216;', '$1&#8243;', '$1&#8242;', '$1&#8217;$2', '$1' . $opening_quote . '$2', $closing_quote . '$1', '&#8217;$1', '$1&#215;$2');
-
-		$static_setup = true;
 	}
 
 	// Transform into regexp sub-expression used in _wptexturize_pushpop_element
@@ -70,32 +64,27 @@ function wptexturize($text) {
 	$no_texturize_tags_stack = array();
 	$no_texturize_shortcodes_stack = array();
 
-	for ( $i = 0; $i < $stop; $i++ ) {
-		$curl = $textarr[$i];
+	$textarr = preg_split('/(<.*>|\[.*\])/Us', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
 
-		if ( !empty($curl) && '<' != $curl[0] && '[' != $curl[0]
-				&& empty($no_texturize_shortcodes_stack) && empty($no_texturize_tags_stack)) {
-			// This is not a tag, nor is the texturization disabled
-			// static strings
+	foreach ( $textarr as &$curl ) {
+		if ( empty( $curl ) )
+			continue;
+
+		// Only call _wptexturize_pushpop_element if first char is correct tag opening
+		$first = $curl[0];
+		if ( '<' === $first ) {
+			_wptexturize_pushpop_element($curl, $no_texturize_tags_stack, $no_texturize_tags, '<', '>');
+		} elseif ( '[' === $first ) {
+			_wptexturize_pushpop_element($curl, $no_texturize_shortcodes_stack, $no_texturize_shortcodes, '[', ']');
+		} elseif ( empty($no_texturize_shortcodes_stack) && empty($no_texturize_tags_stack) ) {
+			// This is not a tag, nor is the texturization disabled static strings
 			$curl = str_replace($static_characters, $static_replacements, $curl);
 			// regular expressions
 			$curl = preg_replace($dynamic_characters, $dynamic_replacements, $curl);
-		} elseif (!empty($curl)) {
-			/*
-			 * Only call _wptexturize_pushpop_element if first char is correct
-			 * tag opening
-			 */
-			if ('<' == $curl[0])
-				_wptexturize_pushpop_element($curl, $no_texturize_tags_stack, $no_texturize_tags, '<', '>');
-			elseif ('[' == $curl[0])
-				_wptexturize_pushpop_element($curl, $no_texturize_shortcodes_stack, $no_texturize_shortcodes, '[', ']');
 		}
-
 		$curl = preg_replace('/&([^#])(?![a-zA-Z1-4]{1,8};)/', '&#038;$1', $curl);
-		$output .= $curl;
 	}
-
-	return $output;
+	return implode( '', $textarr );
 }
 
 /**
@@ -718,7 +707,7 @@ function sanitize_file_name( $filename ) {
 		if ( preg_match("/^[a-zA-Z]{2,5}\d?$/", $part) ) {
 			$allowed = false;
 			foreach ( $mimes as $ext_preg => $mime_match ) {
-				$ext_preg = '!^(' . $ext_preg . ')$!i';
+				$ext_preg = '!(^' . $ext_preg . ')$!i';
 				if ( preg_match( $ext_preg, $part ) ) {
 					$allowed = true;
 					break;
@@ -876,7 +865,7 @@ function sanitize_sql_orderby( $orderby ){
 /**
  * Santizes a html classname to ensure it only contains valid characters
  *
- * Strips the string down to A-Z,a-z,0-9,'-' if this results in an empty
+ * Strips the string down to A-Z,a-z,0-9,_,-. If this results in an empty
  * string then it will return the alternative value supplied.
  *
  * @todo Expand to support the full range of CDATA that a class attribute can contain.
@@ -890,10 +879,10 @@ function sanitize_sql_orderby( $orderby ){
  */
 function sanitize_html_class( $class, $fallback = '' ) {
 	//Strip out any % encoded octets
-	$sanitized = preg_replace('|%[a-fA-F0-9][a-fA-F0-9]|', '', $class);
+	$sanitized = preg_replace( '|%[a-fA-F0-9][a-fA-F0-9]|', '', $class );
 
-	//Limit to A-Z,a-z,0-9,'-'
-	$sanitized = preg_replace('/[^A-Za-z0-9-]/', '', $sanitized);
+	//Limit to A-Z,a-z,0-9,_,-
+	$sanitized = preg_replace( '/[^A-Za-z0-9_-]/', '', $sanitized );
 
 	if ( '' == $sanitized )
 		$sanitized = $fallback;
@@ -2440,14 +2429,7 @@ function sanitize_option($option, $value) {
 					add_settings_error('admin_email', 'invalid_admin_email', __('The email address entered did not appear to be a valid email address. Please enter a valid email address.'));
 			}
 			break;
-		case 'new_admin_email':
-			$value = sanitize_email($value);
-			if ( !is_email($value) ) {
-				$value = get_option( $option ); // Resets option to stored value in the case of failed sanitization
-				if ( function_exists('add_settings_error') )
-					add_settings_error('new_admin_email', 'invalid_admin_email', __('The email address entered did not appear to be a valid email address. Please enter a valid email address.'));
-			}
-			break;
+
 		case 'thumbnail_size_w':
 		case 'thumbnail_size_h':
 		case 'medium_size_w':
@@ -2540,11 +2522,6 @@ function sanitize_option($option, $value) {
 				if ( function_exists('add_settings_error') )
 					add_settings_error('home', 'invalid_home', __('The Site address you entered did not appear to be a valid URL. Please enter a valid URL.'));
 			}
-			break;
-		case 'WPLANG':
-			$allowed = get_available_languages();
-			if ( ! in_array( $value, $allowed ) && ! empty( $value ) )
-				$value = get_option( $option );
 			break;
 
 		default :
@@ -2913,19 +2890,6 @@ function capital_P_dangit( $text ) {
 		array( ' WordPress', '&#8216;WordPress', $dblq . 'WordPress', '>WordPress', '(WordPress' ),
 	$text );
 
-}
-
-/**
- * Sanitize a mime type
- *
- * @since 3.1.3
- *
- * @param string $mime_type Mime type
- * @return string Sanitized mime type
- */
-function sanitize_mime_type( $mime_type ) {
-	$sani_mime_type = preg_replace( '/[^-+*.a-zA-Z0-9\/]/', '', $mime_type );
-	return apply_filters( 'sanitize_mime_type', $sani_mime_type, $mime_type );
 }
 
 ?>

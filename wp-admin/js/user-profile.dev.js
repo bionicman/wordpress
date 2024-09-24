@@ -33,7 +33,7 @@
 		$('#pass1').val('').keyup( check_pass_strength );
 		$('#pass2').val('').keyup( check_pass_strength );
 		$('#pass-strength-result').show();
-		$('.color-palette').click(function(){$(this).siblings('input[name="admin_color"]').prop('checked', true)});
+		$('.color-palette').click(function(){$(this).siblings('input[name="admin_color"]').attr('checked', 'checked')});
 		$('#first_name, #last_name, #nickname').blur(function(){
 			var select = $('#display_name'), current = select.find('option:selected').attr('id'), dub = [],
 				inputs = {
@@ -50,15 +50,12 @@
 
 			$('option', select).remove();
 			$.each(inputs, function( id, value ) {
-				var val = value.replace(/<\/?[a-z][^>]*>/gi, ''); 
+				var selected;
 
-				if ( inputs[id].length && $.inArray( val, dub ) == -1 ) {
-					dub.push(val);
-					$('<option />', {
-					  	'id': id,
-						'text': val,
-						'selected': (id == current)
-					}).appendTo( select );
+				if ( inputs[id].length && $.inArray( value, dub ) == -1 ) {
+					dub.push(value);
+					selected = id == current ? 'selected="selected"' : '';
+					select.append('<option id="' + id + '" ' + selected + '">' + value + '</option>');
 				}
 			});
 		});
