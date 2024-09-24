@@ -266,7 +266,7 @@ function wp_default_scripts( &$scripts ) {
 		'l10n_print_after' => 'try{convertEntities(pwsL10n);}catch(e){};'
 	) );
 
-	$scripts->add( 'user-profile', "/wp-admin/js/user-profile$suffix.js", array( 'jquery', 'password-strength-meter' ), '20110524' );
+	$scripts->add( 'user-profile', "/wp-admin/js/user-profile$suffix.js", array( 'jquery', 'password-strength-meter' ), '20110628' );
 	$scripts->add_data( 'user-profile', 'group', 1 );
 
 	$scripts->add( 'admin-bar', "/wp-includes/js/admin-bar$suffix.js", false, '20110131' );
@@ -482,13 +482,13 @@ function wp_default_styles( &$styles ) {
 	// Any rtl stylesheets that don't have a .dev version for ltr
 	$no_suffix = array( 'farbtastic' );
 
-	$styles->add( 'wp-admin', "/wp-admin/css/wp-admin$suffix.css", array(), '20110614' );
+	$styles->add( 'wp-admin', "/wp-admin/css/wp-admin$suffix.css", array(), '20110627' );
 
-	$styles->add( 'ie', "/wp-admin/css/ie$suffix.css", array(), '20110601' );
+	$styles->add( 'ie', "/wp-admin/css/ie$suffix.css", array(), '20110627' );
 	$styles->add_data( 'ie', 'conditional', 'lte IE 7' );
 
 	// all colors stylesheets need to have the same query strings (cache manifest compat)
-	$colors_version = '20110624';
+	$colors_version = '20110628';
 
 	// Register "meta" stylesheet for admin colors. All colors-* style sheets should have the same version string.
 	$styles->add( 'colors', true, array(), $colors_version );
@@ -498,16 +498,16 @@ function wp_default_styles( &$styles ) {
 	$styles->add( 'colors-classic', "/wp-admin/css/colors-classic$suffix.css", array(), $colors_version );
 
 	$styles->add( 'ms', "/wp-admin/css/ms$suffix.css", array(), '20110623' );
-	$styles->add( 'global', "/wp-admin/css/global$suffix.css", array(), '20110610' );
+	$styles->add( 'global', "/wp-admin/css/global$suffix.css", array(), '20110627' );
 	$styles->add( 'media', "/wp-admin/css/media$suffix.css", array(), '20110614' );
 	$styles->add( 'widgets', "/wp-admin/css/widgets$suffix.css", array(), '20110606' );
-	$styles->add( 'dashboard', "/wp-admin/css/dashboard$suffix.css", array(), '20110611' );
+	$styles->add( 'dashboard', "/wp-admin/css/dashboard$suffix.css", array(), '20110627' );
 	$styles->add( 'install', "/wp-admin/css/install$suffix.css", array(), '20110602' ); // Readme as well
 	$styles->add( 'theme-editor', "/wp-admin/css/theme-editor$suffix.css", array(), '20110602' );
 	$styles->add( 'press-this', "/wp-admin/css/press-this$suffix.css", array(), '20110611a' );
 	$styles->add( 'thickbox', '/wp-includes/js/thickbox/thickbox.css', array(), '20090514' );
 	$styles->add( 'login', "/wp-admin/css/login$suffix.css", array(), '20110610' );
-	$styles->add( 'plugin-install', "/wp-admin/css/plugin-install$suffix.css", array(), '20101230' );
+	$styles->add( 'plugin-install', "/wp-admin/css/plugin-install$suffix.css", array(), '20110628' );
 	$styles->add( 'theme-install', "/wp-admin/css/theme-install$suffix.css", array(), '20110506' );
 	$styles->add( 'farbtastic', '/wp-admin/css/farbtastic.css', array(), '1.3u' );
 	$styles->add( 'jcrop', '/wp-includes/js/jcrop/jquery.Jcrop.css', array(), '0.9.8' );

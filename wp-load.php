@@ -13,6 +13,8 @@
  * directory to allow the WordPress directory to remain
  * untouched.
  *
+ * @internal This file must be parsable by PHP4.
+ *
  * @package WordPress
  */
 
@@ -40,6 +42,11 @@ if ( file_exists( ABSPATH . 'wp-config.php') ) {
 		$path = '';
 	else
 		$path = 'wp-admin/';
+
+	require_once( ABSPATH . '/wp-includes/load.php' );
+	require_once( ABSPATH . '/wp-includes/version.php' );
+	define( 'WP_CONTENT_DIR', ABSPATH . 'wp-content' );
+	wp_check_php_mysql_versions();
 
 	// Die with an error message
 	require_once( ABSPATH . '/wp-includes/class-wp-error.php' );

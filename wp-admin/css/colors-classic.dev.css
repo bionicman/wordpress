@@ -701,7 +701,7 @@ table.widefat span.spam a,
 	background-color: #f7fcfe;
 }
 
-.ui-sortable .postbox h3 {
+.postbox h3 {
 	color: #174f69;
 }
 
@@ -710,7 +710,7 @@ table.widefat span.spam a,
 }
 
 .sidebar-name:hover h3,
-.ui-sortable .postbox h3:hover {
+.postbox h3:hover {
 	color: #000;
 }
 
@@ -1616,6 +1616,11 @@ table.diff .diff-addedline ins {
 
 div.star.select:hover {
 	background-color: #d00;
+}
+
+div.star img {
+	border-left: 1px solid #fff;
+	border-right: 1px solid #fff;
 }
 
 #plugin-information .fyi ul {
