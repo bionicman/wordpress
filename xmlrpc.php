@@ -10,7 +10,6 @@ include_once(ABSPATH . WPINC . '/class-IXR.php');
 // error_reporting(0);
 
 $post_default_title = ""; // posts submitted via the xmlrpc interface get that title
-$post_default_category = 1; // posts submitted via the xmlrpc interface go into that category
 
 $xmlrpc_logging = 0;
 
@@ -127,8 +126,19 @@ class wp_xmlrpc_server extends IXR_Server {
 	  return true;
 	}
 
+	function escape(&$array) {
+		global $wpdb;
 
-
+		foreach ($array as $k => $v) {
+			if (is_array($v)) {
+				$this->escape($array[$k]);
+			} else if (is_object($v)) {
+				//skip
+			} else {
+				$array[$k] = $wpdb->escape($v);
+			}
+		}
+	}
 
 	/* Blogger API functions
 	 * specs on http://plant.blogger.com/api and http://groups.yahoo.com/group/bloggerDev/
@@ -137,6 +147,8 @@ class wp_xmlrpc_server extends IXR_Server {
 
 	/* blogger.getUsersBlogs will make more sense once we support multiple blogs */
 	function blogger_getUsersBlogs($args) {
+
+		$this->escape($args);
 
 	  $user_login = $args[1];
 	  $user_pass  = $args[2];
@@ -162,6 +174,8 @@ class wp_xmlrpc_server extends IXR_Server {
 	/* blogger.getUsersInfo gives your client some info about you, so you don't have to */
 	function blogger_getUserInfo($args) {
 
+		$this->escape($args);
+
 	  $user_login = $args[1];
 	  $user_pass  = $args[2];
 
@@ -186,6 +200,8 @@ class wp_xmlrpc_server extends IXR_Server {
 
 	/* blogger.getPost ...gets a post */
 	function blogger_getPost($args) {
+
+		$this->escape($args);
 
 	  $post_ID    = $args[1];
 	  $user_login = $args[2];
@@ -219,6 +235,8 @@ class wp_xmlrpc_server extends IXR_Server {
 	function blogger_getRecentPosts($args) {
 
 	  global $wpdb;
+
+		$this->escape($args);
 
 	  $blog_ID    = $args[1]; /* though we don't use it yet */
 	  $user_login = $args[2];
@@ -266,6 +284,8 @@ class wp_xmlrpc_server extends IXR_Server {
 	/* blogger.getTemplate returns your blog_filename */
 	function blogger_getTemplate($args) {
 
+		$this->escape($args);
+
 	  $blog_ID    = $args[1];
 	  $user_login = $args[2];
 	  $user_pass  = $args[3];
@@ -298,6 +318,8 @@ class wp_xmlrpc_server extends IXR_Server {
 
 	/* blogger.setTemplate updates the content of blog_filename */
 	function blogger_setTemplate($args) {
+
+		$this->escape($args);
 
 	  $blog_ID    = $args[1];
 	  $user_login = $args[2];
@@ -334,6 +356,8 @@ class wp_xmlrpc_server extends IXR_Server {
 	function blogger_newPost($args) {
 
 	  global $wpdb;
+
+		$this->escape($args);
 
 	  $blog_ID    = $args[1]; /* though we don't use it yet */
 	  $user_login = $args[2];
@@ -382,6 +406,8 @@ class wp_xmlrpc_server extends IXR_Server {
 
 	  global $wpdb;
 
+		$this->escape($args);
+
 	  $post_ID     = $args[1];
 	  $user_login  = $args[2];
 	  $user_pass   = $args[3];
@@ -398,6 +424,8 @@ class wp_xmlrpc_server extends IXR_Server {
 	  	return new IXR_Error(404, 'Sorry, no such post.');
 	  }
 
+		$this->escape($actual_post);
+
 	  $post_author_data = get_userdata($actual_post['post_author']);
 	  $user_data = get_userdatabylogin($user_login);
 
@@ -406,6 +434,7 @@ class wp_xmlrpc_server extends IXR_Server {
 	  }
 
 	  extract($actual_post);
+
 	  $content = $newcontent;
 
 	  $post_title = xmlrpc_getposttitle($content);
@@ -430,6 +459,8 @@ class wp_xmlrpc_server extends IXR_Server {
 	function blogger_deletePost($args) {
 
 	  global $wpdb;
+
+		$this->escape($args);
 
 	  $post_ID     = $args[1];
 	  $user_login  = $args[2];
@@ -470,7 +501,9 @@ class wp_xmlrpc_server extends IXR_Server {
 	/* metaweblog.newPost creates a post */
 	function mw_newPost($args) {
 
-	  global $wpdb;
+	  global $wpdb, $post_default_category;
+
+		$this->escape($args);
 
 	  $blog_ID     = $args[0]; // we will support this in the near future
 	  $user_login  = $args[1];
@@ -507,7 +540,9 @@ class wp_xmlrpc_server extends IXR_Server {
 	  if ($post_more) {
 	    $post_content = $post_content . "\n<!--more-->\n" . $post_more;
 	  }
-		
+
+		$to_ping = $content_struct['mt_tb_ping_urls'];
+
 	  // Do some timestamp voodoo
 	  $dateCreatedd = $content_struct['dateCreated'];
 	  if (!empty($dateCreatedd)) {
@@ -527,12 +562,10 @@ class wp_xmlrpc_server extends IXR_Server {
 	    foreach ($catnames as $cat) {
 	      $post_category[] = get_cat_ID($cat);
 	    }
-	  } else {
-	    $post_category[] = 1;
 	  }
 		
 	  // We've got all the data -- post it:
-	  $postdata = compact('post_author', 'post_date', 'post_date_gmt', 'post_content', 'post_title', 'post_category', 'post_status', 'post_excerpt', 'comment_status', 'ping_status');
+	  $postdata = compact('post_author', 'post_date', 'post_date_gmt', 'post_content', 'post_title', 'post_category', 'post_status', 'post_excerpt', 'comment_status', 'ping_status', 'to_ping');
 
 	  $post_ID = wp_insert_post($postdata);
 
@@ -552,7 +585,9 @@ class wp_xmlrpc_server extends IXR_Server {
 	/* metaweblog.editPost ...edits a post */
 	function mw_editPost($args) {
 
-	  global $wpdb;
+	  global $wpdb, $post_default_category;
+
+		$this->escape($args);
 
 	  $post_ID     = $args[0];
 	  $user_login  = $args[1];
@@ -571,17 +606,18 @@ class wp_xmlrpc_server extends IXR_Server {
 
 	  $postdata = wp_get_single_post($post_ID, ARRAY_A);
 	  extract($postdata);
+		$this->escape($postdata);
 
 	  $post_title = $content_struct['title'];
 	  $post_content = apply_filters( 'content_save_pre', $content_struct['description'] );
 	  $catnames = $content_struct['categories'];
+
+	  $post_category = array();
 		
 	  if (is_array($catnames)) {
 	    foreach ($catnames as $cat) {
 	      $post_category[] = get_cat_ID($cat);
 	    }
-	  } else {
-	    $post_category[] = 1;
 	  }
 
 	  $post_excerpt = $content_struct['mt_excerpt'];
@@ -591,6 +627,8 @@ class wp_xmlrpc_server extends IXR_Server {
 	  if ($post_more) {
 	    $post_content = $post_content . "\n<!--more-->\n" . $post_more;
 	  }
+
+		$to_ping = $content_struct['mt_tb_ping_urls'];
 
 	  $comment_status = (empty($content_struct['mt_allow_comments'])) ?
 	    get_settings('default_comment_status')
@@ -612,10 +650,10 @@ class wp_xmlrpc_server extends IXR_Server {
 	  }
 
 	  // We've got all the data -- post it:
-	  $newpost = compact('ID', 'post_content', 'post_title', 'post_category', 'post_status', 'post_excerpt', 'comment_status', 'ping_status', 'post_date', 'post_date_gmt');
+	  $newpost = compact('ID', 'post_content', 'post_title', 'post_category', 'post_status', 'post_excerpt', 'comment_status', 'ping_status', 'post_date', 'post_date_gmt', 'to_ping');
 
-	  $post_ID = wp_update_post($newpost);
-	  if (!$post_ID) {
+	  $result = wp_update_post($newpost);
+	  if (!$result) {
 	    return new IXR_Error(500, 'Sorry, your entry could not be edited. Something wrong happened.');
 	  }
 
@@ -632,6 +670,8 @@ class wp_xmlrpc_server extends IXR_Server {
 	function mw_getPost($args) {
 
 	  global $wpdb;
+
+		$this->escape($args);
 
 	  $post_ID     = $args[0];
 	  $user_login  = $args[1];
@@ -685,6 +725,8 @@ class wp_xmlrpc_server extends IXR_Server {
 
 	/* metaweblog.getRecentPosts ...returns recent posts */
 	function mw_getRecentPosts($args) {
+
+		$this->escape($args);
 
 	  $blog_ID     = $args[0];
 	  $user_login  = $args[1];
@@ -750,6 +792,8 @@ class wp_xmlrpc_server extends IXR_Server {
 
 	  global $wpdb;
 
+		$this->escape($args);
+
 	  $blog_ID     = $args[0];
 	  $user_login  = $args[1];
 	  $user_pass   = $args[2];
@@ -782,9 +826,11 @@ class wp_xmlrpc_server extends IXR_Server {
 	  // adapted from a patch by Johann Richard
 	  // http://mycvs.org/archives/2004/06/30/file-upload-to-wordpress-in-ecto/
 
-	  $blog_ID     = $args[0];
-	  $user_login  = $args[1];
-	  $user_pass   = $args[2];
+		global $wpdb;
+
+	  $blog_ID     = $wpdb->escape($args[0]);
+	  $user_login  = $wpdb->escape($args[1]);
+		$user_pass   = $wpdb->escape($args[2]);
 	  $data        = $args[3];
 
 	  $name = $data['name'];
@@ -861,6 +907,8 @@ class wp_xmlrpc_server extends IXR_Server {
 	/* mt.getRecentPostTitles ...returns recent posts' titles */
 	function mt_getRecentPostTitles($args) {
 
+		$this->escape($args);
+
 	  $blog_ID     = $args[0];
 	  $user_login  = $args[1];
 	  $user_pass   = $args[2];
@@ -904,6 +952,8 @@ class wp_xmlrpc_server extends IXR_Server {
 
 	  global $wpdb;
 
+		$this->escape($args);
+
 	  $blog_ID     = $args[0];
 	  $user_login  = $args[1];
 	  $user_pass   = $args[2];
@@ -930,6 +980,8 @@ class wp_xmlrpc_server extends IXR_Server {
 
 	/* mt.getPostCategories ...returns a post's categories */
 	function mt_getPostCategories($args) {
+
+		$this->escape($args);
 
 	  $post_ID     = $args[0];
 	  $user_login  = $args[1];
@@ -958,6 +1010,8 @@ class wp_xmlrpc_server extends IXR_Server {
 
 	/* mt.setPostCategories ...sets a post's categories */
 	function mt_setPostCategories($args) {
+
+		$this->escape($args);
 
 	  $post_ID     = $args[0];
 	  $user_login  = $args[1];
@@ -1041,6 +1095,8 @@ class wp_xmlrpc_server extends IXR_Server {
 	/* mt.publishPost ...sets a post's publish status to 'publish' */
 	function mt_publishPost($args) {
 
+		$this->escape($args);
+
 	  $post_ID     = $args[0];
 	  $user_login  = $args[1];
 	  $user_pass   = $args[2];
@@ -1061,6 +1117,7 @@ class wp_xmlrpc_server extends IXR_Server {
 	  // retain old cats
 	  $cats = wp_get_post_cats('',$post_ID);
 	  $postdata['post_category'] = $cats;
+		$this->escape($postdata);
 
 	  $result = wp_update_post($postdata);
 
@@ -1075,9 +1132,9 @@ class wp_xmlrpc_server extends IXR_Server {
 
 	/* pingback.ping gets a pingback and registers it */
 	function pingback_ping($args) {
-		// original code by Mort (http://mort.mine.nu:8080 -- site seems dead)
-		// refactored to return error codes and avoid deep ifififif headaches
 		global $wpdb, $wp_version; 
+
+		$this->escape($args);
 
 		$pagelinkedfrom = $args[0];
 		$pagelinkedto   = $args[1];
@@ -1091,10 +1148,8 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		// Check if the page linked to is in our site
 		$pos1 = strpos($pagelinkedto, str_replace('http://', '', str_replace('www.', '', get_settings('home'))));
-		if(!$pos1) {
-	  		return new IXR_Error(0, '');
-		}
-
+		if( !$pos1 )
+	  		return new IXR_Error(0, 'Is there no link to us?');
 
 		// let's find which post is linked to
 		// FIXME: does url_to_postid() cover all these cases already?
@@ -1124,7 +1179,7 @@ class wp_xmlrpc_server extends IXR_Server {
 				$way = 'from the fragment (post-###)';
 			} elseif (is_string($urltest['fragment'])) {
 				// ...or a string #title, a little more complicated
-				$title = preg_replace('/[^a-zA-Z0-9]/', '.', $urltest['fragment']);
+				$title = preg_replace('/[^a-z0-9]/i', '.', $urltest['fragment']);
 				$sql = "SELECT ID FROM $wpdb->posts WHERE post_title RLIKE '$title'";
 				if (! ($post_ID = $wpdb->get_var($sql)) ) {
 					// returning unknown error '0' is better than die()ing
@@ -1136,27 +1191,25 @@ class wp_xmlrpc_server extends IXR_Server {
 			// TODO: Attempt to extract a post ID from the given URL
 	  		return new IXR_Error(33, 'The specified target URI cannot be used as a target. It either doesn\'t exist, or it is not a pingback-enabled resource.');
 		}
+		$post_ID = (int) $post_ID;
 
 
 		logIO("O","(PB) URI='$pagelinkedto' ID='$post_ID' Found='$way'");
 
-		$sql = 'SELECT post_author FROM '.$wpdb->posts.' WHERE ID = '.$post_ID;
-		$result = $wpdb->get_results($sql);
+		$post = get_post($post_ID);
 
-		if (!$wpdb->num_rows) {
-			// Post_ID not found
+		if ( !$post ) // Post_ID not found
 	  		return new IXR_Error(33, 'The specified target URI cannot be used as a target. It either doesn\'t exist, or it is not a pingback-enabled resource.');
-		}
 
+		// Check if pings are on
+		if ( 'closed' == $post->ping_status )
+	  		return new IXR_Error(33, 'The specified target URI cannot be used as a target. It either doesn\'t exist, or it is not a pingback-enabled resource.');
 
 		// Let's check that the remote site didn't already pingback this entry
 		$result = $wpdb->get_results("SELECT * FROM $wpdb->comments WHERE comment_post_ID = '$post_ID' AND comment_author_url = '$pagelinkedfrom'");
 
-		if ($wpdb->num_rows) {
-			// We already have a Pingback from this URL
+		if ( $wpdb->num_rows ) // We already have a Pingback from this URL
 	  		return new IXR_Error(48, 'The pingback has already been registered.');
-		}
-
 
 		// very stupid, but gives time to the 'from' server to publish !
 		sleep(1);
@@ -1167,46 +1220,42 @@ class wp_xmlrpc_server extends IXR_Server {
 	  		return new IXR_Error(16, 'The source URI does not exist.');
 
 		// Work around bug in strip_tags():
-		$linea = str_replace('<!DOCTYPE','<DOCTYPE',$linea);
-		$linea = strip_tags($linea, '<title><a>');
-		$linea = strip_all_but_one_link($linea, $pagelinkedto);
-		// I don't think we need this? -- emc3
-		//$linea = preg_replace('#&([^amp\;])#is', '&amp;$1', $linea);
-		if ( empty($matchtitle) ) {
-			preg_match('|<title>([^<]*?)</title>|is', $linea, $matchtitle);
-		}
-		$pos2 = strpos($linea, $pagelinkedto);
-		$pos3 = strpos($linea, str_replace('http://www.', 'http://', $pagelinkedto));
-		if (is_integer($pos2) || is_integer($pos3)) {
-			// The page really links to us :)
-			$pos4 = (is_integer($pos2)) ? $pos2 : $pos3;
-			$start = $pos4-100;
-			$context = substr($linea, $start, 250);
-			$context = str_replace("\n", ' ', $context);
-			$context = str_replace('&amp;', '&', $context);
-		}
+		$linea = str_replace('<!DOC', '<DOC', $linea);
+		$linea = preg_replace( '/[\s\r\n\t]+/', ' ', $linea ); // normalize spaces
+		$linea = preg_replace( "/ <(h1|h2|h3|h4|h5|h6|p|th|td|li|dt|dd|pre|caption|input|textarea|button|body)[^>]*>/", "\n\n", $linea );
 
-		if (empty($context)) {
-			// URL pattern not found
-	  		return new IXR_Error(17, 'The source URI does not contain a link to the target URI, and so cannot be used as a source.');
+		preg_match('|<title>([^<]*?)</title>|is', $linea, $matchtitle);
+		$title = $matchtitle[1];
+		if ( empty( $title ) )
+			return new IXR_Error(32, 'We cannot find a title on that page.');
+
+		$linea = strip_tags( $linea, '<a>' ); // just keep the tag we need
+
+		$p = explode( "\n\n", $linea );
+		
+		$sem_regexp_pb = "/(\\/|\\\|\*|\?|\+|\.|\^|\\$|\(|\)|\[|\]|\||\{|\})/";
+		$sem_regexp_fix = "\\\\$1";
+		$link = preg_replace( $sem_regexp_pb, $sem_regexp_fix, $pagelinkedfrom );
+		
+		$finished = false;
+		foreach ( $p as $para ) {
+			if ( $finished )
+				continue;
+			if ( strstr( $para, $pagelinkedto ) ) {
+				$context = preg_replace( "/.*<a[^>]+".$link."[^>]*>([^>]+)<\/a>.*/", "$1", $para );
+				$excerpt = strip_tags( $para );
+				$excerpt = trim( $excerpt );
+				$use     = preg_quote( $context );
+				$excerpt = preg_replace("|.*?\s(.{0,100}$use.{0,100})\s|s", "$1", $excerpt);
+				$finished = true;
+			}
 		}
-
-
-		// Check if pings are on
-		$pingstatus = $wpdb->get_var("SELECT ping_status FROM $wpdb->posts WHERE ID = $post_ID");
-		if ('closed' == $pingstatus) {
-	  		return new IXR_Error(33, 'The specified target URI cannot be used as a target. It either doesn\'t exist, or it is not a pingback-enabled resource.');
-		}
-
 
 		$pagelinkedfrom = preg_replace('#&([^amp\;])#is', '&amp;$1', $pagelinkedfrom);
-		$title = (!strlen($matchtitle[1])) ? $pagelinkedfrom : $matchtitle[1];
-		$original_context = strip_tags($context);
-		$context = '[...] ';
-		$context .= wp_specialchars($original_context);
-		$context .= ' [...]';
+
+		$context = '[...] ' . wp_specialchars( $excerpt ) . ' [...]';
 		$original_pagelinkedfrom = $pagelinkedfrom;
-		$pagelinkedfrom = addslashes($pagelinkedfrom);
+		$pagelinkedfrom = addslashes( $pagelinkedfrom );
 		$original_title = $title;
 
 		$comment_post_ID = $post_ID;
@@ -1214,11 +1263,6 @@ class wp_xmlrpc_server extends IXR_Server {
 		$comment_author_url = $pagelinkedfrom;
 		$comment_content = $context;
 		$comment_type = 'pingback';
-
-		$pingstatus = $wpdb->get_var("SELECT ping_status FROM $wpdb->posts WHERE ID = $post_ID");
-	
-		if ('open' != $pingstatus)
-			die('Sorry, pingbacks are closed for this item.');
 
 		$commentdata = compact('comment_post_ID', 'comment_author', 'comment_author_url', 'comment_content', 'comment_type');
 
@@ -1235,6 +1279,8 @@ class wp_xmlrpc_server extends IXR_Server {
 	function pingback_extensions_getPingbacks($args) {
 
 		global $wpdb;
+
+		$this->escape($args);
 
 		$url = $args;
 

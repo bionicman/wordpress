@@ -6,21 +6,17 @@
  * generic function for inserting data into the posts table.
  */
 function wp_insert_post($postarr = array()) {
-	global $wpdb, $post_default_category, $allowedtags;
+	global $wpdb, $allowedtags;
 	
 	// export array as variables
 	extract($postarr);
 	
-	// Do some escapes for safety
-	$post_title = $wpdb->escape($post_title);
 	$post_name = sanitize_title($post_title);
-	$post_excerpt = $wpdb->escape($post_excerpt);
-	$post_content = $wpdb->escape($post_content);
 	$post_author = (int) $post_author;
 
 	// Make sure we set a valid category
 	if (0 == count($post_category) || !is_array($post_category)) {
-		$post_category = array($post_default_category);
+		$post_category = array(get_option('default_category'));
 	}
 
 	$post_cat = $post_category[0];
@@ -107,19 +103,19 @@ function wp_update_post($postarr = array()) {
 	global $wpdb;
 
 	// First get all of the original fields
-	extract(wp_get_single_post($postarr['ID'], ARRAY_A));	
+	$post = wp_get_single_post($postarr['ID'], ARRAY_A);
 
-	// Now overwrite any changed values being passed in
+	// Escape data pulled from DB.
+	$post = add_magic_quotes($post);
+	extract($post);
+
+	// Now overwrite any changed values being passed in. These are 
+	// already escaped.
 	extract($postarr);
 
-	// Make sure we set a valid category
+	// If no categories were passed along, use the current cats.
 	if ( 0 == count($post_category) || !is_array($post_category) )
-		$post_category = array($post_default_category);
-
-	// Do some escapes for safety
-	$post_title   = $wpdb->escape($post_title);
-	$post_excerpt = $wpdb->escape($post_excerpt);
-	$post_content = $wpdb->escape($post_content);
+		$post_category = $post['post_category'];
 
 	$post_modified = current_time('mysql');
 	$post_modified_gmt = current_time('mysql', 1);
@@ -158,18 +154,17 @@ function wp_get_post_cats($blogid = '1', $post_ID = 0) {
 
 	$result = $wpdb->get_col($sql);
 
+	if ( !$result )
+		$result = array();
+
 	return array_unique($result);
 }
 
 function wp_set_post_cats($blogid = '1', $post_ID = 0, $post_categories = array()) {
 	global $wpdb;
 	// If $post_categories isn't already an array, make it one:
-	if (!is_array($post_categories)) {
-		if (!$post_categories) {
-			$post_categories = 1;
-		}
-		$post_categories = array($post_categories);
-	}
+	if (!is_array($post_categories) || 0 == count($post_categories))
+		$post_categories = array(get_option('default_category'));
 
 	$post_categories = array_unique($post_categories);
 
