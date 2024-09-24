@@ -1,6 +1,7 @@
 <?php
 
 function wptexturize($text) {
+	global $wp_cockneyreplace;
 	$output = '';
 	// Capture tags and everything inside them
 	$textarr = preg_split("/(<.*>)/Us", $text, -1, PREG_SPLIT_DELIM_CAPTURE);
@@ -16,9 +17,15 @@ function wptexturize($text) {
 			$curl = str_replace('...', '&#8230;', $curl);
 			$curl = str_replace('``', '&#8220;', $curl);
 
-			// This is a hack, look at this more later. It works pretty well though.
-			$cockney = array("'tain't","'twere","'twas","'tis","'twill","'til","'bout","'nuff","'round","'cause");
-			$cockneyreplace = array("&#8217;tain&#8217;t","&#8217;twere","&#8217;twas","&#8217;tis","&#8217;twill","&#8217;til","&#8217;bout","&#8217;nuff","&#8217;round","&#8217;cause");
+			// if a plugin has provided an autocorrect array, use it
+			if ( isset($wp_cockneyreplace) ) {
+				$cockney = array_keys($wp_cockneyreplace);
+				$cockney_replace = array_values($wp_cockneyreplace);
+			} else {
+				$cockney = array("'tain't","'twere","'twas","'tis","'twill","'til","'bout","'nuff","'round","'cause");
+				$cockneyreplace = array("&#8217;tain&#8217;t","&#8217;twere","&#8217;twas","&#8217;tis","&#8217;twill","&#8217;til","&#8217;bout","&#8217;nuff","&#8217;round","&#8217;cause");
+			}
+
 			$curl = str_replace($cockney, $cockneyreplace, $curl);
 
 			$curl = preg_replace("/'s/", '&#8217;s', $curl);
@@ -245,8 +252,10 @@ function remove_accents($string) {
 		chr(197).chr(188) => 'z', chr(197).chr(189) => 'Z',
 		chr(197).chr(190) => 'z', chr(197).chr(191) => 's',
 		// Euro Sign
-		chr(226).chr(130).chr(172) => 'E');
-		
+		chr(226).chr(130).chr(172) => 'E',
+		// GBP (Pound) Sign
+		chr(194).chr(163) => '');
+
 		$string = strtr($string, $chars);
 	} else {
 		// Assume ISO-8859-1 if not UTF-8
@@ -582,10 +591,18 @@ function antispambot($emailaddy, $mailto=0) {
 
 function make_clickable($ret) {
 	$ret = ' ' . $ret;
-	$ret = preg_replace("#(^|[\n ])([\w]+?://[\w\#$%&~/.\-;:=,?@\[\]+]*)#is", "$1<a href='$2' rel='nofollow'>$2</a>", $ret);
-	$ret = preg_replace("#(^|[\n ])((www|ftp)\.[\w\#$%&~/.\-;:=,?@\[\]+]*)#is", "$1<a href='http://$2' rel='nofollow'>$2</a>", $ret);
-	$ret = preg_replace("#(\s)([a-z0-9\-_.]+)@([^,< \n\r]+)#i", "$1<a href=\"mailto:$2@$3\">$2@$3</a>", $ret);
-	$ret = substr($ret, 1);
+	// in testing, using arrays here was found to be faster
+	$ret = preg_replace(
+		array(
+			'#([\s>])([\w]+?://[\w\#$%&~/.\-;:=,?@\[\]+]*)#is',
+			'#([\s>])((www|ftp)\.[\w\#$%&~/.\-;:=,?@\[\]+]*)#is',
+			'#([\s>])([a-z0-9\-_.]+)@([^,< \n\r]+)#i'),
+		array(
+			'$1<a href="$2" rel="nofollow">$2</a>',
+			'$1<a href="http://$2" rel="nofollow">$2</a>',
+			'$1<a href="mailto:$2@$3">$2@$3</a>'),$ret);
+	// this one is not in an array because we need it to run last, for cleanup of accidental links within links
+	$ret = preg_replace("#(<a( [^>]+?>|>))<a [^>]+?>([^>]+?)</a></a>#i", "$1$3</a>", $ret);
 	$ret = trim($ret);
 	return $ret;
 }

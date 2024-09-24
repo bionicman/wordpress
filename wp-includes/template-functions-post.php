@@ -200,6 +200,8 @@ function get_post_custom( $post_id = 0 ) {
 	if ( ! $post_id )
 		$post_id = $id;
 
+	$post_id = (int) $post_id;
+
 	if ( isset($post_meta_cache[$post_id]) )
 		return $post_meta_cache[$post_id];
 
@@ -207,7 +209,7 @@ function get_post_custom( $post_id = 0 ) {
 		// Change from flat structure to hierarchical:
 		$post_meta_cache = array();
 		foreach ( $meta_list as $metarow ) {
-			$mpid = $metarow['post_id'];
+			$mpid = (int) $metarow['post_id'];
 			$mkey = $metarow['meta_key'];
 			$mval = $metarow['meta_value'];
 
@@ -256,11 +258,14 @@ function post_custom( $key = '' ) {
 
 // this will probably change at some point...
 function the_meta() {
-	global $id, $post_meta_cache;
+	global $id;
 
 	if ( $keys = get_post_custom_keys() ) {
 		echo "<ul class='post-meta'>\n";
 		foreach ( $keys as $key ) {
+			$keyt = trim($key);
+			if ( '_' == $keyt{0} )
+				continue;
 			$values = array_map('trim', get_post_custom_values($key));
 			$value = implode($values,', ');
 			echo "<li><span class='post-meta-key'>$key:</span> $value</li>\n";

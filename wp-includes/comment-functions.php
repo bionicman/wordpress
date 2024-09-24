@@ -109,8 +109,6 @@ function wp_allow_comment($commentdata) {
 	global $wpdb;
 	extract($commentdata);
 
-	$comment_user_domain = apply_filters('pre_comment_user_domain', gethostbyaddr($comment_author_IP) );
-
 	// Simple duplicate check
 	$dupe = "SELECT comment_ID FROM $wpdb->comments WHERE comment_post_ID = '$comment_post_ID' AND ( comment_author = '$comment_author' ";
 	if ( $comment_author_email )
@@ -835,7 +833,7 @@ function check_comment($author, $email, $url, $comment, $user_ip, $user_agent, $
 
 	if (1 == get_settings('comment_moderation')) return false; // If moderation is set to manual
 
-	if ( (count(explode('http:', $comment)) - 1) >= get_settings('comment_max_links') )
+	if ( preg_match_all("|(href\t*?=\t*?['\"]?)?(https?:)?//|i", $comment, $out) >= get_option('comment_max_links') )
 		return false; // Check # of external links
 
 	$mod_keys = trim( get_settings('moderation_keys') );

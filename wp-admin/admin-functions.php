@@ -848,6 +848,20 @@ function list_meta($meta) {
 			$style = '';
 		if ('_' == $entry['meta_key'] { 0 })
 			$style .= ' hidden';
+
+		if ( is_serialized($entry['meta_value']) ) {
+			if ( is_serialized_string($entry['meta_value']) ) {
+				// this is a serialized string, so we should display it
+				$entry['meta_value'] = maybe_unserialize($entry['meta_value']);
+			} else {
+				// this is a serialized array/object so we should NOT display it
+				--$count;
+				continue;
+			}
+		}
+
+		$entry['meta_key'] = wp_specialchars( $entry['meta_key'], true );
+		$entry['meta_value'] = wp_specialchars( $entry['meta_value'], true );
 		echo "
 			<tr class='$style'>
 				<td valign='top'><input name='meta[{$entry['meta_id']}][key]' tabindex='6' type='text' size='20' value='{$entry['meta_key']}' /></td>
@@ -920,7 +934,8 @@ function add_meta($post_ID) {
 
 	$metakeyselect = $wpdb->escape(stripslashes(trim($_POST['metakeyselect'])));
 	$metakeyinput = $wpdb->escape(stripslashes(trim($_POST['metakeyinput'])));
-	$metavalue = $wpdb->escape(stripslashes(trim($_POST['metavalue'])));
+	$metavalue = maybe_serialize(stripslashes((trim($_POST['metavalue']))));
+	$metavalue = $wpdb->escape($metavalue);
 
 	if ( ('0' === $metavalue || !empty ($metavalue)) && ((('#NONE#' != $metakeyselect) && !empty ($metakeyselect)) || !empty ($metakeyinput)) ) {
 		// We have a key/value pair. If both the select and the 
@@ -948,7 +963,9 @@ function delete_meta($mid) {
 
 function update_meta($mid, $mkey, $mvalue) {
 	global $wpdb;
-
+	$mvalue = maybe_serialize(stripslashes($mvalue));
+	$mvalue = $wpdb->escape($mvalue);
+	$mid = (int) $mid;
 	return $wpdb->query("UPDATE $wpdb->postmeta SET meta_key = '$mkey', meta_value = '$mvalue' WHERE meta_id = '$mid'");
 }
 
@@ -1570,24 +1587,22 @@ function get_plugins() {
 		}
 	}
 
-	if (!$plugins_dir || !$plugin_files) {
+	if ( !$plugins_dir || !$plugin_files )
 		return $wp_plugins;
-	}
 
-	sort($plugin_files);
-
-	foreach ($plugin_files as $plugin_file) {
+	foreach ( $plugin_files as $plugin_file ) {
 		if ( !is_readable("$plugin_root/$plugin_file"))
 			continue;
 
 		$plugin_data = get_plugin_data("$plugin_root/$plugin_file");
 
-		if (empty ($plugin_data['Name'])) {
+		if ( empty ($plugin_data['Name']) )
 			continue;
-		}
 
 		$wp_plugins[plugin_basename($plugin_file)] = $plugin_data;
 	}
+
+	uasort($wp_plugins, create_function('$a, $b', 'return strnatcasecmp($a["Name"], $b["Name"]);'));
 
 	return $wp_plugins;
 }

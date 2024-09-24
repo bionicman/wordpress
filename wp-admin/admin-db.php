@@ -34,7 +34,7 @@ function get_editable_authors( $user_id ) {
 		return false;
 	} else {
 		$editable = join(',', $editable);
-		$authors = $wpdb->get_results( "SELECT * FROM $wpdb->users WHERE ID IN ($editable)" );
+		$authors = $wpdb->get_results( "SELECT * FROM $wpdb->users WHERE ID IN ($editable) ORDER BY display_name" );
 	}
 
 	return apply_filters('get_editable_authors', $authors);
@@ -315,11 +315,6 @@ function wp_insert_link($linkdata) {
 	if ( empty($link_rel) )
 		$link_rel = '';
 	$link_rel = apply_filters('pre_link_rel', $link_rel);
-
-	// Make sure we set a valid category
-	if (0 == count($link_category) || !is_array($link_category)) {
-		$link_category = array(get_option('default_link_category'));
-	}
 
 	if ( $update ) {
 		$wpdb->query("UPDATE $wpdb->links SET link_url='$link_url',
