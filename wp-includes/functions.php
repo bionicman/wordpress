@@ -355,12 +355,13 @@ function update_option($option_name, $newvalue) {
 
 	// If the new and old values are the same, no need to update.
 	$oldvalue = get_option($option_name);
-	if ( $newvalue == $oldvalue )
+	if ( $newvalue == $oldvalue ) {
 		return false;
+	}
 
-        if ( false === $oldvalue ) {
-                add_option($option_name, $newvalue);
-                return true;
+	if ( false === $oldvalue ) {
+		add_option($option_name, $newvalue);
+		return true;
 	}
 
 	if ( is_array($newvalue) || is_object($newvalue) )
@@ -371,7 +372,11 @@ function update_option($option_name, $newvalue) {
 	$newvalue = $wpdb->escape($newvalue);
 	$option_name = $wpdb->escape($option_name);
 	$wpdb->query("UPDATE $wpdb->options SET option_value = '$newvalue' WHERE option_name = '$option_name'");
-	return true;
+	if ( $wpdb->rows_affected == 1 ) {
+		do_action("update_option_{$option_name}", $oldvalue, $newvalue);
+		return true;
+	}
+	return false;
 }
 
 function update_user_option( $user_id, $option_name, $newvalue, $global = false ) {
@@ -472,7 +477,7 @@ function get_post_meta($post_id, $key, $single = false) {
 		if ( $single ) {
 			return maybe_unserialize( $post_meta_cache[$post_id][$key][0] );
 		} else {
-			return maybe_unserialize( $post_meta_cache[$post_id][$key][0] );
+			return maybe_unserialize( $post_meta_cache[$post_id][$key] );
 		}
 	}
 
@@ -587,6 +592,9 @@ function &get_post(&$post, $output = OBJECT) {
 			$post_cache[$post] = & $_post;
 		}
 	}
+
+	if ( defined(WP_IMPORTING) )
+		unset($post_cache);
 
 	if ( $output == OBJECT ) {
 		return $_post;
@@ -921,7 +929,7 @@ function make_url_footnote($content) {
 		$link_url = $matches[2][$i];
 		$link_text = $matches[4][$i];
 		$content = str_replace($link_match, $link_text.' '.$link_number, $content);
-		$link_url = ((strtolower(substr($link_url,0,7)) != 'http://')||(strtolower(substr($link_url,0,7)) != 'https://')) ? get_settings('home') . $link_url : $link_url;
+		$link_url = ((strtolower(substr($link_url,0,7)) != 'http://') && (strtolower(substr($link_url,0,8)) != 'https://')) ? get_settings('home') . $link_url : $link_url;
 		$links_summary .= "\n".$link_number.' '.$link_url;
 	}
 	$content = strip_tags($content);
@@ -1677,6 +1685,11 @@ function get_stylesheet_uri() {
 }
 
 function get_template() {
+	$template = get_settings('template');
+	if (!file_exists(get_theme_root() . "/$template")) { //works for dirs too
+		update_option('template', 'default');
+		update_option('stylesheet', 'default');
+	}
 	return apply_filters('template', get_settings('template'));
 }
 
@@ -1782,11 +1795,12 @@ function get_themes() {
 		$template = $theme_data['Template'];
 		$stylesheet = dirname($theme_file);
 
-		$screenshot = glob("$theme_root/$stylesheet/screenshot.*");
-		if ( !empty( $screenshot ) )
-			$screenshot = basename( $screenshot[0] );
-		else
-			$screenshot = false;
+		foreach (array('png', 'gif', 'jpg', 'jpeg') as $ext) {
+			if (file_exists("$theme_root/$stylesheet/screenshot.$ext")) {
+				$screenshot = "screenshot.$ext";
+				break;
+			}
+		}
 
 		if ( empty($name) ) {
 			$name = dirname($theme_file);
@@ -2033,7 +2047,10 @@ add_query_arg(associative_array, oldquery_or_uri)
 function add_query_arg() {
 	$ret = '';
 	if ( is_array(func_get_arg(0)) ) {
-		$uri = @func_get_arg(1);
+		if ( @func_num_args() < 2 )
+			$uri = $_SERVER['REQUEST_URI'];
+		else
+			$uri = @func_get_arg(1);
 	} else {
 		if ( @func_num_args() < 3 )
 			$uri = $_SERVER['REQUEST_URI'];

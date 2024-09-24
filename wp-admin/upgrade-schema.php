@@ -216,11 +216,20 @@ function populate_options() {
 	add_option('html_type', 'text/html');
 	// 1.5.1
 	add_option('use_trackback', 0);
-	// 1.6
+	// 2.0
 	add_option('default_role', 'subscriber');
 	add_option('rich_editing', 'true');
 	add_option('db_version', $wp_db_version);
-	
+	// 2.0.1
+	if ( ini_get('safe_mode') ) {
+		// Safe mode screws up mkdir(), so we must use a flat structure.
+		add_option('uploads_use_yearmonth_folders', 0);
+		add_option('upload_path', 'wp-content');
+	} else {
+		add_option('uploads_use_yearmonth_folders', 1);
+		add_option('upload_path', 'wp-content/uploads');
+	}
+
 	// Delete unused options
 	$unusedoptions = array ('blodotgsping_url', 'bodyterminator', 'emailtestonly', 'phoneemail_separator', 'smilies_directory', 'subjectprefix', 'use_bbcode', 'use_blodotgsping', 'use_phoneemail', 'use_quicktags', 'use_weblogsping', 'weblogs_cache_file', 'use_preview', 'use_htmltrans', 'smilies_directory', 'fileupload_allowedusers', 'use_phoneemail', 'default_post_status', 'default_post_category', 'archive_mode', 'time_difference', 'links_minadminlevel', 'links_use_adminlevels', 'links_rating_type', 'links_rating_char', 'links_rating_ignore_zero', 'links_rating_single_image', 'links_rating_image0', 'links_rating_image1', 'links_rating_image2', 'links_rating_image3', 'links_rating_image4', 'links_rating_image5', 'links_rating_image6', 'links_rating_image7', 'links_rating_image8', 'links_rating_image9', 'weblogs_cacheminutes', 'comment_allowed_tags', 'search_engine_friendly_urls', 'default_geourl_lat', 'default_geourl_lon', 'use_default_geourl', 'weblogs_xml_url', 'new_users_can_blog');
 	foreach ($unusedoptions as $option) :
@@ -242,14 +251,14 @@ function populate_roles_160() {
 	global $wp_roles;
 
 	// Add roles
-	$wp_roles->add_role('administrator', __('Administrator'));
-	$wp_roles->add_role('editor', __('Editor'));
-	$wp_roles->add_role('author', __('Author'));
-	$wp_roles->add_role('contributor', __('Contributor'));
-	$wp_roles->add_role('subscriber', __('Subscriber'));
+	add_role('administrator', __('Administrator'));
+	add_role('editor', __('Editor'));
+	add_role('author', __('Author'));
+	add_role('contributor', __('Contributor'));
+	add_role('subscriber', __('Subscriber'));
 	
 	// Add caps for Administrator role
-	$role = $wp_roles->get_role('administrator');
+	$role = get_role('administrator');
 	$role->add_cap('switch_themes');
 	$role->add_cap('edit_themes');
 	$role->add_cap('activate_plugins');
@@ -282,7 +291,7 @@ function populate_roles_160() {
 	$role->add_cap('level_0');
 	
 	// Add caps for Editor role
-	$role = $wp_roles->get_role('editor');
+	$role = get_role('editor');
 	$role->add_cap('moderate_comments');
 	$role->add_cap('manage_categories');
 	$role->add_cap('manage_links');
@@ -304,7 +313,7 @@ function populate_roles_160() {
 	$role->add_cap('level_0');
 	
 	// Add caps for Author role
-	$role = $wp_roles->get_role('author');
+	$role = get_role('author');
 	$role->add_cap('upload_files');
 	$role->add_cap('edit_posts');
 	$role->add_cap('edit_published_posts');
@@ -315,14 +324,14 @@ function populate_roles_160() {
 	$role->add_cap('level_0');
 	
 	// Add caps for Contributor role
-	$role = $wp_roles->get_role('contributor');
+	$role = get_role('contributor');
 	$role->add_cap('edit_posts');
 	$role->add_cap('read');
 	$role->add_cap('level_1');
 	$role->add_cap('level_0');
 	
 	// Add caps for Subscriber role
-	$role = $wp_roles->get_role('subscriber');
+	$role = get_role('subscriber');
 	$role->add_cap('read');
 	$role->add_cap('level_0');
 }

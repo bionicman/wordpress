@@ -35,13 +35,17 @@ if ( empty( $_SERVER['REQUEST_URI'] ) ) {
 }
 
 // Fix for PHP as CGI hosts that set SCRIPT_FILENAME to something ending in php.cgi for all requests
-if ( strpos($_SERVER['SCRIPT_FILENAME'], 'php.cgi') == strlen($_SERVER['SCRIPT_FILENAME']) - 7 )
+if ( isset($_SERVER['SCRIPT_FILENAME']) && ( strpos($_SERVER['SCRIPT_FILENAME'], 'php.cgi') == strlen($_SERVER['SCRIPT_FILENAME']) - 7 ) )
 	$_SERVER['SCRIPT_FILENAME'] = $_SERVER['PATH_TRANSLATED'];
 
 // Fix for Dreamhost and other PHP as CGI hosts
 if ( strstr( $_SERVER['SCRIPT_NAME'], 'php.cgi' ) )
 	unset($_SERVER['PATH_INFO']);
 
+// Fix empty PHP_SELF
+$PHP_SELF = $_SERVER['PHP_SELF'];
+if ( empty($PHP_SELF) )
+	$_SERVER['PHP_SELF'] = $PHP_SELF = preg_replace("/(\?.*)?$/",'',$_SERVER["REQUEST_URI"]);
 
 if ( !(phpversion() >= '4.1') )
 	die( 'Your server is running PHP version ' . phpversion() . ' but WordPress requires at least 4.1' );
@@ -104,13 +108,10 @@ if ( file_exists(ABSPATH . 'wp-content/object-cache.php') )
 else
 	require (ABSPATH . WPINC . '/cache.php');
 
-// For now, disable persistent caching by default.  To enable, comment out
-// the following line.
-//define('DISABLE_CACHE', true);
+// To disable persistant caching, add the below line to your wp-config.php file, uncommented of course.
+// define('DISABLE_CACHE', true);
 
 wp_cache_init();
-
-$wp_filters = array();
 
 require (ABSPATH . WPINC . '/functions.php');
 require (ABSPATH . WPINC . '/default-filters.php');
@@ -203,7 +204,6 @@ $_SERVER = add_magic_quotes($_SERVER);
 $wp_query   = new WP_Query();
 $wp_rewrite = new WP_Rewrite();
 $wp         = new WP();
-$wp_roles   = new WP_Roles();
 
 define('TEMPLATEPATH', get_template_directory());
 
@@ -218,8 +218,8 @@ if ( file_exists(TEMPLATEPATH . "/functions.php") )
 	include(TEMPLATEPATH . "/functions.php");
 
 function shutdown_action_hook() {
-	wp_cache_close();
 	do_action('shutdown');
+	wp_cache_close();
 }
 register_shutdown_function('shutdown_action_hook');
 

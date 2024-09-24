@@ -2,8 +2,10 @@
 
 require_once('admin.php');
 
-if (!current_user_can('edit_posts'))
-	die(__('You do not have permission to edit posts.'));
+header('Content-Type: text/html; charset=' . get_option('blog_charset'));
+
+if (!current_user_can('upload_files'))
+	die(__('You do not have permission to upload files.'));
 
 $wpvarstoreset = array('action', 'post', 'all', 'last', 'link', 'sort', 'start', 'imgtitle', 'descr', 'attachment');
 
@@ -32,7 +34,7 @@ break;
 
 case 'delete':
 
-if ( !current_user_can('edit_post', (int) $attachment) )	
+if ( !current_user_can('edit_post', (int) $attachment) )
 	die(__('You are not allowed to delete this attachment.').' <a href="'.basename(__FILE__)."?post=$post&amp;all=$all&amp;action=upload\">".__('Go back').'</a>');
 
 wp_delete_attachment($attachment);
@@ -232,14 +234,15 @@ srcb[{$ID}] = '{$image['guid']}';
 			$xpadding = (128 - $image['uwidth']) / 2;
 			$ypadding = (96 - $image['uheight']) / 2;
 			$style .= "#target{$ID} img { padding: {$ypadding}px {$xpadding}px; }\n";
-			$script .= "aa[{$ID}] = '<a id=\"p{$ID}\" rel=\"attachment\" class=\"imagelink\" href=\"$href\" onclick=\"doPopup({$ID});return false;\" title=\"{$image['post_title']}\">';
-ab[{$ID}] = '<a class=\"imagelink\" href=\"{$image['guid']}\" onclick=\"doPopup({$ID});return false;\" title=\"{$image['post_title']}\">';
-imga[{$ID}] = '<img id=\"image{$ID}\" src=\"$src\" alt=\"{$image['post_title']}\" $height_width />';
-imgb[{$ID}] = '<img id=\"image{$ID}\" src=\"{$image['guid']}\" alt=\"{$image['post_title']}\" $height_width />';
+			$title = htmlentities($image['post_title'], ENT_QUOTES);
+			$script .= "aa[{$ID}] = '<a id=\"p{$ID}\" rel=\"attachment\" class=\"imagelink\" href=\"$href\" onclick=\"doPopup({$ID});return false;\" title=\"{$title}\">';
+ab[{$ID}] = '<a class=\"imagelink\" href=\"{$image['guid']}\" onclick=\"doPopup({$ID});return false;\" title=\"{$title}\">';
+imga[{$ID}] = '<img id=\"image{$ID}\" src=\"$src\" alt=\"{$title}\" $height_width />';
+imgb[{$ID}] = '<img id=\"image{$ID}\" src=\"{$image['guid']}\" alt=\"{$title}\" $height_width />';
 ";
 			$html .= "<div id='target{$ID}' class='attwrap left'>
 	<div id='div{$ID}' class='imagewrap' onclick=\"doPopup({$ID});\">
-		<img id=\"image{$ID}\" src=\"$src\" alt=\"{$image['post_title']}\" $height_width />
+		<img id=\"image{$ID}\" src=\"$src\" alt=\"{$title}\" $height_width />
 	</div>
 	{$noscript}
 </div>
@@ -251,19 +254,19 @@ imgb[{$ID}] = '<img id=\"image{$ID}\" src=\"{$image['guid']}\" alt=\"{$image['po
 </div>
 ";
 		} else {
-			$title = $attachment['post_title'];
+			$title = htmlentities($attachment['post_title'], ENT_QUOTES);
 			$filename = basename($attachment['guid']);
 			$icon = get_attachment_icon($ID);
 			$toggle_icon = "<a id=\"I{$ID}\" onclick=\"toggleOtherIcon({$ID});return false;\" href=\"javascript:void()\">$__using_title</a>";
-			$script .= "aa[{$ID}] = '<a id=\"p{$ID}\" rel=\"attachment\" href=\"$href\" onclick=\"doPopup({$ID});return false;\" title=\"{$title}\">{$attachment['post_title']}</a>';
-ab[{$ID}] = '<a id=\"p{$ID}\" href=\"{$filename}\" onclick=\"doPopup({$ID});return false;\" title=\"{$title}\">{$attachment['post_title']}</a>';
-title[{$ID}] = '{$attachment['post_title']}';
+			$script .= "aa[{$ID}] = '<a id=\"p{$ID}\" rel=\"attachment\" href=\"$href\" onclick=\"doPopup({$ID});return false;\" title=\"{$title}\">';
+ab[{$ID}] = '<a id=\"p{$ID}\" href=\"{$filename}\" onclick=\"doPopup({$ID});return false;\" title=\"{$title}\">';
+title[{$ID}] = '{$title}';
 filename[{$ID}] = '{$filename}';
 icon[{$ID}] = '{$icon}';
 ";
 			$html .= "<div id='target{$ID}' class='attwrap left'>
 	<div id='div{$ID}' class='otherwrap usingtext' onmousedown=\"selectLink({$ID})\" onclick=\"doPopup({$ID});return false;\">
-		<a id=\"p{$ID}\" href=\"{$attachment['guid']}\" onmousedown=\"selectLink({$ID});\" onclick=\"return false;\">{$attachment['post_title']}</a>
+		<a id=\"p{$ID}\" href=\"{$attachment['guid']}\" onmousedown=\"selectLink({$ID});\" onclick=\"return false;\">{$title}</a>
 	</div>
 	{$noscript}
 </div>
@@ -296,7 +299,16 @@ die(__('This script was not meant to be called directly.'));
 <script type="text/javascript">
 /* Define any variables we'll need, such as alternate URLs. */
 <?php echo $script; ?>
-
+function htmldecode(st) {
+	o = document.getElementById('htmldecode');
+	if (! o) {
+		o = document.createElement("A");
+		o.id = "htmldecode"
+	}
+	o.innerHTML = st;
+	r = o.innerHTML;
+	return r;
+}
 function cancelUpload() {
 	o = document.getElementById('uploadForm');
 	o.method = 'GET';
@@ -324,69 +336,84 @@ function selectLink(n) {
 	}
 }
 function toggleLink(n) {
+	ol=document.getElementById('L'+n);
+	if ( ol.innerHTML == htmldecode(notlinked) ) {
+		ol.innerHTML = linkedtoimage;
+	} else if ( ol.innerHTML == htmldecode(linkedtoimage) ) {
+		ol.innerHTML = linkedtopage;
+	} else {
+		ol.innerHTML = notlinked;
+	}
+	updateImage(n);
+}
+function toggleOtherLink(n) {
+	ol=document.getElementById('L'+n);
+	if ( ol.innerHTML == htmldecode(linkedtofile) ) {
+		ol.innerHTML = linkedtopage;
+	} else {
+		ol.innerHTML = linkedtofile;
+	}
+	updateOtherIcon(n);
+}
+function toggleImage(n) {
+	oi = document.getElementById('I'+n);
+	if ( oi.innerHTML == htmldecode(usingthumbnail) ) {
+		oi.innerHTML = usingoriginal;
+	} else {
+		oi.innerHTML = usingthumbnail;
+	}
+	updateImage(n);
+}
+function toggleOtherIcon(n) {
+	od = document.getElementById('div'+n);
+	oi = document.getElementById('I'+n);
+	if ( oi.innerHTML == htmldecode(usingtitle) ) {
+		oi.innerHTML = usingfilename;
+		od.className = 'otherwrap usingtext';
+	} else if ( oi.innerHTML == htmldecode(usingfilename) && icon[n] != '' ) {
+		oi.innerHTML = usingicon;
+		od.className = 'otherwrap usingicon';
+	} else {
+		oi.innerHTML = usingtitle;
+		od.className = 'otherwrap usingtext';
+	}
+	updateOtherIcon(n);
+}
+function updateImage(n) {
 	od=document.getElementById('div'+n);
 	ol=document.getElementById('L'+n);
 	oi=document.getElementById('I'+n);
-	if ( oi.innerHTML == usingthumbnail ) {
+	if ( oi.innerHTML == htmldecode(usingthumbnail) ) {
 		img = imga[n];
 	} else {
 		img = imgb[n];
 	}
-	if ( ol.innerHTML == notlinked ) {
+	if ( ol.innerHTML == htmldecode(linkedtoimage) ) {
 		od.innerHTML = ab[n]+img+'</a>';
-		ol.innerHTML = linkedtoimage;
-	} else if ( ol.innerHTML == linkedtoimage ) {
+	} else if ( ol.innerHTML == htmldecode(linkedtopage) ) {
 		od.innerHTML = aa[n]+img+'</a>';
-		ol.innerHTML = linkedtopage;
 	} else {
 		od.innerHTML = img;
-		ol.innerHTML = notlinked;
 	}
 }
-function toggleOtherLink(n) {
+function updateOtherIcon(n) {
 	od=document.getElementById('div'+n);
 	ol=document.getElementById('L'+n);
-	oi=document.getElementById('p'+n);
-	ih=oi.innerHTML;
-	if ( ol.innerHTML == linkedtofile ) {
-		od.innerHTML = aa[n];
-		ol.innerHTML = linkedtopage;
+	oi=document.getElementById('I'+n);
+	if ( oi.innerHTML == htmldecode(usingfilename) ) {
+		txt = filename[n];
+	} else if ( oi.innerHTML == htmldecode(usingicon) ) {
+		txt = icon[n];
 	} else {
-		od.innerHTML = ab[n];
-		ol.innerHTML = linkedtofile;
+		txt = title[n];
 	}
-	oi=document.getElementById('p'+n);
-	oi.innerHTML = ih;
-}
-function toggleImage(n) {
-	o = document.getElementById('image'+n);
-	oi = document.getElementById('I'+n);
-	if ( oi.innerHTML == usingthumbnail ) {
-		o.src = srcb[n];
-		oi.innerHTML = usingoriginal;
+	if ( ol.innerHTML == htmldecode(linkedtofile) ) {
+		od.innerHTML = ab[n]+txt+'</a>';
+	} else if ( ol.innerHTML == htmldecode(linkedtopage) ) {
+		od.innerHTML = aa[n]+txt+'</a>';
 	} else {
-		o.src = srca[n];
-		oi.innerHTML = usingthumbnail;
+		od.innerHTML = txt;
 	}
-}
-function toggleOtherIcon(n) {
-	od = document.getElementById('div'+n);
-	o = document.getElementById('p'+n);
-	oi = document.getElementById('I'+n);
-	if ( oi.innerHTML == usingtitle ) {
-		o.innerHTML = filename[n];
-		oi.innerHTML = usingfilename;
-	} else if ( oi.innerHTML == usingfilename && icon[n] != '' ) {
-		o.innerHTML = icon[n];
-		oi.innerHTML = usingicon;
-	} else {
-		o.innerHTML = title[n];
-		oi.innerHTML = usingtitle;
-	}
-	if ( oi.innerHTML == usingicon )
-		od.className = 'otherwrap usingicon';
-	else
-		od.className = 'otherwrap usingtext';
 }
 
 var win = window.opener ? window.opener : window.dialogArguments;
@@ -397,6 +424,7 @@ function sendToEditor(n) {
 	o = document.getElementById('div'+n);
 	h = o.innerHTML.replace(new RegExp('^\\s*(.*?)\\s*$', ''), '$1'); // Trim
 	h = h.replace(new RegExp(' (class|title|width|height|id|onclick|onmousedown)=([^\'"][^ ]*)( |/|>)', 'g'), ' $1="$2"$3'); // Enclose attribs in quotes
+	h = h.replace(new RegExp(' (width|height)=".*?"', 'g'), ''); // Drop size constraints
 	h = h.replace(new RegExp(' on(click|mousedown)="[^"]*"', 'g'), ''); // Drop menu events
 	h = h.replace(new RegExp('<(/?)A', 'g'), '<$1a'); // Lowercase tagnames
 	h = h.replace(new RegExp('<IMG', 'g'), '<img'); // Lowercase again
@@ -466,15 +494,11 @@ form {
 	text-align: center;
 	width: 128px;
 }
-.usingicon a {
-}
 .usingtext {
 	padding: 3px;
 	height: 90px;
 	text-align: left;
 	width: 122px;
-}
-.usingtext a {
 }
 .filetype {
 	font-size: 80%;
@@ -483,7 +507,6 @@ form {
 .imagewrap, .imagewrap img, .imagewrap a, .imagewrap a img, .imagewrap a:hover img, .imagewrap a:visited img, .imagewrap a:active img {
 	text-decoration: none;
 }
-
 #upload-menu {
 	background: #fff;
 	margin: 0px;
@@ -493,12 +516,10 @@ form {
 	border-bottom: 1px solid #448abd;
 	width: 100%;
 }
-
 #upload-menu li {
 	float: left;
 	margin: 0 0 0 .75em;
 }
-
 #upload-menu a {
 	display: block;
 	padding: 5px;
@@ -506,18 +527,14 @@ form {
 	color: #000;
 	border-top: 3px solid #fff;
 }
-
 #upload-menu .current a {
 	background: #dfe8f1;
 	border-right: 2px solid #448abd;
 }
-
 #upload-menu a:hover {
 	background: #dfe8f1;
 	color: #000;
 }
-
-
 .tip {
 	color: rgb(68, 138, 189);
 	padding: 2px 1em;
@@ -598,7 +615,6 @@ th {
 	color: #333;
 	padding: 0.25em;
 }
-
 #submit input:active {
 	background: #f4f4f4;
 	border: 3px double #ccc;
@@ -614,7 +630,6 @@ th {
 #links {
 	margin: 3px 8px;
 	line-height: 2em;
-	
 }
 #links textarea {
 	width: 95%;

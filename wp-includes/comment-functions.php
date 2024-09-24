@@ -76,6 +76,8 @@ function wp_insert_comment($commentdata) {
 		$comment_date_gmt = gmdate('Y-m-d H:i:s', strtotime($comment_date) );
 	if ( ! isset($comment_parent) )
 		$comment_parent = 0;
+	if ( ! isset($comment_approved) )
+		$comment_approved = 1;
 
 	$result = $wpdb->query("INSERT INTO $wpdb->comments 
 	(comment_post_ID, comment_author, comment_author_email, comment_author_url, comment_author_IP, comment_date, comment_date_gmt, comment_content, comment_approved, comment_agent, comment_type, comment_parent, user_id)
@@ -288,7 +290,7 @@ function comments_popup_link($zero='No Comments', $one='1 Comment', $more='% Com
 	} else {
 		if (!empty($post->post_password)) { // if there's a password
 			if ($_COOKIE['wp-postpass_'.COOKIEHASH] != $post->post_password) {  // and it doesn't match the cookie
-				echo('Enter your password to view comments');
+				echo(__('Enter your password to view comments'));
 				return;
 			}
 		}
@@ -541,20 +543,20 @@ function pings_open() {
 // Non-template functions
 
 function get_lastcommentmodified($timezone = 'server') {
-	global $tablecomments, $cache_lastcommentmodified, $pagenow, $wpdb;
+	global $cache_lastcommentmodified, $pagenow, $wpdb;
 	$add_seconds_blog = get_settings('gmt_offset') * 3600;
 	$add_seconds_server = date('Z');
 	$now = current_time('mysql', 1);
 	if ( !isset($cache_lastcommentmodified[$timezone]) ) {
 		switch(strtolower($timezone)) {
 			case 'gmt':
-				$lastcommentmodified = $wpdb->get_var("SELECT comment_date_gmt FROM $tablecomments WHERE comment_date_gmt <= '$now' ORDER BY comment_date_gmt DESC LIMIT 1");
+				$lastcommentmodified = $wpdb->get_var("SELECT comment_date_gmt FROM $wpdb->comments WHERE comment_date_gmt <= '$now' ORDER BY comment_date_gmt DESC LIMIT 1");
 				break;
 			case 'blog':
-				$lastcommentmodified = $wpdb->get_var("SELECT comment_date FROM $tablecomments WHERE comment_date_gmt <= '$now' ORDER BY comment_date_gmt DESC LIMIT 1");
+				$lastcommentmodified = $wpdb->get_var("SELECT comment_date FROM $wpdb->comments WHERE comment_date_gmt <= '$now' ORDER BY comment_date_gmt DESC LIMIT 1");
 				break;
 			case 'server':
-				$lastcommentmodified = $wpdb->get_var("SELECT DATE_ADD(comment_date_gmt, INTERVAL '$add_seconds_server' SECOND) FROM $tablecomments WHERE comment_date_gmt <= '$now' ORDER BY comment_date_gmt DESC LIMIT 1");
+				$lastcommentmodified = $wpdb->get_var("SELECT DATE_ADD(comment_date_gmt, INTERVAL '$add_seconds_server' SECOND) FROM $wpdb->comments WHERE comment_date_gmt <= '$now' ORDER BY comment_date_gmt DESC LIMIT 1");
 				break;
 		}
 		$cache_lastcommentmodified[$timezone] = $lastcommentmodified;
@@ -632,9 +634,10 @@ function pingback($content, $post_ID) {
 				$post_links[] = $link_test;
 			elseif(($test['path'] != '/') && ($test['path'] != ''))
 				$post_links[] = $link_test;
-			do_action('pre_ping',  array(&$post_links, &$pung));
 		endif;
 	endforeach;
+
+	do_action('pre_ping',  array(&$post_links, &$pung));
 
 	foreach ($post_links as $pagelinkedto){
 		debug_fwrite($log, "Processing -- $pagelinkedto\n");

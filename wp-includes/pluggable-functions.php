@@ -3,10 +3,37 @@
 	/* These functions can be replaced via plugins.  They are loaded after
 	 plugins are loaded. */
 
+if ( !function_exists('set_current_user') ) :
+function set_current_user($id, $name = '') {
+	global $user_login, $userdata, $user_level, $user_ID, $user_email, $user_url, $user_pass_md5, $user_identity, $current_user;
+
+	$current_user	= '';
+
+	$current_user	= new WP_User($id, $name);
+
+	$userdata	= get_userdatabylogin($user_login);
+
+	$user_login	= $userdata->user_login;
+	$user_level	= $userdata->user_level;
+	$user_ID	= $userdata->ID;
+	$user_email	= $userdata->user_email;
+	$user_url	= $userdata->user_url;
+	$user_pass_md5	= md5($userdata->user_pass);
+	$user_identity	= $userdata->display_name;
+
+	do_action('set_current_user');
+
+	return $current_user;
+}
+endif;
+
 
 if ( !function_exists('get_currentuserinfo') ) :
 function get_currentuserinfo() {
 	global $user_login, $userdata, $user_level, $user_ID, $user_email, $user_url, $user_pass_md5, $user_identity, $current_user;
+
+	if ( defined('XMLRPC_REQUEST') && XMLRPC_REQUEST )
+		return false;
 
 	if ( empty($_COOKIE[USER_COOKIE]) || empty($_COOKIE[PASS_COOKIE]) || 
 		!wp_login($_COOKIE[USER_COOKIE], $_COOKIE[PASS_COOKIE], true) ) {
@@ -59,6 +86,14 @@ function get_userdata( $user_id ) {
 		} // end foreach
 	} //end if
 
+	// For backwards compat.
+	if ( isset($user->first_name) )
+		$user->user_firstname = $user->first_name;
+	if ( isset($user->last_name) )
+		$user->user_lastname = $user->last_name;
+	if ( isset($user->description) )
+		$user->user_description = $user->description;
+		
 	wp_cache_add($user_id, $user, 'users');
 	wp_cache_add($user->user_login, $user, 'userlogins');
 	
@@ -103,6 +138,14 @@ function get_userdatabylogin($user_login) {
 				$user->user_level = $meta->meta_value;
 		}
 	}
+
+	// For backwards compat.
+	if ( isset($user->first_name) )
+		$user->user_firstname = $user->first_name;
+	if ( isset($user->last_name) )
+		$user->user_lastname = $user->last_name;
+	if ( isset($user->description) )
+		$user->user_description = $user->description;
 
 	wp_cache_add($user->ID, $user, 'users');
 	wp_cache_add($user->user_login, $user, 'userlogins');
@@ -299,9 +342,9 @@ function wp_notify_postauthor($comment_id, $comment_type='') {
 	if ( isset($reply_to) )
 		$message_headers .= $reply_to . "\n";
 
-	$notify_message = apply_filters('comment_notification_text', $notify_message);
-	$subject = apply_filters('comment_notification_subject', $subject);
-	$message_headers = apply_filters('comment_notification_headers', $message_headers);
+	$notify_message = apply_filters('comment_notification_text', $notify_message, $comment_id);
+	$subject = apply_filters('comment_notification_subject', $subject, $comment_id);
+	$message_headers = apply_filters('comment_notification_headers', $message_headers, $comment_id);
 
 	@wp_mail($user->user_email, $subject, $notify_message, $message_headers);
    
@@ -342,8 +385,8 @@ function wp_notify_moderator($comment_id) {
 	$subject = sprintf( __('[%1$s] Please moderate: "%2$s"'), get_settings('blogname'), $post->post_title );
 	$admin_email = get_settings('admin_email');
 
-	$notify_message = apply_filters('comment_moderation_text', $notify_message);
-	$subject = apply_filters('comment_moderation_subject', $subject);
+	$notify_message = apply_filters('comment_moderation_text', $notify_message, $comment_id);
+	$subject = apply_filters('comment_moderation_subject', $subject, $comment_id);
 
 	@wp_mail($admin_email, $subject, $notify_message);
     

@@ -53,8 +53,9 @@ define('CACHE_SERIAL_FOOTER', "\n?".">");
 class WP_Object_Cache {
 	var $cache_dir;
 	var $cache_enabled = false;
-	var $expiration_time = 86400;
+	var $expiration_time = 900;
 	var $flock_filename = 'wp_object_cache.lock';
+	var $mutex;
 	var $cache = array ();
 	var $dirty_objects = array ();
 	var $non_existant_objects = array ();
@@ -63,6 +64,15 @@ class WP_Object_Cache {
 	var $cold_cache_hits = 0;
 	var $warm_cache_hits = 0;
 	var $cache_misses = 0;
+
+	function acquire_lock() {
+		// Acquire a write lock. 
+		$this->mutex = @fopen($this->cache_dir.$this->flock_filename, 'w');
+		if ( false == $this->mutex)
+			return false;
+		flock($this->mutex, LOCK_EX);
+		return true;
+	}
 
 	function add($id, $data, $group = 'default', $expire = '') {
 		if (empty ($group))
@@ -89,12 +99,18 @@ class WP_Object_Cache {
 
 	function flush() {
 		if ( !$this->cache_enabled )
-			return;
+			return true;
+
+		if ( ! $this->acquire_lock() )
+			return false;
 		
-		$this->rm($this->cache_dir.'*');
+		$this->rm_cache_dir();
 		$this->cache = array ();
 		$this->dirty_objects = array ();
 		$this->non_existant_objects = array ();
+		
+		$this->release_lock();
+
 		return true;
 	}
 
@@ -205,32 +221,55 @@ class WP_Object_Cache {
 			}
 
 			if (!file_exists($this->cache_dir.$make_dir."index.php")) {
+				$file_perms = $perms & 0000666;
 				@ touch($this->cache_dir.$make_dir."index.php");
+				@ chmod($this->cache_dir.$make_dir."index.php", $file_perms);
 			}
 		}
 
 		return $this->cache_dir."$group_dir/";
 	}
 
-	function rm($fileglob) {
-		if (is_file($fileglob)) {
-			return @ unlink($fileglob);
-		} else
-			if (is_dir($fileglob)) {
-				$ok = WP_Object_Cache::rm("$fileglob/*");
-				if (!$ok)
-					return false;
-				return @ rmdir($fileglob);
-			} else {
-				$matching = glob($fileglob);
-				if ($matching === false)
-					return true;
-				$rcs = array_map(array ('WP_Object_Cache', 'rm'), $matching);
-				if (in_array(false, $rcs)) {
-					return false;
-				}
+	function rm_cache_dir() {
+		$dir = $this->cache_dir;
+		$dir = rtrim($dir, DIRECTORY_SEPARATOR);
+		$top_dir = $dir;
+		$stack = array($dir);
+		$index = 0;
+
+		while ($index < count($stack)) {
+			# Get indexed directory from stack
+			$dir = $stack[$index];
+      
+			$dh = @ opendir($dir);
+			if (!$dh)
+				return false;
+      
+			while (($file = @ readdir($dh)) !== false) {
+				if ($file == '.' or $file == '..')
+					continue;
+					
+				if (@ is_dir($dir . DIRECTORY_SEPARATOR . $file))
+					$stack[] = $dir . DIRECTORY_SEPARATOR . $file;
+				else if (@ is_file($dir . DIRECTORY_SEPARATOR . $file))
+					@ unlink($dir . DIRECTORY_SEPARATOR . $file);
 			}
-		return true;
+
+			$index++;
+		}
+
+		$stack = array_reverse($stack);  // Last added dirs are deepest
+		foreach($stack as $dir) {
+			if ( $dir != $top_dir)
+				@ rmdir($dir);
+		}
+
+	}
+
+	function release_lock() {
+		// Release write lock.
+		flock($this->mutex, LOCK_UN);
+		fclose($this->mutex);
 	}
 
 	function replace($id, $data, $group = 'default', $expire = '') {
@@ -261,33 +300,33 @@ class WP_Object_Cache {
 		//$this->stats();
 
 		if (!$this->cache_enabled)
-			return;
+			return true;
 
 		if (empty ($this->dirty_objects))
-			return;
+			return true;
 
 		// Give the new dirs the same perms as wp-content.
 		$stat = stat(ABSPATH.'wp-content');
-		$dir_perms = $stat['mode'] & 0000777; // Get the permission bits.
+		$dir_perms = $stat['mode'] & 0007777; // Get the permission bits.
+		$file_perms = $dir_perms & 0000666; // Remove execute bits for files.
 
 		// Make the base cache dir.
 		if (!file_exists($this->cache_dir)) {
 			if (! @ mkdir($this->cache_dir))
-				return;
+				return false;
 			@ chmod($this->cache_dir, $dir_perms);
 		}
 
 		if (!file_exists($this->cache_dir."index.php")) {
 			@ touch($this->cache_dir."index.php");
+			@ chmod($this->cache_dir."index.php", $file_perms);
 		}
 
-		// Acquire a write lock. 
-		$mutex = @fopen($this->cache_dir.$this->flock_filename, 'w');
-		if ( false == $mutex)
-			return;
-		flock($mutex, LOCK_EX);
+		if ( ! $this->acquire_lock() )
+			return false;
 
 		// Loop over dirty objects and save them.
+		$errors = 0;
 		foreach ($this->dirty_objects as $group => $ids) {
 			$group_dir = $this->make_group_dir($group, $dir_perms);
 
@@ -298,28 +337,37 @@ class WP_Object_Cache {
 				// Remove the cache file if the key is not set.
 				if (!isset ($this->cache[$group][$id])) {
 					if (file_exists($cache_file))
-						unlink($cache_file);
+						@ unlink($cache_file);
 					continue;
 				}
 
 				$temp_file = tempnam($group_dir, 'tmp');
 				$serial = CACHE_SERIAL_HEADER.serialize($this->cache[$group][$id]).CACHE_SERIAL_FOOTER;
 				$fd = @fopen($temp_file, 'w');
-				if ( false === $fd )
+				if ( false === $fd ) {
+					$errors++;
 					continue;
+				}
 				fputs($fd, $serial);
 				fclose($fd);
 				if (!@ rename($temp_file, $cache_file)) {
-					if (@ copy($temp_file, $cache_file)) {
+					if (@ copy($temp_file, $cache_file))
 						@ unlink($temp_file);
-					}
+					else
+						$errors++;	
 				}
+				@ chmod($cache_file, $file_perms);
 			}
 		}
 
-		// Release write lock.
-		flock($mutex, LOCK_UN);
-		fclose($mutex);
+		$this->dirty_objects = array();
+
+		$this->release_lock();
+		
+		if ( $errors )
+			return false;
+
+		return true;
 	}
 
 	function stats() {
@@ -352,17 +400,23 @@ class WP_Object_Cache {
 		if (defined('DISABLE_CACHE'))
 			return;
 
+		// Disable the persistent cache if safe_mode is on.
+		if ( ini_get('safe_mode') && ! defined('ENABLE_CACHE') )
+			return;
+
 		if (defined('CACHE_PATH'))
 			$this->cache_dir = CACHE_PATH;
 		else
-			$this->cache_dir = ABSPATH.'wp-content/cache/';
+			// Using the correct separator eliminates some cache flush errors on Windows
+			$this->cache_dir = ABSPATH.'wp-content'.DIRECTORY_SEPARATOR.'cache'.DIRECTORY_SEPARATOR;
 
 		if (is_writable($this->cache_dir) && is_dir($this->cache_dir)) {
 				$this->cache_enabled = true;
-		} else
+		} else {
 			if (is_writable(ABSPATH.'wp-content')) {
 				$this->cache_enabled = true;
 			}
+		}
 
 		if (defined('CACHE_EXPIRATION_TIME'))
 			$this->expiration_time = CACHE_EXPIRATION_TIME;

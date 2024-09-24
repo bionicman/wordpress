@@ -329,13 +329,13 @@ function add_user() {
 }
 
 function edit_user($user_id = 0) {
-	global $current_user, $wp_roles;
+	global $current_user, $wp_roles, $wpdb;
 
 	if ($user_id != 0) {
 		$update = true;
 		$user->ID = $user_id;
 		$userdata = get_userdata($user_id);
-		$user->user_login = $userdata->user_login;
+		$user->user_login = $wpdb->escape($userdata->user_login);
 	} else {
 		$update = false;
 		$user = '';
@@ -405,6 +405,9 @@ function edit_user($user_id = 0) {
 
 	if (!empty ($pass1))
 		$user->user_pass = $pass1;
+
+	if ( !validate_username($user->user_login) )
+		$errors['user_login'] = __('<strong>ERROR</strong>: This username is invalid.  Please enter a valid username.');
 
 	if (!$update && username_exists($user->user_login))
 		$errors['user_login'] = __('<strong>ERROR</strong>: This username is already registered, please choose another one.');
@@ -1249,7 +1252,9 @@ function get_admin_page_title() {
 		return $title;
 	}
 
-	$parent = get_admin_page_parent();
+	$hook = get_plugin_page_hook($plugin_page, $pagenow);
+
+	$parent = $parent1 = get_admin_page_parent();
 	if (empty ($parent)) {
 		foreach ($menu as $menu_array) {
 			if (isset ($menu_array[3])) {
@@ -1257,7 +1262,7 @@ function get_admin_page_title() {
 					$title = $menu_array[3];
 					return $menu_array[3];
 				} else
-					if (isset ($plugin_page) && ($plugin_page == $menu_array[2])) {
+					if (isset ($plugin_page) && ($plugin_page == $menu_array[2]) && ($hook == $menu_array[3])) {
 						$title = $menu_array[3];
 						return $menu_array[3];
 					}
@@ -1271,7 +1276,7 @@ function get_admin_page_title() {
 						$title = $submenu_array[3];
 						return $submenu_array[3];
 					} else
-						if (isset ($plugin_page) && ($plugin_page == $submenu_array[2])) {
+						if (isset ($plugin_page) && ($plugin_page == $submenu_array[2]) && (($parent == $pagenow) || ($parent == $plugin_page) || ($plugin_page == $hook) || (($pagenow == 'admin.php') && ($parent1 != $submenu_array[2])))) {
 							$title = $submenu_array[3];
 							return $submenu_array[3];
 						}
@@ -1614,6 +1619,7 @@ function get_importers() {
 function current_theme_info() {
 	$themes = get_themes();
 	$current_theme = get_current_theme();
+	$ct->name = $current_theme;
 	$ct->title = $themes[$current_theme]['Title'];
 	$ct->version = $themes[$current_theme]['Version'];
 	$ct->parent_theme = $themes[$current_theme]['Parent Theme'];
@@ -1668,7 +1674,7 @@ function wp_handle_upload(&$file, $overrides = false) {
 		'avi' => 'video/avi',
 		'mov|qt' => 'video/quicktime',
 		'mpeg|mpg|mpe' => 'video/mpeg',
-		'txt|c|cc|h|php' => 'text/plain',
+		'txt|c|cc|h' => 'text/plain',
 		'rtx' => 'text/richtext',
 		'css' => 'text/css',
 		'htm|html' => 'text/html',
@@ -1719,7 +1725,7 @@ function wp_handle_upload(&$file, $overrides = false) {
 		return $upload_error_handler($file, __('File is empty. Please upload something more substantial.'));
 
 	// A properly uploaded file will pass this test. There should be no reason to override this one.
-	if (! is_uploaded_file($file['tmp_name']) )
+	if (! @ is_uploaded_file($file['tmp_name']) )
 		return $upload_error_handler($file, __('Specified file failed upload test.'));
 
 	// A correct MIME type will pass this test.
@@ -1747,14 +1753,23 @@ function wp_handle_upload(&$file, $overrides = false) {
 		$filename = $unique_filename_callback($uploads['path'], $file['name']);
 	} else {
 		$number = '';
-		$filename = $file['name'];
-		while ( file_exists($uploads['path'] . "/$filename") )
-			$filename = str_replace("$number.$ext", ++$number . ".$ext", $filename);
+		$filename = str_replace('#', '_', $file['name']);
+		$filename = str_replace(array('\\', "'"), '', $filename);
+		if ( empty($ext) )
+			$ext = '';
+		else
+			$ext = ".$ext";
+		while ( file_exists($uploads['path'] . "/$filename") ) {
+			if ( '' == "$number$ext" )
+				$filename = $filename . ++$number . $ext;
+			else
+				$filename = str_replace("$number$ext", ++$number . $ext, $filename);
+		}
 	}
 
 	// Move the file to the uploads dir
 	$new_file = $uploads['path'] . "/$filename";
-	if ( false === move_uploaded_file($file['tmp_name'], $new_file) )
+	if ( false === @ move_uploaded_file($file['tmp_name'], $new_file) )
 		die(printf(__('The uploaded file could not be moved to %s.'), $file['path']));
 
 	// Set correct file permissions

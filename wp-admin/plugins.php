@@ -21,6 +21,7 @@ if ( isset($_GET['action']) ) {
 		do_action('deactivate_' . trim( $_GET['plugin'] ));
 		header('Location: plugins.php?deactivate=true');
 	}
+	exit;
 }
 
 $title = __('Manage Plugins');
@@ -86,6 +87,13 @@ if (empty($plugins)) {
 	</tr>
 <?php
 	$style = '';
+
+	function sort_plugins($plug1, $plug2) {
+		return strnatcasecmp($plug1['Name'], $plug2['Name']);
+	}
+	
+	uksort($plugins, 'sort_plugins');
+
 	foreach($plugins as $plugin_file => $plugin_data) {
 		$style = ('class="alternate"' == $style|| 'class="alternate active"' == $style) ? '' : 'alternate';
 

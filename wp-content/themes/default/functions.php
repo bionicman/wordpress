@@ -25,16 +25,18 @@ function kubrick_header_image() {
 }
 
 function kubrick_upper_color() {
-	if ( strstr( kubrick_header_image_url(), 'header-img.php?' ) )
-		return substr( kubrick_header_image(), 21, 6 );
-	else
+	if ( strstr( $url = kubrick_header_image_url(), 'header-img.php?' ) ) {
+		parse_str(substr($url, strpos($url, '?') + 1), $q);
+		return $q['upper'];
+	} else
 		return '69aee7';
 }
 
 function kubrick_lower_color() {
-	if ( strstr( kubrick_header_image_url(), 'header-img.php?' ) )
-		return substr( kubrick_header_image(), 34, 6 );
-	else
+	if ( strstr( $url = kubrick_header_image_url(), 'header-img.php?' ) ) {
+		parse_str(substr($url, strpos($url, '?') + 1), $q);
+		return $q['lower'];
+	} else
 		return '4180b6';
 }
 
@@ -126,7 +128,7 @@ function kubrick_add_theme_page() {
 		}
 		add_action('admin_head', 'kubrick_theme_page_head');
 	}
-	add_theme_page("Kubrick Theme Options", "Current Theme Options", 'edit_themes', basename(__FILE__), 'kubrick_theme_page');
+	add_theme_page('Customize Header', 'Header Image and Color', 'edit_themes', basename(__FILE__), 'kubrick_theme_page');
 }
 
 function kubrick_theme_page_head() {

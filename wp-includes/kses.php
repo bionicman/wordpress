@@ -77,10 +77,7 @@ function wp_kses_split($string, $allowed_html, $allowed_protocols)
 # matches stray ">" characters.
 ###############################################################################
 {
-	return preg_replace('%(<'.# EITHER: <
-	'[^>]*'.# things that aren't >
-	'(>|$)'.# > or end of string
-	'|>)%e', # OR: just a >
+	return preg_replace('%((<!--.*?(-->|$))|(<[^>]*(>|$)|>))%e',
 	"wp_kses_split2('\\1', \$allowed_html, ".'$allowed_protocols)', $string);
 } # function wp_kses_split
 
@@ -97,6 +94,16 @@ function wp_kses_split2($string, $allowed_html, $allowed_protocols)
 	if (substr($string, 0, 1) != '<')
 		return '&gt;';
 	# It matched a ">" character
+
+	if (preg_match('%^<!--(.*?)(-->)?$%', $string, $matches)) {
+		$string = str_replace(array('<!--', '-->'), '', $matches[1]);
+		while ( $string != $newstring = wp_kses($string, $allowed_html, $allowed_protocols) )
+			$string = $newstring;
+		if ( $string == '' )
+			return '';
+		return "<!--{$string}-->";
+	}
+	# Allow HTML comments
 
 	if (!preg_match('%^<\s*(/\s*)?([a-zA-Z0-9]+)([^>]*)>?$%', $string, $matches))
 		return '';
@@ -523,9 +530,17 @@ function kses_init_filters() {
 function kses_init() {
 	global $current_user;
 
-	get_currentuserinfo(); // set $current_user
+	remove_filter('pre_comment_author', 'wp_filter_kses');
+	remove_filter('pre_comment_content', 'wp_filter_kses');
+	remove_filter('content_save_pre', 'wp_filter_post_kses');
+	remove_filter('title_save_pre', 'wp_filter_kses');
+
+	if (! defined('XMLRPC_REQUEST') )
+		get_currentuserinfo();
+
 	if (current_user_can('unfiltered_html') == false)
 		kses_init_filters();
 }
 add_action('init', 'kses_init');
+add_action('set_current_user', 'kses_init');
 ?>

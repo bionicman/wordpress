@@ -74,15 +74,13 @@ case 'edit':
 	
 	if ($post->post_status == 'static')
 		include('edit-page-form.php');
-	elseif ($post->post_status == 'attachment')
-		include('edit-attachment-form.php');
 	else
 		include('edit-form-advanced.php');
 
 	?>
 	<div id='preview' class='wrap'>
 	<h2 id="preview-post"><?php _e('Post Preview (updated when post is saved)'); ?> <small class="quickjump"><a href="#write-post"><?php _e('edit &uarr;'); ?></a></small></h2>
-		<iframe src="<?php the_permalink(); ?>" width="100%" height="600" ></iframe>
+		<iframe src="<?php echo add_query_arg('preview', 'true', get_permalink($post->ID)); ?>" width="100%" height="600" ></iframe>
 	</div>
 	<?php
 	break;
@@ -202,7 +200,7 @@ case 'confirmdeletecomment':
 	echo "<input type='hidden' name='noredir' value='1' />\n";
 	echo "<input type='submit' value='" . __('Yes') . "' />";
 	echo "&nbsp;&nbsp;";
-	echo "<input type='button' value='" . __('No') . "' onclick='self.location='". get_settings('siteurl') ."/wp-admin/edit.php?p=$p&amp;c=1#comments';' />\n";
+	echo "<input type='button' value='" . __('No') . "' onclick=\"self.location='". get_settings('siteurl') ."/wp-admin/edit.php?p=$p&amp;c=1#comments';\" />\n";
 	echo "</form>\n";
 	echo "</div>\n";
 

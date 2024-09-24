@@ -297,6 +297,19 @@ form#upload #post_content {
 	text-align: right;
 }
 
+.optiontable {
+	width: 100%;
+}
+
+.optiontable td, .optiontable th {
+	padding: .5em;
+}
+
+.optiontable th {
+	width: 33%;
+	text-align: right;
+}
+
 .unapproved {
 	color: #888;
 }
@@ -732,6 +745,10 @@ table .vers, table .name {
 	display:block;
 }
 
+#grabit {
+	width: 188px;
+}
+
 * html #themeselect {
 	padding: 0px 3px;
 	height: 22px;
@@ -762,6 +779,9 @@ table .vers, table .name {
 	position: absolute;
 	right: 5%;
 	width: 14.5em;
+}
+#moremeta select {
+	width: 96%;
 }
 
 #slugdiv input, #passworddiv input, #authordiv select, #thumbdiv input, #parentdiv input {
@@ -901,4 +921,29 @@ a.dbx-toggle, a.dbx-toggle:visited {
 	-moz-opacity: 0.8;
 	-khtml-opacity: 0.8;
 	filter: alpha(opacity=80);
+}
+
+#newcat { width: 120px; margin-right: 5px; }
+input#catadd { 	background: #a4a4a4;
+	border-bottom: 1px solid #898989;
+	border-left: 1px solid #bcbcbc;
+	border-right: 1px solid #898989;
+	border-top: 1px solid #bcbcbc;
+	color: #fff;
+	font-size: 10px;
+	padding: 0;
+	margin: 0;
+	font-weight: bold;
+	height: 20px;
+	margin-bottom: 2px;
+	text-align: center;
+	width: 37px; }
+#howto {
+	font-size: 11px;
+	margin: 0 5px;
+	display: block;
+}
+#jaxcat {
+	margin: 0;
+	padding: 0;
 }
