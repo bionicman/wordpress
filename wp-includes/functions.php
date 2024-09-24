@@ -915,10 +915,17 @@ function status_header( $header ) {
 	elseif ( 410 == $header )
 		$text = 'Gone';
 
-	if ( version_compare(phpversion(), '4.3.0', '>=') )
-		@header("HTTP/1.1 $header $text", true, $header);
-	else
-		@header("HTTP/1.1 $header $text");
+	$protocol = $_SERVER["SERVER_PROTOCOL"];
+	if ( ('HTTP/1.1' != $protocol) && ('HTTP/1.0' != $protocol) )
+		$protocol = 'HTTP/1.0';
+	$status_header = "$protocol $header $text";
+	$status_header = apply_filters('status_header', $status_header, $header, $text, $protocol);
+
+	if ( version_compare( phpversion(), '4.3.0', '>=' ) ) {
+		return @header( $status_header, true, $header );
+	} else {
+		return @header( $status_header );
+	}
 }
 
 function nocache_headers() {
@@ -1502,6 +1509,13 @@ function wp_widgets_add_menu() {
 	global $submenu;
 	$submenu['themes.php'][7] = array( __( 'Widgets' ), 'edit_themes', 'widgets.php' );
 	ksort($submenu['themes.php'], SORT_NUMERIC);
+}
+
+// For PHP 5.2, make sure all output buffers are flushed
+// before our singletons our destroyed.
+function wp_ob_end_flush_all()
+{
+	while ( @ob_end_flush() );
 }
 
 ?>

@@ -65,7 +65,7 @@ class WP_Import {
 			$this->mtnames[$this->j] = $author; //add that new mt author name to an array
 			$user_id = username_exists($this->newauthornames[$this->j]); //check if the new author name defined by the user is a pre-existing wp user
 			if (!$user_id) { //banging my head against the desk now.
-				if ($newauthornames[$this->j] == 'left_blank') { //check if the user does not want to change the authorname
+				if ($this->newauthornames[$this->j] == 'left_blank') { //check if the user does not want to change the authorname
 					$user_id = wp_create_user($author, $pass);
 					$this->newauthornames[$this->j] = $author; //now we have a name, in the place of left_blank.
 				} else {
@@ -84,19 +84,40 @@ class WP_Import {
 
 	function get_entries() {
 		set_magic_quotes_runtime(0);
-		$importdata = file($this->file); // Read the file into an array
-		$importdata = implode('', $importdata); // squish it
-		$importdata = preg_replace("/(\r\n|\n|\r)/", "\n", $importdata);
-		preg_match_all('|<item>(.*?)</item>|is', $importdata, $this->posts);
-		$this->posts = $this->posts[1];
+		$importdata = array_map('rtrim', file($this->file)); // Read the file into an array
+
+		$this->posts = array();
+		$this->categories = array();
+		$num = 0;
+		$doing_entry = false;
+		foreach ($importdata as $importline) {
+			if ( false !== strpos($importline, '<wp:category>') ) {
+				preg_match('|<wp:category>(.*?)</wp:category>|is', $importline, $category);
+				$this->categories[] = $category[1];
+				continue;
+			}
+			if ( false !== strpos($importline, '<item>') ) {
+				$this->posts[$num] = '';
+				$doing_entry = true;
+				continue;	
+			}
+			if ( false !== strpos($importline, '</item>') ) {
+				$num++;
+				$doing_entry = false;
+				continue;	
+			}
+			if ( $doing_entry ) {
+				$this->posts[$num] .= $importline . "\n";
+			}
+		}
+
 		foreach ($this->posts as $post) {
 			$post_ID = (int) $this->get_tag( $post, 'wp:post_id' );
-			if ($post_ID)
+			if ($post_ID) {
 				$this->posts_processed[$post_ID][0] = &$post;
 				$this->posts_processed[$post_ID][1] = 0;
+			}
 		}
-		preg_match_all('|<wp:category>(.*?)</wp:category>|is', $importdata, $this->categories);
-		$this->categories = $this->categories[1];
 	}
 
 	function get_wp_authors() {
