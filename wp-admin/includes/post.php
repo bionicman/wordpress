@@ -44,16 +44,15 @@ function _wp_translate_postdata( $update = false, $post_data = null ) {
 		}
 	}
 
+	$ptype = get_post_type_object( $post_data['post_type'] );
 	if ( isset($post_data['user_ID']) && ($post_data['post_author'] != $post_data['user_ID']) ) {
-		if ( 'page' == $post_data['post_type'] ) {
-			if ( !current_user_can( 'edit_others_pages' ) ) {
+		if ( !current_user_can( $ptype->edit_others_cap ) ) {
+			if ( 'page' == $post_data['post_type'] ) {
 				return new WP_Error( 'edit_others_pages', $update ?
 					__( 'You are not allowed to edit pages as this user.' ) :
 					__( 'You are not allowed to create pages as this user.' )
 				);
-			}
-		} else {
-			if ( !current_user_can( 'edit_others_posts' ) ) {
+			} else {
 				return new WP_Error( 'edit_others_posts', $update ?
 					__( 'You are not allowed to edit posts as this user.' ) :
 					__( 'You are not allowed to post as this user.' )
@@ -82,15 +81,8 @@ function _wp_translate_postdata( $update = false, $post_data = null ) {
 
 	// Posts 'submitted for approval' present are submitted to $_POST the same as if they were being published.
 	// Change status from 'publish' to 'pending' if user lacks permissions to publish or to resave published posts.
-	if ( isset( $post_data['post_type'] ) && 'page' == $post_data['post_type'] ) {
-		$publish_cap = 'publish_pages';
-		$edit_cap = 'edit_published_pages';
-	} else {
-		$publish_cap = 'publish_posts';
-		$edit_cap = 'edit_published_posts';
-	}
-	if ( isset($post_data['post_status']) && ('publish' == $post_data['post_status'] && !current_user_can( $publish_cap )) )
-		if ( $previous_status != 'publish' || !current_user_can( $edit_cap ) )
+	if ( isset($post_data['post_status']) && ('publish' == $post_data['post_status'] && !current_user_can( $ptype->publish_cap )) )
+		if ( $previous_status != 'publish' || !current_user_can( 'edit_post', $post_id ) )
 			$post_data['post_status'] = 'pending';
 
 	if ( ! isset($post_data['post_status']) )
@@ -196,6 +188,8 @@ function edit_post( $post_data = null ) {
 
 	add_meta( $post_ID );
 
+	update_post_meta( $post_ID, '_edit_last', $GLOBALS['current_user']->ID );
+
 	wp_update_post( $post_data );
 
 	// Reunite any orphaned attachments with their parent
@@ -276,8 +270,7 @@ function bulk_edit_posts( $post_data = null ) {
 		foreach ( $post_data['tax_input'] as $tax_name => $terms ) {
 			if ( empty($terms) )
 				continue;
-			$taxonomy = get_taxonomy( $tax_name );
-			if ( $taxonomy->hierarchical )
+			if ( is_taxonomy_hierarchical( $tax_name ) )
 				$tax_input[$tax_name] = array_map( 'absint', $terms );
 			else {
 				$tax_input[$tax_name] = preg_replace( '/\s*,\s*/', ',', rtrim( trim($terms), ' ,' ) );
@@ -324,8 +317,7 @@ function bulk_edit_posts( $post_data = null ) {
 
 		foreach ( $tax_names as $tax_name ) {
 			if( isset( $tax_input[$tax_name])  ) {
-				$taxonomy = get_taxonomy( $tax_name );
-				if( $taxonomy->hierarchical )
+				if ( is_taxonomy_hierarchical( $tax_name ) )
 					$terms = (array) wp_get_object_terms( $post_ID, $tax_name, array('fields' => 'ids') );
 				else
 					$terms = (array) wp_get_object_terms( $post_ID, $tax_name, array('fields' => 'names') );
@@ -387,7 +379,11 @@ function get_default_post_to_edit( $post_type = 'post', $create_in_db = false ) 
 		$post->post_status = 'draft';
 		$post->to_ping = '';
 		$post->pinged = '';
-		$post->comment_status = get_option( 'default_comment_status' );
+		if ( 'page' == $post_type ) {
+			$post->comment_status = get_option( 'default_comment_status_page' );
+		} else {
+			$post->comment_status = get_option( 'default_comment_status' );
+		}
 		$post->ping_status = get_option( 'default_ping_status' );
 		$post->post_pingback = get_option( 'default_pingback_flag' );
 		$post->post_category = get_option( 'default_category' );
@@ -494,9 +490,9 @@ function wp_write_post() {
 
 	if ( !current_user_can( $ptype->edit_type_cap ) ) {
 		if ( 'page' == $ptype->name )
-			return new WP_Error( 'edit_pages', __( 'You are not allowed to create pages on this blog.' ) );
+			return new WP_Error( 'edit_pages', __( 'You are not allowed to create pages on this site.' ) );
 		else
-			return new WP_Error( 'edit_posts', __( 'You are not allowed to create posts or drafts on this blog.' ) );
+			return new WP_Error( 'edit_posts', __( 'You are not allowed to create posts or drafts on this site.' ) );
 	}
 
 	// Check for autosave collisions
@@ -547,6 +543,8 @@ function wp_write_post() {
 		return 0;
 
 	add_meta( $post_ID );
+
+	add_post_meta( $post_ID, '_edit_last', $GLOBALS['current_user']->ID );
 
 	// Reunite any orphaned attachments with their parent
 	// Does this need to be udpated? ~ Mark
@@ -869,7 +867,6 @@ function wp_edit_posts_query( $q = false ) {
 		$post_type = $q['post_type'];
 	else
 		$post_type = 'post';
-	$post_type_object = get_post_type_object($post_type);
 
 	$avail_post_stati = get_available_post_statuses($post_type);
 
@@ -899,7 +896,7 @@ function wp_edit_posts_query( $q = false ) {
 	$query = compact('post_type', 'post_status', 'perm', 'order', 'orderby', 'posts_per_page');
 
 	// Hierarchical types require special args.
-	if ( $post_type_object->hierarchical ) {
+	if ( is_post_type_hierarchical( $post_type ) ) {
 		$query['orderby'] = 'menu_order title';
 		$query['order'] = 'asc';
 		$query['posts_per_page'] = -1;
@@ -1027,23 +1024,23 @@ function get_sample_permalink($id, $title = null, $name = null) {
 		$post->post_name = sanitize_title($post->post_name ? $post->post_name : $post->post_title, $post->ID);
 	}
 
-	$post->post_name = wp_unique_post_slug($post->post_name, $post->ID, $post->post_status, $post->post_type, $post->post_parent);
-
 	// If the user wants to set a new name -- override the current one
 	// Note: if empty name is supplied -- use the title instead, see #6072
 	if ( !is_null($name) )
 		$post->post_name = sanitize_title($name ? $name : $title, $post->ID);
 
+	$post->post_name = wp_unique_post_slug($post->post_name, $post->ID, $post->post_status, $post->post_type, $post->post_parent);
+
 	$post->filter = 'sample';
 
 	$permalink = get_permalink($post, true);
 
-	if ( $ptype->query_var ) // Replace custom post_type Token with generic pagename token for ease of use.
-		$permalink = str_replace('%' . $ptype->query_var . '%', '%pagename%', $permalink);
+	// Replace custom post_type Token with generic pagename token for ease of use.
+	$permalink = str_replace("%$post->post_type%", '%pagename%', $permalink);
 
 	// Handle page hierarchy
 	if ( $ptype->hierarchical ) {
-		$uri = get_page_uri($post->ID);
+		$uri = get_page_uri($post);
 		$uri = untrailingslashit($uri);
 		$uri = strrev( stristr( strrev( $uri ), '/' ) );
 		$uri = untrailingslashit($uri);
@@ -1074,7 +1071,9 @@ function get_sample_permalink($id, $title = null, $name = null) {
  * @return string intended to be used for the inplace editor of the permalink post slug on in the post (and page?) editor.
  */
 function get_sample_permalink_html( $id, $new_title = null, $new_slug = null ) {
+	global $wpdb;
 	$post = &get_post($id);
+
 	list($permalink, $post_name) = get_sample_permalink($post->ID, $new_title, $new_slug);
 
 	if ( 'publish' == $post->post_status ) {
@@ -1143,7 +1142,9 @@ function get_sample_permalink_html( $id, $new_title = null, $new_slug = null ) {
  */
 function _wp_post_thumbnail_html( $thumbnail_id = NULL ) {
 	global $content_width, $_wp_additional_image_sizes;
-	$content = '<p class="hide-if-no-js"><a href="#" id="set-post-thumbnail" onclick="jQuery(\'#add_image\').click();return false;">' . esc_html__( 'Set featured image' ) . '</a></p>';
+
+	$set_thumbnail_link = '<p class="hide-if-no-js"><a title="' . esc_attr__( 'Set featured image' ) . '" href="' . get_upload_iframe_src('image') . '" id="set-post-thumbnail" class="thickbox">%s</a></p>';
+	$content = sprintf($set_thumbnail_link, esc_html__( 'Set featured image' ));
 
 	if ( $thumbnail_id && get_post( $thumbnail_id ) ) {
 		$old_content_width = $content_width;
@@ -1153,7 +1154,7 @@ function _wp_post_thumbnail_html( $thumbnail_id = NULL ) {
 		else
 			$thumbnail_html = wp_get_attachment_image( $thumbnail_id, 'post-thumbnail' );
 		if ( !empty( $thumbnail_html ) ) {
-			$content = '<a href="#" id="set-post-thumbnail" onclick="jQuery(\'#add_image\').click();return false;">' . $thumbnail_html . '</a>';
+			$content = sprintf($set_thumbnail_link, $thumbnail_html);
 			$content .= '<p class="hide-if-no-js"><a href="#" id="remove-post-thumbnail" onclick="WPRemoveThumbnail();return false;">' . esc_html__( 'Remove featured image' ) . '</a></p>';
 		}
 		$content_width = $old_content_width;
@@ -1203,10 +1204,7 @@ function wp_set_post_lock( $post_id ) {
 
 	$now = time();
 
-	if ( !add_post_meta( $post->ID, '_edit_lock', $now, true ) )
-		update_post_meta( $post->ID, '_edit_lock', $now );
-	if ( !add_post_meta( $post->ID, '_edit_last', $current_user->ID, true ) )
-		update_post_meta( $post->ID, '_edit_last', $current_user->ID );
+	update_post_meta( $post->ID, '_edit_lock', $now );
 }
 
 /**

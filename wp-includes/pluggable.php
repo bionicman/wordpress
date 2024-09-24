@@ -6,24 +6,6 @@
  * @package WordPress
  */
 
-if ( !function_exists('set_current_user') ) :
-/**
- * Changes the current user by ID or name.
- *
- * Set $id to null and specify a name if you do not know a user's ID.
- *
- * @since 2.0.1
- * @see wp_set_current_user() An alias of wp_set_current_user()
- *
- * @param int|null $id User ID.
- * @param string $name Optional. The user's username
- * @return object returns wp_set_current_user()
- */
-function set_current_user($id, $name = '') {
-	return wp_set_current_user($id, $name);
-}
-endif;
-
 if ( !function_exists('wp_set_current_user') ) :
 /**
  * Changes the current user by ID or name.
@@ -1033,7 +1015,7 @@ function wp_notify_postauthor($comment_id, $comment_type='') {
 	if ( empty( $comment_type ) ) $comment_type = 'comment';
 
 	if ('comment' == $comment_type) {
-		$notify_message  = sprintf( __('New comment on your post "%s"'),$post->post_title ) . "\r\n";
+		$notify_message  = sprintf( __( 'New comment on your post &#8220;%s&#8221;' ), $post->post_title ) . "\r\n";
 		/* translators: 1: comment author, 2: author IP, 3: author domain */
 		$notify_message .= sprintf( __('Author : %1$s (IP: %2$s , %3$s)'), $comment->comment_author, $comment->comment_author_IP, $comment_author_domain ) . "\r\n";
 		$notify_message .= sprintf( __('E-mail : %s'), $comment->comment_author_email ) . "\r\n";
@@ -1044,7 +1026,7 @@ function wp_notify_postauthor($comment_id, $comment_type='') {
 		/* translators: 1: blog name, 2: post title */
 		$subject = sprintf( __('[%1$s] Comment: "%2$s"'), $blogname, $post->post_title );
 	} elseif ('trackback' == $comment_type) {
-		$notify_message  = sprintf( __('New trackback on your post "%s"'), $post->post_title ) . "\r\n";
+		$notify_message  = sprintf( __( 'New trackback on your post &#8221;%s&#8221;' ), $post->post_title ) . "\r\n";
 		/* translators: 1: website name, 2: author IP, 3: author domain */
 		$notify_message .= sprintf( __('Website: %1$s (IP: %2$s , %3$s)'), $comment->comment_author, $comment->comment_author_IP, $comment_author_domain ) . "\r\n";
 		$notify_message .= sprintf( __('URL    : %s'), $comment->comment_author_url ) . "\r\n";
@@ -1053,7 +1035,7 @@ function wp_notify_postauthor($comment_id, $comment_type='') {
 		/* translators: 1: blog name, 2: post title */
 		$subject = sprintf( __('[%1$s] Trackback: "%2$s"'), $blogname, $post->post_title );
 	} elseif ('pingback' == $comment_type) {
-		$notify_message  = sprintf( __('New pingback on your post "%s"'), $post->post_title ) . "\r\n";
+		$notify_message  = sprintf( __( 'New pingback on your post &#8221;%s&#8221;' ), $post->post_title ) . "\r\n";
 		/* translators: 1: comment author, 2: author IP, 3: author domain */
 		$notify_message .= sprintf( __('Website: %1$s (IP: %2$s , %3$s)'), $comment->comment_author, $comment->comment_author_IP, $comment_author_domain ) . "\r\n";
 		$notify_message .= sprintf( __('URL    : %s'), $comment->comment_author_url ) . "\r\n";
@@ -1126,21 +1108,21 @@ function wp_notify_moderator($comment_id) {
 	switch ($comment->comment_type)
 	{
 		case 'trackback':
-			$notify_message  = sprintf( __('A new trackback on the post "%s" is waiting for your approval'), $post->post_title ) . "\r\n";
+			$notify_message  = sprintf( __('A new trackback on the post &#8221;%s&#8221; is waiting for your approval'), $post->post_title ) . "\r\n";
 			$notify_message .= get_permalink($comment->comment_post_ID) . "\r\n\r\n";
 			$notify_message .= sprintf( __('Website : %1$s (IP: %2$s , %3$s)'), $comment->comment_author, $comment->comment_author_IP, $comment_author_domain ) . "\r\n";
 			$notify_message .= sprintf( __('URL    : %s'), $comment->comment_author_url ) . "\r\n";
 			$notify_message .= __('Trackback excerpt: ') . "\r\n" . $comment->comment_content . "\r\n\r\n";
 			break;
 		case 'pingback':
-			$notify_message  = sprintf( __('A new pingback on the post "%s" is waiting for your approval'), $post->post_title ) . "\r\n";
+			$notify_message  = sprintf( __('A new pingback on the post &#8221;%s&#8221; is waiting for your approval'), $post->post_title ) . "\r\n";
 			$notify_message .= get_permalink($comment->comment_post_ID) . "\r\n\r\n";
 			$notify_message .= sprintf( __('Website : %1$s (IP: %2$s , %3$s)'), $comment->comment_author, $comment->comment_author_IP, $comment_author_domain ) . "\r\n";
 			$notify_message .= sprintf( __('URL    : %s'), $comment->comment_author_url ) . "\r\n";
 			$notify_message .= __('Pingback excerpt: ') . "\r\n" . $comment->comment_content . "\r\n\r\n";
 			break;
 		default: //Comments
-			$notify_message  = sprintf( __('A new comment on the post "%s" is waiting for your approval'), $post->post_title ) . "\r\n";
+			$notify_message  = sprintf( __('A new comment on the post &#8221;%s&#8221; is waiting for your approval'), $post->post_title ) . "\r\n";
 			$notify_message .= get_permalink($comment->comment_post_ID) . "\r\n\r\n";
 			$notify_message .= sprintf( __('Author : %1$s (IP: %2$s , %3$s)'), $comment->comment_author, $comment->comment_author_IP, $comment_author_domain ) . "\r\n";
 			$notify_message .= sprintf( __('E-mail : %s'), $comment->comment_author_email ) . "\r\n";
@@ -1215,7 +1197,7 @@ function wp_new_user_notification($user_id, $plaintext_pass = '') {
 	// we want to reverse this for the plain text arena of emails.
 	$blogname = wp_specialchars_decode(get_option('blogname'), ENT_QUOTES);
 
-	$message  = sprintf(__('New user registration on your blog %s:'), $blogname) . "\r\n\r\n";
+	$message  = sprintf(__('New user registration on your site %s:'), $blogname) . "\r\n\r\n";
 	$message .= sprintf(__('Username: %s'), $user_login) . "\r\n\r\n";
 	$message .= sprintf(__('E-mail: %s'), $user_email) . "\r\n";
 
@@ -1353,10 +1335,10 @@ function wp_salt($scheme = 'auth') {
 		} elseif ( defined('SECRET_SALT') && ('' != SECRET_SALT) && ( $wp_default_secret_key != SECRET_SALT) ) {
 			$salt = SECRET_SALT;
 		} else {
-			$salt = get_option('auth_salt');
+			$salt = get_site_option('auth_salt');
 			if ( empty($salt) ) {
 				$salt = wp_generate_password( 64, true, true );
-				update_option('auth_salt', $salt);
+				update_site_option('auth_salt', $salt);
 			}
 		}
 	} elseif ( 'secure_auth' == $scheme ) {
@@ -1366,10 +1348,10 @@ function wp_salt($scheme = 'auth') {
 		if ( defined('SECURE_AUTH_SALT') && ('' != SECURE_AUTH_SALT) && ( $wp_default_secret_key != SECURE_AUTH_SALT) ) {
 			$salt = SECURE_AUTH_SALT;
 		} else {
-			$salt = get_option('secure_auth_salt');
+			$salt = get_site_option('secure_auth_salt');
 			if ( empty($salt) ) {
 				$salt = wp_generate_password( 64, true, true );
-				update_option('secure_auth_salt', $salt);
+				update_site_option('secure_auth_salt', $salt);
 			}
 		}
 	} elseif ( 'logged_in' == $scheme ) {
@@ -1379,10 +1361,10 @@ function wp_salt($scheme = 'auth') {
 		if ( defined('LOGGED_IN_SALT') && ('' != LOGGED_IN_SALT) && ( $wp_default_secret_key != LOGGED_IN_SALT) ) {
 			$salt = LOGGED_IN_SALT;
 		} else {
-			$salt = get_option('logged_in_salt');
+			$salt = get_site_option('logged_in_salt');
 			if ( empty($salt) ) {
 				$salt = wp_generate_password( 64, true, true );
-				update_option('logged_in_salt', $salt);
+				update_site_option('logged_in_salt', $salt);
 			}
 		}
 	} elseif ( 'nonce' == $scheme ) {
@@ -1392,10 +1374,10 @@ function wp_salt($scheme = 'auth') {
 		if ( defined('NONCE_SALT') && ('' != NONCE_SALT) && ( $wp_default_secret_key != NONCE_SALT) ) {
 			$salt = NONCE_SALT;
 		} else {
-			$salt = get_option('nonce_salt');
+			$salt = get_site_option('nonce_salt');
 			if ( empty($salt) ) {
 				$salt = wp_generate_password( 64, true, true );
-				update_option('nonce_salt', $salt);
+				update_site_option('nonce_salt', $salt);
 			}
 		}
 	} else {

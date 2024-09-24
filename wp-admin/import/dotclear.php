@@ -100,7 +100,7 @@ class Dotclear_Import {
 
 	function greet()
 	{
-		echo '<div class="narrow"><p>'.__('Howdy! This importer allows you to extract posts from a DotClear database into your blog.  Mileage may vary.').'</p>';
+		echo '<div class="narrow"><p>'.__('Howdy! This importer allows you to extract posts from a DotClear database into your WordPress site.  Mileage may vary.').'</p>';
 		echo '<p>'.__('Your DotClear Configuration settings are as follows:').'</p>';
 		echo '<form action="admin.php?import=dotclear&amp;step=1" method="post">';
 		wp_nonce_field('import-dotclear');
@@ -569,9 +569,9 @@ class Dotclear_Import {
 		echo '<h3>'.__('WordPress Resources').'</h3>';
 		echo '<p>'.__('Finally, there are numerous WordPress resources around the internet.  Some of them are:').'</p>';
 		echo '<ul>';
-		echo '<li>'.__('<a href="http://www.wordpress.org">The official WordPress site</a>').'</li>';
+		echo '<li>'.__('<a href="http://wordpress.org/">The official WordPress site</a>').'</li>';
 		echo '<li>'.__('<a href="http://wordpress.org/support/">The WordPress support forums</a>').'</li>';
-		echo '<li>'.__('<a href="http://codex.wordpress.org">The Codex (In other words, the WordPress Bible)</a>').'</li>';
+		echo '<li>'.__('<a href="http://codex.wordpress.org/">The Codex (In other words, the WordPress Bible)</a>').'</li>';
 		echo '</ul>';
 		echo '<p>'.sprintf(__('That&#8217;s it! What are you waiting for? Go <a href="%1$s">log in</a>!'), '../wp-login.php').'</p>';
 	}

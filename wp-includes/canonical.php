@@ -81,7 +81,15 @@ function redirect_canonical($requested_url=null, $do_redirect=true) {
 
 	// These tests give us a WP-generated permalink
 	if ( is_404() ) {
-		$redirect_url = redirect_guess_404_permalink();
+
+		// Redirect ?page_id, ?p=, ?attachment_id= to their respective url's
+		$id = max( get_query_var('p'), get_query_var('page_id'), get_query_var('attachment_id'));
+		if ( $id && $redirect_url = get_permalink($id) )
+			$redirect['query'] = remove_query_arg(array('p', 'page_id', 'attachment_id'), $redirect['query']);
+
+		if ( ! $redirect_url )
+			$redirect_url = redirect_guess_404_permalink();
+
 	} elseif ( is_object($wp_rewrite) && $wp_rewrite->using_permalinks() ) {
 		// rewriting of old ?p=X, ?m=2004, ?m=200401, ?m=20040101
 		if ( is_attachment() && !empty($_GET['attachment_id']) && ! $redirect_url ) {
@@ -100,7 +108,7 @@ function redirect_canonical($requested_url=null, $do_redirect=true) {
 		} elseif ( is_page() && !empty($_GET['page_id']) && ! $redirect_url ) {
 			if ( $redirect_url = get_permalink(get_query_var('page_id')) )
 				$redirect['query'] = remove_query_arg('page_id', $redirect['query']);
-		} elseif ( is_page() && isset($wp_query->queried_object) && 'page' == get_option('show_on_front') && $wp_query->queried_object->ID == get_option('page_on_front')  && ! $redirect_url ) {
+		} elseif ( is_page() && !is_feed() && isset($wp_query->queried_object) && 'page' == get_option('show_on_front') && $wp_query->queried_object->ID == get_option('page_on_front')  && ! $redirect_url ) {
 			$redirect_url = home_url('/');
 		} elseif ( is_home() && !empty($_GET['page_id']) && 'page' == get_option('show_on_front') && get_query_var('page_id') == get_option('page_for_posts')  && ! $redirect_url ) {
 			if ( $redirect_url = get_permalink(get_option('page_for_posts')) )
@@ -190,7 +198,7 @@ function redirect_canonical($requested_url=null, $do_redirect=true) {
 				$addl_path = !empty( $addl_path ) ? trailingslashit($addl_path) : '';
 				if ( get_query_var( 'withcomments' ) )
 					$addl_path .= 'comments/';
-				$addl_path .= user_trailingslashit( 'feed/' . ( ( 'rss2' ==  get_query_var('feed') || 'feed' == get_query_var('feed') ) ? '' : get_query_var('feed') ), 'feed' );
+				$addl_path .= user_trailingslashit( 'feed/' . ( ( get_default_feed() ==  get_query_var('feed') || 'feed' == get_query_var('feed') ) ? '' : get_query_var('feed') ), 'feed' );
 				$redirect['query'] = remove_query_arg( 'feed', $redirect['query'] );
 			}
 

@@ -17,7 +17,7 @@ if ( ! is_super_admin() )
 	wp_die( __( 'You do not have sufficient permissions to manage options for this site.' ) );
 
 if ( is_multisite() && ! defined( 'MULTISITE' ) )
-	wp_die( __('The Network creation panel is not for WordPress MU networks.') );
+	wp_die( __( 'The Network creation panel is not for WordPress MU networks.' ) );
 
 // We need to create references to ms global tables to enable Network.
 foreach ( $wpdb->tables( 'ms_global' ) as $table => $prefixed_table )
@@ -40,11 +40,11 @@ function network_domain_check() {
  * Allow subdomain install
  *
  * @since 3.0.0
- * @return bool - whether subdomain install is allowed
+ * @return bool Whether subdomain install is allowed
  */
 function allow_subdomain_install() {
 	$domain = preg_replace( '|https?://[^/]|', '', get_option( 'siteurl' ) );
-	if( false !== strpos( $domain, '/' ) || 'localhost' == $_SERVER[ 'HTTP_HOST' ] )
+	if( false !== strpos( $domain, '/' ) || 'localhost' == $domain || preg_match( '|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+|', $domain ) )
 		return false;
 
 	return true;
@@ -99,20 +99,19 @@ function network_step1( $errors = false ) {
 
 	$active_plugins = get_option( 'active_plugins' );
 	if ( ! empty( $active_plugins ) ) {
-		echo '<div class="updated"><p><strong>' . __('Warning:') . '</strong> ' . sprintf( __( 'Please <a href="%s">deactivate</a> your plugins before enabling the Network feature.' ), admin_url( 'plugins.php' ) ) . '</p></div><p>' . __(' Once the network is created, you may reactivate your plugins.' ) . '</p>';
+		echo '<div class="updated"><p><strong>' . __('Warning:') . '</strong> ' . sprintf( __( 'Please <a href="%s">deactivate your plugins</a> before enabling the Network feature.' ), admin_url( 'plugins.php?plugin_status=active' ) ) . '</p></div><p>' . __(' Once the network is created, you may reactivate your plugins.' ) . '</p>';
 		include( './admin-footer.php' );
 		die();
 	}
 
 	$hostname = get_clean_basedomain();
 	$has_ports = strstr( $hostname, ':' );
-	if ( ( false !== $has_ports && ! in_array( $has_ports, array( ':80', ':443' ) ) )
-		|| ( $no_ip = preg_match( '|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+|', $hostname ) ) ) {
+	if ( ( false !== $has_ports && ! in_array( $has_ports, array( ':80', ':443' ) ) ) ) {
 		echo '<div class="error"><p><strong>' . __( 'Error:') . '</strong> ' . __( 'You cannot install a network of sites with your server address.' ) . '</strong></p></div>';
 		if ( $no_ip )
-			echo '<p>' . __('You cannot use an IP address such as <code>127.0.0.1</code>.' ) . '</p>';
+			echo '<p>' . __( 'You cannot use an IP address such as <code>127.0.0.1</code>.' ) . '</p>';
 		else
-			echo '<p>' . sprintf( __('You cannot use port numbers such as <code>%s</code>.' ), $has_ports ) . '</p>';
+			echo '<p>' . sprintf( __( 'You cannot use port numbers such as <code>%s</code>.' ), $has_ports ) . '</p>';
 		echo '<a href="' . esc_url( admin_url() ) . '">' . __( 'Return to Dashboard' ) . '</a>';
 		include( './admin-footer.php' );
 		die();
@@ -133,7 +132,7 @@ function network_step1( $errors = false ) {
 	$admin_email = ( ! empty( $_POST['email'] ) && ! in_array( 'invalid_email', $error_codes ) ) ? $_POST['email'] : get_option( 'admin_email' );
 	?>
 	<p><?php _e( 'Welcome to the Network installation process!' ); ?></p>
-	<p><?php _e( "Fill in the information below and you'll be on your way to creating a network of WordPress sites. We'll create configuration files in the next step." ); ?></p>
+	<p><?php _e( 'Fill in the information below and you&#8217;ll be on your way to creating a network of WordPress sites. We will create configuration files in the next step.' ); ?></p>
 	<?php
 
 	// @todo IIS and ! $is_apache
@@ -144,7 +143,7 @@ function network_step1( $errors = false ) {
 	} else {
 		$subdomain_install = false;
 		if ( got_mod_rewrite() ) // dangerous assumptions
-			echo '<div class="updated inline"><p><strong>' . __( 'Note:' ) . '</strong> ' . __( 'Please make sure the Apache <code>mod_rewrite</code> module is installed as it will be used at the end of this install.' ) . '</p>';
+			echo '<div class="updated inline"><p><strong>' . __( 'Note:' ) . '</strong> ' . __( 'Please make sure the Apache <code>mod_rewrite</code> module is installed as it will be used at the end of this installation.' ) . '</p>';
 		else
 			echo '<div class="error inline"><p><strong>' . __( 'Warning!' ) . '</strong> ' . __( 'It looks like the Apache <code>mod_rewrite</code> module is not installed.' ) . '</p>';
 		echo '<p>' . __( 'If <code>mod_rewrite</code> is disabled, ask your administrator to enable that module, or look at the <a href="http://httpd.apache.org/docs/mod/mod_rewrite.html">Apache documentation</a> or <a href="http://www.google.com/search?q=apache+mod_rewrite">elsewhere</a> for help setting it up.' ) . '</p></div>';
@@ -153,7 +152,7 @@ function network_step1( $errors = false ) {
 	if ( allow_subdomain_install() ) : ?>
 		<h3><?php esc_html_e( 'Addresses of Sites in your Network' ); ?></h3>
 		<p><?php _e( 'Please choose whether you would like sites in your WordPress network to use sub-domains or sub-directories. <strong>You cannot change this later.</strong>' ); ?></p>
-		<p><?php _e( "You will need a wildcard DNS record if you're going to use the virtual host (sub-domain) functionality." ); ?></p>
+		<p><?php _e( 'You will need a wildcard DNS record if you are going to use the virtual host (sub-domain) functionality.' ); ?></p>
 		<?php // @todo: Link to an MS readme? ?>
 		<table class="form-table">
 			<tr>
@@ -173,12 +172,12 @@ function network_step1( $errors = false ) {
 		if ( $is_www ) :
 		?>
 		<h3><?php esc_html_e( 'Server Address' ); ?></h3>
-		<p><?php printf( __( 'We recommend you change your siteurl to <code>%1$s</code> before enabling the network feature. It will still be possible to visit your site using the "www" prefix with an address like <code>%2$s</code> but any links will not have the "www" prefix.' ), substr( $hostname, 4 ), $hostname ); ?></h3>
+		<p><?php printf( __( 'We recommend you change your siteurl to <code>%1$s</code> before enabling the network feature. It will still be possible to visit your site using the <code>www</code> prefix with an address like <code>%2$s</code> but any links will not have the <code>www</code> prefix.' ), substr( $hostname, 4 ), $hostname ); ?></h3>
 		<table class="form-table">
 			<tr>
 				<th scope='row'><?php esc_html_e( 'Server Address' ); ?></th>
 				<td>
-					<?php printf( __( 'The Internet address of your network will be <code>%s</code>.' ), $hostname ); ?>
+					<?php printf( __( 'The internet address of your network will be <code>%s</code>.' ), $hostname ); ?>
 				</td>
 			</tr>
 		</table>
@@ -189,19 +188,19 @@ function network_step1( $errors = false ) {
 		<?php if ( 'localhost' == $hostname ) : ?>
 			<tr>
 				<th scope="row"><?php esc_html_e( 'Sub-directory Install' ); ?></th>
-				<td><?php _e('Because you are using <code>localhost</code>, the sites in your WordPress network must use sub-directories. Consider using <code>localhost.localdomain</code> if you wish to use sub-domains.'); ?></td>
+				<td><?php _e( 'Because you are using <code>localhost</code>, the sites in your WordPress network must use sub-directories. Consider using <code>localhost.localdomain</code> if you wish to use sub-domains.' ); ?></td>
 			</tr>
 		<?php elseif ( !allow_subdomain_install() ) : ?>
 			<tr>
 				<th scope="row"><?php esc_html_e( 'Sub-directory Install' ); ?></th>
-				<td><?php _e('Because your install is in a directory, the sites in your WordPress network must use sub-directories.'); ?></td>
+				<td><?php _e( 'Because your install is in a directory, the sites in your WordPress network must use sub-directories.' ); ?></td>
 			</tr>
 		<?php endif; ?>
 		<?php if ( ! $is_www ) : ?>
 			<tr>
 				<th scope='row'><?php esc_html_e( 'Server Address' ); ?></th>
 				<td>
-					<?php printf( __( 'The Internet address of your network will be <code>%s</code>.' ), $hostname ); ?>
+					<?php printf( __( 'The internet address of your network will be <code>%s</code>.' ), $hostname ); ?>
 				</td>
 			</tr>
 		<?php endif; ?>
@@ -238,14 +237,14 @@ function network_step2( $errors = false ) {
 		echo '<div class="error">' . $errors->get_error_message() . '</div>';
 
 	if ( $_POST ) {
-		$vhost = !allow_subdomain_install() ? false : (bool) $_POST['subdomain_install'];
+		$subdomain_install = allow_subdomain_install() ? ! empty( $_POST['subdomain_install'] ) : false;
 	} else {
 		if ( is_multisite() ) {
-			$vhost = is_subdomain_install();
+			$subdomain_install = is_subdomain_install();
 ?>
 	<div class="updated"><p><strong><?php _e( 'Notice: The Network feature is already enabled.' ); ?></strong> <?php _e( 'The original configuration steps are shown here for reference.' ); ?></p></div>
 <?php	} else {
-			$vhost = (bool) $wpdb->get_var( "SELECT meta_value FROM $wpdb->sitemeta WHERE site_id = 1 AND meta_key = 'subdomain_install'" );
+			$subdomain_install = (bool) $wpdb->get_var( "SELECT meta_value FROM $wpdb->sitemeta WHERE site_id = 1 AND meta_key = 'subdomain_install'" );
 ?>
 	<div class="error"><p><strong><?php _e('Warning:'); ?></strong> <?php _e( 'An existing WordPress network was detected.' ); ?></p></div>
 	<p><?php _e( 'Please complete the configuration steps. To create a new network, you will need to empty or remove the network database tables.' ); ?></p>
@@ -263,10 +262,10 @@ function network_step2( $errors = false ) {
 ?>
 		<ol>
 			<li><p><?php printf( __( 'Create a <code>blogs.dir</code> directory in <code>%s</code>. This directory is used to stored uploaded media for your additional sites and must be writeable by the web server.' ), WP_CONTENT_DIR ); ?></p></li>
-			<li><p><?php printf( __( 'Add the following to your <code>wp-config.php</code> file in <code>%s</code>:' ), ABSPATH ); ?></p>
+			<li><p><?php printf( __( 'Add the following to your <code>wp-config.php</code> file in <code>%s</code> <strong>above</strong> the line reading <code>/* That&#8217;s all, stop editing! Happy blogging. */</code>:' ), ABSPATH ); ?></p>
 				<textarea class="code" readonly="readonly" cols="100" rows="7">
 define( 'MULTISITE', true );
-define( 'VHOST', '<?php echo $vhost ? 'yes' : 'no'; ?>' );
+define( 'SUBDOMAIN_INSTALL', <?php echo $subdomain_install ? 'true' : 'false'; ?> );
 $base = '<?php echo $base; ?>';
 define( 'DOMAIN_CURRENT_SITE', '<?php echo $hostname; ?>' );
 define( 'PATH_CURRENT_SITE', '<?php echo $base; ?>' );
@@ -310,9 +309,9 @@ RewriteBase ' . $base . '
 RewriteRule ^index\.php$ - [L]
 
 # uploaded files
-RewriteRule ^' . ( $vhost ? '' : '([_0-9a-zA-Z-]+/)?' ) . 'files/(.+) wp-includes/ms-files.php?file=$' . ( $vhost ? 1 : 2 ) . ' [L]' . "\n";
+RewriteRule ^' . ( $subdomain_install ? '' : '([_0-9a-zA-Z-]+/)?' ) . 'files/(.+) wp-includes/ms-files.php?file=$' . ( $subdomain_install ? 1 : 2 ) . ' [L]' . "\n";
 
-if ( ! $vhost )
+if ( ! $subdomain_install )
 	$htaccess_file .= "\n# add a trailing slash to /wp-admin\n" . 'RewriteRule ^([_0-9a-zA-Z-]+/)?wp-admin$ $1wp-admin/ [R=301,L]' . "\n";
 
 $htaccess_file .= "\n" . 'RewriteCond %{REQUEST_FILENAME} -f [OR]
@@ -320,7 +319,7 @@ RewriteCond %{REQUEST_FILENAME} -d
 RewriteRule ^ - [L]';
 
 // @todo custom content dir.
-if ( ! $vhost )
+if ( ! $subdomain_install )
 	$htaccess_file .= "\n" . 'RewriteRule  ^([_0-9a-zA-Z-]+/)?(wp-(content|admin|includes).*) $2 [L]
 RewriteRule  ^([_0-9a-zA-Z-]+/)?(.*\.php)$ $2 [L]';
 
@@ -328,7 +327,7 @@ $htaccess_file .= "\nRewriteRule . index.php [L]";
 
 ?>
 			<li><p><?php printf( __( 'Add the following to your <code>.htaccess</code> file in <code>%s</code>, replacing other WordPress rules:' ), ABSPATH ); ?></p>
-				<textarea class="code" readonly="readonly" cols="100" rows="<?php echo $vhost ? 11 : 16; ?>">
+				<textarea class="code" readonly="readonly" cols="100" rows="<?php echo $subdomain_install ? 11 : 16; ?>">
 <?php echo wp_htmledit_pre( $htaccess_file ); ?>
 </textarea></li>
 		</ol>

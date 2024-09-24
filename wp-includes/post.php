@@ -15,107 +15,126 @@
  * Creates the initial post types when 'init' action is fired.
  */
 function create_initial_post_types() {
-	register_post_type( 'post', array(	'label' => __('Posts'),
-										'singular_label' => __('Post'),
-										'public' => true,
-										'show_ui' => false,
-										'_builtin' => true,
-										'_edit_link' => 'post.php?post=%d',
-										'capability_type' => 'post',
-										'hierarchical' => false,
-										'rewrite' => false,
-										'query_var' => false,
-										'supports' => array('title', 'editor', 'author', 'thumbnail', 'excerpt', 'trackbacks', 'custom-fields', 'comments', 'revisions')
-									) );
+	register_post_type( 'post', array(
+		'label' => __( 'Posts' ),
+		'singular_label' => __( 'Post' ),
+		'public'  => true,
+		'show_ui' => false,
+		'_builtin' => true, /* internal use only. don't use this when registering your own post type. */
+		'_edit_link' => 'post.php?post=%d', /* internal use only. don't use this when registering your own post type. */
+		'capability_type' => 'post',
+		'hierarchical' => false,
+		'rewrite' => false,
+		'query_var' => false,
+		'supports' => array( 'title', 'editor', 'author', 'thumbnail', 'excerpt', 'trackbacks', 'custom-fields', 'comments', 'revisions' ),
+	) );
 
-	register_post_type( 'page', array(	'label' => __('Pages'),
-										'singular_label' => __('Page'),
-										'public' => true,
-										'show_ui' => false,
-										'_builtin' => true,
-										'_edit_link' => 'post.php?post=%d',
-										'capability_type' => 'page',
-										'hierarchical' => true,
-										'rewrite' => false,
-										'query_var' => false,
-										'supports' => array('title', 'editor', 'author', 'thumbnail', 'page-attributes', 'custom-fields', 'comments', 'revisions')
-									) );
+	register_post_type( 'page', array(
+		'label' => __( 'Pages' ),
+		'singular_label' => __( 'Page' ),
+		'public' => true,
+		'show_ui' => false,
+		'_builtin' => true, /* internal use only. don't use this when registering your own post type. */
+		'_edit_link' => 'post.php?post=%d', /* internal use only. don't use this when registering your own post type. */
+		'capability_type' => 'page',
+		'hierarchical' => true,
+		'rewrite' => false,
+		'query_var' => false,
+		'supports' => array( 'title', 'editor', 'author', 'thumbnail', 'page-attributes', 'custom-fields', 'comments', 'revisions' ),
+	) );
 
-	register_post_type( 'attachment', array('label' => __('Media'),
-											'public' => true,
-											'show_ui' => false,
-											'_builtin' => true,
-											'_edit_link' => 'media.php?attachment_id=%d',
-											'capability_type' => 'post',
-											'hierarchical' => false,
-											'rewrite' => false,
-											'query_var' => false,
-										) );
+	register_post_type( 'attachment', array(
+		'label' => __( 'Media' ),
+		'public' => true,
+		'show_ui' => false,
+		'_builtin' => true, /* internal use only. don't use this when registering your own post type. */
+		'_edit_link' => 'media.php?attachment_id=%d', /* internal use only. don't use this when registering your own post type. */
+		'capability_type' => 'post',
+		'hierarchical' => false,
+		'rewrite' => false,
+		'query_var' => false,
+		'can_export' => false,
+	) );
 
-	register_post_type( 'revision', array(	'label' => __('Revisions'),
-											'singular_label' => __('Revision'),
-											'public' => false,
-											'_builtin' => true,
-											'_edit_link' => 'revision.php?revision=%d',
-											'capability_type' => 'post',
-											'hierarchical' => false,
-											'rewrite' => false,
-											'query_var' => false,
-										) );
+	register_post_type( 'revision', array(
+		'label' => __( 'Revisions' ),
+		'singular_label' => __( 'Revision' ),
+		'public' => false,
+		'_builtin' => true, /* internal use only. don't use this when registering your own post type. */
+		'_edit_link' => 'revision.php?revision=%d', /* internal use only. don't use this when registering your own post type. */
+		'capability_type' => 'post',
+		'hierarchical' => false,
+		'rewrite' => false,
+		'query_var' => false,
+	) );
 
-	register_post_type( 'nav_menu_item', array(	'label' => __('Navigation Menu Items'),
-												'singular_label' => __('Navigation Menu Item'),
-												'public' => false,
-												'show_ui' => false,
-												'_builtin' => true,
-												'capability_type' => 'post',
-												'hierarchical' => false,
-												'rewrite' => false,
-												'query_var' => false,
-											) );
+	register_post_type( 'nav_menu_item', array(
+		'label' => __( 'Navigation Menu Items' ),
+		'singular_label' => __( 'Navigation Menu Item' ),
+		'public' => false,
+		'show_ui' => false,
+		'_builtin' => true, /* internal use only. don't use this when registering your own post type. */
+		'capability_type' => 'post',
+		'hierarchical' => false,
+		'rewrite' => false,
+		'query_var' => false,
+	) );
 
-	register_post_status( 'publish', array(	'label' => _x('Published', 'post'),
-											'public' => true,
-											'_builtin' => true,
-											'label_count' => _n_noop('Published <span class="count">(%s)</span>', 'Published <span class="count">(%s)</span>')
-										) );
+	register_post_status( 'publish', array(
+		'label'       => _x( 'Published', 'post' ),
+		'public'      => true,
+		'_builtin'    => true, /* internal use only. */
+		'label_count' => _n_noop( 'Published <span class="count">(%s)</span>', 'Published <span class="count">(%s)</span>' ),
+	) );
 
-	register_post_status( 'future', array(	'label' => _x('Scheduled', 'post'),
-											'protected' => true,
-											'_builtin' => true,
-											'label_count' => _n_noop('Scheduled <span class="count">(%s)</span>', 'Scheduled <span class="count">(%s)</span>')
-										) );
+	register_post_status( 'future', array(
+		'label'       => _x( 'Scheduled', 'post' ),
+		'protected'   => true,
+		'_builtin'    => true, /* internal use only. */
+		'label_count' => _n_noop('Scheduled <span class="count">(%s)</span>', 'Scheduled <span class="count">(%s)</span>' ),
+	) );
 
-	register_post_status( 'draft', array(	'label' => _x('Draft', 'post'),
-											'protected' => true,
-											'_builtin' => true,
-											'label_count' => _n_noop('Draft <span class="count">(%s)</span>', 'Drafts <span class="count">(%s)</span>')
-										) );
+	register_post_status( 'draft', array(
+		'label'       => _x( 'Draft', 'post' ),
+		'protected'   => true,
+		'_builtin'    => true, /* internal use only. */
+		'label_count' => _n_noop( 'Draft <span class="count">(%s)</span>', 'Drafts <span class="count">(%s)</span>' ),
+	) );
 
-	register_post_status( 'pending', array(	'label' => _x('Pending', 'post'),
-											'protected' => true,
-											'_builtin' => true,
-											'label_count' => _n_noop('Pending <span class="count">(%s)</span>', 'Pending <span class="count">(%s)</span>')
-										) );
+	register_post_status( 'pending', array(
+		'label'       => _x( 'Pending', 'post' ),
+		'protected'   => true,
+		'_builtin'    => true, /* internal use only. */
+		'label_count' => _n_noop( 'Pending <span class="count">(%s)</span>', 'Pending <span class="count">(%s)</span>' ),
+	) );
 
-	register_post_status( 'private', array(	'label' => _x('Private', 'post'),
-											'private' => true,
-											'_builtin' => true,
-											'label_count' => _n_noop('Private <span class="count">(%s)</span>', 'Private <span class="count">(%s)</span>')
-										) );
+	register_post_status( 'private', array(
+		'label'       => _x( 'Private', 'post' ),
+		'private'     => true,
+		'_builtin'    => true, /* internal use only. */
+		'label_count' => _n_noop( 'Private <span class="count">(%s)</span>', 'Private <span class="count">(%s)</span>' ),
+	) );
 
-	register_post_status( 'trash', array(	'label' => _x('Trash', 'post'),
-											'internal' => true,
-											'show_in_admin_status_list' => true,
-											'_builtin' => true,
-											'label_count' => _n_noop('Trash <span class="count">(%s)</span>', 'Trash <span class="count">(%s)</span>')
-										) );
+	register_post_status( 'trash', array(
+		'label'       => _x( 'Trash', 'post' ),
+		'internal'    => true,
+		'_builtin'    => true, /* internal use only. */
+		'label_count' => _n_noop( 'Trash <span class="count">(%s)</span>', 'Trash <span class="count">(%s)</span>' ),
+		'show_in_admin_status_list' => true,
+	) );
 
-	register_post_status( 'auto-draft', array(	'label' => _x('Auto-Draft', 'post'),
-											'internal' => true,
-											'_builtin' => true,
-											'label_count' => _n_noop('Auto-Draft <span class="count">(%s)</span>', 'Auto-Drafts <span class="count">(%s)</span>')
-										) );
+	register_post_status( 'auto-draft', array(
+		'label'    => 'auto-draft',
+		'internal' => true,
+		'_builtin' => true, /* internal use only. */
+	) );
+
+	register_post_status( 'inherit', array(
+		'label'    => 'inherit',
+		'internal' => true,
+		'_builtin' => true, /* internal use only. */
+		'exclude_from_search' => false,
+	) );
 }
 add_action( 'init', 'create_initial_post_types', 0 ); // highest priority
 
@@ -462,14 +481,17 @@ function get_post_mime_type($ID = '') {
 function get_post_status($ID = '') {
 	$post = get_post($ID);
 
-	if ( is_object($post) ) {
-		if ( ('attachment' == $post->post_type) && $post->post_parent && ($post->ID != $post->post_parent) )
-			return get_post_status($post->post_parent);
-		else
-			return $post->post_status;
-	}
+	if ( !is_object($post) )
+		return false;
 
-	return false;
+	// Unattached attachments are assumed to be published.
+	if ( ('attachment' == $post->post_type) && ('inherit' == $post->post_status) && ( 0 == $post->post_parent) )
+		return 'publish';
+
+	if ( ('attachment' == $post->post_type) && $post->post_parent && ($post->ID != $post->post_parent) )
+		return get_post_status($post->post_parent);
+
+	return $post->post_status;
 }
 
 /**
@@ -583,7 +605,7 @@ function register_post_status($post_status, $args = array()) {
 		$args->label = $post_status;
 
 	if ( false === $args->label_count )
-		$args->label_count = $args->label;
+		$args->label_count = array( $args->label, $args->label );
 
 	$wp_post_statuses[$post_status] = $args;
 
@@ -622,42 +644,55 @@ function get_post_status_object( $post_status ) {
  * @see register_post_status
  * @see get_post_status_object
  *
- * @param array|string $args An array of key => value arguments to match against the post statuses.
- *  Only post statuses having attributes that match all arguments are returned.
+ * @param array|string $args An array of key => value arguments to match against the post status objects.
  * @param string $output The type of output to return, either post status 'names' or 'objects'. 'names' is the default.
- * @param string $operator Whether the elements in $args should be logicallly 'or'ed or 'and'ed together. 'or' means only one element from the array needs to match. 'and' means all elements must match. The default is 'or'.
+ * @param string $operator The logical operation to perform. 'or' means only one element
+ *  from the array needs to match; 'and' means all elements must match. The default is 'and'.
  * @return array A list of post type names or objects
  */
-function get_post_stati( $args = array(), $output = 'names', $operator = 'or' ) {
+function get_post_stati( $args = array(), $output = 'names', $operator = 'and' ) {
 	global $wp_post_statuses;
 
-	$do_names = false;
-	if ( 'names' == $output )
-		$do_names = true;
+	$field = ('names' == $output) ? 'name' : false;
 
-	if ( 'and' == $operator )
-		$arg_count = count($args);
-	else
-		$arg_count = 0;
+	return wp_filter_object_list($wp_post_statuses, $args, $operator, $field);
+}
 
-	$post_statuses = array();
-	foreach ( (array) $wp_post_statuses as $post_status ) {
-		if ( empty($args) ) {
-			if ( $do_names )
-				$post_statuses[] = $post_status->name;
-			else
-				$post_statuses[] = $post_status;
-		} elseif ( $intersect = array_intersect_assoc((array) $post_status, $args) ) {
-			if ( $arg_count && ( $arg_count != count($intersect) ) )
-				continue;
-			if ( $do_names )
-				$post_statuses[] = $post_status->name;
-			else
-				$post_statuses[] = $post_status;
-		}
-	}
+/**
+ * Whether the post type is hierarchical.
+ *
+ * A false return value might also mean that the post type does not exist.
+ *
+ * @since 3.0.0
+ * @see get_post_type_object
+ *
+ * @param string|int|object $post Post type name, post id, or a post object.
+ * @return bool true if post type is hierarchical, else false.
+ */
+function is_post_type_hierarchical( $post = false ) {
+	if ( is_string($post) && $is_post_type = get_post_type_object($post) )
+		return $is_post_type->hierarchical;
 
-	return $post_statuses;
+	$ptype = get_post( $post );
+	if ( $ptype && $is_post_type = get_post_type_object($ptype->post_type) )
+		return $is_post_type->hierarchical;
+
+	return false;
+}
+
+/**
+ * Checks if a post type is registered, can also check if the current or specified post is of a post type.
+ *
+ * @since 3.0.0
+ * @uses get_post_type()
+ *
+ * @param string|array $types Type or types to check. Defaults to all post types.
+ * @param int $id Post ID. Defaults to current ID.
+ * @return bool
+ */
+function is_post_type( $types = false, $id = false ) {
+	$types = ( $types === false ) ? get_post_types() : (array) $types;
+	return in_array( get_post_type( $id ), $types );
 }
 
 /**
@@ -665,22 +700,21 @@ function get_post_stati( $args = array(), $output = 'names', $operator = 'or' ) 
  *
  * @since 2.1.0
  *
- * @uses $wpdb
- * @uses $posts The Loop post global
+ * @uses $post The Loop current post global
  *
- * @param mixed $post Optional. Post object or post ID.
+ * @param mixed $the_post Optional. Post object or post ID.
  * @return bool|string post type or false on failure.
  */
-function get_post_type($post = false) {
-	global $posts;
+function get_post_type( $the_post = false ) {
+	global $post;
 
-	if ( false === $post )
-		$post = $posts[0];
-	elseif ( (int) $post )
-		$post = get_post($post, OBJECT);
+	if ( false === $the_post )
+		$the_post = $post;
+	elseif ( is_numeric($the_post) )
+		$the_post = get_post($the_post);
 
-	if ( is_object($post) )
-		return $post->post_type;
+	if ( is_object($the_post) )
+		return $the_post->post_type;
 
 	return false;
 }
@@ -715,36 +749,19 @@ function get_post_type_object( $post_type ) {
  * @since 2.9.0
  * @uses $wp_post_types
  * @see register_post_type
- * @see get_post_types
  *
- * @param array|string $args An array of key => value arguments to match against the post types.
- *  Only post types having attributes that match all arguments are returned.
+ * @param array|string $args An array of key => value arguments to match against the post type objects.
  * @param string $output The type of output to return, either post type 'names' or 'objects'. 'names' is the default.
+ * @param string $operator The logical operation to perform. 'or' means only one element
+ *  from the array needs to match; 'and' means all elements must match. The default is 'and'.
  * @return array A list of post type names or objects
  */
-function get_post_types( $args = array(), $output = 'names' ) {
+function get_post_types( $args = array(), $output = 'names', $operator = 'and' ) {
 	global $wp_post_types;
 
-	$do_names = false;
-	if ( 'names' == $output )
-		$do_names = true;
+	$field = ('names' == $output) ? 'name' : false;
 
-	$post_types = array();
-	foreach ( (array) $wp_post_types as $post_type ) {
-		if ( empty($args) ) {
-			if ( $do_names )
-				$post_types[] = $post_type->name;
-			else
-				$post_types[] = $post_type;
-		} elseif ( array_intersect_assoc((array) $post_type, $args) ) {
-			if ( $do_names )
-				$post_types[] = $post_type->name;
-			else
-				$post_types[] = $post_type;
-		}
-	}
-
-	return $post_types;
+	return wp_filter_object_list($wp_post_types, $args, $operator, $field);
 }
 
 /**
@@ -764,6 +781,8 @@ function get_post_types( $args = array(), $output = 'names' ) {
  * exclude_from_search - Whether to exclude posts with this post type from search results. Defaults to true if the type is not public, false if the type is public.
  * publicly_queryable - Whether post_type queries can be performed from the front page.  Defaults to whatever public is set as.
  * show_ui - Whether to generate a default UI for managing this post type. Defaults to true if the type is public, false if the type is not public.
+ * menu_position - The position in the menu order the post type should appear. Defaults to the bottom.
+ * menu_icon - The url to the icon to be used for this menu. Defaults to use the posts icon.
  * inherit_type - The post type from which to inherit the edit link and capability type. Defaults to none.
  * capability_type - The post type to use for checking read, edit, and delete capabilities. Defaults to "post".
  * edit_cap - The capability that controls editing a particular object of this post type. Defaults to "edit_$capability_type" (edit_post).
@@ -792,7 +811,7 @@ function register_post_type($post_type, $args = array()) {
 		$wp_post_types = array();
 
 	// Args prefixed with an underscore are reserved for internal use.
-	$defaults = array('label' => false, 'singular_label' => false, 'description' => '', 'publicly_queryable' => null, 'exclude_from_search' => null, '_builtin' => false, '_edit_link' => 'post.php?post=%d', 'capability_type' => 'post', 'hierarchical' => false, 'public' => false, 'rewrite' => true, 'query_var' => true, 'supports' => array(), 'register_meta_box_cb' => null, 'taxonomies' => array(), 'show_ui' => null, 'permalink_epmask' => EP_NONE );
+	$defaults = array('label' => false, 'singular_label' => false, 'description' => '', 'publicly_queryable' => null, 'exclude_from_search' => null, '_builtin' => false, '_edit_link' => 'post.php?post=%d', 'capability_type' => 'post', 'hierarchical' => false, 'public' => false, 'rewrite' => true, 'query_var' => true, 'supports' => array(), 'register_meta_box_cb' => null, 'taxonomies' => array(), 'show_ui' => null, 'menu_position' => null, 'menu_icon' => null, 'permalink_epmask' => EP_PERMALINK, 'can_export' => true );
 	$args = wp_parse_args($args, $defaults);
 	$args = (object) $args;
 
@@ -868,6 +887,8 @@ function register_post_type($post_type, $args = array()) {
 
 	$wp_post_types[$post_type] = $args;
 
+	add_action( 'future_' . $post_type, '_future_post_hook', 5, 2 );
+
 	foreach ( $args->taxonomies as $taxonomy ) {
 		register_taxonomy_for_object_type( $taxonomy, $post_type );
 	}
@@ -877,6 +898,13 @@ function register_post_type($post_type, $args = array()) {
 
 /**
  * Register support of certain features for a post type.
+ *
+ * All features are directly associated with a functional area of the edit screen, such as the
+ * editor or a meta box: 'title', 'editor', 'comments', 'revisions', 'trackbacks', 'author',
+ * 'excerpt', 'page-attributes', 'thumbnail', and 'custom-fields'.
+ *
+ * Additionally, the 'revisions' feature dictates whether the post type will store revisions,
+ * and the 'comments' feature dicates whether the comments count will show on the edit screen.
  *
  * @since 3.0.0
  * @param string $post_type The post type for which to add the feature
@@ -993,8 +1021,8 @@ function get_posts($args = null) {
 	$defaults = array(
 		'numberposts' => 5, 'offset' => 0,
 		'category' => 0, 'orderby' => 'post_date',
-		'order' => 'DESC', 'include' => '',
-		'exclude' => '', 'meta_key' => '',
+		'order' => 'DESC', 'include' => array(),
+		'exclude' => array(), 'meta_key' => '',
 		'meta_value' =>'', 'post_type' => 'post',
 		'suppress_filters' => true
 	);
@@ -1007,11 +1035,11 @@ function get_posts($args = null) {
 	if ( ! empty($r['category']) )
 		$r['cat'] = $r['category'];
 	if ( ! empty($r['include']) ) {
-		$incposts = preg_split('/[\s,]+/',$r['include']);
+		$incposts = wp_parse_id_list( $r['include'] );
 		$r['posts_per_page'] = count($incposts);  // only the number of posts included
 		$r['post__in'] = $incposts;
 	} elseif ( ! empty($r['exclude']) )
-		$r['post__not_in'] = preg_split('/[\s,]+/',$r['exclude']);
+		$r['post__not_in'] = wp_parse_id_list( $r['exclude'] );
 
 	$r['caller_get_posts'] = true;
 
@@ -1545,9 +1573,10 @@ function wp_match_mime_types($wildcard_mime_types, $real_mime_types) {
  * @since 2.5.0
  *
  * @param string|array $mime_types List of mime types or comma separated string of mime types.
+ * @param string $table_alias Optional. Specify a table alias, if needed. 
  * @return string The SQL AND clause for mime searching.
  */
-function wp_post_mime_type_where($post_mime_types) {
+function wp_post_mime_type_where($post_mime_types, $table_alias = '') {
 	$where = '';
 	$wildcards = array('', '%', '%/%');
 	if ( is_string($post_mime_types) )
@@ -1575,9 +1604,9 @@ function wp_post_mime_type_where($post_mime_types) {
 			return '';
 
 		if ( false !== strpos($mime_pattern, '%') )
-			$wheres[] = "post_mime_type LIKE '$mime_pattern'";
+			$wheres[] = empty($table_alias) ? "post_mime_type LIKE '$mime_pattern'" : "$table_alias.post_mime_type LIKE '$mime_pattern'";
 		else
-			$wheres[] = "post_mime_type = '$mime_pattern'";
+			$wheres[] = empty($table_alias) ? "post_mime_type = '$mime_pattern'" : "$table_alias.post_mime_type = '$mime_pattern'";
 	}
 	if ( !empty($wheres) )
 		$where = ' AND (' . join(' OR ', $wheres) . ') ';
@@ -1585,18 +1614,22 @@ function wp_post_mime_type_where($post_mime_types) {
 }
 
 /**
- * Removes a post, attachment, or page.
+ * Trashes or deletes a post or page.
  *
- * When the post and page goes, everything that is tied to it is deleted also.
+ * When the post and page is permanently deleted, everything that is tied to it is deleted also.
  * This includes comments, post meta fields, and terms associated with the post.
+ *
+ * The post or page is moved to trash instead of permanently deleted unless trash is
+ * disabled, item is already in the trash, or $force_delete is true.
  *
  * @since 1.0.0
  * @uses do_action() on 'delete_post' before deletion unless post type is 'attachment'.
  * @uses do_action() on 'deleted_post' after deletion unless post type is 'attachment'.
  * @uses wp_delete_attachment() if post type is 'attachment'.
+ * @uses wp_trash_post() if item should be trashed.
  *
  * @param int $postid Post ID.
- * @param bool $force_delete Whether to bypass trash and force deletion
+ * @param bool $force_delete Whether to bypass trash and force deletion. Defaults to false.
  * @return mixed False on failure
  */
 function wp_delete_post( $postid = 0, $force_delete = false ) {
@@ -1605,7 +1638,7 @@ function wp_delete_post( $postid = 0, $force_delete = false ) {
 	if ( !$post = $wpdb->get_row($wpdb->prepare("SELECT * FROM $wpdb->posts WHERE ID = %d", $postid)) )
 		return $post;
 
-	if ( !$force_delete && ( $post->post_type == 'post' || $post->post_type == 'page') && get_post_status( $postid ) != 'trash' && EMPTY_TRASH_DAYS > 0 )
+	if ( !$force_delete && ( $post->post_type == 'post' || $post->post_type == 'page') && get_post_status( $postid ) != 'trash' && EMPTY_TRASH_DAYS )
 			return wp_trash_post($postid);
 
 	if ( $post->post_type == 'attachment' )
@@ -1653,8 +1686,8 @@ function wp_delete_post( $postid = 0, $force_delete = false ) {
 	$comment_ids = $wpdb->get_col( $wpdb->prepare( "SELECT comment_ID FROM $wpdb->comments WHERE comment_post_ID = %d", $postid ));
 	if ( ! empty($comment_ids) ) {
 		do_action( 'delete_comment', $comment_ids );
-		$in_comment_ids = "'" . implode("', '", $comment_ids) . "'";
-		$wpdb->query( "DELETE FROM $wpdb->comments WHERE comment_ID IN($in_comment_ids)" );
+		foreach ( $comment_ids as $comment_id )
+			wp_delete_comment( $comment_id, true );
 		do_action( 'deleted_comment', $comment_ids );
 	}
 
@@ -1691,16 +1724,19 @@ function wp_delete_post( $postid = 0, $force_delete = false ) {
 /**
  * Moves a post or page to the Trash
  *
+ * If trash is disabled, the post or page is permanently deleted.
+ *
  * @since 2.9.0
  * @uses do_action() on 'trash_post' before trashing
  * @uses do_action() on 'trashed_post' after trashing
+ * @uses wp_delete_post() if trash is disabled
  *
  * @param int $postid Post ID.
  * @return mixed False on failure
  */
 function wp_trash_post($post_id = 0) {
-	if ( EMPTY_TRASH_DAYS == 0 )
-		return wp_delete_post($post_id);
+	if ( !EMPTY_TRASH_DAYS )
+		return wp_delete_post($post_id, true);
 
 	if ( !$post = wp_get_single_post($post_id, ARRAY_A) )
 		return $post;
@@ -2050,6 +2086,9 @@ function wp_insert_post($postarr = array(), $wp_error = false) {
 	if ( empty($post_type) )
 		$post_type = 'post';
 
+	if ( !empty($post_category) )
+		$post_category = array_filter($post_category); // Filter out empty terms
+
 	// Make sure we set a valid category.
 	if ( empty($post_category) || 0 == count($post_category) || !is_array($post_category) ) {
 		// 'post' requires at least one category.
@@ -2058,10 +2097,6 @@ function wp_insert_post($postarr = array(), $wp_error = false) {
 		else
 			$post_category = array();
 	}
-
-	// Set the default tag list
-	if ( !isset($tags_input) )
-		$tags_input = array();
 
 	if ( empty($post_author) )
 		$post_author = $user_ID;
@@ -2115,13 +2150,21 @@ function wp_insert_post($postarr = array(), $wp_error = false) {
 		$now = gmdate('Y-m-d H:i:59');
 		if ( mysql2date('U', $post_date_gmt, false) > mysql2date('U', $now, false) )
 			$post_status = 'future';
+	} elseif( 'future' == $post_status ) {
+		$now = gmdate('Y-m-d H:i:59');
+		if ( mysql2date('U', $post_date_gmt, false) <= mysql2date('U', $now, false) )
+			$post_status = 'publish';
 	}
 
 	if ( empty($comment_status) ) {
 		if ( $update )
 			$comment_status = 'closed';
 		else
-			$comment_status = get_option('default_comment_status');
+			if ( 'page' == $post_type ) {
+				$comment_status = get_option( 'default_comment_status_page' );
+			} else {
+				$comment_status = get_option( 'default_comment_status' );
+			}
 	}
 	if ( empty($ping_status) )
 		$ping_status = get_option('default_ping_status');
@@ -2146,7 +2189,7 @@ function wp_insert_post($postarr = array(), $wp_error = false) {
 		} elseif ( !empty($post_parent) ) {
 			$parent_post = get_post($post_parent);
 			// Check for circular dependency
-			if ( $parent_post->post_parent == $post_ID )
+			if ( isset( $parent_post->post_parent ) && $parent_post->post_parent == $post_ID )
 				$post_parent = 0;
 		}
 	}
@@ -2167,7 +2210,7 @@ function wp_insert_post($postarr = array(), $wp_error = false) {
 	$data = stripslashes_deep( $data );
 	$where = array( 'ID' => $post_ID );
 
-	if ($update) {
+	if ( $update ) {
 		do_action( 'pre_post_update', $post_ID );
 		if ( false === $wpdb->update( $wpdb->posts, $data, $where ) ) {
 			if ( $wp_error )
@@ -2204,12 +2247,15 @@ function wp_insert_post($postarr = array(), $wp_error = false) {
 
 	wp_set_post_categories( $post_ID, $post_category );
 	// old-style tags_input
-	if ( !empty($tags_input) )
+	if ( isset( $tags_input ) )
 		wp_set_post_tags( $post_ID, $tags_input );
-	// new-style support for all tag-like taxonomies
+
+	// new-style support for all custom taxonomies
 	if ( !empty($tax_input) ) {
 		foreach ( $tax_input as $taxonomy => $tags ) {
 			$taxonomy_obj = get_taxonomy($taxonomy);
+			if ( is_array($tags) ) // array = hierarchical, string = non-hierarchical.
+				$tags = array_filter($tags);
 			if ( current_user_can($taxonomy_obj->assign_cap) )
 				wp_set_post_terms( $post_ID, $tags, $taxonomy );
 		}
@@ -2242,7 +2288,7 @@ function wp_insert_post($postarr = array(), $wp_error = false) {
 
 	wp_transition_post_status($data['post_status'], $previous_status, $post);
 
-	if ( $update)
+	if ( $update )
 		do_action('edit_post', $post_ID, $post);
 
 	do_action('save_post', $post_ID, $post);
@@ -2502,8 +2548,7 @@ function wp_set_post_terms( $post_id = 0, $tags = '', $taxonomy = 'post_tag', $a
 
 	// Hierarchical taxonomies must always pass IDs rather than names so that children with the same
 	// names but different parents aren't confused.
-	$taxonomy_obj = get_taxonomy( $taxonomy );
-	if ( $taxonomy_obj->hierarchical ) {
+	if ( is_taxonomy_hierarchical( $taxonomy ) ) {
 		$tags = array_map( 'intval', $tags );
 		$tags = array_unique( $tags );
 	}
@@ -2527,12 +2572,12 @@ function wp_set_post_categories($post_ID = 0, $post_categories = array()) {
 	$post_ID = (int) $post_ID;
 	$post_type = get_post_type( $post_ID );
 	// If $post_categories isn't already an array, make it one:
-	if ( !is_array($post_categories) || 0 == count($post_categories) || empty($post_categories) ) {
+	if ( !is_array($post_categories) || empty($post_categories) ) {
 		if ( 'post' == $post_type )
 			$post_categories = array( get_option('default_category') );
 		else
 			$post_categories = array();
-	} else if ( 1 == count($post_categories) && '' == $post_categories[0] ) {
+	} else if ( 1 == count($post_categories) && '' == reset($post_categories) ) {
 		return true;
 	}
 
@@ -2764,8 +2809,8 @@ function get_page_by_path($page_path, $output = OBJECT, $post_type = 'page') {
 	$leaf_path  = sanitize_title(basename($page_paths));
 	$page_paths = explode('/', $page_paths);
 	$full_path = '';
-	foreach( (array) $page_paths as $pathdir)
-		$full_path .= ($pathdir!=''?'/':'') . sanitize_title($pathdir);
+	foreach ( (array) $page_paths as $pathdir )
+		$full_path .= ( $pathdir != '' ? '/' : '' ) . sanitize_title($pathdir);
 
 	$pages = $wpdb->get_results( $wpdb->prepare( "SELECT ID, post_name, post_parent FROM $wpdb->posts WHERE post_name = %s AND (post_type = %s OR post_type = 'attachment')", $leaf_path, $post_type ));
 
@@ -2888,11 +2933,12 @@ function _page_traverse_name( $page_id, &$children, &$result ){
  *
  * @since 1.5.0
  *
- * @param int $page_id Page ID.
+ * @param mixed $page Page object or page ID.
  * @return string Page URI.
  */
-function get_page_uri($page_id) {
-	$page = get_page($page_id);
+function get_page_uri($page) {
+	if ( ! is_object($page) )
+		$page = get_page($page);
 	$uri = $page->post_name;
 
 	// A page cannot be it's own parent.
@@ -2926,7 +2972,7 @@ function &get_pages($args = '') {
 	$defaults = array(
 		'child_of' => 0, 'sort_order' => 'ASC',
 		'sort_column' => 'post_title', 'hierarchical' => 1,
-		'exclude' => '', 'include' => '',
+		'exclude' => array(), 'include' => array(),
 		'meta_key' => '', 'meta_value' => '',
 		'authors' => '', 'parent' => -1, 'exclude_tree' => '',
 		'number' => '', 'offset' => 0,
@@ -2967,8 +3013,8 @@ function &get_pages($args = '') {
 		$meta_key = '';
 		$meta_value = '';
 		$hierarchical = false;
-		$incpages = preg_split('/[\s,]+/',$include);
-		if ( count($incpages) ) {
+		$incpages = wp_parse_id_list( $include );
+		if ( ! empty( $incpages ) ) {
 			foreach ( $incpages as $incpage ) {
 				if (empty($inclusions))
 					$inclusions = $wpdb->prepare(' AND ( ID = %d ', $incpage);
@@ -2982,8 +3028,8 @@ function &get_pages($args = '') {
 
 	$exclusions = '';
 	if ( !empty($exclude) ) {
-		$expages = preg_split('/[\s,]+/',$exclude);
-		if ( count($expages) ) {
+		$expages = wp_parse_id_list( $exclude );
+		if ( ! empty( $expages ) ) {
 			foreach ( $expages as $expage ) {
 				if (empty($exclusions))
 					$exclusions = $wpdb->prepare(' AND ( ID <> %d ', $expage);
@@ -2999,7 +3045,7 @@ function &get_pages($args = '') {
 	if (!empty($authors)) {
 		$post_authors = preg_split('/[\s,]+/',$authors);
 
-		if ( count($post_authors) ) {
+		if ( ! empty( $post_authors ) ) {
 			foreach ( $post_authors as $post_author ) {
 				//Do we have an author id or an author login?
 				if ( 0 == intval($post_author) ) {
@@ -3102,9 +3148,9 @@ function &get_pages($args = '') {
  * @return bool True on success, false on failure.
  */
 function is_local_attachment($url) {
-	if (strpos($url, get_bloginfo('url')) === false)
+	if (strpos($url, home_url()) === false)
 		return false;
-	if (strpos($url, get_bloginfo('url') . '/?attachment_id=') !== false)
+	if (strpos($url, home_url('/?attachment_id=')) !== false)
 		return true;
 	if ( $id = url_to_postid($url) ) {
 		$post = & get_post($id);
@@ -3289,18 +3335,21 @@ function wp_insert_attachment($object, $file = false, $parent = 0) {
 }
 
 /**
- * Delete an attachment.
+ * Trashes or deletes an attachment.
  *
- * Will remove the file also, when the attachment is removed. Removes all post
- * meta fields, taxonomy, comments, etc associated with the attachment (except
- * the main post).
+ * When an attachment is permanently deleted, the file will also be removed.
+ * Deletion removes all post meta fields, taxonomy, comments, etc. associated
+ * with the attachment (except the main post).
+ *
+ * The attachment is moved to the trash instead of permanently deleted unless trash
+ * for media is disabled, item is already in the trash, or $force_delete is true.
  *
  * @since 2.0.0
  * @uses $wpdb
  * @uses do_action() Calls 'delete_attachment' hook on Attachment ID.
  *
  * @param int $postid Attachment ID.
- * @param bool $force_delete Whether to bypass trash and force deletion
+ * @param bool $force_delete Whether to bypass trash and force deletion. Defaults to false.
  * @return mixed False on failure. Post data on success.
  */
 function wp_delete_attachment( $post_id, $force_delete = false ) {
@@ -3333,10 +3382,10 @@ function wp_delete_attachment( $post_id, $force_delete = false ) {
 	$wpdb->query( $wpdb->prepare( "DELETE FROM $wpdb->postmeta WHERE meta_key = '_thumbnail_id' AND meta_value = %d", $post_id ));
 
 	$comment_ids = $wpdb->get_col( $wpdb->prepare( "SELECT comment_ID FROM $wpdb->comments WHERE comment_post_ID = %d", $post_id ));
-	if ( ! empty($comment_ids) ) {
+	if ( ! empty( $comment_ids ) ) {
 		do_action( 'delete_comment', $comment_ids );
-		$in_comment_ids = "'" . implode("', '", $comment_ids) . "'";
-		$wpdb->query( "DELETE FROM $wpdb->comments WHERE comment_ID IN($in_comment_ids)" );
+		foreach ( $comment_ids as $comment_id )
+			wp_delete_comment( $comment_id, true );
 		do_action( 'deleted_comment', $comment_ids );
 	}
 
@@ -3644,7 +3693,7 @@ function wp_mime_type_icon( $mime = 0 ) {
  * @return int Same as $post_id
  */
 function wp_check_for_changed_slugs($post_id) {
-	if ( !isset($_POST['wp-old-slug']) || !strlen($_POST['wp-old-slug']) )
+	if ( empty($_POST['wp-old-slug']) )
 		return $post_id;
 
 	$post = &get_post($post_id);
@@ -3959,8 +4008,9 @@ function clean_page_cache($id) {
  * @uses update_postmeta_cache()
  *
  * @param array $posts Array of Post objects
+ * @param string $post_type The post type of the posts in $posts
  */
-function update_post_caches(&$posts) {
+function update_post_caches(&$posts, $post_type = 'post') {
 	// No point in doing all this work if we didn't match any posts.
 	if ( !$posts )
 		return;
@@ -3968,11 +4018,14 @@ function update_post_caches(&$posts) {
 	update_post_cache($posts);
 
 	$post_ids = array();
+	foreach ( $posts as $post )
+		$post_ids[] = $post->ID;
 
-	for ($i = 0; $i < count($posts); $i++)
-		$post_ids[] = $posts[$i]->ID;
+	if ( empty($post_type) )
+		$post_type = 'post';
 
-	update_object_term_cache($post_ids, 'post');
+	if ( !is_array($post_type) && 'any' != $post_type )
+		update_object_term_cache($post_ids, $post_type);
 
 	update_postmeta_cache($post_ids);
 }
@@ -4085,7 +4138,7 @@ function _transition_post_status($new_status, $old_status, $post) {
  */
 function _future_post_hook( $deprecated = '', $post ) {
 	wp_clear_scheduled_hook( 'publish_future_post', array( $post->ID ) );
-	wp_schedule_single_event( strtotime( $post->post_date_gmt. ' GMT' ), 'publish_future_post', array( $post->ID ) );
+	wp_schedule_single_event( get_gmt_from_date( $post->post_date ) . ' GMT', 'publish_future_post', array( $post->ID ) );
 }
 
 /**

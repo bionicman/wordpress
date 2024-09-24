@@ -126,23 +126,18 @@ function date_i18n( $dateformatstring, $unixtimestamp = false, $gmt = false ) {
 }
 
 /**
- * Convert number to format based on the locale.
+ * Convert integer number to format based on the locale.
  *
  * @since 2.3.0
  *
- * @param mixed $number The number to convert based on locale.
+ * @param int $number The number to convert based on locale.
  * @param int $decimals Precision of the number of decimal places.
  * @return string Converted number in string format.
  */
-function number_format_i18n( $number, $decimals = null ) {
+function number_format_i18n( $number, $decimals = 0 ) {
 	global $wp_locale;
-	// let the user override the precision only
-	$decimals = ( is_null( $decimals ) ) ? $wp_locale->number_format['decimals'] : intval( $decimals );
-
-	$num = number_format( $number, $decimals, $wp_locale->number_format['decimal_point'], $wp_locale->number_format['thousands_sep'] );
-
-	// let the user translate digits from latin to localized language
-	return apply_filters( 'number_format_i18n', $num );
+	$formatted = number_format( $number, absint( $decimals ), $wp_locale->number_format['decimal_point'], $wp_locale->number_format['thousands_sep'] );
+	return apply_filters( 'number_format_i18n', $formatted );
 }
 
 /**
@@ -163,10 +158,10 @@ function number_format_i18n( $number, $decimals = null ) {
  * @since 2.3.0
  *
  * @param int|string $bytes Number of bytes. Note max integer size for integers.
- * @param int $decimals Precision of number of decimal places.
+ * @param int $decimals Precision of number of decimal places. Deprecated.
  * @return bool|string False on failure. Number string on success.
  */
-function size_format( $bytes, $decimals = null ) {
+function size_format( $bytes, $decimals = 0 ) {
 	$quant = array(
 		// ========================= Origin ====
 		'TB' => 1099511627776,  // pow( 1024, 4)
@@ -175,7 +170,6 @@ function size_format( $bytes, $decimals = null ) {
 		'kB' => 1024,           // pow( 1024, 1)
 		'B ' => 1,              // pow( 1024, 0)
 	);
-
 	foreach ( $quant as $unit => $mag )
 		if ( doubleval($bytes) >= $mag )
 			return number_format_i18n( $bytes / $mag, $decimals ) . ' ' . $unit;
@@ -322,6 +316,9 @@ function get_option( $option, $default = false ) {
 	if ( empty($option) )
 		return false;
 
+	if ( defined( 'WP_SETUP_CONFIG' ) )
+		return false;
+
 	// prevent non-existent options from triggering multiple queries
 	if ( defined( 'WP_INSTALLING' ) && is_multisite() ) {
 		$notoptions = array();
@@ -343,7 +340,7 @@ function get_option( $option, $default = false ) {
 		if ( false === $value ) {
 			if ( defined( 'WP_INSTALLING' ) )
 				$suppress = $wpdb->suppress_errors();
-			$row = $wpdb->get_row( $wpdb->prepare( "SELECT option_value FROM $wpdb->options WHERE option_name = '%s' LIMIT 1", $option ) );
+			$row = $wpdb->get_row( $wpdb->prepare( "SELECT option_value FROM $wpdb->options WHERE option_name = %s LIMIT 1", $option ) );
 			if ( defined( 'WP_INSTALLING' ) )
 				$wpdb->suppress_errors( $suppress );
 
@@ -635,15 +632,15 @@ function delete_option( $option ) {
 	wp_protect_special_option( $option );
 
 	// Get the ID, if no ID then return
-	$row = $wpdb->get_row( $wpdb->prepare( "SELECT autoload FROM $wpdb->options WHERE option_name = '%s'", $option ) );
+	$row = $wpdb->get_row( $wpdb->prepare( "SELECT autoload FROM $wpdb->options WHERE option_name = %s", $option ) );
 	if ( is_null( $row ) )
 		return false;
 	do_action( 'delete_option', $option );
-	$result = $wpdb->query( $wpdb->prepare( "DELETE FROM $wpdb->options WHERE option_name = '%s'", $option) );
+	$result = $wpdb->query( $wpdb->prepare( "DELETE FROM $wpdb->options WHERE option_name = %s", $option) );
 	if ( ! defined( 'WP_INSTALLING' ) ) {
 		if ( 'yes' == $row->autoload ) {
 			$alloptions = wp_load_alloptions();
-			if ( isset( $alloptions[$option] ) ) {
+			if ( is_array( $alloptions ) && isset( $alloptions[$option] ) ) {
 				unset( $alloptions[$option] );
 				wp_cache_set( 'alloptions', $alloptions, 'options' );
 			}
@@ -1008,7 +1005,10 @@ function delete_all_user_settings() {
  * @return mixed A scalar data
  */
 function maybe_serialize( $data ) {
-	if ( !is_scalar( $data ) )
+	if ( is_array( $data ) || is_object( $data ) )
+		return serialize( $data );
+
+	if ( is_serialized( $data ) )
 		return serialize( $data );
 
 	return $data;
@@ -1194,7 +1194,9 @@ function do_enclose( $content, $post_ID ) {
 
 	foreach ( (array) $post_links_temp[0] as $link_test ) {
 		if ( !in_array( $link_test, $pung ) ) { // If we haven't pung it already
-			$test = parse_url( $link_test );
+			$test = @parse_url( $link_test );
+			if ( false === $test )
+				continue;
 			if ( isset( $test['query'] ) )
 				$post_links[] = $link_test;
 			elseif ( $test['path'] != '/' && $test['path'] != '' )
@@ -1212,13 +1214,15 @@ function do_enclose( $content, $post_ID ) {
 
 				// Check to see if we can figure out the mime type from
 				// the extension
-				$url_parts = parse_url( $url );
-				$extension = pathinfo( $url_parts['path'], PATHINFO_EXTENSION );
-				if ( !empty( $extension ) ) {
-					foreach ( get_allowed_mime_types( ) as $exts => $mime ) {
-						if ( preg_match( '!^(' . $exts . ')$!i', $extension ) ) {
-							$type = $mime;
-							break;
+				$url_parts = @parse_url( $url );
+				if ( false !== $url_parts ) {
+					$extension = pathinfo( $url_parts['path'], PATHINFO_EXTENSION );
+					if ( !empty( $extension ) ) {
+						foreach ( get_allowed_mime_types( ) as $exts => $mime ) {
+							if ( preg_match( '!^(' . $exts . ')$!i', $extension ) ) {
+								$type = $mime;
+								break;
+							}
 						}
 					}
 				}
@@ -2018,7 +2022,7 @@ function wp_mkdir_p( $target ) {
 	$target = str_replace( '//', '/', $target );
 
 	// safe mode fails with a trailing slash under certain PHP versions.
-	$target = untrailingslashit($target);
+	$target = rtrim($target, '/'); // Use rtrim() instead of untrailingslashit to avoid formatting.php dependency.
 	if ( empty($target) )
 		$target = '/';
 
@@ -2325,12 +2329,12 @@ function wp_ext2type( $ext ) {
 	$ext2type = apply_filters( 'ext2type', array(
 		'audio'       => array( 'aac', 'ac3',  'aif',  'aiff', 'm3a',  'm4a',   'm4b', 'mka', 'mp1', 'mp2',  'mp3', 'ogg', 'oga', 'ram', 'wav', 'wma' ),
 		'video'       => array( 'asf', 'avi',  'divx', 'dv',   'flv',  'm4v',   'mkv', 'mov', 'mp4', 'mpeg', 'mpg', 'mpv', 'ogm', 'ogv', 'qt',  'rm', 'vob', 'wmv' ),
-		'document'    => array( 'doc', 'docx', 'docm', 'dotm', 'odt',  'pages', 'pdf', 'rtf' ),
+		'document'    => array( 'doc', 'docx', 'docm', 'dotm', 'odt',  'pages', 'pdf', 'rtf', 'wp',  'wpd' ),
 		'spreadsheet' => array( 'numbers',     'ods',  'xls',  'xlsx', 'xlsb',  'xlsm' ),
 		'interactive' => array( 'key', 'ppt',  'pptx', 'pptm', 'odp',  'swf' ),
-		'text'        => array( 'asc', 'txt' ),
+		'text'        => array( 'asc', 'csv',  'tsv',  'txt' ),
 		'archive'     => array( 'bz2', 'cab',  'dmg',  'gz',   'rar',  'sea',   'sit', 'sqx', 'tar', 'tgz',  'zip' ),
-		'code'        => array( 'css', 'html', 'php',  'js' ),
+		'code'        => array( 'css', 'htm',  'html', 'php',  'js' ),
 	));
 	foreach ( $ext2type as $type => $exts )
 		if ( in_array( $ext, $exts ) )
@@ -2392,6 +2396,8 @@ function get_allowed_mime_types() {
 		'mov|qt' => 'video/quicktime',
 		'mpeg|mpg|mpe' => 'video/mpeg',
 		'txt|asc|c|cc|h' => 'text/plain',
+		'csv' => 'text/csv',
+		'tsv' => 'text/tab-separated-values',
 		'rtx' => 'text/richtext',
 		'css' => 'text/css',
 		'htm|html' => 'text/html',
@@ -2433,6 +2439,8 @@ function get_allowed_mime_types() {
 		'odc' => 'application/vnd.oasis.opendocument.chart',
 		'odb' => 'application/vnd.oasis.opendocument.database',
 		'odf' => 'application/vnd.oasis.opendocument.formula',
+		// wordperfect formats
+		'wp|wpd' => 'application/wordperfect',
 		) );
 	}
 
@@ -2593,15 +2601,13 @@ function wp_die( $message, $title = '', $args = array() ) {
  * site then you can overload using the wp_die_handler filter in wp_die
  *
  * @since 3.0.0
- * @private
+ * @access private
  *
  * @param string $message Error message.
  * @param string $title Error title.
  * @param string|array $args Optional arguements to control behaviour.
  */
 function _default_wp_die_handler( $message, $title = '', $args = array() ) {
-	global $wp_locale;
-
 	$defaults = array( 'response' => 500 );
 	$r = wp_parse_args($args, $defaults);
 
@@ -2656,7 +2662,7 @@ function _default_wp_die_handler( $message, $title = '', $args = array() ) {
 	$text_direction = 'ltr';
 	if ( isset($r['text_direction']) && 'rtl' == $r['text_direction'] )
 		$text_direction = 'rtl';
-	elseif ( isset($wp_locale ) && 'rtl' == $wp_locale->text_direction )
+	elseif ( function_exists( 'is_rtl' ) && is_rtl() )
 		$text_direction = 'rtl';
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -2738,9 +2744,7 @@ function _config_wp_siteurl( $url = '' ) {
  * @return array Direction set for 'rtl', if needed by locale.
  */
 function _mce_set_direction( $input ) {
-	global $wp_locale;
-
-	if ( 'rtl' == $wp_locale->text_direction ) {
+	if ( is_rtl() ) {
 		$input['directionality'] = 'rtl';
 		$input['plugins'] .= ',directionality';
 		$input['theme_advanced_buttons1'] .= ',ltr';
@@ -2894,11 +2898,46 @@ function wp_parse_args( $args, $defaults = '' ) {
  * @param array|string $list
  * @return array Sanitized array of IDs
  */
-function wp_parse_id_list($list) {
+function wp_parse_id_list( $list ) {
 	if ( !is_array($list) )
 		$list = preg_split('/[\s,]+/', $list);
 
 	return array_unique(array_map('absint', $list));
+}
+
+/**
+ * Filters a list of objects, based on a set of key => value arguments
+ *
+ * @since 3.0.0
+ *
+ * @param array $list An array of objects to filter
+ * @param array $args An array of key => value arguments to match against each object
+ * @param string $operator The logical operation to perform. 'or' means only one element
+ *	from the array needs to match; 'and' means all elements must match. The default is 'and'.
+ * @param bool|string $field A field from the object to place instead of the entire object
+ * @return array A list of objects or object fields
+ */
+function wp_filter_object_list( $list, $args = array(), $operator = 'and', $field = false ) {
+	if ( !is_array($list) )
+		return array();
+
+	if ( empty($args) )
+		$args = array();
+
+	if ( empty($args) && !$field )
+		return $list;	// nothing to do
+
+	$count = count($args);
+
+	$filtered = array();
+
+	foreach ( $list as $key => $obj ) {
+		$matched = count(array_intersect_assoc(get_object_vars($obj), $args));
+		if ( ('and' == $operator && $matched == $count) || ('or' == $operator && $matched <= $count) )
+			$filtered[$key] = $field ? $obj->$field : $obj;
+	}
+
+	return $filtered;
 }
 
 /**
@@ -3414,10 +3453,13 @@ function get_site_option( $option, $default = false, $use_cache = true ) {
 		if ( $use_cache )
 			$value = wp_cache_get($cache_key, 'site-options');
 
-		if ( false === $value ) {
-			$value = $wpdb->get_var( $wpdb->prepare("SELECT meta_value FROM $wpdb->sitemeta WHERE meta_key = %s AND site_id = %d", $option, $wpdb->siteid ) );
+		if ( !isset($value) || (false === $value) ) {
+			$row = $wpdb->get_row( $wpdb->prepare("SELECT meta_value FROM $wpdb->sitemeta WHERE meta_key = %s AND site_id = %d", $option, $wpdb->siteid ) );
 
-			if ( is_null($value) )
+			// Has to be get_row instead of get_var because of funkiness with 0, false, null values
+			if ( is_object( $row ) )
+				$value = $row->meta_value;
+			else
 				$value = $default;
 
 			$value = maybe_unserialize( $value );
@@ -3723,10 +3765,13 @@ function is_main_site( $blog_id = '' ) {
  * @return bool True if multisite and global terms enabled
  */
 function global_terms_enabled() {
-	if ( is_multisite() && '1' == get_site_option( 'global_terms_enabled' ) )
-		return true;
+	if ( ! is_multisite() )
+		return false;
 
-	return false;
+	static $global_terms = null;
+	if ( is_null( $global_terms ) )
+		$global_terms = (bool) get_site_option( 'global_terms_enabled' );
+	return $global_terms;
 }
 
 /**
@@ -4072,7 +4117,7 @@ function get_file_data( $file, $default_headers, $context = '' ) {
 /*
  * Used internally to tidy up the search terms
  *
- * @private
+ * @access private
  * @since 2.9.0
  *
  * @param string $t

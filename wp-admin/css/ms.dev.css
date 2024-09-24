@@ -1,12 +1,3 @@
-/* Site Admin Menu */
-#adminmenu .menu-icon-site div.wp-menu-image {
-	background: transparent url('../images/site-admin.png') no-repeat scroll 0px -33px;
-}
-
-#adminmenu .menu-icon-site:hover div.wp-menu-image {
-	background: transparent url('../images/site-admin.png') no-repeat scroll 0px -1px;
-}
-
 /* Dashboard: MS Specific Data */
 #dashboard_right_now p.musub {
 	margin-top: 12px;
@@ -18,8 +9,8 @@
 	font-size: 16px;
 }
 
-#dashboard_right_now div.musubtable { 
-	border-top: none; 
+#dashboard_right_now div.musubtable {
+	border-top: none;
 }
 
 /* No drag and drop on ms-sites.php */

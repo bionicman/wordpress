@@ -351,18 +351,6 @@ if ( is_string($content_func) )
  * @since unknown
  */
 function media_buttons() {
-	global $post_ID, $temp_ID;
-	$uploading_iframe_ID = (int) (0 == $post_ID ? $temp_ID : $post_ID);
-	$context = apply_filters('media_buttons_context', __('Upload/Insert %s'));
-	$media_upload_iframe_src = "media-upload.php?post_id=$uploading_iframe_ID";
-	$media_title = __('Add Media');
-	$image_upload_iframe_src = apply_filters('image_upload_iframe_src', "$media_upload_iframe_src&amp;type=image");
-	$image_title = __('Add an Image');
-	$video_upload_iframe_src = apply_filters('video_upload_iframe_src', "$media_upload_iframe_src&amp;type=video");
-	$video_title = __('Add Video');
-	$audio_upload_iframe_src = apply_filters('audio_upload_iframe_src', "$media_upload_iframe_src&amp;type=audio");
-	$audio_title = __('Add Audio');
-
 	$do_image = $do_audio = $do_video = true;
 	if ( is_multisite() ) {
 		$media_buttons = get_site_option( 'mu_media_buttons' );
@@ -376,16 +364,35 @@ function media_buttons() {
 	$out = '';
 
 	if ( $do_image )
-		$out .= "<a href='{$image_upload_iframe_src}&amp;TB_iframe=true' id='add_image' class='thickbox' title='$image_title' onclick='return false;'><img src='" . esc_url( admin_url( 'images/media-button-image.gif' ) ) . "' alt='$image_title' /></a>";
+		$out .= _media_button(__('Add an Image'), 'images/media-button-image.gif', 'image');
 	if ( $do_video )
-		$out .= "<a href='{$video_upload_iframe_src}&amp;TB_iframe=true' id='add_video' class='thickbox' title='$video_title' onclick='return false;'><img src='" . esc_url( admin_url( 'images/media-button-video.gif' ) ) . "' alt='$video_title' /></a>";
+		$out .= _media_button(__('Add Video'), 'images/media-button-video.gif', 'video');
 	if ( $do_audio )
-		$out .= "<a href='{$audio_upload_iframe_src}&amp;TB_iframe=true' id='add_audio' class='thickbox' title='$audio_title' onclick='return false;'><img src='" . esc_url( admin_url( 'images/media-button-music.gif' ) ) . "' alt='$audio_title' /></a>";
-	$out .= "<a href='{$media_upload_iframe_src}&amp;TB_iframe=true' id='add_media' class='thickbox' title='$media_title' onclick='return false;'><img src='" . esc_url( admin_url( 'images/media-button-other.gif' ) ) . "' alt='$media_title' /></a>";
+		$out .= _media_button(__('Add Audio'), 'images/media-button-music.gif', 'audio');
+
+	$out .= _media_button(__('Add Media'), 'images/media-button-other.gif', 'media');
+
+	$context = apply_filters('media_buttons_context', __('Upload/Insert %s'));
 
 	printf($context, $out);
 }
 add_action( 'media_buttons', 'media_buttons' );
+
+function _media_button($title, $icon, $type) {
+	return "<a href='" . get_upload_iframe_src($type) . "' id='add_$type' class='thickbox' title='$title'><img src='" . esc_url( admin_url( $icon ) ) . "' alt='$title' /></a>";
+}
+
+function get_upload_iframe_src($type) {
+	global $post_ID, $temp_ID;
+	$uploading_iframe_ID = (int) (0 == $post_ID ? $temp_ID : $post_ID);
+	$upload_iframe_src = add_query_arg('post_id', $uploading_iframe_ID, 'media-upload.php');
+
+	if ( 'media' != $type )
+		$upload_iframe_src = add_query_arg('type', $type, $upload_iframe_src);
+	$upload_iframe_src = apply_filters($type . '_upload_iframe_src', $upload_iframe_src);
+
+	return add_query_arg('TB_iframe', true, $upload_iframe_src);
+}
 
 /**
  * {@internal Missing Short Description}}
@@ -1113,6 +1120,7 @@ function get_attachment_fields_to_edit($post, $errors = null) {
  * @return string
  */
 function get_media_items( $post_id, $errors ) {
+	$attachments = array();
 	if ( $post_id ) {
 		$post = get_post($post_id);
 		if ( $post && $post->post_type == 'attachment' )
@@ -1153,14 +1161,14 @@ function get_media_item( $attachment_id, $args = null ) {
 	else
 		$thumb_url = false;
 
-	$default_args = array( 'errors' => null, 'send' => true, 'delete' => true, 'toggle' => true, 'show_title' => true );
+	$post = get_post( $attachment_id );
+
+	$default_args = array( 'errors' => null, 'send' => post_type_supports(get_post_type($post->post_parent), 'editor'), 'delete' => true, 'toggle' => true, 'show_title' => true );
 	$args = wp_parse_args( $args, $default_args );
 	extract( $args, EXTR_SKIP );
 
 	$toggle_on  = __( 'Show' );
 	$toggle_off = __( 'Hide' );
-
-	$post = get_post( $attachment_id );
 
 	$filename = basename( $post->guid );
 	$title = esc_attr( $post->post_title );
@@ -1984,7 +1992,6 @@ jQuery(function($){
  * @return unknown
  */
 function type_url_form_image() {
-
 	if ( !apply_filters( 'disable_captions', '' ) ) {
 		$caption = '
 		<tr>
@@ -2053,13 +2060,7 @@ function type_url_form_image() {
 			<button type="button" class="button" value="" onclick="document.forms[0].url.value=document.forms[0].src.value">' . __('Link to image') . '</button>
 			<p class="help">' . __('Enter a link URL or click above for presets.') . '</p></td>
 		</tr>
-
-		<tr>
-			<td></td>
-			<td>
-				<input type="button" class="button" id="go_button" style="color:#bbb;" onclick="addExtImage.insert()" value="' . esc_attr__('Insert into Post') . '" />
-			</td>
-		</tr>
+	' . _insert_into_post_button('image') . '
 	</tbody></table>
 ';
 
@@ -2090,12 +2091,7 @@ function type_url_form_audio() {
 			<td class="field"><input id="insertonly[title]" name="insertonly[title]" value="" type="text" aria-required="true"></td>
 		</tr>
 		<tr><td></td><td class="help">' . __('Link text, e.g. &#8220;Still Alive by Jonathan Coulton&#8221;') . '</td></tr>
-		<tr>
-			<td></td>
-			<td>
-				<input type="submit" class="button" name="insertonlybutton" value="' . esc_attr__('Insert into Post') . '" />
-			</td>
-		</tr>
+	' . _insert_into_post_button('audio') . '
 	</tbody></table>
 ';
 }
@@ -2125,12 +2121,7 @@ function type_url_form_video() {
 			<td class="field"><input id="insertonly[title]" name="insertonly[title]" value="" type="text" aria-required="true"></td>
 		</tr>
 		<tr><td></td><td class="help">' . __('Link text, e.g. &#8220;Lucy on YouTube&#8220;') . '</td></tr>
-		<tr>
-			<td></td>
-			<td>
-				<input type="submit" class="button" name="insertonlybutton" value="' . esc_attr__('Insert into Post') . '" />
-			</td>
-		</tr>
+	' . _insert_into_post_button('video') . '
 	</tbody></table>
 ';
 }
@@ -2160,14 +2151,34 @@ function type_url_form_file() {
 			<td class="field"><input id="insertonly[title]" name="insertonly[title]" value="" type="text" aria-required="true"></td>
 		</tr>
 		<tr><td></td><td class="help">' . __('Link text, e.g. &#8220;Ransom Demands (PDF)&#8221;') . '</td></tr>
+	' . _insert_into_post_button('file') . '
+	</tbody></table>
+';
+}
+
+
+function _insert_into_post_button($type) {
+	if ( !post_type_supports(get_post_type($_GET['post_id']), 'editor') )
+		return '';
+
+	if ( 'image' == $type )
+	return '
+		<tr>
+			<td></td>
+			<td>
+				<input type="button" class="button" id="go_button" style="color:#bbb;" onclick="addExtImage.insert()" value="' . esc_attr__('Insert into Post') . '" />
+			</td>
+		</tr>
+	';
+
+	return '
 		<tr>
 			<td></td>
 			<td>
 				<input type="submit" class="button" name="insertonlybutton" value="' . esc_attr__('Insert into Post') . '" />
 			</td>
 		</tr>
-	</tbody></table>
-';
+	';
 }
 
 /**

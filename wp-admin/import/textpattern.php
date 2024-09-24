@@ -64,7 +64,7 @@ class Textpattern_Import {
 
 	function greet() {
 		echo '<div class="narrow">';
-		echo '<p>'.__('Howdy! This imports categories, users, posts, comments, and links from any Textpattern 4.0.2+ into this blog.').'</p>';
+		echo '<p>'.__('Howdy! This imports categories, users, posts, comments, and links from any Textpattern 4.0.2+ into this site.').'</p>';
 		echo '<p>'.__('This has not been tested on previous versions of Textpattern.  Mileage may vary.').'</p>';
 		echo '<p>'.__('Your Textpattern Configuration settings are as follows:').'</p>';
 		echo '<form action="admin.php?import=textpattern&amp;step=1" method="post">';
@@ -581,9 +581,9 @@ class Textpattern_Import {
 		echo '<h3>'.__('WordPress Resources').'</h3>';
 		echo '<p>'.__('Finally, there are numerous WordPress resources around the internet.  Some of them are:').'</p>';
 		echo '<ul>';
-		echo '<li>'.__('<a href="http://www.wordpress.org">The official WordPress site</a>').'</li>';
+		echo '<li>'.__('<a href="http://wordpress.org/">The official WordPress site</a>').'</li>';
 		echo '<li>'.__('<a href="http://wordpress.org/support/">The WordPress support forums</a>').'</li>';
-		echo '<li>'.__('<a href="http://codex.wordpress.org">The Codex (In other words, the WordPress Bible)</a>').'</li>';
+		echo '<li>'.__('<a href="http://codex.wordpress.org/">The Codex (In other words, the WordPress Bible)</a>').'</li>';
 		echo '</ul>';
 		echo '<p>'.sprintf(__('That&#8217;s it! What are you waiting for? Go <a href="%1$s">log in</a>!'), get_bloginfo( 'wpurl' ) . '/wp-login.php').'</p>';
 	}

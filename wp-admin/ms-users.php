@@ -1,4 +1,12 @@
 <?php
+/**
+ * Multisite users administration panel.
+ *
+ * @package WordPress
+ * @subpackage Multisite
+ * @since 3.0.0
+ */
+
 require_once( './admin.php' );
 
 if ( !is_multisite() )
@@ -16,7 +24,7 @@ require_once( './admin-header.php' );
 
 if ( isset( $_GET['updated'] ) && $_GET['updated'] == 'true' && ! empty( $_GET['action'] ) ) {
 	?>
-	<div id="message" class="updated fade"><p>
+	<div id="message" class="updated"><p>
 		<?php
 		switch ( $_GET['action'] ) {
 			case 'delete':
@@ -122,8 +130,8 @@ if ( isset( $_GET['updated'] ) && $_GET['updated'] == 'true' && ! empty( $_GET['
 				<select name="action">
 					<option value="-1" selected="selected"><?php _e( 'Bulk Actions' ); ?></option>
 					<option value="delete"><?php _e( 'Delete' ); ?></option>
-					<option value="spam"><?php _e( 'Mark as Spam' ); ?></option>
-					<option value="notspam"><?php _e( 'Not Spam' ); ?></option>
+					<option value="spam"><?php echo _x( 'Mark as Spam', 'user' ); ?></option>
+					<option value="notspam"><?php echo _x( 'Not Spam', 'user' ); ?></option>
 				</select>
 				<input type="submit" value="<?php esc_attr_e( 'Apply' ); ?>" name="doaction" id="doaction" class="button-secondary action" />
 				<?php wp_nonce_field( 'bulk-ms-users' ); ?>
@@ -133,8 +141,8 @@ if ( isset( $_GET['updated'] ) && $_GET['updated'] == 'true' && ! empty( $_GET['
 			<div class="tablenav-pages">
 			<?php $page_links_text = sprintf( '<span class="displaying-num">' . __( 'Displaying %s&#8211;%s of %s' ) . '</span>%s',
 			number_format_i18n( ( $pagenum - 1 ) * $per_page + 1 ),
-			number_format_i18n( min( $pagenum * $per_page, $num_pages ) ),
-			number_format_i18n( $num_pages ),
+			number_format_i18n( min( $pagenum * $per_page, $total ) ),
+			number_format_i18n( $total ),
 			$page_links
 			); echo $page_links_text; ?>
 			</div>
@@ -154,7 +162,7 @@ if ( isset( $_GET['updated'] ) && $_GET['updated'] == 'true' && ! empty( $_GET['
 			'login'      => __( 'Username' ),
 			'name'       => __( 'Name' ),
 			'email'      => __( 'E-mail' ),
-			'registered' => __( 'Registered' ),
+			'registered' => _x( 'Registered', 'user' ),
 			'blogs'      => __( 'Sites' )
 		);
 		$users_columns = apply_filters( 'wpmu_users_columns', $users_columns );
@@ -191,7 +199,7 @@ if ( isset( $_GET['updated'] ) && $_GET['updated'] == 'true' && ! empty( $_GET['
 			<tbody id="the-user-list" class="list:user">
 			<?php if ( $user_list ) {
 				$class = '';
-				$super_admins = get_site_option( 'site_admins' );
+				$super_admins = get_super_admins();
 				foreach ( (array) $user_list as $user ) {
 					$class = ( 'alternate' == $class ) ? '' : 'alternate';
 
@@ -247,7 +255,7 @@ if ( isset( $_GET['updated'] ) && $_GET['updated'] == 'true' && ! empty( $_GET['
 							<?php
 							break;
 
-							case 'registered': 
+							case 'registered':
 								if ( 'list' == $mode )
 									$date = 'Y/m/d';
 								else
@@ -276,7 +284,7 @@ if ( isset( $_GET['updated'] ) && $_GET['updated'] == 'true' && ! empty( $_GET['
 											if ( get_blog_status( $val->userblog_id, 'spam' ) == 1 )
 												echo 'style="background-color: #faa" ';
 											echo 'href="' .  esc_url( get_home_url( $val->userblog_id ) )  . '">' . __( 'View' ) . '</a>';
-											
+
 											echo '</small><br />';
 										}
 									}
@@ -316,8 +324,8 @@ if ( isset( $_GET['updated'] ) && $_GET['updated'] == 'true' && ! empty( $_GET['
 				<select name="action2">
 					<option value="-1" selected="selected"><?php _e( 'Bulk Actions' ); ?></option>
 					<option value="delete"><?php _e( 'Delete' ); ?></option>
-					<option value="spam"><?php _e( 'Mark as Spam' ); ?></option>
-					<option value="notspam"><?php _e( 'Not Spam' ); ?></option>
+					<option value="spam"><?php echo _x( 'Mark as Spam', 'user' ); ?></option>
+					<option value="notspam"><?php echo _x( 'Not Spam', 'user' ); ?></option>
 				</select>
 				<input type="submit" value="<?php esc_attr_e( 'Apply' ); ?>" name="doaction2" id="doaction2" class="button-secondary action" />
 			</div>
@@ -330,9 +338,9 @@ if ( isset( $_GET['updated'] ) && $_GET['updated'] == 'true' && ! empty( $_GET['
 <?php
 if ( apply_filters( 'show_adduser_fields', true ) ) :
 ?>
-<div class="wrap">
-	<h2><?php _e( 'Add user' ) ?></h2>
-	<form action="ms-edit.php?action=adduser" method="post" id="form-add-user">
+<div class="wrap" id="form-add-user">
+	<h3><?php _e( 'Add User' ) ?></h3>
+	<form action="ms-edit.php?action=adduser" method="post">
 	<table class="form-table">
 		<tr class="form-field form-required">
 			<th scope="row"><?php _e( 'Username' ) ?></th>

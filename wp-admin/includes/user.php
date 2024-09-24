@@ -30,7 +30,7 @@ function add_user() {
 			if ( $user_id != $current_user->id || $wp_roles->role_objects[$new_role]->has_cap( 'edit_users' ) ) {
 				// If the new role isn't editable by the logged-in user die with error
 				$editable_roles = get_editable_roles();
-				if ( !$editable_roles[$new_role] )
+				if ( empty( $editable_roles[$new_role] ) )
 					wp_die(__('You can&#8217;t give users that role.'));
 
 				$user = new WP_User( $user_id );
@@ -79,12 +79,12 @@ function edit_user( $user_id = 0 ) {
 		$potential_role = isset($wp_roles->role_objects[$new_role]) ? $wp_roles->role_objects[$new_role] : false;
 		// Don't let anyone with 'edit_users' (admins) edit their own role to something without it.
 		// Multisite super admins can freely edit their blog roles -- they possess all caps.
-		if ( ( is_multisite() && is_site_admin() ) || $user_id != $current_user->id || ($potential_role && $potential_role->has_cap( 'edit_users' ) ) )
+		if ( ( is_multisite() && current_user_can( 'manage_sites' ) ) || $user_id != $current_user->id || ($potential_role && $potential_role->has_cap( 'edit_users' ) ) )
 			$user->role = $new_role;
 
 		// If the new role isn't editable by the logged-in user die with error
 		$editable_roles = get_editable_roles();
-		if ( !$editable_roles[$new_role] )
+		if ( ! empty( $new_role ) && empty( $editable_roles[$new_role] ) )
 			wp_die(__('You can&#8217;t give users that role.'));
 	}
 
@@ -158,8 +158,8 @@ function edit_user( $user_id = 0 ) {
 	if ( !empty( $pass1 ) )
 		$user->user_pass = $pass1;
 
-	if ( !$update && !validate_username( $user->user_login ) )
-		$errors->add( 'user_login', __( '<strong>ERROR</strong>: This username is invalid. Please enter a valid username.' ));
+	if ( !$update && isset( $_POST['user_login'] ) && !validate_username( $_POST['user_login'] ) )
+		$errors->add( 'user_login', __( '<strong>ERROR</strong>: This username is invalid because it uses illegal characters. Please enter a valid username.' ));
 
 	if ( !$update && username_exists( $user->user_login ) )
 		$errors->add( 'user_login', __( '<strong>ERROR</strong>: This username is already registered. Please choose another one.' ));
@@ -250,7 +250,7 @@ function get_editable_user_ids( $user_id, $exclude_zeros = true, $post_type = 'p
 	$post_type_obj = get_post_type_object($post_type);
 
 	if ( ! $user->has_cap($post_type_obj->edit_others_cap) ) {
-		if ( $user->has_cap($post_type_obj->edit_cap) || $exclude_zeros == false )
+		if ( $user->has_cap($post_type_obj->edit_type_cap) || ! $exclude_zeros )
 			return array($user->id);
 		else
 			return array();
@@ -451,6 +451,8 @@ function wp_delete_user( $id, $reassign = 'novalue' ) {
 		$wpdb->update( $wpdb->links, array('link_owner' => $reassign), array('link_owner' => $id) );
 	}
 
+	clean_user_cache($id);
+
 	// FINALLY, delete user
 	if ( !is_multisite() ) {
 		$wpdb->query( $wpdb->prepare("DELETE FROM $wpdb->usermeta WHERE user_id = %d", $id) );
@@ -459,8 +461,6 @@ function wp_delete_user( $id, $reassign = 'novalue' ) {
 		$level_key = $wpdb->get_blog_prefix() . 'capabilities'; // wpmu site admins don't have user_levels
 		$wpdb->query("DELETE FROM $wpdb->usermeta WHERE user_id = $id AND meta_key = '{$level_key}'");
 	}
-
-	clean_user_cache($id);
 
 	// allow for commit transaction
 	do_action('deleted_user', $id);
@@ -851,9 +851,13 @@ function default_password_nag() {
 	if ( ! get_user_option('default_password_nag') ) //Short circuit it.
 		return;
 
-	echo '<div class="error default-password-nag"><p><strong>' . __('Notice:') . '</strong> ';
-	printf(__("You're using the auto-generated password for your account. Would you like to change it to something you'll remember easier?<br/>
-		<a href='%s'>Yes, take me to my profile page</a> | <a href='%s' id='default-password-nag-no'>No thanks, do not remind me again</a>"), admin_url('profile.php') . '#password', '?default_password_nag=0');
+	echo '<div class="error default-password-nag">';
+	echo '<p>';
+	echo '<strong>' . __('Notice:') . '</strong> ';
+	_e('You&rsquo;re using the auto-generated password for your account. Would you like to change it to something you&rsquo;ll remember easier?');
+	echo '</p><p>';
+	printf( '<a href="%s">' . __('Yes, take me to my profile page') . '</a> | ', admin_url('profile.php') . '#password' );
+	printf( '<a href="%s" id="default-password-nag-no">' . __('No thanks, do not remind me again') . '</a>', '?default_password_nag=0' );
 	echo '</p></div>';
 }
 

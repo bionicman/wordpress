@@ -113,14 +113,14 @@ tagBox = {
 		});
 
 		$('div.taghint', ajaxtag).click(function(){
-			$(this).css('visibility', 'hidden').siblings('.newtag').focus();
+			$(this).css('visibility', 'hidden').parent().siblings('.newtag').focus();
 		});
 
 		$('input.newtag', ajaxtag).blur(function() {
 			if ( this.value == '' )
-	            $(this).siblings('.taghint').css('visibility', '');
+	            $(this).parent().siblings('.taghint').css('visibility', '');
 	    }).focus(function(){
-			$(this).siblings('.taghint').css('visibility', 'hidden');
+			$(this).parent().siblings('.taghint').css('visibility', 'hidden');
 		}).keyup(function(e){
 			if ( 13 == e.which ) {
 				tagBox.flushTags( $(this).closest('.tagsdiv') );
@@ -133,7 +133,7 @@ tagBox = {
 			}
 		}).each(function(){
 			var tax = $(this).closest('div.tagsdiv').attr('id');
-			$(this).suggest( ajaxurl + '?action=ajax-tag-search&tax=' + tax, { delay: 500, minchars: 2, multiple: true, multipleSep: ", " } );
+			$(this).suggest( ajaxurl + '?action=ajax-tag-search&tax=' + tax, { delay: 500, minchars: 2, multiple: true, multipleSep: "," } );
 		});
 
 	    // save tags on post save/publish
@@ -362,8 +362,8 @@ jQuery(document).ready( function($) {
 		}
 
 		function updateText() {
-			var attemptedDate, originalDate, currentDate, publishOn, postStatus = $('#post_status'),
-				optPublish = $('option[value=publish]', postStatus), aa = $('#aa').val(),
+			var attemptedDate, originalDate, currentDate, publishOn, page = 'page' == pagenow || 'page-new' == pagenow,
+				postStatus = $('#post_status'),	optPublish = $('option[value=publish]', postStatus), aa = $('#aa').val(),
 				mm = $('#mm').val(), jj = $('#jj').val(), hh = $('#hh').val(), mn = $('#mn').val();
 
 			attemptedDate = new Date( aa, mm - 1, jj, hh, mn );
@@ -599,4 +599,19 @@ jQuery(document).ready( function($) {
 		}
 		makeSlugeditClickable();
 	}
+
+	if ( $('#title').val() == '' )
+		$('#title').siblings('#title-prompt-text').css('visibility', '');
+	$('#title-prompt-text').click(function(){
+		$(this).css('visibility', 'hidden').siblings('#title').focus();
+	});
+	$('#title').blur(function(){
+		if (this.value == '')
+			$(this).siblings('#title-prompt-text').css('visibility', '');
+	}).focus(function(){
+		$(this).siblings('#title-prompt-text').css('visibility', 'hidden');
+	}).keydown(function(e){
+		$(this).siblings('#title-prompt-text').css('visibility', 'hidden');
+		$(this).unbind(e);
+	});
 });

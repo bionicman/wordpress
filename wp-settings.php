@@ -57,7 +57,7 @@ wp_debug_mode();
 
 // For an advanced caching plugin to use. Uses a static drop-in because you would only want one.
 if ( WP_CACHE )
-	@include( WP_CONTENT_DIR . '/advanced-cache.php' );
+	WP_DEBUG ? include( WP_CONTENT_DIR . '/advanced-cache.php' ) : @include( WP_CONTENT_DIR . '/advanced-cache.php' );
 
 // Define WP_LANG_DIR if not set.
 wp_set_lang_dir();
@@ -85,6 +85,8 @@ require( ABSPATH . WPINC . '/pomo/mo.php' );
 if ( is_multisite() ) {
 	require( ABSPATH . WPINC . '/ms-blogs.php' );
 	require( ABSPATH . WPINC . '/ms-settings.php' );
+} elseif ( ! defined( 'MULTISITE' ) ) {
+	define( 'MULTISITE', false );
 }
 
 // Stop most of WordPress from being loaded if we just want the basics.
@@ -127,6 +129,7 @@ require( ABSPATH . WPINC . '/canonical.php' );
 require( ABSPATH . WPINC . '/shortcodes.php' );
 require( ABSPATH . WPINC . '/media.php' );
 require( ABSPATH . WPINC . '/http.php' );
+require( ABSPATH . WPINC . '/class-http.php' );
 require( ABSPATH . WPINC . '/widgets.php' );
 require( ABSPATH . WPINC . '/nav-menu.php' );
 require( ABSPATH . WPINC . '/nav-menu-template.php' );
@@ -150,16 +153,8 @@ unset( $mu_plugin );
 
 do_action( 'muplugins_loaded' );
 
-// Check site status if multisite.
-if ( is_multisite() ) {
-	if ( true !== ( $file = ms_site_check() ) ) {
-		require( $file );
-		die();
-	}
-	unset($file);
-
+if ( is_multisite() )
 	ms_cookie_constants(  );
-}
 
 // Define constants after multisite is loaded. Cookie-related constants may be overridden in ms_network_cookies().
 wp_cookie_constants( );
@@ -170,9 +165,10 @@ wp_ssl_constants( );
 // Create common globals.
 require( ABSPATH . WPINC . '/vars.php' );
 
-// Make taxonomies available to plugins and themes.
-// @plugin authors: warning: this gets registered again on the init hook.
+// Make taxonomies and posts available to plugins and themes.
+// @plugin authors: warning: these get registered again on the init hook.
 create_initial_taxonomies();
+create_initial_post_types();
 
 // Load active plugins.
 foreach ( wp_get_active_and_valid_plugins() as $plugin )
@@ -285,6 +281,15 @@ $wp->init();
  * If you wish to plug an action once WP is loaded, use the wp_loaded hook below.
  */
 do_action( 'init' );
+
+// Check site status
+if ( is_multisite() ) {
+	if ( true !== ( $file = ms_site_check() ) ) {
+		require( $file );
+		die();
+	}
+	unset($file);
+}
 
 /**
  * This hook is fired once WP, all plugins, and the theme are fully loaded and instantiated.

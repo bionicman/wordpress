@@ -7,7 +7,7 @@
  */
 
 /** WordPress Administration Bootstrap */
-require_once('admin.php');
+require_once('./admin.php');
 
 if ( ! current_user_can( 'activate_plugins' ) )
 	wp_die( __( 'You do not have sufficient permissions to manage plugins for this site.' ) );
@@ -39,13 +39,13 @@ $_SERVER['REQUEST_URI'] = remove_query_arg(array('error', 'deleted', 'activate',
 
 if ( !empty($action) ) {
 	$network_wide = false;
-	if ( ( isset( $_GET['networkwide'] ) || 'network-activate-selected' == $action ) && is_multisite() && is_super_admin() )
+	if ( ( isset( $_GET['networkwide'] ) || 'network-activate-selected' == $action ) && is_multisite() && current_user_can( 'manage_network_plugins' ) )
 		$network_wide = true;
 
 	switch ( $action ) {
 		case 'activate':
 			if ( ! current_user_can('activate_plugins') )
-				wp_die(__('You do not have sufficient permissions to activate plugins for this blog.'));
+				wp_die(__('You do not have sufficient permissions to activate plugins for this site.'));
 
 			check_admin_referer('activate-plugin_' . $plugin);
 
@@ -72,7 +72,7 @@ if ( !empty($action) ) {
 		case 'activate-selected':
 		case 'network-activate-selected':
 			if ( ! current_user_can('activate_plugins') )
-				wp_die(__('You do not have sufficient permissions to activate plugins for this blog.'));
+				wp_die(__('You do not have sufficient permissions to activate plugins for this site.'));
 
 			check_admin_referer('bulk-manage-plugins');
 
@@ -109,7 +109,7 @@ if ( !empty($action) ) {
 			$title = __( 'Upgrade Plugins' );
 			$parent_file = 'plugins.php';
 
-			require_once( 'admin-header.php' );
+			require_once( './admin-header.php' );
 
 			echo '<div class="wrap">';
 			screen_icon();
@@ -121,12 +121,12 @@ if ( !empty($action) ) {
 
 			echo "<iframe src='$url' style='width: 100%; height:100%; min-height:850px;'></iframe>";
 			echo '</div>';
-			require_once( 'admin-footer.php' );
+			require_once( './admin-footer.php' );
 			exit;
 			break;
 		case 'error_scrape':
 			if ( ! current_user_can('activate_plugins') )
-				wp_die(__('You do not have sufficient permissions to activate plugins for this blog.'));
+				wp_die(__('You do not have sufficient permissions to activate plugins for this site.'));
 
 			check_admin_referer('plugin-activation-error_' . $plugin);
 
@@ -152,7 +152,7 @@ if ( !empty($action) ) {
 			break;
 		case 'deactivate':
 			if ( ! current_user_can('activate_plugins') )
-				wp_die(__('You do not have sufficient permissions to deactivate plugins for this blog.'));
+				wp_die(__('You do not have sufficient permissions to deactivate plugins for this site.'));
 
 			check_admin_referer('deactivate-plugin_' . $plugin);
 			deactivate_plugins($plugin);
@@ -165,7 +165,7 @@ if ( !empty($action) ) {
 			break;
 		case 'deactivate-selected':
 			if ( ! current_user_can('activate_plugins') )
-				wp_die(__('You do not have sufficient permissions to deactivate plugins for this blog.'));
+				wp_die(__('You do not have sufficient permissions to deactivate plugins for this site.'));
 
 			check_admin_referer('bulk-manage-plugins');
 
@@ -188,7 +188,7 @@ if ( !empty($action) ) {
 			break;
 		case 'delete-selected':
 			if ( ! current_user_can('delete_plugins') )
-				wp_die(__('You do not have sufficient permissions to delete plugins for this blog.'));
+				wp_die(__('You do not have sufficient permissions to delete plugins for this site.'));
 
 			check_admin_referer('bulk-manage-plugins');
 
@@ -206,7 +206,7 @@ if ( !empty($action) ) {
 
 			if ( ! isset($_REQUEST['verify-delete']) ) {
 				wp_enqueue_script('jquery');
-				require_once('admin-header.php');
+				require_once('./admin-header.php');
 				?>
 			<div class="wrap">
 				<?php
@@ -284,7 +284,7 @@ if ( !empty($action) ) {
 				</div>
 			</div>
 				<?php
-				require_once('admin-footer.php');
+				require_once('./admin-footer.php');
 				exit;
 			} //Endif verify-delete
 			$delete_result = delete_plugins($plugins);
@@ -318,7 +318,7 @@ if ( is_multisite() && is_super_admin() ) {
 }
 
 $title = __('Manage Plugins');
-require_once('admin-header.php');
+require_once('./admin-header.php');
 
 $invalid = validate_active_plugins();
 if ( !empty($invalid) )
@@ -378,7 +378,7 @@ $recently_activated = get_option('recently_activated', array());
 $upgrade_plugins = array();
 $network_plugins = array();
 $mustuse_plugins = $dropins_plugins = array();
-if ( ! is_multisite() || ( is_multisite() && current_user_can('manage_network_plugins') ) ) {
+if ( ! is_multisite() || current_user_can('manage_network_plugins') ) {
 	if ( apply_filters( 'show_advanced_plugins', true, 'mustuse' ) )
 		$mustuse_plugins = get_mu_plugins();
 	if ( apply_filters( 'show_advanced_plugins', true, 'dropins' ) )
@@ -406,9 +406,11 @@ unset( $plugin_array_name );
 
 foreach ( (array) $all_plugins as $plugin_file => $plugin_data) {
 	// Filter into individual sections
-	if ( is_plugin_active_for_network($plugin_file) ) {
-		if ( is_super_admin() )
-			$network_plugins[ $plugin_file ] = $plugin_data;
+	if ( is_multisite() && is_network_only_plugin( $plugin_file ) && !current_user_can( 'manage_network_plugins' ) ) {
+		unset( $all_plugins[ $plugin_file ] );
+		continue;
+	} elseif ( is_plugin_active_for_network($plugin_file) ) {
+		$network_plugins[ $plugin_file ] = $plugin_data;
 	} elseif ( is_plugin_active($plugin_file) ) {
 		$active_plugins[ $plugin_file ] = $plugin_data;
 	} else {
@@ -523,7 +525,15 @@ function print_plugins_table($plugins, $context = '') {
 		</tr>';
 	}
 	foreach ( (array)$plugins as $plugin_file => $plugin_data) {
-		$actions = array();
+		// preorder
+		$actions = array(
+			'network_deactivate' => '', 'deactivate' => '',
+			'network_only' => '', 'activate' => '',
+			'network_activate' => '',
+			'edit' => '',
+			'delete' => '',
+		);
+
 		if ( 'mustuse' == $context ) {
 			$is_active = true;
 		} elseif ( 'dropins' == $context ) {
@@ -551,28 +561,28 @@ function print_plugins_table($plugins, $context = '') {
 			if ( $is_active ) {
 				if ( $is_active_for_network ) {
 					if ( is_super_admin() )
-						$actions[] = '<a href="' . wp_nonce_url('plugins.php?action=deactivate&amp;networkwide=1&amp;plugin=' . $plugin_file . '&amp;plugin_status=' . $context . '&amp;paged=' . $page, 'deactivate-plugin_' . $plugin_file) . '" title="' . __('Deactivate this plugin') . '">' . __('Network Deactivate') . '</a>';
+						$actions['network_deactivate'] = '<a href="' . wp_nonce_url('plugins.php?action=deactivate&amp;networkwide=1&amp;plugin=' . $plugin_file . '&amp;plugin_status=' . $context . '&amp;paged=' . $page, 'deactivate-plugin_' . $plugin_file) . '" title="' . __('Deactivate this plugin') . '">' . __('Network Deactivate') . '</a>';
 				} else {
-					$actions[] = '<a href="' . wp_nonce_url('plugins.php?action=deactivate&amp;plugin=' . $plugin_file . '&amp;plugin_status=' . $context . '&amp;paged=' . $page, 'deactivate-plugin_' . $plugin_file) . '" title="' . __('Deactivate this plugin') . '">' . __('Deactivate') . '</a>';
+					$actions['deactivate'] = '<a href="' . wp_nonce_url('plugins.php?action=deactivate&amp;plugin=' . $plugin_file . '&amp;plugin_status=' . $context . '&amp;paged=' . $page, 'deactivate-plugin_' . $plugin_file) . '" title="' . __('Deactivate this plugin') . '">' . __('Deactivate') . '</a>';
 				}
 			} else {
 				if ( is_multisite() && is_network_only_plugin( $plugin_file ) )
-					$actions[] = '<span title="' . __('This plugin can only be activated for all sites in a network') . '">' . __('Network Only') . '</span>';
+					$actions['network_only'] = '<span title="' . __('This plugin can only be activated for all sites in a network') . '">' . __('Network Only') . '</span>';
 				else
-					$actions[] = '<a href="' . wp_nonce_url('plugins.php?action=activate&amp;plugin=' . $plugin_file . '&amp;plugin_status=' . $context . '&amp;paged=' . $page, 'activate-plugin_' . $plugin_file) . '" title="' . __('Activate this plugin') . '" class="edit">' . __('Activate') . '</a>';
+					$actions['activate'] = '<a href="' . wp_nonce_url('plugins.php?action=activate&amp;plugin=' . $plugin_file . '&amp;plugin_status=' . $context . '&amp;paged=' . $page, 'activate-plugin_' . $plugin_file) . '" title="' . __('Activate this plugin') . '" class="edit">' . __('Activate') . '</a>';
 
-				if ( is_multisite() && is_super_admin() )
-					$actions[] = '<a href="' . wp_nonce_url('plugins.php?action=activate&amp;networkwide=1&amp;plugin=' . $plugin_file . '&amp;plugin_status=' . $context . '&amp;paged=' . $page, 'activate-plugin_' . $plugin_file) . '" title="' . __('Activate this plugin for all sites in this network') . '" class="edit">' . __('Network Activate') . '</a>';
+				if ( is_multisite() && current_user_can( 'manage_network_plugins' ) )
+					$actions['network_activate'] = '<a href="' . wp_nonce_url('plugins.php?action=activate&amp;networkwide=1&amp;plugin=' . $plugin_file . '&amp;plugin_status=' . $context . '&amp;paged=' . $page, 'activate-plugin_' . $plugin_file) . '" title="' . __('Activate this plugin for all sites in this network') . '" class="edit">' . __('Network Activate') . '</a>';
 
 				if ( current_user_can('delete_plugins') )
-					$actions[] = '<a href="' . wp_nonce_url('plugins.php?action=delete-selected&amp;checked[]=' . $plugin_file . '&amp;plugin_status=' . $context . '&amp;paged=' . $page, 'bulk-manage-plugins') . '" title="' . __('Delete this plugin') . '" class="delete">' . __('Delete') . '</a>';
+					$actions['delete'] = '<a href="' . wp_nonce_url('plugins.php?action=delete-selected&amp;checked[]=' . $plugin_file . '&amp;plugin_status=' . $context . '&amp;paged=' . $page, 'bulk-manage-plugins') . '" title="' . __('Delete this plugin') . '" class="delete">' . __('Delete') . '</a>';
 			} // end if $is_active
 
 			if ( current_user_can('edit_plugins') && is_writable(WP_PLUGIN_DIR . '/' . $plugin_file) )
-				$actions[] = '<a href="plugin-editor.php?file=' . $plugin_file . '" title="' . __('Open this file in the Plugin Editor') . '" class="edit">' . __('Edit') . '</a>';
+				$actions['edit'] = '<a href="plugin-editor.php?file=' . $plugin_file . '" title="' . __('Open this file in the Plugin Editor') . '" class="edit">' . __('Edit') . '</a>';
 		} // end if $context
 
-		$actions = apply_filters( 'plugin_action_links', $actions, $plugin_file, $plugin_data, $context );
+		$actions = apply_filters( 'plugin_action_links', array_filter( $actions ), $plugin_file, $plugin_data, $context );
 		$actions = apply_filters( "plugin_action_links_$plugin_file", $actions, $plugin_file, $plugin_data, $context );
 
 		$class = $is_active ? 'active' : 'inactive';
@@ -766,5 +776,5 @@ print_plugin_actions($status, "action2");
 </div>
 
 <?php
-include('admin-footer.php');
+include('./admin-footer.php');
 ?>

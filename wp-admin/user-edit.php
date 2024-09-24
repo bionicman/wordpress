@@ -7,7 +7,7 @@
  */
 
 /** WordPress Administration Bootstrap */
-require_once('admin.php');
+require_once('./admin.php');
 
 wp_reset_vars(array('action', 'redirect', 'profile', 'user_id', 'wp_http_referer'));
 
@@ -58,7 +58,7 @@ function use_ssl_preference($user) {
 
 
 // Only allow super admins on multisite to edit every user.
-if ( is_multisite() && ! is_super_admin() && $user_id != $current_user->ID && ! apply_filters( 'enable_edit_any_user_configuration', true ) )
+if ( is_multisite() && ! current_user_can( 'manage_network_users' ) && $user_id != $current_user->ID && ! apply_filters( 'enable_edit_any_user_configuration', true ) )
 	wp_die( __( 'You do not have permission to edit this user.' ) );
 
 // Execute confirmed email change. See send_confirmation_on_profile_email().
@@ -121,7 +121,7 @@ if ( !is_multisite() ) {
 	if ( $delete_role ) // stops users being added to current blog when they are edited
 		delete_user_meta( $user_id, $blog_prefix . 'capabilities' );
 
-	if ( is_multisite() && is_super_admin() && !IS_PROFILE_PAGE )
+	if ( is_multisite() && !IS_PROFILE_PAGE && current_user_can( 'manage_network_options' ) && !isset($super_admins) && empty( $_POST['super_admin'] ) == is_super_admin( $user_id ) )
 		empty( $_POST['super_admin'] ) ? revoke_super_admin( $user_id ) : grant_super_admin( $user_id );
 }
 
@@ -141,7 +141,7 @@ if ( !current_user_can('edit_user', $user_id) )
 include ('admin-header.php');
 ?>
 
-<?php if ( !IS_PROFILE_PAGE && is_super_admin( $profileuser->ID ) ) { ?>
+<?php if ( !IS_PROFILE_PAGE && is_super_admin( $profileuser->ID ) && current_user_can( 'manage_network_options' ) ) { ?>
 	<div class="updated"><p><strong><?php _e('Important:'); ?></strong> <?php _e('This user has super admin privileges.'); ?></p></div>
 <?php } ?>
 <?php if ( isset($_GET['updated']) ) : ?>
@@ -153,21 +153,14 @@ include ('admin-header.php');
 </div>
 <?php endif; ?>
 <?php if ( isset( $errors ) && is_wp_error( $errors ) ) : ?>
-<div class="error">
-	<ul>
-	<?php
-	foreach( $errors->get_error_messages() as $message )
-		echo "<li>$message</li>";
-	?>
-	</ul>
-</div>
+<div class="error"><p><?php echo implode( "</p>\n<p>", $errors->get_error_messages() ); ?></p></div>
 <?php endif; ?>
 
 <div class="wrap" id="profile-page">
 <?php screen_icon(); ?>
 <h2><?php echo esc_html( $title ); ?></h2>
 
-<form id="your-profile" action="<?php echo esc_url( admin_url( IS_PROFILE_PAGE ? 'profile.php' : 'user-edit.php' ) ); ?>" method="post">
+<form id="your-profile" action="<?php echo esc_url( admin_url( IS_PROFILE_PAGE ? 'profile.php' : 'user-edit.php' ) ); ?>" method="post"<?php do_action('user_edit_form_tag'); ?>>
 <?php wp_nonce_field('update-user_' . $user_id) ?>
 <?php if ( $wp_http_referer ) : ?>
 	<input type="hidden" name="wp_http_referer" value="<?php echo esc_url($wp_http_referer); ?>" />
@@ -230,12 +223,12 @@ wp_dropdown_roles($user_role);
 
 // print the 'no role' option. Make it selected if the user has no role yet.
 if ( $user_role )
-	echo '<option value="">' . __('&mdash; No role for this blog &mdash;') . '</option>';
+	echo '<option value="">' . __('&mdash; No role for this site &mdash;') . '</option>';
 else
-	echo '<option value="" selected="selected">' . __('&mdash; No role for this blog &mdash;') . '</option>';
+	echo '<option value="" selected="selected">' . __('&mdash; No role for this site &mdash;') . '</option>';
 ?>
 </select>
-<?php if ( is_multisite() && is_super_admin() ) { ?>
+<?php if ( is_multisite() && current_user_can( 'manage_network_options' ) && !isset($super_admins) ) { ?>
 <p><label><input type="checkbox" id="super_admin" name="super_admin"<?php checked( is_super_admin( $profileuser->ID ) ); ?> /> <?php _e( 'Grant this user super admin privileges for the Network.'); ?></label></p>
 <?php } ?>
 </td></tr>
@@ -373,6 +366,12 @@ if ( $show_password_fields ) :
 <?php
 break;
 }
-
-include('admin-footer.php');
+?>
+<script type="text/javascript" charset="utf-8">
+	if (window.location.hash == '#password') {
+		document.getElementById('pass1').focus();
+	}
+</script>
+<?php
+include('./admin-footer.php');
 ?>

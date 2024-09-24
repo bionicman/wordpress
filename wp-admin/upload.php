@@ -7,7 +7,7 @@
  */
 
 /** WordPress Administration Bootstrap */
-require_once('admin.php');
+require_once('./admin.php');
 wp_enqueue_script( 'wp-ajax-response' );
 wp_enqueue_script( 'jquery-ui-draggable' );
 
@@ -146,6 +146,8 @@ if ( isset($_GET['detached']) ) {
 		$orphans = $wpdb->get_results( $wpdb->prepare( "SELECT SQL_CALC_FOUND_ROWS * FROM $wpdb->posts WHERE post_type = 'attachment' AND post_status != 'trash' AND post_parent < 1 LIMIT %d, %d", $start, $media_per_page ) );
 		$total_orphans = $wpdb->get_var( "SELECT FOUND_ROWS()" );
 		$page_links_total = ceil( $total_orphans / $media_per_page );
+		$wp_query->found_posts = $total_orphans;
+		$wp_query->query_vars['posts_per_page'] = $media_per_page;
 	}
 
 	$post_mime_types = get_post_mime_types();
@@ -161,14 +163,14 @@ if ( isset($_GET['detached']) ) {
 $is_trash = ( isset($_GET['status']) && $_GET['status'] == 'trash' );
 
 wp_enqueue_script('media');
-require_once('admin-header.php');
+require_once('./admin-header.php');
 ?>
 
 <div class="wrap">
 <?php screen_icon(); ?>
 <h2><?php echo esc_html( $title ); ?> <a href="media-new.php" class="button add-new-h2"><?php echo esc_html_x('Add New', 'file'); ?></a> <?php
 if ( isset($_GET['s']) && $_GET['s'] )
-	printf( '<span class="subtitle">' . __('Search results for &#8220;%s&#8221;') . '</span>', esc_html( get_search_query() ) ); ?>
+	printf( '<span class="subtitle">' . __('Search results for &#8220;%s&#8221;') . '</span>', get_search_query() ); ?>
 </h2>
 
 <?php
@@ -448,7 +450,7 @@ if ( isset($_GET['detached']) ) { ?>
 <?php
 
 } else {
-	include( 'edit-attachment-rows.php' );
+	include( './edit-attachment-rows.php' );
 } ?>
 
 <div id="ajax-response"></div>
@@ -492,4 +494,4 @@ if ( $page_links )
 </div>
 
 <?php
-include('admin-footer.php');
+include('./admin-footer.php');

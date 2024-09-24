@@ -108,7 +108,7 @@ function get_permalink($id = 0, $leavename = false) {
 	elseif ( $post->post_type == 'attachment' )
 		return get_attachment_link($post->ID);
 	elseif ( in_array($post->post_type, get_post_types( array('_builtin' => false) ) ) )
-		return get_post_permalink($post, $leavename);
+		return get_post_permalink($post, $leavename, $sample);
 
 	$permalink = get_option('permalink_structure');
 
@@ -271,11 +271,11 @@ function _get_page_link( $id = false, $leavename = false, $sample = false ) {
 	else
 		$post = &get_post($id);
 
-	$pagestruct = $wp_rewrite->get_page_permastruct();
+	$link = $wp_rewrite->get_page_permastruct();
 
-	if ( '' != $pagestruct && ( ( isset($post->post_status) && 'draft' != $post->post_status && 'pending' != $post->post_status ) || $sample ) ) {
-		$link = get_page_uri($id);
-		$link = ( $leavename ) ? $pagestruct : str_replace('%pagename%', $link, $pagestruct);
+	if ( '' != $link && ( ( isset($post->post_status) && 'draft' != $post->post_status && 'pending' != $post->post_status ) || $sample ) ) {
+		if ( ! $leavename )
+			$link = str_replace('%pagename%', get_page_uri($id), $link);
 		$link = home_url($link);
 		$link = user_trailingslashit($link, 'page');
 	} else {
@@ -321,7 +321,7 @@ function get_attachment_link($id = false) {
 	}
 
 	if ( ! $link )
-		$link = trailingslashit(get_bloginfo('url')) . "?attachment_id=$id";
+		$link = home_url( "/?attachment_id=$id" );
 
 	return apply_filters('attachment_link', $link, $id);
 }
@@ -471,7 +471,12 @@ function get_post_comments_feed_link($post_id = '', $feed = '') {
 		$feed = get_default_feed();
 
 	if ( '' != get_option('permalink_structure') ) {
-		$url = trailingslashit( get_permalink($post_id) ) . 'feed';
+		if ( 'page' == get_option('show_on_front') && $post_id == get_option('page_on_front') )
+			$url = _get_page_link( $post_id );
+		else
+			$url = get_permalink($post_id);
+
+		$url = trailingslashit($url) . 'feed';
 		if ( $feed != get_default_feed() )
 			$url .= "/$feed";
 		$url = user_trailingslashit($url, 'single_feed');
@@ -686,7 +691,7 @@ function get_search_link( $query = '' ) {
 	global $wp_rewrite;
 
 	if ( empty($query) )
-		$search = get_search_query();
+		$search = get_search_query( false );
 	else
 		$search = stripslashes($query);
 
@@ -821,28 +826,21 @@ function edit_post_link( $link = null, $before = '', $after = '', $id = 0 ) {
 /**
  * Retrieve delete posts link for post.
  *
- * Can be used within the WordPress loop or outside of it. Can be used with
- * pages, posts, attachments, and revisions.
+ * Can be used within the WordPress loop or outside of it, with any post type.
  *
  * @since 2.9.0
  *
  * @param int $id Optional. Post ID.
- * @param string $context Optional, default to display. How to write the '&', defaults to '&amp;'.
+ * @param string $deprecated Not used.
+ * @param bool $force_delete Whether to bypass trash and force deletion. Default is false.
  * @return string
  */
-function get_delete_post_link($id = 0, $context = 'display') {
+function get_delete_post_link( $id = 0, $deprecated = '', $force_delete = false ) {
+	if ( ! empty( $deprecated ) )
+		_deprecated_argument( __FUNCTION__, '3.0.0' );
+
 	if ( !$post = &get_post( $id ) )
 		return;
-
-	if ( 'display' == $context )
-		$action = 'action=trash&amp;';
-	else
-		$action = 'action=trash&';
-
-	if ( 'display' == $context )
-		$action = '&amp;action=trash';
-	else
-		$action = '&action=trash';
 
 	$post_type_object = get_post_type_object( $post->post_type );
 	if ( !$post_type_object )
@@ -851,7 +849,11 @@ function get_delete_post_link($id = 0, $context = 'display') {
 	if ( !current_user_can( $post_type_object->delete_cap, $post->ID ) )
 		return;
 
-	return apply_filters( 'get_delete_post_link', wp_nonce_url( admin_url( sprintf($post_type_object->_edit_link . $action, $post->ID) ),  "trash-{$post->post_type}_" . $post->ID), $post->ID, $context );
+	$action = ( $force_delete || !EMPTY_TRASH_DAYS ) ? 'delete' : 'trash';
+
+	$delete_link = add_query_arg( 'action', $action, admin_url( sprintf( $post_type_object->_edit_link, $post->ID ) ) );
+
+	return apply_filters( 'get_delete_post_link', wp_nonce_url( $delete_link, "$action-{$post->post_type}_{$post->ID}" ), $post->ID, $force_delete );
 }
 
 /**
@@ -1092,6 +1094,19 @@ function get_adjacent_post_rel_link($title = '%title', $in_same_cat = false, $ex
 function adjacent_posts_rel_link($title = '%title', $in_same_cat = false, $excluded_categories = '') {
 	echo get_adjacent_post_rel_link($title, $in_same_cat, $excluded_categories = '', true);
 	echo get_adjacent_post_rel_link($title, $in_same_cat, $excluded_categories = '', false);
+}
+
+/**
+ * Display relational links for the posts adjacent to the current post for single post pages.
+ *
+ * This is meant to be attached to actions like 'wp_head'.  Do not call this directly in plugins or theme templates.
+ * @since 3.0.0
+ *
+ */
+function adjacent_posts_rel_link_wp_head() {
+	if ( !is_singular() || is_attachment() )
+		return;
+	adjacent_posts_rel_link();
 }
 
 /**
@@ -2184,12 +2199,12 @@ function wp_get_shortlink($id = 0, $context = 'post', $allow_slugs = true) {
  * @uses wp_get_shortlink()
  */
 function wp_shortlink_wp_head() {
-	$shortlink = wp_get_shortlink(0, 'query');
+	$shortlink = wp_get_shortlink( 0, 'query' );
 
-	if ( empty($shortlink) )
+	if ( empty( $shortlink ) )
 		return;
 
-	echo "<link rel='shortlink' href='" . $shortlink . "' />\n";
+	echo "<link rel='shortlink' href='" . esc_url_raw( $shortlink ) . "' />\n";
 }
 
 /**
@@ -2227,19 +2242,22 @@ function wp_shortlink_header() {
  * @param string $before Optional HTML to display before the link.
  * @param string $before Optional HTML to display after the link.
  */
-function the_shortlink($text = '', $title = '', $before = '', $after = '') {
+function the_shortlink( $text = '', $title = '', $before = '', $after = '' ) {
 	global $post;
 
-	if ( empty($text) )
+	if ( empty( $text ) )
 		$text = __('This is the short link.');
 
-	if ( empty($title) )
-		$title = the_title_attribute( array('echo' => FALSE) );
+	if ( empty( $title ) )
+		$title = the_title_attribute( array( 'echo' => FALSE ) );
 
-	$shortlink = wp_get_shortlink($post->ID);
+	$shortlink = wp_get_shortlink( $post->ID );
 
-	if ( !empty($shortlink) )
-		echo "$before<a rel='shortlink' href='$shortlink' title='$title'>$text</a>$after";
+	if ( !empty( $shortlink ) ) {
+		$link = '<a rel="shortlink" href="' . esc_url( $shortlink ) . '" title="' . $title . '">' . $text . '</a>';
+		$link = apply_filters( 'the_shortlink', $link, $shortlink, $text, $title );
+		echo $before, $link, $after;
+	}
 }
 
 ?>

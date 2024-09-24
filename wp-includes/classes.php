@@ -275,10 +275,10 @@ class WP {
 
 			if ( !empty( $this->query_vars[$wpvar] ) ) {
 				$this->query_vars[$wpvar] = (string) $this->query_vars[$wpvar];
-				if ( in_array( $wpvar, $taxonomy_query_vars ) ) {
+				if ( isset( $taxonomy_query_vars[$wpvar] ) ) {
 					$this->query_vars['taxonomy'] = $taxonomy_query_vars[$wpvar];
 					$this->query_vars['term'] = $this->query_vars[$wpvar];
-				} elseif ( in_array( $wpvar, $post_type_query_vars ) ) {
+				} elseif ( isset($post_type_query_vars[$wpvar] ) ) {
 					$this->query_vars['post_type'] = $post_type_query_vars[$wpvar];
 					$this->query_vars['name'] = $this->query_vars[$wpvar];
 				}
@@ -1124,102 +1124,6 @@ class Walker {
 }
 
 /**
- * Create HTML list of nav menu items.
- *
- * @package WordPress
- * @since 3.0.0
- * @uses Walker
- */
-class Walker_Nav_Menu extends Walker {
-	/**
-	 * @see Walker::$tree_type
-	 * @since 3.0.0
-	 * @var string
-	 */
-	var $tree_type = array( 'post_type', 'taxonomy', 'custom' );
-
-	/**
-	 * @see Walker::$db_fields
-	 * @since 3.0.0
-	 * @todo Decouple this.
-	 * @var array
-	 */
-	var $db_fields = array( 'parent' => 'post_parent', 'id' => 'object_id' );
-
-	/**
-	 * @see Walker::start_lvl()
-	 * @since 3.0.0
-	 *
-	 * @param string $output Passed by reference. Used to append additional content.
-	 * @param int $depth Depth of page. Used for padding.
-	 */
-	function start_lvl(&$output, $depth) {
-		$indent = str_repeat("\t", $depth);
-		$output .= "\n$indent<ul class=\"sub-menu\">\n";
-	}
-
-	/**
-	 * @see Walker::end_lvl()
-	 * @since 3.0.0
-	 *
-	 * @param string $output Passed by reference. Used to append additional content.
-	 * @param int $depth Depth of page. Used for padding.
-	 */
-	function end_lvl(&$output, $depth) {
-		$indent = str_repeat("\t", $depth);
-		$output .= "$indent</ul>\n";
-	}
-
-	/**
-	 * @see Walker::start_el()
-	 * @since 3.0.0
-	 *
-	 * @param string $output Passed by reference. Used to append additional content.
-	 * @param object $item Menu item data object.
-	 * @param int $depth Depth of menu item. Used for padding.
-	 * @param int $current_page Menu item ID.
-	 * @param array $args
-	 */
-	function start_el(&$output, $item, $depth, $args) {
-		$indent = ( $depth ) ? str_repeat( "\t", $depth ) : '';
-
-		if ( 'frontend' == $args->context ) {
-			global $wp_query;
-
-			$css_class = array( 'menu-item', 'menu-item-type-'. $item->type, $item->classes );
-
-			if ( 'custom' != $item->object )
-				$css_class[] = 'menu-item-object-'. $item->object;
-
-			if ( $item->object_id == $wp_query->get_queried_object_id() )
-				$css_class[] = 'current-menu-item';
-
-			// @todo add classes for parent/child relationships
-
-			$css_class = join( ' ', apply_filters('nav_menu_css_class', $css_class, $item) );
-		}
-
-		$maybe_value = ( 'backend' == $args->context ) ? ' value="'. $item->ID .'"' : '';
-		$maybe_classes = ( 'frontend' == $args->context ) ? ' class="'. $css_class .'"' : '';
-
-		$output .= $indent . '<li id="menu-item-'. $item->ID .'"'. $maybe_value . $maybe_classes .'>' . wp_get_nav_menu_item( $item, $args->context, $args );
-	}
-
-	/**
-	 * @see Walker::end_el()
-	 * @since 3.0.0
-	 *
-	 * @param string $output Passed by reference. Used to append additional content.
-	 * @param object $item Page data object. Not used.
-	 * @param int $depth Depth of page. Not Used.
-	 */
-	function end_el(&$output, $item, $depth) {
-		$output .= "</li>\n";
-	}
-
-}
-
-/**
  * Create HTML list of pages.
  *
  * @package WordPress
@@ -1298,7 +1202,7 @@ class Walker_Page extends Walker {
 
 		$css_class = implode(' ', apply_filters('page_css_class', $css_class, $page));
 
-		$output .= $indent . '<li class="' . $css_class . '"><a href="' . get_page_link($page->ID) . '" title="' . esc_attr(apply_filters('the_title', $page->post_title)) . '">' . $link_before . apply_filters('the_title', $page->post_title) . $link_after . '</a>';
+		$output .= $indent . '<li class="' . $css_class . '"><a href="' . get_page_link($page->ID) . '" title="' . esc_attr( wp_strip_all_tags( apply_filters( 'the_title', $page->post_title ) ) ) . '">' . $link_before . apply_filters( 'the_title', $page->post_title ) . $link_after . '</a>';
 
 		if ( !empty($show_date) ) {
 			if ( 'modified' == $show_date )

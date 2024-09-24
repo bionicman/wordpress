@@ -22,13 +22,16 @@ if ( ! empty($link_id) ) {
 	$nonce_action = 'add-bookmark';
 }
 
-require_once('includes/meta-boxes.php');
+require_once('./includes/meta-boxes.php');
 
 add_meta_box('linksubmitdiv', __('Save'), 'link_submit_meta_box', 'link', 'side', 'core');
 add_meta_box('linkcategorydiv', __('Categories'), 'link_categories_meta_box', 'link', 'normal', 'core');
 add_meta_box('linktargetdiv', __('Target'), 'link_target_meta_box', 'link', 'normal', 'core');
 add_meta_box('linkxfndiv', __('Link Relationship (XFN)'), 'link_xfn_meta_box', 'link', 'normal', 'core');
 add_meta_box('linkadvanceddiv', __('Advanced'), 'link_advanced_meta_box', 'link', 'normal', 'core');
+
+do_action('add_meta_boxes', 'link', $link);
+do_action('add_meta_boxes_link', $link);
 
 do_action('do_meta_boxes', 'link', 'normal', $link);
 do_action('do_meta_boxes', 'link', 'advanced', $link);

@@ -151,7 +151,7 @@ foreach ( $offset_range as $offset ) {
 	<span id="local-time"><?php printf(__('UTC %1$s is <code>%2$s</code>'), $current_offset_name, date_i18n($time_format)); ?></span>
 <?php endif; ?>
 <br />
-<span class="description"><?php _e('Unfortunately, you have to manually update this for daylight saving time. Lame, we know, but will be fixed in the future.'); ?></span>
+<span class="description"><?php _e('Unfortunately, you have to manually update this for daylight saving time. The PHP Date/Time library is not supported by your web host.'); ?></span>
 </td>
 <?php
 else: // looks like we can do nice timezone selection!
@@ -310,27 +310,19 @@ endfor;
 </tr>
 <?php do_settings_fields('general', 'default'); ?>
 <?php
-
-$lang_files = array();
-if ( is_multisite() && is_dir( ABSPATH . LANGDIR ) && $dh = opendir( ABSPATH . LANGDIR ) ) {
-	while ( ( $lang_file = readdir( $dh ) ) !== false ) {
-		if ( substr( $lang_file, -3 ) == '.mo' )
-			$lang_files[] = $lang_file;
-	}
-}
-
-if ( !empty($lang_files) ) {
+	$languages = get_available_languages();
+	if ( is_multisite() && !empty( $languages ) ):
 ?>
 	<tr valign="top">
 		<th width="33%" scope="row"><?php _e('Site language:') ?></th>
 		<td>
 			<select name="WPLANG" id="WPLANG">
-				<?php mu_dropdown_languages( $lang_files, get_option('WPLANG') ); ?>
+				<?php mu_dropdown_languages( $languages, get_option('WPLANG') ); ?>
 			</select>
 		</td>
 	</tr>
 <?php
-} // languages
+	endif;
 ?>
 </table>
 

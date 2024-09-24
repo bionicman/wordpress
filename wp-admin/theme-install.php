@@ -7,10 +7,10 @@
  */
 
 /** WordPress Administration Bootstrap */
-require_once('admin.php');
+require_once('./admin.php');
 
 if ( ! current_user_can('install_themes') )
-	wp_die(__('You do not have sufficient permissions to install themes on this blog.'));
+	wp_die(__('You do not have sufficient permissions to install themes on this site.'));
 
 include(ABSPATH . 'wp-admin/includes/theme-install.php');
 
@@ -55,11 +55,11 @@ do_action('install_themes_pre_' . $tab); //Used to override the general interfac
 
 add_contextual_help($current_screen, plugins_search_help());
 
-include('admin-header.php');
+include('./admin-header.php');
 ?>
 <div class="wrap">
 <?php screen_icon(); ?>
-<h2><a href="themes.php" class="menu-tabs menu-tab-inactive"><?php echo esc_html_x('Manage Themes', 'theme'); ?></a><a href="theme-install.php" class="menu-tabs"><?php echo esc_html( $title ); ?></a></h2>
+<h2><a href="themes.php" class="nav-tab"><?php echo esc_html_x('Manage Themes', 'theme'); ?></a><a href="theme-install.php" class="nav-tab nav-tab-active"><?php echo esc_html( $title ); ?></a></h2>
 
 	<ul class="subsubsub">
 <?php
@@ -76,4 +76,4 @@ foreach ( (array)$tabs as $action => $text ) {
 	<?php do_action('install_themes_' . $tab, $paged); ?>
 </div>
 <?php
-include('admin-footer.php');
+include('./admin-footer.php');

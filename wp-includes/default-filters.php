@@ -169,6 +169,7 @@ add_filter( 'the_posts',            '_close_comments_for_old_posts'       );
 add_filter( 'comments_open',        '_close_comments_for_old_post', 10, 2 );
 add_filter( 'pings_open',           '_close_comments_for_old_post', 10, 2 );
 add_filter( 'editable_slug',        'urldecode'                           );
+add_filter( 'nav_menu_meta_box_object', '_wp_nav_menu_meta_box_object'    );
 
 // Atom SSL support
 add_filter( 'atom_service_url','atom_service_url_filter' );
@@ -182,7 +183,7 @@ add_action( 'wp_head',             'wlwmanifest_link'                     );
 add_action( 'wp_head',             'index_rel_link'                       );
 add_action( 'wp_head',             'parent_post_rel_link',          10, 0 );
 add_action( 'wp_head',             'start_post_rel_link',           10, 0 );
-add_action( 'wp_head',             'adjacent_posts_rel_link',       10, 0 );
+add_action( 'wp_head',             'adjacent_posts_rel_link_wp_head', 10, 0 );
 add_action( 'wp_head',             'locale_stylesheet'                    );
 add_action( 'publish_future_post', 'check_and_publish_future_post', 10, 1 );
 add_action( 'wp_head',             'noindex',                       1     );
@@ -220,12 +221,14 @@ add_action( 'plugins_loaded',             'wp_maybe_load_embeds',     0    );
 add_action( 'shutdown',                   'wp_ob_end_flush_all',      1    );
 add_action( 'pre_post_update',            'wp_save_post_revision'          );
 add_action( 'publish_post',               '_publish_post_hook',       5, 1 );
-add_action( 'future_post',                '_future_post_hook',        5, 2 );
-add_action( 'future_page',                '_future_post_hook',        5, 2 );
 add_action( 'save_post',                  '_save_post_hook',          5, 2 );
 add_action( 'transition_post_status',     '_transition_post_status',  5, 3 );
 add_action( 'comment_form', 'wp_comment_form_unfiltered_html_nonce'        );
-add_action( 'wp_scheduled_delete',        'wp_scheduled_delete' );
+add_action( 'wp_scheduled_delete',        'wp_scheduled_delete'            );
+add_action( 'trash_post',                 '_wp_trash_menu_item'            );
+add_action( 'untrash_post',               '_wp_untrash_menu_item'          );
+add_action( 'delete_post',                '_wp_delete_post_menu_item'      );
+add_action( 'delete_term',                '_wp_delete_tax_menu_item'       );
 
 // Post Thumbnail CSS class filtering
 add_action( 'begin_fetch_post_thumbnail_html', '_wp_post_thumbnail_class_filter_add'    );

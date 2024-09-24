@@ -69,11 +69,11 @@ function wp_dashboard_setup() {
 		$widget_options['dashboard_primary'] = array(
 			'link' => apply_filters( 'dashboard_primary_link',  __( 'http://wordpress.org/development/' ) ),
 			'url' => apply_filters( 'dashboard_primary_feed',  __( 'http://wordpress.org/development/feed/' ) ),
-			'title' => apply_filters( 'dashboard_primary_title', __( 'WordPress Development Blog' ) ),
+			'title' => apply_filters( 'dashboard_primary_title', __( 'WordPress Blog' ) ),
 			'items' => 2,
 			'show_summary' => 1,
 			'show_author' => 0,
-			'show_date' => 1
+			'show_date' => 1,
 		);
 	}
 	wp_add_dashboard_widget( 'dashboard_primary', $widget_options['dashboard_primary']['title'], 'wp_dashboard_primary', 'wp_dashboard_primary_control' );
@@ -85,7 +85,10 @@ function wp_dashboard_setup() {
 			'link' => apply_filters( 'dashboard_secondary_link',  __( 'http://planet.wordpress.org/' ) ),
 			'url' => apply_filters( 'dashboard_secondary_feed',  __( 'http://planet.wordpress.org/feed/' ) ),
 			'title' => apply_filters( 'dashboard_secondary_title', __( 'Other WordPress News' ) ),
-			'items' => 5
+			'items' => 5,
+			'show_summary' => 0,
+			'show_author' => 0,
+			'show_date' => 0,
 		);
 	}
 	wp_add_dashboard_widget( 'dashboard_secondary', $widget_options['dashboard_secondary']['title'], 'wp_dashboard_secondary', 'wp_dashboard_secondary_control' );
@@ -325,7 +328,7 @@ function wp_dashboard_right_now() {
 
 	// Spam Comments
 	$num = number_format_i18n($num_comm->spam);
-	$text = _n( 'Spam', 'Spam', $num_comm->spam );
+	$text = _nx( 'Spam', 'Spam', $num_comm->spam, 'comment' );
 	if ( current_user_can( 'moderate_comments' ) ) {
 		$num = "<a href='edit-comments.php?comment_status=spam'><span class='spam-count'>$num</span></a>";
 		$text = "<a class='spam' href='edit-comments.php?comment_status=spam'>$text</a>";

@@ -63,7 +63,7 @@ function inline_edit_term_row($type, $taxonomy) {
 
 	<p class="inline-edit-save submit">
 		<a accesskey="c" href="#inline-edit" title="<?php _e('Cancel'); ?>" class="cancel button-secondary alignleft"><?php _e('Cancel'); ?></a>
-		<?php $update_text = ( 'post_tag' == $taxonomy ) ? __( 'Update Tag' ) : __( 'Update Category' ); ?>
+		<?php $update_text = sprintf( __('Update %s'), $tax->singular_label ); ?>
 		<a accesskey="s" href="#inline-edit" title="<?php echo esc_attr( $update_text ); ?>" class="save button-primary alignright"><?php echo $update_text; ?></a>
 		<img class="waiting" style="display:none;" src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" alt="" />
 		<span class="error" style="display:none;"></span>
@@ -834,7 +834,7 @@ function get_hidden_columns($screen) {
 	if ( is_string($screen) )
 		$screen = convert_to_screen($screen);
 
-	return (array) get_user_option( 'manage-' . $screen->id. '-columns-hidden' );
+	return (array) get_user_option( 'manage' . $screen->id. 'columnshidden' );
 }
 
 /**
@@ -844,7 +844,7 @@ function get_hidden_columns($screen) {
  *
  * @since 2.7
  *
- * @param string $type 'post' or 'page'
+ * @param string $screen
  */
 function inline_edit_row( $screen ) {
 	global $current_user, $mode;
@@ -883,18 +883,22 @@ function inline_edit_row( $screen ) {
 
 <form method="get" action=""><table style="display: none"><tbody id="inlineedit">
 	<?php
+	$hclass = count( $hierarchical_taxonomies ) ? 'post' : 'page';
 	$bulk = 0;
 	while ( $bulk < 2 ) { ?>
 
-	<tr id="<?php echo $bulk ? 'bulk-edit' : 'inline-edit'; ?>" class="inline-edit-row inline-edit-row-<?php echo "$screen->post_type ";
-		echo $bulk ? "bulk-edit-row bulk-edit-row-$screen->post_type" : "quick-edit-row quick-edit-row-$screen->post_type";
+	<tr id="<?php echo $bulk ? 'bulk-edit' : 'inline-edit'; ?>" class="inline-edit-row inline-edit-row-<?php echo "$hclass inline-edit-$screen->post_type ";
+		echo $bulk ? "bulk-edit-row bulk-edit-row-$hclass bulk-edit-$screen->post_type" : "quick-edit-row quick-edit-row-$hclass inline-edit-$screen->post_type";
 	?>" style="display: none"><td colspan="<?php echo $col_count; ?>">
 
 	<fieldset class="inline-edit-col-left"><div class="inline-edit-col">
 		<h4><?php echo $bulk ? __( 'Bulk Edit' ) : __( 'Quick Edit' ); ?></h4>
 
 
-<?php if ( $bulk ) : ?>
+<?php
+
+if ( post_type_supports( $screen->post_type, 'title' ) ) :
+	if ( $bulk ) : ?>
 		<div id="bulk-title-div">
 			<div id="bulk-titles"></div>
 		</div>
@@ -906,16 +910,15 @@ function inline_edit_row( $screen ) {
 			<span class="input-text-wrap"><input type="text" name="post_title" class="ptitle" value="" /></span>
 		</label>
 
-<?php endif; // $bulk ?>
-
-
-<?php if ( !$bulk ) : ?>
-
 		<label>
 			<span class="title"><?php _e( 'Slug' ); ?></span>
 			<span class="input-text-wrap"><input type="text" name="post_name" value="" /></span>
 		</label>
 
+<?php endif; // $bulk
+endif; // post_type_supports title ?>
+
+<?php if ( !$bulk ) : ?>
 		<label><span class="title"><?php _e( 'Date' ); ?></span></label>
 		<div class="inline-edit-date">
 			<?php touch_time(1, 1, 4, 1); ?>
@@ -924,6 +927,7 @@ function inline_edit_row( $screen ) {
 
 <?php endif; // $bulk
 
+	if ( post_type_supports( $screen->post_type, 'author' ) ) :
 		$authors = get_editable_user_ids( $current_user->id, true, $screen->post_type ); // TODO: ROLE SYSTEM
 		$authors_dropdown = '';
 		if ( $authors && count( $authors ) > 1 ) :
@@ -938,7 +942,11 @@ function inline_edit_row( $screen ) {
 		endif; // authors
 ?>
 
-<?php if ( !$bulk ) : echo $authors_dropdown; ?>
+<?php if ( !$bulk ) echo $authors_dropdown;
+endif; // post_type_supports author
+
+if ( !$bulk ) :
+?>
 
 		<div class="inline-edit-group">
 			<label class="alignleft">
@@ -985,7 +993,7 @@ function inline_edit_row( $screen ) {
 	<fieldset class="inline-edit-col-right"><div class="inline-edit-col">
 
 <?php
-	if ( $bulk )
+	if ( post_type_supports( $screen->post_type, 'author' ) && $bulk )
 		echo $authors_dropdown;
 ?>
 
@@ -1002,7 +1010,8 @@ function inline_edit_row( $screen ) {
 ?>
 		</label>
 
-<?php	if ( !$bulk ) : ?>
+<?php if ( post_type_supports( $screen->post_type, 'page-attributes' ) ) :
+		if ( !$bulk ) : ?>
 
 		<label>
 			<span class="title"><?php _e( 'Order' ); ?></span>
@@ -1022,7 +1031,9 @@ function inline_edit_row( $screen ) {
 			</select>
 		</label>
 
-<?php endif; // $post_type_object->hierarchical ?>
+<?php
+	endif; // post_type_supports page-attributes
+endif; // $post_type_object->hierarchical ?>
 
 <?php if ( count($flat_taxonomies) && !$bulk ) : ?>
 
@@ -1037,9 +1048,11 @@ function inline_edit_row( $screen ) {
 
 <?php endif; // count($flat_taxonomies) && !$bulk  ?>
 
-<?php if ( $bulk ) : ?>
+<?php if ( post_type_supports( $screen->post_type, 'comments' ) || post_type_supports( $screen->post_type, 'trackbacks' ) ) :
+	if ( $bulk ) : ?>
 
 		<div class="inline-edit-group">
+	<?php if ( post_type_supports( $screen->post_type, 'comments' ) ) : ?>
 		<label class="alignleft">
 			<span class="title"><?php _e( 'Comments' ); ?></span>
 			<select name="comment_status">
@@ -1048,7 +1061,7 @@ function inline_edit_row( $screen ) {
 				<option value="closed"><?php _e('Do not allow'); ?></option>
 			</select>
 		</label>
-
+	<?php endif; if ( post_type_supports( $screen->post_type, 'trackbacks' ) ) : ?>
 		<label class="alignright">
 			<span class="title"><?php _e( 'Pings' ); ?></span>
 			<select name="ping_status">
@@ -1057,24 +1070,27 @@ function inline_edit_row( $screen ) {
 				<option value="closed"><?php _e('Do not allow'); ?></option>
 			</select>
 		</label>
+	<?php endif; ?>
 		</div>
 
 <?php else : // $bulk ?>
 
 		<div class="inline-edit-group">
+		<?php if ( post_type_supports( $screen->post_type, 'comments' ) ) : ?>
 			<label class="alignleft">
 				<input type="checkbox" name="comment_status" value="open" />
 				<span class="checkbox-title"><?php _e( 'Allow Comments' ); ?></span>
 			</label>
-
+		<?php endif; if ( post_type_supports( $screen->post_type, 'trackbacks' ) ) : ?>
 			<label class="alignleft">
 				<input type="checkbox" name="ping_status" value="open" />
 				<span class="checkbox-title"><?php _e( 'Allow Pings' ); ?></span>
 			</label>
+		<?php endif; ?>
 		</div>
 
-<?php endif; // $bulk ?>
-
+<?php endif; // $bulk
+endif; // post_type_supports comments or pings ?>
 
 		<div class="inline-edit-group">
 			<label class="inline-edit-status alignleft">
@@ -1127,7 +1143,7 @@ function inline_edit_row( $screen ) {
 	foreach ( $columns as $column_name => $column_display_name ) {
 		if ( isset( $core_columns[$column_name] ) )
 			continue;
-		do_action( $bulk ? 'bulk_edit_custom_box' : 'quick_edit_custom_box', $column_name, $type);
+		do_action( $bulk ? 'bulk_edit_custom_box' : 'quick_edit_custom_box', $column_name, $screen->post_type );
 	}
 ?>
 	<p class="submit inline-edit-save">
@@ -1233,8 +1249,6 @@ function post_rows( $posts = array() ) {
 		$post_ids[] = $a_post->ID;
 
 	$comment_pending_count = get_pending_comments_num($post_ids);
-	if ( empty($comment_pending_count) )
-		$comment_pending_count = array();
 
 	foreach ( $posts as $post ) {
 		if ( empty($comment_pending_count[$post->ID]) )
@@ -1343,7 +1357,7 @@ function _post_row($a_post, $pending_comments, $mode) {
 				elseif ( EMPTY_TRASH_DAYS )
 					$actions['trash'] = "<a class='submitdelete' title='" . esc_attr(__('Move this post to the Trash')) . "' href='" . get_delete_post_link($post->ID) . "'>" . __('Trash') . "</a>";
 				if ( 'trash' == $post->post_status || !EMPTY_TRASH_DAYS )
-					$actions['delete'] = "<a class='submitdelete' title='" . esc_attr(__('Delete this post permanently')) . "' href='" . wp_nonce_url( admin_url( sprintf($post_type_object->_edit_link . '&amp;action=delete', $post->ID) ), 'delete-' . $post->post_type . '_' . $post->ID ) . "'>" . __('Delete Permanently') . "</a>";
+					$actions['delete'] = "<a class='submitdelete' title='" . esc_attr(__('Delete this post permanently')) . "' href='" . get_delete_post_link($post->ID, '', true) . "'>" . __('Delete Permanently') . "</a>";
 			}
 			if ( in_array($post->post_status, array('pending', 'draft')) ) {
 				if ( current_user_can($post_type_object->edit_cap, $post->ID) )
@@ -1798,7 +1812,7 @@ function user_row( $user_object, $style = '', $role = '', $numposts = 0 ) {
 		$short_url = substr( $short_url, 0, 32 ).'...';
 	$checkbox = '';
 	// Check if the user for this row is editable
-	if ( current_user_can( 'edit_user', $user_object->ID ) ) {
+	if ( current_user_can( 'list_users' ) ) {
 		// Set up the user editing link
 		// TODO: make profile/user-edit determination a separate function
 		if ($current_user->ID == $user_object->ID) {
@@ -1809,14 +1823,19 @@ function user_row( $user_object, $style = '', $role = '', $numposts = 0 ) {
 		$edit = "<strong><a href=\"$edit_link\">$user_object->user_login</a></strong><br />";
 
 		// Set up the hover actions for this user
-		$del_cap_type = 'remove';
-		if ( !is_multisite() && current_user_can('delete_users') )
-			$del_cap_type = 'delete';
-
 		$actions = array();
-		$actions['edit'] = '<a href="' . $edit_link . '">' . __('Edit') . '</a>';
-		if ( $current_user->ID != $user_object->ID && current_user_can( $del_cap_type . '_user', $user_object->ID ) )
+
+		if ( current_user_can('edit_user',  $user_object->ID) ) {
+			$edit = "<strong><a href=\"$edit_link\">$user_object->user_login</a></strong><br />";
+			$actions['edit'] = '<a href="' . $edit_link . '">' . __('Edit') . '</a>';
+		} else {
+			$edit = "<strong>$user_object->user_login</strong><br />";
+		}
+
+		if ( !is_multisite() && $current_user->ID != $user_object->ID && current_user_can('delete_user', $user_object->ID) )
 			$actions['delete'] = "<a class='submitdelete' href='" . wp_nonce_url("users.php?action=delete&amp;user=$user_object->ID", 'bulk-users') . "'>" . __('Delete') . "</a>";
+		if ( is_multisite() && $current_user->ID != $user_object->ID && current_user_can('remove_user', $user_object->ID) )
+			$actions['remove'] = "<a class='submitdelete' href='" . wp_nonce_url("users.php?action=remove&amp;user=$user_object->ID", 'bulk-users') . "'>" . __('Remove') . "</a>";
 		$actions = apply_filters('user_row_actions', $actions, $user_object);
 		$action_count = count($actions);
 		$i = 0;
@@ -2091,7 +2110,7 @@ function _wp_comment_row( $comment_id, $mode, $comment_status, $checkbox = true,
 					if ( 'spam' != $the_comment_status && 'trash' != $the_comment_status ) {
 						$actions['spam'] = "<a href='$spam_url' class='delete:the-comment-list:comment-$comment->comment_ID::spam=1 vim-s vim-destructive' title='" . esc_attr__( 'Mark this comment as spam' ) . "'>" . /* translators: mark as spam link */ _x( 'Spam', 'verb' ) . '</a>';
 					} elseif ( 'spam' == $the_comment_status ) {
-						$actions['unspam'] = "<a href='$unspam_url' class='delete:the-comment-list:comment-$comment->comment_ID:66cc66:unspam=1 vim-z vim-destructive'>" . __( 'Not Spam' ) . '</a>';
+						$actions['unspam'] = "<a href='$unspam_url' class='delete:the-comment-list:comment-$comment->comment_ID:66cc66:unspam=1 vim-z vim-destructive'>" . _x( 'Not Spam', 'comment' ) . '</a>';
 					} elseif ( 'trash' == $the_comment_status ) {
 						$actions['untrash'] = "<a href='$untrash_url' class='delete:the-comment-list:comment-$comment->comment_ID:66cc66:untrash=1 vim-z vim-destructive'>" . __( 'Restore' ) . '</a>';
 					}
@@ -2586,18 +2605,6 @@ function parent_dropdown( $default = 0, $parent = 0, $level = 0 ) {
  * {@internal Missing Short Description}}
  *
  * @since unknown
- */
-function browse_happy() {
-	$getit = __( 'WordPress recommends a better browser' );
-	echo '
-		<div id="bh"><a href="http://browsehappy.com/" title="'.$getit.'"><img src="' . esc_url( admin_url( 'images/browse-happy.gif' ) ) . '" alt="Browse Happy" /></a></div>
-';
-}
-
-/**
- * {@internal Missing Short Description}}
- *
- * @since unknown
  *
  * @param unknown_type $id
  * @return unknown
@@ -2869,9 +2876,8 @@ function do_meta_boxes($page, $context, $object) {
 						continue;
 					$i++;
 					$style = '';
-					if ( in_array($box['id'], $hidden) )
-						$style = 'style="display:none;"';
-					echo '<div id="' . $box['id'] . '" class="postbox ' . postbox_classes($box['id'], $page) . '" ' . $style . '>' . "\n";
+					$hidden_class = in_array($box['id'], $hidden) ? ' hide-if-js' : '';
+					echo '<div id="' . $box['id'] . '" class="postbox ' . postbox_classes($box['id'], $page) . $hidden_class . '" ' . '>' . "\n";
 					echo '<div class="handlediv" title="' . __('Click to toggle') . '"><br /></div>';
 					echo "<h3 class='hndle'><span>{$box['title']}</span></h3>\n";
 					echo '<div class="inside">' . "\n";
@@ -2951,12 +2957,11 @@ function get_hidden_meta_boxes($screen) {
 	if ( is_string($screen) )
 		$screen = convert_to_screen($screen);
 
-	$hidden = (array) get_user_option( "meta-box-hidden_$screen->id" );
+	$hidden = get_user_option( "metaboxhidden_$screen->id" );
 
 	// Hide slug boxes by default
-	if ( empty($hidden[0]) ) {
+	if ( !is_array($hidden) )
 		$hidden = array('slugdiv');
-	}
 
 	return $hidden;
 }
@@ -3219,7 +3224,7 @@ function settings_errors ( $setting = '', $sanitize = FALSE, $hide_on_update = F
 	$output = '';
 	foreach ( $settings_errors as $key => $details ) {
 		$css_id = 'setting-error-' . $details['code'];
-		$css_class = $details['type'] . ' fade settings-error';
+		$css_class = $details['type'] . ' settings-error';
 		$output .= "<div id='$css_id' class='$css_class'> \n";
 		$output .= "<p><strong>{$details['message']}</strong></p>";
 		$output .= "</div> \n";
@@ -3449,6 +3454,7 @@ function _admin_search_query() {
  *
  */
 function iframe_header( $title = '', $limit_styles = false ) {
+global $hook_suffix;
 ?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" <?php do_action('admin_xml_ns'); ?> <?php language_attributes(); ?>>
 <head>
@@ -3470,9 +3476,20 @@ function tb_close(){var win=window.dialogArguments||opener||parent||top;win.tb_r
 do_action('admin_print_styles');
 do_action('admin_print_scripts');
 do_action('admin_head');
+
+$admin_body_class = preg_replace('/[^a-z0-9_-]+/i', '-', $hook_suffix);
 ?>
 </head>
-<body<?php if ( isset($GLOBALS['body_id']) ) echo ' id="' . $GLOBALS['body_id'] . '"'; ?>>
+<body<?php if ( isset($GLOBALS['body_id']) ) echo ' id="' . $GLOBALS['body_id'] . '"'; ?>  class="no-js <?php echo $admin_body_class; ?>">
+<script type="text/javascript">
+//<![CDATA[
+(function(){
+var c = document.body.className;
+c = c.replace(/no-js/, 'js');
+document.body.className = c;
+})();
+//]]>
+</script>
 <?php
 }
 
@@ -3554,11 +3571,8 @@ function screen_meta($screen) {
 	}
 
 	$show_screen = false;
-	$show_on_screen = false;
-	if ( !empty($wp_meta_boxes[$screen->id]) || !empty($column_screens) ) {
+	if ( !empty($wp_meta_boxes[$screen->id]) || !empty($column_screens) )
 		$show_screen = true;
-		$show_on_screen = true;
-	}
 
 	$screen_options = screen_options($screen);
 	if ( $screen_options )
@@ -3567,35 +3581,40 @@ function screen_meta($screen) {
 	if ( !isset($_wp_contextual_help) )
 		$_wp_contextual_help = array();
 
-	$settings = '';
+	$settings = apply_filters('screen_settings', '', $screen);
 
 	switch ( $screen->id ) {
 		case 'widgets':
 			$settings = '<p><a id="access-on" href="widgets.php?widgets-access=on">' . __('Enable accessibility mode') . '</a><a id="access-off" href="widgets.php?widgets-access=off">' . __('Disable accessibility mode') . "</a></p>\n";
-			$show_screen = true;
 			break;
 	}
+	if( $settings )
+		$show_screen = true;
 ?>
 <div id="screen-meta">
 <?php
 	if ( $show_screen ) :
+		$default_text = __('Show on screen');
 ?>
 <div id="screen-options-wrap" class="hidden">
 	<form id="adv-settings" action="" method="post">
-<?php if ( $show_on_screen ) : ?>
-	<h5><?php _e('Show on screen') ?></h5>
-	<div class="metabox-prefs">
-<?php
-	if ( !meta_box_prefs($screen) && isset($column_screens) ) {
-		manage_columns_prefs($screen);
-	}
-?>
-	<br class="clear" />
-	</div>
-<?php endif; ?>
-<?php echo screen_layout($screen); ?>
-<?php echo $screen_options; ?>
-<?php echo $settings; ?>
+	<?php if ( isset($wp_meta_boxes[$screen->id]) ) : ?>
+		<h5><?php echo apply_filters('meta_box_prefs_header', $default_text); ?></h5>
+		<div class="metabox-prefs">
+			<?php meta_box_prefs($screen); ?>
+			<br class="clear" />
+		</div>
+		<?php endif;
+		if ( isset($column_screens) ) : ?>
+		<h5><?php echo apply_filters('columns_prefs_header', $default_text); ?></h5>
+		<div class="metabox-prefs">
+			<?php manage_columns_prefs($screen); ?>
+			<br class="clear" />
+		</div>
+	<?php endif;
+	echo screen_layout($screen);
+	echo $screen_options;
+	echo $settings; ?>
 <div><?php wp_nonce_field( 'screen-options-nonce', 'screenoptionnonce', false ); ?></div>
 </form>
 </div>
@@ -3626,7 +3645,7 @@ function screen_meta($screen) {
 	$default_help .= __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>');
 	$contextual_help .= apply_filters('default_contextual_help', $default_help);
 	$contextual_help .= "</div>\n";
-	echo apply_filters('contextual_help', $contextual_help, $screen);
+	echo apply_filters('contextual_help', $contextual_help, $screen->id, $screen);
 	?>
 	</div>
 
@@ -3722,34 +3741,31 @@ function screen_options($screen) {
 
 	switch ( $screen->base ) {
 		case 'edit':
-			$per_page_label = __('Posts per page:');
-			break;
 		case 'edit-pages':
-			$per_page_label = __('Pages per page:');
+			$post_type = 'post';
+			if ( isset($_GET['post_type']) && in_array( $_GET['post_type'], get_post_types( array('public' => true ) ) ) )
+				$post_type = $_GET['post_type'];
+			$post_type_object = get_post_type_object($post_type);
+			$per_page_label = $post_type_object->label;
 			break;
 		case 'ms-sites':
-			$per_page_label = __('Sites per page:');
+			$per_page_label = __('Sites');
 			break;
 		case 'ms-users':
-			$per_page_label = __('Users per page:');
+			$per_page_label = __('Users');
 			break;
 		case 'edit-comments':
-			$per_page_label = __('Comments per page:');
+			$per_page_label = __('Comments');
 			break;
 		case 'upload':
-			$per_page_label = __('Media items per page:');
+			$per_page_label = __('Media items');
 			break;
 		case 'edit-tags':
-			global $taxonomy, $tax;
-			if ( 'post_tag' == $taxonomy )
-				$per_page_label = __('Tags per page:');
-			elseif ( 'category' == $taxonomy )
-				$per_page_label = __('Categories per page:');
-			else
-				$per_page_label = sprintf(_x('%s per page:', '%s: plural taxonomy name'), $tax->label);
+			global $tax;
+			$per_page_label = $tax->label;
 			break;
 		case 'plugins':
-			$per_page_label = __('Plugins per page:');
+			$per_page_label = __('Plugins');
 			break;
 		default:
 			return '';
@@ -3757,10 +3773,10 @@ function screen_options($screen) {
 
 	$option = str_replace( '-', '_', "{$screen->id}_per_page" );
 	if ( 'edit_tags_per_page' == $option ) {
-		if ( 'category' == $taxonomy )
+		if ( 'category' == $tax->name )
 			$option = 'categories_per_page';
-		elseif ( 'post_tag' != $taxonomy )
-			$option = 'edit_' . $taxonomy . '_per_page';
+		elseif ( 'post_tag' != $tax->name )
+			$option = 'edit_' . $tax->name . '_per_page';
 	}
 
 	$per_page = (int) get_user_option( $option );
@@ -3778,10 +3794,9 @@ function screen_options($screen) {
 	else
 		$per_page = apply_filters( $option, $per_page );
 
-	$return = '<h5>' . __('Options') . "</h5>\n";
-	$return .= "<div class='screen-options'>\n";
+	$return = "<div class='screen-options'>\n";
 	if ( !empty($per_page_label) )
-		$return .= "<label for='$option'>$per_page_label</label> <input type='text' class='screen-per-page' name='wp_screen_options[value]' id='$option' maxlength='3' value='$per_page' />\n";
+		$return .= "<input type='text' class='screen-per-page' name='wp_screen_options[value]' id='$option' maxlength='3' value='$per_page' /> <label for='$option'>$per_page_label</label>\n";
 	$return .= "<input type='submit' class='button' value='" . esc_attr__('Apply') . "' />";
 	$return .= "<input type='hidden' name='wp_screen_options[option]' value='" . esc_attr($option) . "' />";
 	$return .= "</div>\n";
@@ -3801,10 +3816,6 @@ function screen_icon($screen = '') {
 			$name = $screen->parent_base;
 		else
 			$name = $screen->base;
-
-		// @todo Remove this once we have a site admin icon
-		if ( 'ms-admin' == $screen->parent_base )
-			$name = 'tools';
 
 		if ( 'edit' == $name && isset($screen->post_type) && 'page' == $screen->post_type )
 			$name = 'edit-pages';
@@ -3905,6 +3916,12 @@ function set_current_screen( $id =  '' ) {
 	}
 
 	$current_screen = (object) $current_screen;
+
+	// Map index to dashboard
+	if ( 'index' == $current_screen->base )
+		$current_screen->base = 'dashboard';
+	if ( 'index' == $current_screen->id )
+		$current_screen->id = 'dashboard';
 
 	if ( 'edit' == $current_screen->id ) {
 		if ( empty($typenow) )
