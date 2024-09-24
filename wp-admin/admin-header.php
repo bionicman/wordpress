@@ -4,6 +4,11 @@ require_once('../wp-config.php');
 require_once(ABSPATH.'/wp-admin/auth.php');
 require(ABSPATH.'/wp-admin/admin-functions.php');
 
+// Disallow direct loading of this file
+if( basename(__FILE__) == basename($_SERVER['PHP_SELF']) ) {
+        die(__("Direct access denied."));
+}
+
 function gethelp_link($this_file, $helptag) {
     $url = 'http://wordpress.org/docs/reference/links/#'.$helptag;
     $s = ' <a href="'.$url.'" title="' . __('Click here for help') .'">?</a>';
@@ -56,20 +61,6 @@ if ($standalone == 0) :
 <link rel="stylesheet" href="wp-admin.css" type="text/css" />
 <link rel="shortcut icon" href="../wp-images/wp-favicon.png" />
 <meta http-equiv="Content-Type" content="text/html; charset=<?php echo get_settings('blog_charset'); ?>" />
-<?php
-if ($redirect==1) {
-?>
-<script language="javascript" type="text/javascript">
-<!--
-function redirect() {
-  window.location = "<?php echo $redirect_url; ?>";
-}
-setTimeout("redirect();", 600);
-//-->
-</script>
-<?php
-} // redirect
-?>
 
 <?php if (isset($xfn)) : ?>
 <script language="javascript" type="text/javascript">
