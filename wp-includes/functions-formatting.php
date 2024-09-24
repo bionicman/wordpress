@@ -399,26 +399,27 @@ function funky_javascript_fix($text) {
 
 /*
  balanceTags
- 
+
  Balances Tags of string using a modified stack.
- 
+
  @param text      Text to be balanced
+ @param force     Forces balancing, ignoring the value of the option
  @return          Returns balanced text
  @author          Leonard Lin (leonard@acm.org)
  @version         v1.1
  @date            November 4, 2001
  @license         GPL v2.0
- @notes           
- @changelog       
+ @notes
+ @changelog
  ---  Modified by Scott Reilly (coffee2code) 02 Aug 2004
-             1.2  ***TODO*** Make better - change loop condition to $text
-             1.1  Fixed handling of append/stack pop order of end text
-                  Added Cleaning Hooks
-             1.0  First Version
+	1.2  ***TODO*** Make better - change loop condition to $text
+	1.1  Fixed handling of append/stack pop order of end text
+	     Added Cleaning Hooks
+	1.0  First Version
 */
-function balanceTags($text, $is_comment = 0) {
-	
-	if ( get_option('use_balanceTags') == 0)
+function balanceTags($text, $force = false) {
+
+	if ( !$force && get_option('use_balanceTags') == 0 )
 		return $text;
 
 	$tagstack = array(); $stacksize = 0; $tagqueue = ''; $newtext = '';
@@ -440,7 +441,7 @@ function balanceTags($text, $is_comment = 0) {
 		if ($regex[1][0] == "/") { // End Tag
 			$tag = strtolower(substr($regex[1],1));
 			// if too many closing tags
-			if($stacksize <= 0) { 
+			if($stacksize <= 0) {
 				$tag = '';
 				//or close to be safe $tag = '/' . $tag;
 			}
@@ -497,7 +498,7 @@ function balanceTags($text, $is_comment = 0) {
 		}
 		$newtext .= substr($text,0,$i) . $tag;
 		$text = substr($text,$i+$l);
-	}  
+	}
 
 	// Clear Tag Queue
 	$newtext .= $tagqueue;
@@ -518,7 +519,7 @@ function balanceTags($text, $is_comment = 0) {
 }
 
 function force_balance_tags($text) {
-	return balanceTags($text, 0, true);
+	return balanceTags($text, true);
 }
 
 function format_to_edit($content, $richedit = false) {
@@ -1046,8 +1047,16 @@ function wp_richedit_pre($text) {
 
 // Escape single quotes, specialchar double quotes, and fix line endings.
 function js_escape($text) {
-	$text = wp_specialchars($text, 'double');
-	$text = str_replace('&#039;', "'", $text);
-	return preg_replace("/\r?\n/", "\\n", addslashes($text));
+	$safe_text = wp_specialchars($text, 'double');
+	$safe_text = str_replace('&#039;', "'", $safe_text);
+	$safe_text = preg_replace("/\r?\n/", "\\n", addslashes($safe_text));
+	return apply_filters('js_escape', $safe_text, $text);
 }
+
+// Escaping for HTML attributes
+function attribute_escape($text) {
+	$safe_text = wp_specialchars($text, true);
+	return apply_filters('attribute_escape', $safe_text, $text);
+}
+
 ?>
