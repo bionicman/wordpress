@@ -13,7 +13,7 @@ if ( ! current_user_can( 'list_users' ) )
 	wp_die( __( 'Cheatin&#8217; uh?' ) );
 
 $wp_list_table = _get_list_table('WP_Users_List_Table');
-
+$pagenum = $wp_list_table->get_pagenum();
 $title = __('Users');
 $parent_file = 'users.php';
 
@@ -181,7 +181,7 @@ case 'delete':
 		<?php _e('Delete all posts and links.'); ?></label></li>
 		<li><input type="radio" id="delete_option1" name="delete_option" value="reassign" />
 		<?php echo '<label for="delete_option1">'.__('Attribute all posts and links to:').'</label>';
-		wp_dropdown_users( array( 'exclude' => array_diff( $userids, array($current_user->ID) ) ) ); ?></li>
+		wp_dropdown_users( array( 'name' => 'reassign_user', 'exclude' => array_diff( $userids, array($current_user->ID) ) ) ); ?></li>
 	</ul></fieldset>
 	<input type="hidden" name="action" value="dodelete" />
 	<?php submit_button( __('Confirm Deletion'), 'secondary' ); ?>
@@ -290,7 +290,11 @@ default:
 	}
 
 	$wp_list_table->prepare_items();
-
+	$total_pages = $wp_list_table->get_pagination_arg( 'total_pages' );
+	if ( $pagenum > $total_pages && $total_pages > 0 ) {
+		wp_redirect( add_query_arg( 'paged', $total_pages ) );
+		exit;
+	}
 	include('./admin-header.php');
 
 	$messages = array();

@@ -87,8 +87,8 @@ function create_initial_taxonomies() {
 		'public' => true,
 		'hierarchical' => false,
 		'labels' => array(
-			'name' => __( 'Format' ),
-			'singular_name' => __( 'Format' ),
+			'name' => _x( 'Format', 'post format' ),
+			'singular_name' => _x( 'Format', 'post format' ),
 		),
 		'query_var' => true,
 		'rewrite' => $rewrite,
@@ -879,7 +879,7 @@ function get_term_by($field, $value, $taxonomy, $output = OBJECT, $filter = 'raw
 
 	if ( 'slug' == $field ) {
 		$field = 't.slug';
-		$value = sanitize_title_for_query($value);
+		$value = sanitize_title($value);
 		if ( empty($value) )
 			return false;
 	} else if ( 'name' == $field ) {

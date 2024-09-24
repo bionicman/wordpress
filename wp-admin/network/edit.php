@@ -185,7 +185,7 @@ switch ( $_GET['action'] ) {
 	break;
 
 	case 'allblogs':
-		if ( ( isset( $_POST['doaction'] ) || isset( $_POST['doaction2'] ) ) && isset( $_POST['allblogs'] ) ) {
+		if ( ( isset( $_POST['action'] ) || isset( $_POST['action2'] ) ) && isset( $_POST['allblogs'] ) ) {
 			check_admin_referer( 'bulk-sites' );
 
 			if ( ! current_user_can( 'manage_sites' ) )
@@ -208,13 +208,13 @@ switch ( $_GET['action'] ) {
 
 						case 'spam':
 							$blogfunction = 'all_spam';
-							update_blog_status( $val, 'spam', '1', 0 );
+							update_blog_status( $val, 'spam', '1' );
 							set_time_limit( 60 );
 						break;
 
 						case 'notspam':
 							$blogfunction = 'all_notspam';
-							update_blog_status( $val, 'spam', '0', 0 );
+							update_blog_status( $val, 'spam', '0' );
 							set_time_limit( 60 );
 						break;
 					}
@@ -375,7 +375,7 @@ switch ( $_GET['action'] ) {
 		if ( !current_user_can( 'manage_network_users' ) )
 			wp_die( __( 'You do not have permission to access this page.' ) );
 
-		if ( ( isset( $_POST['doaction']) || isset($_POST['doaction2'] ) ) && isset( $_POST['allusers'] ) ) {
+		if ( ( isset( $_POST['action']) || isset($_POST['action2'] ) ) && isset( $_POST['allusers'] ) ) {
 			check_admin_referer( 'bulk-users-network' );
 
 			if ( $_GET['action'] != -1 || $_POST['action2'] != -1 )
@@ -427,7 +427,11 @@ switch ( $_GET['action'] ) {
 
 			wp_redirect( add_query_arg( array( 'updated' => 'true', 'action' => $userfunction ), wp_get_referer() ) );
 		} else {
-			wp_redirect( network_admin_url( 'users.php' ) );
+			$location = network_admin_url( 'users.php' );
+
+			if ( ! empty( $_REQUEST['paged'] ) )
+				$location = add_query_arg( 'paged', (int) $_REQUEST['paged'], $location );
+			wp_redirect( $location );
 		}
 		exit();
 	break;
