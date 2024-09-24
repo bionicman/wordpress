@@ -1,5 +1,5 @@
 <?php
-define('MTEXPORT', 'import.txt');// enter the relative path of the import.txt file containing the mt entries. If the file is called import.txt and it is /wp-admin, then this line
+define('MTEXPORT', '');// enter the relative path of the import.txt file containing the mt entries. If the file is called import.txt and it is /wp-admin, then this line
 //should be define('MTEXPORT', 'import.txt');
 
 if (!file_exists('../wp-config.php')) die("There doesn't seem to be a wp-config.php file. You must install WordPress before you import any entries.");
@@ -108,7 +108,7 @@ for ($x = 1; $x < $y; $x++) {
 	$j = -1;
 	foreach ($authors as $author) {
 	++$j;
-	echo '<li><i>'.$author.'</i><br />'.'<input type="text" value="'.$author.'" name="'.'user[]'.'" maxlength="30"';
+	echo '<li><i>'.$author.'</i><br />'.'<input type="text" value="'.$author.'" name="'.'user[]'.'" maxlength="30">';
 	users_form($j);
 	echo '</li>';
 	}
@@ -263,6 +263,7 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 			case 'DATE':
 				$post_date = strtotime($value);
 				$post_date = date('Y-m-d H:i:s', $post_date);
+				$post_date_gmt = get_gmt_from_date("$post_date");
 				break;
 			default:
 //				echo "\n$key: $value";
@@ -276,9 +277,9 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 	} else {
 		$post_author = checkauthor($post_author);//just so that if a post already exists, new users are not created by checkauthor
 	    $wpdb->query("INSERT INTO $tableposts (
-			post_author, post_date, post_content, post_title, post_excerpt,  post_status, comment_status, ping_status, post_name)
+			post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt,  post_status, comment_status, ping_status, post_name, post_modified, post_modified_gmt)
 			VALUES 
-			('$post_author', '$post_date', '$post_content', '$post_title', '$excerpt', '$post_status', '$comment_status', '$ping_status', '$post_name')");
+			('$post_author', '$post_date', '$post_date_gmt', '$post_content', '$post_title', '$excerpt', '$post_status', '$comment_status', '$ping_status', '$post_name','$post_date', '$post_date_gmt')");
 		$post_id = $wpdb->get_var("SELECT ID FROM $tableposts WHERE post_title = '$post_title' AND post_date = '$post_date'");
 		if (0 != count($post_categories)) {
 			foreach ($post_categories as $post_category) {

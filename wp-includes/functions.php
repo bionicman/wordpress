@@ -502,29 +502,31 @@ function weblog_ping($server = '', $path = '') {
 			new xmlrpcval(get_settings('home') ,'string')));
 	$c = new xmlrpc_client($path, $server, 80);
 	$r = $c->send($f);
-	
-	if ($debug) {
-		echo "<h3>Response Object Dump:</h3>
-			<pre>\n";
-		print_r($r);
-		echo "</pre>\n";
-	}
 
-	$v = @phpxmlrpc_decode($r->value());
-	if (!$r->faultCode()) {
-		$result['message'] =  "<p class=\"rpcmsg\">";
-		$result['message'] = $result['message'] .  $v["message"] . "<br />\n";
-		$result['message'] = $result['message'] . "</p>";
-	} else {
-		$result['err'] = $r->faultCode();
-		$result['message'] =  "<!--\n";
-		$result['message'] = $result['message'] . "Fault: ";
-		$result['message'] = $result['message'] . "Code: " . $r->faultCode();
-		$result['message'] = $result['message'] . " Reason '" .$r->faultString()."'<BR>";
-		$result['message'] = $result['message'] . "-->\n";
-	}
+	if ('0' != $r) {	
+		if ($debug) {
+			echo "<h3>Response Object Dump:</h3>
+				<pre>\n";
+			print_r($r);
+			echo "</pre>\n";
+		}
 
-	if ($debug) print '<blockquote>' . $result['message'] . '</blockquote>';
+		$v = @phpxmlrpc_decode($r->value());
+		if (!$r->faultCode()) {
+			$result['message'] =  "<p class=\"rpcmsg\">";
+			$result['message'] = $result['message'] .  $v["message"] . "<br />\n";
+			$result['message'] = $result['message'] . "</p>";
+		} else {
+			$result['err'] = $r->faultCode();
+			$result['message'] =  "<!--\n";
+			$result['message'] = $result['message'] . "Fault: ";
+			$result['message'] = $result['message'] . "Code: " . $r->faultCode();
+			$result['message'] = $result['message'] . " Reason '" .$r->faultString()."'<BR>";
+			$result['message'] = $result['message'] . "-->\n";
+		}
+
+		if ($debug) print '<blockquote>' . $result['message'] . '</blockquote>';
+	}
 }
 
 function generic_ping($post_id = 0) {
@@ -844,7 +846,7 @@ include_once (ABSPATH . WPINC . '/class-xmlrpcs.php');
 function doGeoUrlHeader($post_list = '') {
     global $posts;
 
-    if ($posts && 1 === count($posts)) {
+    if ($posts && 1 === count($posts) && ! empty($posts[0]->post_lat)) {
         // there's only one result  see if it has a geo code
         $row = $posts[0];
         $lat = $row->post_lat;
@@ -1273,11 +1275,11 @@ function rewrite_rules($matches = '', $permalink_structure = '') {
 
     // Site feed
     $sitefeedmatch = 'feed/?([_0-9a-z-]+)?/?$';
-    $sitefeedquery = $site_root . 'wp-feed.php?feed=' . preg_index(1, $matches);
+    $sitefeedquery = 'wp-feed.php?feed=' . preg_index(1, $matches);
 
     // Site comment feed
     $sitecommentfeedmatch = 'comments/feed/?([_0-9a-z-]+)?/?$';
-    $sitecommentfeedquery = $site_root . 'wp-feed.php?feed=' . preg_index(1, $matches) . '&withcomments=1';
+    $sitecommentfeedquery = 'wp-feed.php?feed=' . preg_index(1, $matches) . '&withcomments=1';
 
     // Code for nice categories and authors, currently not very flexible
     $front = substr($permalink_structure, 0, strpos($permalink_structure, '%'));

@@ -62,6 +62,8 @@ case 'Delete':
     $standalone = 1;
     require_once('admin-header.php');
 
+    check_admin_referer();
+
     $cat_ID = intval($_GET["cat_ID"]);
     $cat_name = get_catname($cat_ID);
     $cat_name = addslashes($cat_name);
@@ -85,7 +87,8 @@ break;
 case 'edit':
 
     require_once ('admin-header.php');
-    $category = $wpdb->get_row("SELECT * FROM $tablecategories WHERE cat_ID = '{$_GET['cat_ID']}'");
+    $cat_ID = intval($_GET['cat_ID']);
+    $category = $wpdb->get_row("SELECT * FROM $tablecategories WHERE cat_ID = '$cat_ID'");
     $cat_name = stripslashes($category->cat_name);
     ?>
 
@@ -104,7 +107,7 @@ case 'edit':
         </p>
 
         <p><?php _e('Description:') ?><br />
-        <textarea name="category_description" rows="5" cols="50" style="width: 97%;"><?php echo htmlentities($category->category_description); ?></textarea></p>
+										     <textarea name="category_description" rows="5" cols="50" style="width: 97%;"><?php echo htmlspecialchars($category->category_description, ENT_NOQUOTES); ?></textarea></p>
         <p class="submit"><input type="submit" name="submit" value="<?php _e('Edit category &raquo;') ?>" /></p>
     </form>
 </div>

@@ -61,13 +61,20 @@ case 'post':
 			}
 		}
 		$post_status = $_POST['post_status'];
+		$post_name = $_POST['post_name'];
+
 		if (empty($post_status)) $post_status = 'draft';
 		$comment_status = $_POST['comment_status'];
 		if (empty($comment_status)) $comment_status = get_settings('default_comment_status');
 		$ping_status = $_POST['ping_status'];
 		if (empty($ping_status)) $ping_status = get_settings('default_ping_status');
 		$post_password = addslashes(stripslashes($_POST['post_password']));
-		$post_name = sanitize_title($post_title);
+		
+		if (empty($post_name))
+			$post_name = sanitize_title($post_title);
+		else
+			$post_name = sanitize_title($post_name);
+
 		$trackback = $_POST['trackback_url'];
 	// Format trackbacks
 	$trackback = preg_replace('|\s+|', '\n', $trackback);
@@ -429,6 +436,8 @@ case 'delete':
 	$standalone = 1;
 	require_once('./admin-header.php');
 
+	check_admin_referer();
+
 	if ($user_level == 0)
 		die ('Cheatin&#8217; uh?');
 
@@ -527,6 +536,8 @@ case 'deletecomment':
 $standalone = 1;
 require_once('./admin-header.php');
 
+check_admin_referer();
+
 if ($user_level == 0)
 	die (__('Cheatin&#8217; uh?'));
 
@@ -561,6 +572,8 @@ case 'unapprovecomment':
 
 $standalone = 1;
 require_once('./admin-header.php');
+
+check_admin_referer();
 
 if ($user_level == 0)
 	die (__('Cheatin&#8217; uh?'));

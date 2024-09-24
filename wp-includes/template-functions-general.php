@@ -239,18 +239,18 @@ function get_archives($type='', $limit='', $format='html', $before = '', $after 
 
     $add_hours = intval(get_settings('gmt_offset'));
     $add_minutes = intval(60 * (get_settings('gmt_offset') - $add_hours));
-    $wp_posts_post_date_field = "post_date"; // "DATE_ADD(post_date, INTERVAL '$add_hours:$add_minutes' HOUR_MINUTE)";
 
     $now = current_time('mysql');
 
     if ('monthly' == $type) {
         $arcresults = $wpdb->get_results("SELECT DISTINCT YEAR(post_date) AS `year`, MONTH(post_date) AS `month`, count(ID) as posts FROM $tableposts WHERE post_date < '$now' AND post_status = 'publish' GROUP BY YEAR(post_date), MONTH(post_date) ORDER BY post_date DESC" . $limit);
         if ($arcresults) {
+            $afterafter = $after;
             foreach ($arcresults as $arcresult) {
                 $url  = get_month_link($arcresult->year,   $arcresult->month);
                 if ($show_post_count) {
                     $text = sprintf('%s %d', $month[zeroise($arcresult->month,2)], $arcresult->year);
-                    $after = '&nbsp;('.$arcresult->posts.')';
+                    $after = '&nbsp;('.$arcresult->posts.')' . $afterafter;
                 } else {
                     $text = sprintf('%s %d', $month[zeroise($arcresult->month,2)], $arcresult->year);
                 }
@@ -307,7 +307,7 @@ function get_archives($type='', $limit='', $format='html', $before = '', $after 
 }
 
 function get_calendar($daylength = 1) {
-    global $wpdb, $m, $monthnum, $year, $timedifference, $month, $weekday, $tableposts, $posts;
+    global $wpdb, $m, $monthnum, $year, $timedifference, $month, $month_abbrev, $weekday, $weekday_initial, $weekday_abbrev, $tableposts, $posts;
 
     // Quick check. If we have no posts at all, abort!
     if (!$posts) {
@@ -322,7 +322,6 @@ function get_calendar($daylength = 1) {
 
     $add_hours = intval(get_settings('gmt_offset'));
     $add_minutes = intval(60 * (get_settings('gmt_offset') - $add_hours));
-    $wp_posts_post_date_field = "post_date"; // "DATE_ADD(post_date, INTERVAL '$add_hours:$add_minutes' HOUR_MINUTE)";
 
     // Let's figure out when we are
     if (!empty($monthnum) && !empty($year)) {
@@ -367,8 +366,14 @@ function get_calendar($daylength = 1) {
     <caption>' . $month[zeroise($thismonth, 2)] . ' ' . date('Y', $unixmonth) . '</caption>
     <thead>
     <tr>';
+
+    $day_abbrev = $weekday_initial;
+    if ($daylength > 1) {
+        $day_abbrev = $weekday_abbrev;
+    }
+
     foreach ($weekday as $wd) {
-        echo "\n\t\t<th abbr=\"$wd\" scope=\"col\" title=\"$wd\">" . substr($wd, 0, $daylength) . '</th>';
+        echo "\n\t\t<th abbr=\"$wd\" scope=\"col\" title=\"$wd\">" . $day_abbrev[$wd] . '</th>';
     }
 
     echo '
@@ -380,8 +385,7 @@ function get_calendar($daylength = 1) {
 
     if ($previous) {
         echo "\n\t\t".'<td abbr="' . $month[zeroise($previous->month, 2)] . '" colspan="3" id="prev"><a href="' .
-                get_month_link($previous->year, $previous->month) . '" title="View posts for ' . $month[zeroise($previous->month, 2)] . ' ' .
-                date('Y', mktime(0, 0 , 0, $previous->month, 1, $previous->year)) . '">&laquo; ' . substr($month[zeroise($previous->month, 2)], 0, 3) . '</a></td>';
+            get_month_link($previous->year, $previous->month) . '" title="' . sprintf(__('View posts for %1$s %2$s'), $month[zeroise($previous->month, 2)], date('Y', mktime(0, 0 , 0, $previous->month, 1, $previous->year))) . '">&laquo; ' . $month_abbrev[$month[zeroise($previous->month, 2)]] . '</a></td>';
     } else {
         echo "\n\t\t".'<td colspan="3" id="prev" class="pad">&nbsp;</td>';
     }
@@ -459,7 +463,7 @@ function get_calendar($daylength = 1) {
             echo "\n\t</tr>\n\t<tr>\n\t\t";
         $newrow = false;
 
-        if ($day == date('j', (time() + (get_settings('gmt_offset') * 3600))) && $thismonth == date('m', time()+(get_settings('gmt_offset') * 3600)))
+        if ($day == gmdate('j', (time() + (get_settings('gmt_offset') * 3600))) && $thismonth == gmdate('m', time()+(get_settings('gmt_offset') * 3600)))
             echo '<td id="today">';
         else
             echo '<td>';
