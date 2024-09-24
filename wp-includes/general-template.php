@@ -235,7 +235,7 @@ function wp_login_url($redirect = '', $force_reauth = false) {
  */
 function wp_login_form( $args = array() ) {
 	$defaults = array( 'echo' => true,
-						'redirect' => site_url( $_SERVER['REQUEST_URI'] ), // Default redirect is back to the current page
+						'redirect' => ( is_ssl() ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'], // Default redirect is back to the current page
 	 					'form_id' => 'loginform',
 						'label_username' => __( 'Username' ),
 						'label_password' => __( 'Password' ),
@@ -252,7 +252,7 @@ function wp_login_form( $args = array() ) {
 	$args = wp_parse_args( $args, apply_filters( 'login_form_defaults', $defaults ) );
 
 	$form = '
-		<form name="' . $args['form_id'] . '" id="' . $args['form_id'] . '" action="' . site_url( 'wp-login.php', 'login_post' ) . '" method="post">
+		<form name="' . $args['form_id'] . '" id="' . $args['form_id'] . '" action="' . esc_url( site_url( 'wp-login.php', 'login_post' ) ) . '" method="post">
 			' . apply_filters( 'login_form_top', '', $args ) . '
 			<p class="login-username">
 				<label for="' . esc_attr( $args['id_username'] ) . '">' . esc_html( $args['label_username'] ) . '</label>
@@ -266,7 +266,7 @@ function wp_login_form( $args = array() ) {
 			' . ( $args['remember'] ? '<p class="login-remember"><label><input name="rememberme" type="checkbox" id="' . esc_attr( $args['id_remember'] ) . '" value="forever" tabindex="90"' . ( $args['value_remember'] ? ' checked="checked"' : '' ) . ' /> ' . esc_html( $args['label_remember'] ) . '</label></p>' : '' ) . '
 			<p class="login-submit">
 				<input type="submit" name="wp-submit" id="' . esc_attr( $args['id_submit'] ) . '" class="button-primary" value="' . esc_attr( $args['label_log_in'] ) . '" tabindex="100" />
-				<input type="hidden" name="redirect_to" value="' . esc_attr( $args['redirect'] ) . '" />
+				<input type="hidden" name="redirect_to" value="' . esc_url( $args['redirect'] ) . '" />
 			</p>
 			' . apply_filters( 'login_form_bottom', '', $args ) . '
 		</form>';
@@ -288,14 +288,14 @@ function wp_login_form( $args = array() ) {
  *
  * @param string $redirect Path to redirect to on login.
  */
-function wp_lostpassword_url($redirect = '') {
+function wp_lostpassword_url( $redirect = '' ) {
 	$args = array( 'action' => 'lostpassword' );
 	if ( !empty($redirect) ) {
 		$args['redirect_to'] = $redirect;
 	}
 
-	$lostpassword_url = add_query_arg($args, site_url('wp-login.php', 'login'));
-	return apply_filters('lostpassword_url', $lostpassword_url, $redirect);
+	$lostpassword_url = add_query_arg( $args, network_site_url('wp-login.php', 'login') );
+	return apply_filters( 'lostpassword_url', $lostpassword_url, $redirect );
 }
 
 /**
@@ -1621,34 +1621,35 @@ function feed_links_extra( $args = array() ) {
 	$args = wp_parse_args( $args, $defaults );
 
 	if ( is_single() || is_page() ) {
-		$post = &get_post( $id = 0 );
+		$id = 0;
+		$post = &get_post( $id );
 
 		if ( comments_open() || pings_open() || $post->comment_count > 0 ) {
-			$title = esc_attr(sprintf( $args['singletitle'], get_bloginfo('name'), $args['separator'], esc_html( get_the_title() ) ));
+			$title = sprintf( $args['singletitle'], get_bloginfo('name'), $args['separator'], esc_html( get_the_title() ) );
 			$href = get_post_comments_feed_link( $post->ID );
 		}
 	} elseif ( is_category() ) {
 		$term = get_queried_object();
 
-		$title = esc_attr(sprintf( $args['cattitle'], get_bloginfo('name'), $args['separator'], $term->name ));
+		$title = sprintf( $args['cattitle'], get_bloginfo('name'), $args['separator'], $term->name );
 		$href = get_category_feed_link( $term->term_id );
 	} elseif ( is_tag() ) {
 		$term = get_queried_object();
 
-		$title = esc_attr(sprintf( $args['tagtitle'], get_bloginfo('name'), $args['separator'], $term->name ));
+		$title = sprintf( $args['tagtitle'], get_bloginfo('name'), $args['separator'], $term->name );
 		$href = get_tag_feed_link( $term->term_id );
 	} elseif ( is_author() ) {
 		$author_id = intval( get_query_var('author') );
 
-		$title = esc_attr(sprintf( $args['authortitle'], get_bloginfo('name'), $args['separator'], get_the_author_meta( 'display_name', $author_id ) ));
+		$title = sprintf( $args['authortitle'], get_bloginfo('name'), $args['separator'], get_the_author_meta( 'display_name', $author_id ) );
 		$href = get_author_feed_link( $author_id );
 	} elseif ( is_search() ) {
-		$title = esc_attr(sprintf( $args['searchtitle'], get_bloginfo('name'), $args['separator'], get_search_query( false ) ));
+		$title = sprintf( $args['searchtitle'], get_bloginfo('name'), $args['separator'], get_search_query( false ) );
 		$href = get_search_feed_link();
 	}
 
 	if ( isset($title) && isset($href) )
-		echo '<link rel="alternate" type="' . feed_content_type() . '" title="' . $title . '" href="' . $href . '" />' . "\n";
+		echo '<link rel="alternate" type="' . feed_content_type() . '" title="' . esc_attr( $title ) . '" href="' . esc_url( $href ) . '" />' . "\n";
 }
 
 /**

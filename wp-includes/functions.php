@@ -1899,31 +1899,34 @@ function is_blog_installed() {
 	if ( $installed )
 		return true;
 
-	$suppress = $wpdb->suppress_errors();
-	$tables = $wpdb->get_col('SHOW TABLES');
-	$wpdb->suppress_errors( $suppress );
+	// If visiting repair.php, return true and let it take over.
+	if ( defined( 'WP_REPAIRING' ) )
+		return true;
 
-	$wp_tables = $wpdb->tables();
+	$suppress = $wpdb->suppress_errors();
+
 	// Loop over the WP tables.  If none exist, then scratch install is allowed.
 	// If one or more exist, suggest table repair since we got here because the options
 	// table could not be accessed.
+	$wp_tables = $wpdb->tables();
 	foreach ( $wp_tables as $table ) {
-		// If one of the WP tables exist, then we are in an insane state.
-		if ( in_array( $table, $tables ) ) {
-			// The existence of custom user tables shouldn't suggest an insane state or prevent a clean install.
-			if ( defined( 'CUSTOM_USER_TABLE' ) && CUSTOM_USER_TABLE == $table )
-				continue;
-			if ( defined( 'CUSTOM_USER_META_TABLE' ) && CUSTOM_USER_META_TABLE == $table )
-				continue;
+		// The existence of custom user tables shouldn't suggest an insane state or prevent a clean install.
+		if ( defined( 'CUSTOM_USER_TABLE' ) && CUSTOM_USER_TABLE == $table )
+			continue;
+		if ( defined( 'CUSTOM_USER_META_TABLE' ) && CUSTOM_USER_META_TABLE == $table )
+			continue;
 
-			// If visiting repair.php, return true and let it take over.
-			if ( defined('WP_REPAIRING') )
-				return true;
-			// Die with a DB error.
-			$wpdb->error = sprintf( /*WP_I18N_NO_TABLES*/'One or more database tables are unavailable.  The database may need to be <a href="%s">repaired</a>.'/*/WP_I18N_NO_TABLES*/, 'maint/repair.php?referrer=is_blog_installed' );
-			dead_db();
-		}
+		if ( ! $wpdb->get_results( "DESCRIBE $table;" ) )
+			continue;
+
+		// One or more tables exist. We are insane.
+
+		// Die with a DB error.
+		$wpdb->error = sprintf( /*WP_I18N_NO_TABLES*/'One or more database tables are unavailable.  The database may need to be <a href="%s">repaired</a>.'/*/WP_I18N_NO_TABLES*/, 'maint/repair.php?referrer=is_blog_installed' );
+		dead_db();
 	}
+
+	$wpdb->suppress_errors( $suppress );
 
 	wp_cache_set( 'is_blog_installed', false );
 
@@ -2823,10 +2826,10 @@ function _default_wp_die_handler( $message, $title = '', $args = array() ) {
 			nocache_headers();
 			header( 'Content-Type: text/html; charset=utf-8' );
 		}
-	
+
 		if ( empty($title) )
 			$title = $have_gettext ? __('WordPress &rsaquo; Error') : 'WordPress &rsaquo; Error';
-	
+
 		$text_direction = 'ltr';
 		if ( isset($r['text_direction']) && 'rtl' == $r['text_direction'] )
 			$text_direction = 'rtl';
@@ -2851,8 +2854,6 @@ function _default_wp_die_handler( $message, $title = '', $args = array() ) {
 			margin: 2em auto;
 			width: 700px;
 			padding: 1em 2em;
-			-moz-border-radius: 11px;
-			-khtml-border-radius: 11px;
 			-webkit-border-radius: 11px;
 			border-radius: 11px;
 			border: 1px solid #dfdfdf;
@@ -3527,12 +3528,12 @@ function _deprecated_argument( $function, $version, $message = null ) {
  */
 function _doing_it_wrong( $function, $message, $version ) {
 
-	$message .= ' ' . __('Please see <a href="http://codex.wordpress.org/Debugging_in_WordPress">Debugging in WordPress</a> for more information.');
 	do_action( 'doing_it_wrong_run', $function, $message, $version );
 
 	// Allow plugin to filter the output error trigger
 	if ( WP_DEBUG && apply_filters( 'doing_it_wrong_trigger_error', true ) ) {
 		$version = is_null( $version ) ? '' : sprintf( __( '(This message was added in version %s.)' ), $version );
+		$message .= ' ' . __( 'Please see <a href="http://codex.wordpress.org/Debugging_in_WordPress">Debugging in WordPress</a> for more information.' );
 		trigger_error( sprintf( __( '%1$s was called <strong>incorrectly</strong>. %2$s %3$s' ), $function, $message, $version ) );
 	}
 }

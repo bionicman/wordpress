@@ -839,7 +839,7 @@ function wp_import_upload_form( $action ) {
  * @param string $id String for use in the 'id' attribute of tags.
  * @param string $title Title of the meta box.
  * @param string $callback Function that fills the box with the desired content. The function should echo its output.
- * @param string|object Optional. $screen The screen on which to show the box (post, page, link). Defaults to current screen.
+ * @param string|object $screen Optional. The screen on which to show the box (post, page, link). Defaults to current screen.
  * @param string $context Optional. The context within the page where the boxes should show ('normal', 'advanced').
  * @param string $priority Optional. The priority within the context where the boxes should show ('high', 'low').
  */
@@ -1370,8 +1370,10 @@ function _admin_search_query() {
  */
 function iframe_header( $title = '', $limit_styles = false ) {
 	show_admin_bar( false );
-	global $hook_suffix, $current_screen, $current_user, $admin_body_class, $wp_locale;
+	global $hook_suffix, $current_user, $admin_body_class, $wp_locale;
 	$admin_body_class = preg_replace('/[^a-z0-9_-]+/i', '-', $hook_suffix);
+
+	$current_screen = get_current_screen();
 
 	_wp_admin_html_begin();
 ?>

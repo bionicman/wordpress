@@ -24,7 +24,7 @@ class WP_Terms_List_Table extends WP_List_Table {
 
 		$tax = get_taxonomy( $taxonomy );
 
-		if ( empty( $post_type ) || !in_array( $post_type, get_post_types( array( 'public' => true ) ) ) )
+		if ( empty( $post_type ) || !in_array( $post_type, get_post_types( array( 'show_ui' => true ) ) ) )
 			$post_type = 'post';
 
 		parent::__construct( array(
@@ -93,7 +93,7 @@ class WP_Terms_List_Table extends WP_List_Table {
 	}
 
 	function get_columns() {
-		global $taxonomy, $typenow;
+		global $taxonomy, $post_type;
 
 		$columns = array(
 			'cb'          => '<input type="checkbox" />',
@@ -105,7 +105,6 @@ class WP_Terms_List_Table extends WP_List_Table {
 		if ( 'link_category' == $taxonomy ) {
 			$columns['links'] = __( 'Links' );
 		} else {
-			$post_type = empty( $typenow ) ? 'post' : $typenow;
 			$post_type_object = get_post_type_object( $post_type );
 			$columns['posts'] = $post_type_object ? $post_type_object->labels->name : __( 'Posts' );
 		}
@@ -362,7 +361,7 @@ class WP_Terms_List_Table extends WP_List_Table {
 	?>
 
 		<p class="inline-edit-save submit">
-			<a accesskey="c" href="#inline-edit" title="<?php _e( 'Cancel' ); ?>" class="cancel button-secondary alignleft"><?php _e( 'Cancel' ); ?></a>
+			<a accesskey="c" href="#inline-edit" title="<?php esc_attr_e( 'Cancel' ); ?>" class="cancel button-secondary alignleft"><?php _e( 'Cancel' ); ?></a>
 			<?php $update_text = $tax->labels->update_item; ?>
 			<a accesskey="s" href="#inline-edit" title="<?php echo esc_attr( $update_text ); ?>" class="save button-primary alignright"><?php echo $update_text; ?></a>
 			<img class="waiting" style="display:none;" src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" alt="" />

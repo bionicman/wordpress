@@ -461,6 +461,20 @@ class wpdb {
 	var $func_call;
 
 	/**
+	 * Whether MySQL is used as the database engine.
+	 *
+	 * Set in WPDB::db_connect() to true, by default. This is used when checking
+	 * against the required MySQL version for WordPress. Normally, a replacement
+	 * database drop-in (db.php) will skip these checks, but setting this to true
+	 * will force the checks to occur.
+	 *
+	 * @since 3.3.0
+	 * @access public
+	 * @var bool
+	 */
+	public $is_mysql = null;
+
+	/**
 	 * Connects to the database server and selects a database
 	 *
 	 * PHP5 style constructor for compatibility with PHP5. Does
@@ -1015,6 +1029,9 @@ class wpdb {
 	 * @since 3.0.0
 	 */
 	function db_connect() {
+
+		$this->is_mysql = true;
+
 		if ( WP_DEBUG ) {
 			$this->dbh = mysql_connect( $this->dbhost, $this->dbuser, $this->dbpassword, true );
 		} else {
@@ -1369,7 +1386,8 @@ class wpdb {
 			// Return an array of row objects with keys from column 1
 			// (Duplicates are discarded)
 			foreach ( $this->last_result as $row ) {
-				$key = array_shift( $var_by_ref = get_object_vars( $row ) );
+				$var_by_ref = get_object_vars( $row );
+				$key = array_shift( $var_by_ref );
 				if ( ! isset( $new_array[ $key ] ) )
 					$new_array[ $key ] = $row;
 			}

@@ -160,9 +160,9 @@ function get_the_guid( $id = 0 ) {
  * @since 0.71
  *
  * @param string $more_link_text Optional. Content for when there is more text.
- * @param string $stripteaser Optional. Teaser content before the more text.
+ * @param bool $stripteaser Optional. Strip teaser content before the more text. Default is false.
  */
-function the_content($more_link_text = null, $stripteaser = 0) {
+function the_content($more_link_text = null, $stripteaser = false) {
 	$content = get_the_content($more_link_text, $stripteaser);
 	$content = apply_filters('the_content', $content);
 	$content = str_replace(']]>', ']]&gt;', $content);
@@ -175,10 +175,10 @@ function the_content($more_link_text = null, $stripteaser = 0) {
  * @since 0.71
  *
  * @param string $more_link_text Optional. Content for when there is more text.
- * @param string $stripteaser Optional. Teaser content before the more text.
+ * @param bool $stripteaser Optional. Strip teaser content before the more text. Default is false.
  * @return string
  */
-function get_the_content($more_link_text = null, $stripteaser = 0) {
+function get_the_content($more_link_text = null, $stripteaser = false) {
 	global $post, $more, $page, $pages, $multipage, $preview;
 
 	if ( null === $more_link_text )
@@ -207,9 +207,9 @@ function get_the_content($more_link_text = null, $stripteaser = 0) {
 		$content = array($content);
 	}
 	if ( (false !== strpos($post->post_content, '<!--noteaser-->') && ((!$multipage) || ($page==1))) )
-		$stripteaser = 1;
+		$stripteaser = true;
 	$teaser = $content[0];
-	if ( ($more) && ($stripteaser) && ($hasTeaser) )
+	if ( $more && $stripteaser && $hasTeaser )
 		$teaser = '';
 	$output .= $teaser;
 	if ( count($content) > 1 ) {
@@ -778,13 +778,12 @@ function wp_dropdown_pages($args = '') {
 
 	$pages = get_pages($r);
 	$output = '';
-	$name = esc_attr($name);
 	// Back-compat with old system where both id and name were based on $name argument
 	if ( empty($id) )
 		$id = $name;
 
 	if ( ! empty($pages) ) {
-		$output = "<select name=\"$name\" id=\"$id\">\n";
+		$output = "<select name='" . esc_attr( $name ) . "' id='" . esc_attr( $id ) . "'>\n";
 		if ( $show_option_no_change )
 			$output .= "\t<option value=\"-1\">$show_option_no_change</option>";
 		if ( $show_option_none )
@@ -1153,27 +1152,26 @@ function the_attachment_link( $id = 0, $fullsize = false, $deprecated = false, $
  * @param string $text Optional, default is false. If string, then will be link text.
  * @return string HTML content.
  */
-function wp_get_attachment_link($id = 0, $size = 'thumbnail', $permalink = false, $icon = false, $text = false) {
-	$id = intval($id);
+function wp_get_attachment_link( $id = 0, $size = 'thumbnail', $permalink = false, $icon = false, $text = false ) {
+	$id = intval( $id );
 	$_post = & get_post( $id );
 
-	if ( ('attachment' != $_post->post_type) || !$url = wp_get_attachment_url($_post->ID) )
-		return __('Missing Attachment');
+	if ( empty( $_post ) || ( 'attachment' != $_post->post_type ) || ! $url = wp_get_attachment_url( $_post->ID ) )
+		return __( 'Missing Attachment' );
 
 	if ( $permalink )
-		$url = get_attachment_link($_post->ID);
+		$url = get_attachment_link( $_post->ID );
 
-	$post_title = esc_attr($_post->post_title);
+	$post_title = esc_attr( $_post->post_title );
 
-	if ( $text ) {
-		$link_text = esc_attr($text);
-	} elseif ( ( is_int($size) && $size != 0 ) or ( is_string($size) && $size != 'none' ) or $size != false ) {
-		$link_text = wp_get_attachment_image($id, $size, $icon);
-	} else {
+	if ( $text )
+		$link_text = esc_attr( $text );
+	elseif ( $size && 'none' != $size )
+		$link_text = wp_get_attachment_image( $id, $size, $icon );
+	else
 		$link_text = '';
-	}
 
-	if( trim($link_text) == '' )
+	if ( trim( $link_text ) == '' )
 		$link_text = $_post->post_title;
 
 	return apply_filters( 'wp_get_attachment_link', "<a href='$url' title='$post_title'>$link_text</a>", $id, $size, $permalink, $icon, $text );

@@ -46,7 +46,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 	var $sticky_posts_count = 0;
 
 	function __construct() {
-		global $post_type_object, $post_type, $wpdb;
+		global $post_type_object, $wpdb;
 
 		if ( !isset( $_REQUEST['post_type'] ) )
 			$post_type = 'post';
@@ -86,7 +86,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 	}
 
 	function prepare_items() {
-		global $post_type_object, $post_type, $avail_post_stati, $wp_query, $per_page, $mode;
+		global $post_type_object, $avail_post_stati, $wp_query, $per_page, $mode;
 
 		$avail_post_stati = wp_edit_posts_query();
 
@@ -94,6 +94,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 
 		$total_items = $this->hierarchical_display ? $wp_query->post_count : $wp_query->found_posts;
 
+		$post_type = $post_type_object->name;
 		$per_page = $this->get_items_per_page( 'edit_' . $post_type . '_per_page' );
  		$per_page = apply_filters( 'edit_posts_per_page', $per_page, $post_type );
 
@@ -127,7 +128,9 @@ class WP_Posts_List_Table extends WP_List_Table {
 	}
 
 	function get_views() {
-		global $post_type, $post_type_object, $locked_post_status, $avail_post_stati;
+		global $post_type_object, $locked_post_status, $avail_post_stati;
+
+		$post_type = $post_type_object->name;
 
 		if ( !empty($locked_post_status) )
 			return array();
@@ -202,15 +205,15 @@ class WP_Posts_List_Table extends WP_List_Table {
 	}
 
 	function extra_tablenav( $which ) {
-		global $post_type, $post_type_object, $cat;
+		global $post_type_object, $cat;
 ?>
 		<div class="alignleft actions">
 <?php
 		if ( 'top' == $which && !is_singular() ) {
 
-			$this->months_dropdown( $post_type );
+			$this->months_dropdown( $post_type_object->name );
 
-			if ( is_object_in_taxonomy( $post_type, 'category' ) ) {
+			if ( is_object_in_taxonomy( $post_type_object->name, 'category' ) ) {
 				$dropdown_options = array(
 					'show_option_all' => __( 'View all categories' ),
 					'hide_empty' => 0,
@@ -463,7 +466,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 	}
 
 	function single_row( $a_post, $level = 0 ) {
-		global $post, $current_screen, $mode;
+		global $post, $mode;
 		static $alternate;
 
 		$global_post = $post;
@@ -550,7 +553,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 						$actions['delete'] = "<a class='submitdelete' title='" . esc_attr( __( 'Delete this item permanently' ) ) . "' href='" . get_delete_post_link( $post->ID, '', true ) . "'>" . __( 'Delete Permanently' ) . "</a>";
 				}
 				if ( $post_type_object->public ) {
-					if ( in_array( $post->post_status, array( 'pending', 'draft' ) ) ) {
+					if ( in_array( $post->post_status, array( 'pending', 'draft', 'future' ) ) ) {
 						if ( $can_edit_post )
 							$actions['view'] = '<a href="' . esc_url( add_query_arg( 'preview', 'true', get_permalink( $post->ID ) ) ) . '" title="' . esc_attr( sprintf( __( 'Preview &#8220;%s&#8221;' ), $title ) ) . '" rel="permalink">' . __( 'Preview' ) . '</a>';
 					} elseif ( 'trash' != $post->post_status ) {
@@ -864,7 +867,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 
 	<?php
 			endif; // hierarchical
-	
+
 			if ( !$bulk ) : ?>
 
 			<label>
@@ -996,7 +999,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 
 			</div>
 
-	<?php if ( post_type_supports( $screen->post_type, 'post-formats' ) && current_theme_supports( 'post-formats' ) ) : 
+	<?php if ( post_type_supports( $screen->post_type, 'post-formats' ) && current_theme_supports( 'post-formats' ) ) :
 		$post_formats = get_theme_support( 'post-formats' );
 		if ( isset( $post_formats[0] ) && is_array( $post_formats[0] ) ) :
 			$all_post_formats = get_post_format_strings(); ?>
@@ -1030,12 +1033,12 @@ class WP_Posts_List_Table extends WP_List_Table {
 		}
 	?>
 		<p class="submit inline-edit-save">
-			<a accesskey="c" href="#inline-edit" title="<?php _e( 'Cancel' ); ?>" class="button-secondary cancel alignleft"><?php _e( 'Cancel' ); ?></a>
+			<a accesskey="c" href="#inline-edit" title="<?php esc_attr_e( 'Cancel' ); ?>" class="button-secondary cancel alignleft"><?php _e( 'Cancel' ); ?></a>
 			<?php if ( ! $bulk ) {
 				wp_nonce_field( 'inlineeditnonce', '_inline_edit', false );
 				$update_text = __( 'Update' );
 				?>
-				<a accesskey="s" href="#inline-edit" title="<?php _e( 'Update' ); ?>" class="button-primary save alignright"><?php echo esc_attr( $update_text ); ?></a>
+				<a accesskey="s" href="#inline-edit" title="<?php esc_attr_e( 'Update' ); ?>" class="button-primary save alignright"><?php echo esc_attr( $update_text ); ?></a>
 				<img class="waiting" style="display:none;" src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" alt="" />
 			<?php } else {
 				submit_button( __( 'Update' ), 'button-primary alignright', 'bulk_edit', false, array( 'accesskey' => 's' ) );

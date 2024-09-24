@@ -19,9 +19,8 @@ function fileQueued(fileObj) {
 	// Display the progress div
 	jQuery('.progress', '#media-item-' + fileObj.id).show();
 
-	// Disable submit and enable cancel
+	// Disable submit
 	jQuery('#insert-gallery').prop('disabled', true);
-	jQuery('#cancel-upload').prop('disabled', false);
 }
 
 function uploadStart(fileObj) {
@@ -77,18 +76,6 @@ function uploadSuccess(fileObj, serverData) {
 	// Increment the counter.
 	if ( jQuery('#media-item-' + fileObj.id).hasClass('child-of-' + post_id) )
 		jQuery('#attachments-count').text(1 * jQuery('#attachments-count').text() + 1);
-}
-
-function setResize(arg) {
-	if ( arg ) {
-		if ( uploader.features.jpgresize )
-			uploader.settings['resize'] = { width: resize_width, height: resize_height, quality: 100 };
-		else
-			uploader.settings.multipart_params.image_resize = true;
-	} else {
-		delete(uploader.settings.resize);
-		delete(uploader.settings.multipart_params.image_resize);
-	}
 }
 
 function prepareMediaItem(fileObj, serverData) {
@@ -192,23 +179,12 @@ function prepareMediaItemInit(fileObj) {
 	jQuery('#media-item-' + fileObj.id + '.startopen').removeClass('startopen').slideToggle(500).siblings('.toggle').toggle();
 }
 
-function cancelUpload() {
-	uploader.stop();
-	jQuery.each(uploader.files, function(i,file) {
-		if (file.status == plupload.STOPPED)
-			jQuery('#media-item-' + file.id).remove();
-	});
-}
-
-
-// wp-specific error handlers
-
-// generic message
+// generic error message
 function wpQueueError(message) {
-	jQuery('#media-upload-error').show().text(message);
+	jQuery('#media-upload-error').show().html( '<div class="error"><p>' + message + '</p></div>' );
 }
 
-// file-specific message
+// file-specific error messages
 function wpFileError(fileObj, message) {
 	var item = jQuery('#media-item-' + fileObj.id), filename = jQuery('.filename', item).text();
 
@@ -268,13 +244,8 @@ function deleteError(X, textStatus, errorThrown) {
 	// TODO
 }
 
-// SWFUpload?
-function uploadComplete(fileObj) {
-	// If no more uploads queued, enable the submit button
-	if ( swfu.getStats().files_queued == 0 ) {
-		jQuery('#cancel-upload').prop('disabled', true);
-		jQuery('#insert-gallery').prop('disabled', false);
-	}
+function uploadComplete() {
+	jQuery('#insert-gallery').prop('disabled', false);
 }
 
 function switchUploader(s) {
@@ -299,21 +270,6 @@ function dndHelper(s) {
 	}
 }
 
-// SWFUpload?
-function swfuploadPreLoad() {
-	if ( !uploaderMode ) {
-		switchUploader(1);
-	} else {
-		switchUploader(0);
-	}
-}
-
-// SWFUpload?
-function swfuploadLoadFailed() {
-	switchUploader(0);
-	jQuery('.upload-html-bypass').hide();
-}
-
 function uploadError(fileObj, errorCode, message) {
 
 	switch (errorCode) {
@@ -324,7 +280,7 @@ function uploadError(fileObj, errorCode, message) {
 			wpFileError(fileObj, pluploadL10n.invalid_filetype);
 			break;
 		case plupload.FILE_SIZE_ERROR:
-			wpFileError(fileObj, pluploadL10n.upload_limit_exceeded);
+			wpQueueError( pluploadL10n.file_exceeds_size_limit.replace('%s', fileObj.name) );
 			break;
 		case plupload.IMAGE_FORMAT_ERROR:
 			wpFileError(fileObj, pluploadL10n.not_an_image);
@@ -384,20 +340,7 @@ jQuery(document).ready(function($){
 	uploader_init = function() {
 		uploader = new plupload.Uploader(wpUploaderInit);
 
-		$('#image_resize').bind('change', function() {
-			var arg = $(this).prop('checked');
-
-			setResize( arg );
-
-			if ( arg )
-				setUserSetting('upload_resize', '1');
-			else
-				deleteUserSetting('upload_resize');
-		});
-
 		uploader.bind('Init', function(up) {
-			setResize( getUserSetting('upload_resize', false) );
-
 			if ( up.features.dragdrop ) {
 				$('#plupload-upload-ui').addClass('drag-drop');
 				$('#drag-drop-area').bind('dragover.wp-uploader', function(){ // dragenter doesn't fire right :(
@@ -422,6 +365,7 @@ jQuery(document).ready(function($){
 				fileQueued(file);
 			});
 
+			jQuery('#media-upload-error').html('');
 			up.refresh();
 			up.start();
 		});
@@ -442,6 +386,10 @@ jQuery(document).ready(function($){
 
 		uploader.bind('FileUploaded', function(up, file, response) {
 			uploadSuccess(file, response.response);
+		});
+
+		uploader.bind('UploadComplete', function(up, files) {
+			uploadComplete();
 		});
 	}
 

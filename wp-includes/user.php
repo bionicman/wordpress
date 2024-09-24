@@ -88,7 +88,7 @@ function wp_authenticate_username_password($user, $username, $password) {
 	$userdata = get_user_by('login', $username);
 
 	if ( !$userdata )
-		return new WP_Error('invalid_username', sprintf(__('<strong>ERROR</strong>: Invalid username. <a href="%s" title="Password Lost and Found">Lost your password</a>?'), site_url('wp-login.php?action=lostpassword', 'login')));
+		return new WP_Error('invalid_username', sprintf(__('<strong>ERROR</strong>: Invalid username. <a href="%s" title="Password Lost and Found">Lost your password</a>?'), wp_lostpassword_url()));
 
 	if ( is_multisite() ) {
 		// Is user marked as spam?
@@ -109,7 +109,7 @@ function wp_authenticate_username_password($user, $username, $password) {
 
 	if ( !wp_check_password($password, $userdata->user_pass, $userdata->ID) )
 		return new WP_Error( 'incorrect_password', sprintf( __( '<strong>ERROR</strong>: The password you entered for the username <strong>%1$s</strong> is incorrect. <a href="%2$s" title="Password Lost and Found">Lost your password</a>?' ),
-		$username, site_url( 'wp-login.php?action=lostpassword', 'login' ) ) );
+		$username, wp_lostpassword_url() ) );
 
 	$user =  new WP_User($userdata->ID);
 	return $user;
@@ -652,6 +652,16 @@ function get_users( $args = array() ) {
 function get_blogs_of_user( $user_id, $all = false ) {
 	global $wpdb;
 
+	$user_id = (int) $user_id;
+
+	// Logged out users can't have blogs
+	if ( empty( $user_id ) )
+		return false;
+
+	$keys = get_user_meta( $user_id );
+	if ( empty( $keys ) )
+		return false;
+
 	if ( ! is_multisite() ) {
 		$blog_id = get_current_blog_id();
 		$blogs = array( $blog_id => new stdClass );
@@ -663,16 +673,6 @@ function get_blogs_of_user( $user_id, $all = false ) {
 		$blogs[ $blog_id ]->siteurl = get_option('siteurl');
 		return $blogs;
 	}
-
-	$user_id = (int) $user_id;
-
-	// Logged out users can't have blogs
-	if ( empty( $user_id ) )
-		return false;
-
-	$keys = get_user_meta( $user_id );
-	if ( empty( $keys ) )
-		return false;
 
 	$blogs = array();
 
@@ -736,10 +736,8 @@ function is_user_member_of_blog( $user_id = 0, $blog_id = 0 ) {
 	if ( empty( $user_id ) )
 		$user_id = get_current_user_id();
 
-	if ( empty( $blog_id ) ) {
-		global $wpdb;
-		$blog_id = $wpdb->blogid;
-	}
+	if ( empty( $blog_id ) )
+		$blog_id = get_current_blog_id();
 
 	$blogs = get_blogs_of_user( $user_id );
 	if ( is_array( $blogs ) )

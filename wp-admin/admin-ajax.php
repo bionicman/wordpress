@@ -55,10 +55,7 @@ case 'fetch-list' :
 	$list_class = $_GET['list_args']['class'];
 	check_ajax_referer( "fetch-list-$list_class", '_ajax_fetch_list_nonce' );
 
-	$current_screen = (object) $_GET['list_args']['screen'];
-	//TODO fix this in a better way see #15336
-	$current_screen->is_network = 'false' === $current_screen->is_network ? false : true;
-	$current_screen->is_user = 'false' === $current_screen->is_user ? false : true;
+	$current_screen = convert_to_screen( $_GET['list_args']['screen']['id'] );
 
 	define( 'WP_NETWORK_ADMIN', $current_screen->is_network );
 	define( 'WP_USER_ADMIN', $current_screen->is_user );
@@ -860,7 +857,7 @@ case 'add-meta' :
 			'supplemental' => array('postid' => $pid)
 		) );
 	} else { // Update?
-		$mid = (int) array_pop( $var_by_ref = array_keys($_POST['meta']) );
+		$mid = (int) key( $_POST['meta'] );
 		$key = stripslashes( $_POST['meta'][$mid]['key'] );
 		$value = stripslashes( $_POST['meta'][$mid]['value'] );
 		if ( '' == trim($key) )
@@ -1506,32 +1503,17 @@ case 'time_format' :
 	die( date_i18n( sanitize_option( 'time_format', $_POST['date'] ) ) );
 	break;
 case 'wp-fullscreen-save-post' :
-	if ( isset($_POST['post_ID']) )
-		$post_id = (int) $_POST['post_ID'];
-	else
-		$post_id = 0;
+	$post_id = isset( $_POST['post_ID'] ) ? (int) $_POST['post_ID'] : 0;
 
-	$post = null;
-	$post_type_object = null;
-	$post_type = null;
-	if ( $post_id ) {
-		$post = get_post($post_id);
-		if ( $post ) {
-			$post_type_object = get_post_type_object($post->post_type);
-			if ( $post_type_object ) {
-				$post_type = $post->post_type;
-				$current_screen->post_type = $post->post_type;
-				$current_screen->id = $current_screen->post_type;
-			}
-		}
-	} elseif ( isset($_POST['post_type']) ) {
-		$post_type_object = get_post_type_object($_POST['post_type']);
-		if ( $post_type_object ) {
-			$post_type = $post_type_object->name;
-			$current_screen->post_type = $post_type;
-			$current_screen->id = $current_screen->post_type;
-		}
-	}
+	$post = $post_type = null;
+
+	if ( $post_id )
+		$post = get_post( $post_id );
+
+	if ( $post )
+		$post_type = $post->post_type;
+	elseif ( isset( $_POST['post_type'] ) && post_type_exists( $_POST['post_type'] ) )
+		$post_type = $_POST['post_type'];
 
 	check_ajax_referer('update-' . $post_type . '_' . $post_id, '_wpnonce');
 

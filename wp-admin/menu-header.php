@@ -36,9 +36,6 @@ get_admin_page_parent();
 function _wp_menu_output( $menu, $submenu, $submenu_as_parent = true ) {
 	global $self, $parent_file, $submenu_file, $plugin_page, $pagenow, $typenow;
 
-	$menu_setting_increment = -1;
-	$user_settings = get_all_user_settings();
-
 	$first = true;
 	// 0 = name, 1 = capability, 2 = file, 3 = class, 4 = id, 5 = icon src
 	foreach ( $menu as $key => $item ) {
@@ -54,7 +51,6 @@ function _wp_menu_output( $menu, $submenu, $submenu_as_parent = true ) {
 		if ( ! empty( $submenu[$item[2]] ) ) {
 			$class[] = 'wp-has-submenu';
 			$submenu_items = $submenu[$item[2]];
-			$menu_setting_increment++;
 		}
 
 		if ( ( $parent_file && $item[2] == $parent_file ) || ( empty($typenow) && $self == $item[2] ) )
@@ -126,8 +122,9 @@ function _wp_menu_output( $menu, $submenu, $submenu_as_parent = true ) {
 				// Handle current for post_type=post|page|foo pages, which won't match $self.
 				$self_type = ! empty( $typenow ) ? $self . '?post_type=' . $typenow : 'nothing';
 
-				if ( isset( $submenu_file ) && $submenu_file == $sub_item[2] ) {
-					$class[] = 'current';
+				if ( isset( $submenu_file ) ) {
+					if ( $submenu_file == $sub_item[2] )
+						$class[] = 'current';
 				// If plugin_page is set the parent must either match the current page or not physically exist.
 				// This allows plugin pages with the same hook to exist under different parents.
 				} else if (

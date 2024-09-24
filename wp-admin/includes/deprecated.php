@@ -710,7 +710,7 @@ function wp_dashboard_quick_press_output() {
  */
 function wp_tiny_mce() {
 	_deprecated_function( __FUNCTION__, '3.3', 'wp_editor()' );
-	
+
 	wp_editor('', 'content');
 }
 
@@ -803,4 +803,54 @@ function screen_options( $screen ) {
 function screen_meta( $screen ) {
 	$current_screen = get_current_screen();
 	$current_screen->render_screen_meta();
+}
+
+/**
+ * Favorite actions were deprecated in version 3.2. Use the admin bar instead.
+ *
+ * @since 2.7.0
+ * @deprecated 3.2.0
+ */
+function favorite_actions() {
+	_deprecated_function( __FUNCTION__, '3.2', 'WP_Admin_Bar' );
+}
+
+function media_upload_image() {
+	__deprecated_function( __FUNCTION__, '3.3', 'wp_media_upload_handler()' );
+	return wp_media_upload_handler();
+}
+
+function media_upload_audio() {
+	__deprecated_function( __FUNCTION__, '3.3', 'wp_media_upload_handler()' );
+	return wp_media_upload_handler();
+}
+
+function media_upload_video() {
+	__deprecated_function( __FUNCTION__, '3.3', 'wp_media_upload_handler()' );
+	return wp_media_upload_handler();
+}
+
+function media_upload_file() {
+	__deprecated_function( __FUNCTION__, '3.3', 'wp_media_upload_handler()' );
+	return wp_media_upload_handler();
+}
+
+function type_url_form_image() {
+	__deprecated_function( __FUNCTION__, '3.3', "wp_media_insert_url_form('image')" );
+	return wp_media_insert_url_form( 'image' );
+}
+
+function type_url_form_audio() {
+	__deprecated_function( __FUNCTION__, '3.3', "wp_media_insert_url_form('audio')" );
+	return wp_media_insert_url_form( 'audio' );
+}
+
+function type_url_form_video() {
+	__deprecated_function( __FUNCTION__, '3.3', "wp_media_insert_url_form('video')" );
+	return wp_media_insert_url_form( 'video' );
+}
+
+function type_url_form_file() {
+	__deprecated_function( __FUNCTION__, '3.3', "wp_media_insert_url_form('file')" );
+	return wp_media_insert_url_form( 'file' );
 }

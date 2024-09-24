@@ -95,57 +95,59 @@ screenMeta = {
 	page:    null, // #wpcontent
 	padding: null, // the closed page padding-top property
 	top:     null, // the closed element top property
-	map: {
-		'wp-admin-bar-screen-options': 'screen-options-wrap',
-		'wp-admin-bar-help': 'contextual-help-wrap'
-	},
 
 	init: function() {
-		screenMeta.element = $('#screen-meta');
-		screenMeta.toggles = $('.screen-meta-toggle');
-		screenMeta.page    = $('#wpcontent');
+		this.element = $('#screen-meta');
+		this.toggles = $('.screen-meta-toggle a');
+		this.page    = $('#wpcontent');
 
-		screenMeta.toggles.click( screenMeta.toggleEvent );
+		this.toggles.click( this.toggleEvent );
 	},
 
 	toggleEvent: function( e ) {
-		var panel;
+		var panel = $( this.href.replace(/.+#/, '#') );
 		e.preventDefault();
 
-		// Check to see if we found a panel.
-		if ( ! screenMeta.map[ this.id ] )
+		if ( !panel.length )
 			return;
-
-		panel = $('#' + screenMeta.map[ this.id ]);
 
 		if ( panel.is(':visible') )
 			screenMeta.close( panel, $(this) );
 		else
 			screenMeta.open( panel, $(this) );
 	},
+
 	open: function( panel, link ) {
-		// Close open panel
-		screenMeta.toggles.filter('.selected').click();
 
-		// Open selected panel
-		link.addClass('selected');
+		$('.screen-meta-toggle').not( link.parent() ).css('visibility', 'hidden');
 
-		screenMeta.padding = parseInt( screenMeta.page.css('paddingTop'), 10 );
-		screenMeta.top     = parseInt( screenMeta.element.css('top'), 10 );
-
-		panel.show();
-
-		screenMeta.refresh();
+		panel.parent().show();
+		panel.slideDown( 'fast', function() {
+			link.addClass('screen-meta-active');
+			screenMeta.refresh();
+		});
 	},
+
 	refresh: function( panel, link ) {
-		screenMeta.element.css({ top: 0 });
-		screenMeta.page.css({ paddingTop: screenMeta.padding + screenMeta.element.outerHeight() });
+		var columns = $('#contextual-help-wrap').children(), height = 0;
+
+		columns.each(function(){
+			var h = $(this).height();
+
+			if ( h > height )
+				height = h;
+		});
+
+		if ( height )
+			columns.height( height );
 	},
+
 	close: function( panel, link ) {
-		screenMeta.element.css({ top: screenMeta.top });
-		screenMeta.page.css({ paddingTop: screenMeta.padding });
-		panel.hide();
-		link.removeClass('selected');
+		panel.slideUp( 'fast', function() {
+			link.removeClass('screen-meta-active');
+			$('.screen-meta-toggle').css('visibility', '');
+			panel.parent().hide();
+		});
 	}
 };
 
@@ -154,9 +156,7 @@ screenMeta = {
  */
 $('.contextual-help-tabs').delegate('a', 'click focus', function(e) {
 	var link = $(this),
-		panel,
-		columns,
-		height;
+		panel;
 
 	e.preventDefault();
 
@@ -174,13 +174,6 @@ $('.contextual-help-tabs').delegate('a', 'click focus', function(e) {
 	$('.help-tab-content').not( panel ).removeClass('active').hide();
 	panel.addClass('active').show();
 
-	// Adjust the height of the help columns
-	columns = $('#contextual-help-wrap').children();
-	columns.height('auto');
-
-	height = Math.max.apply( null, $.map( columns, function( el ) { return $(el).height(); }) );
-	columns.height( height );
-
 	// Refresh the padding of the screen meta box.
 	screenMeta.refresh();
 });
@@ -195,7 +188,7 @@ $(document).ready( function() {
 
 		if ( body.hasClass('folded') ) {
 			body.removeClass('folded');
-			deleteUserSetting('mfold');
+			setUserSetting('mfold', 'o');
 		} else {
 			body.addClass('folded');
 			setUserSetting('mfold', 'f');
@@ -231,6 +224,18 @@ $(document).ready( function() {
 		timeout: 200,
 		sensitivity: 7,
 		interval: 90
+	});
+
+	// Admin menu keyboard navigation.
+	$('li.wp-has-submenu').focusin( function() {
+		$(this).addClass('focused');
+	}).focusout( function() {
+		$(this).removeClass('focused');
+	});
+
+	// If the mouse is used on the menu, shift focus to the mouse.
+	menu.mouseover( function(e) {
+		$('li.focused', this).removeClass('focused');
 	});
 
 	// Move .updated and .error alert boxes. Don't move boxes designed to be inline.

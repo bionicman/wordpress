@@ -72,11 +72,6 @@ function login_header($title = 'Log In', $message = '', $wp_error = '') {
 	#login { margin-top: 20px; }
 	</style>
 <?php
-	} elseif ( isset($interim_login) && $interim_login ) { ?>
-	<style type="text/css" media="all">
-	.login #login { margin: 20px auto; }
-	</style>
-<?php
 	}
 
 	do_action( 'login_enqueue_scripts' );
@@ -168,12 +163,11 @@ function retrieve_password() {
 
 	$errors = new WP_Error();
 
-	if ( empty( $_POST['user_login'] ) && empty( $_POST['user_email'] ) )
+	if ( empty( $_POST['user_login'] ) ) {
 		$errors->add('empty_username', __('<strong>ERROR</strong>: Enter a username or e-mail address.'));
-
-	if ( strpos($_POST['user_login'], '@') ) {
-		$user_data = get_user_by('email', trim($_POST['user_login']));
-		if ( empty($user_data) )
+	} else if ( strpos( $_POST['user_login'], '@' ) ) {
+		$user_data = get_user_by( 'email', trim( $_POST['user_login'] ) );
+		if ( empty( $user_data ) )
 			$errors->add('invalid_email', __('<strong>ERROR</strong>: There is no user registered with that email address.'));
 	} else {
 		$login = trim($_POST['user_login']);
@@ -408,7 +402,7 @@ case 'retrievepassword' :
 
 <form name="lostpasswordform" id="lostpasswordform" action="<?php echo site_url('wp-login.php?action=lostpassword', 'login_post') ?>" method="post">
 	<p>
-		<label><?php _e('Username or E-mail:') ?><br />
+		<label for="user_login" ><?php _e('Username or E-mail:') ?><br />
 		<input type="text" name="user_login" id="user_login" class="input" value="<?php echo esc_attr($user_login); ?>" size="20" tabindex="10" /></label>
 	</p>
 <?php do_action('lostpassword_form'); ?>
@@ -457,11 +451,11 @@ case 'rp' :
 	<input type="hidden" id="user_login" value="<?php echo esc_attr( $_GET['login'] ); ?>" autocomplete="off" />
 
 	<p>
-		<label><?php _e('New password') ?><br />
+		<label for="pass1"><?php _e('New password') ?><br />
 		<input type="password" name="pass1" id="pass1" class="input" size="20" value="" autocomplete="off" /></label>
 	</p>
 	<p>
-		<label><?php _e('Confirm new password') ?><br />
+		<label for="pass2"><?php _e('Confirm new password') ?><br />
 		<input type="password" name="pass2" id="pass2" class="input" size="20" value="" autocomplete="off" /></label>
 	</p>
 
@@ -514,11 +508,11 @@ case 'register' :
 
 <form name="registerform" id="registerform" action="<?php echo site_url('wp-login.php?action=register', 'login_post') ?>" method="post">
 	<p>
-		<label><?php _e('Username') ?><br />
+		<label for="user_login"><?php _e('Username') ?><br />
 		<input type="text" name="user_login" id="user_login" class="input" value="<?php echo esc_attr(stripslashes($user_login)); ?>" size="20" tabindex="10" /></label>
 	</p>
 	<p>
-		<label><?php _e('E-mail') ?><br />
+		<label for="user_email"><?php _e('E-mail') ?><br />
 		<input type="email" name="user_email" id="user_email" class="input" value="<?php echo esc_attr(stripslashes($user_email)); ?>" size="25" tabindex="20" /></label>
 	</p>
 <?php do_action('register_form'); ?>
@@ -530,7 +524,7 @@ case 'register' :
 
 <p id="nav">
 <a href="<?php echo site_url('wp-login.php', 'login') ?>"><?php _e('Log in') ?></a> |
-<a href="<?php echo site_url('wp-login.php?action=lostpassword', 'login') ?>" title="<?php _e('Password Lost and Found') ?>"><?php _e('Lost your password?') ?></a>
+<a href="<?php echo wp_lostpassword_url() ?>" title="<?php esc_attr_e('Password Lost and Found') ?>"><?php _e('Lost your password?') ?></a>
 </p>
 
 <?php
@@ -634,15 +628,15 @@ default:
 
 <form name="loginform" id="loginform" action="<?php echo site_url('wp-login.php', 'login_post') ?>" method="post">
 	<p>
-		<label><?php _e('Username') ?><br />
+		<label for="user_login"><?php _e('Username') ?><br />
 		<input type="text" name="log" id="user_login" class="input" value="<?php echo esc_attr($user_login); ?>" size="20" tabindex="10" /></label>
 	</p>
 	<p>
-		<label><?php _e('Password') ?><br />
+		<label for="user_pass"><?php _e('Password') ?><br />
 		<input type="password" name="pwd" id="user_pass" class="input" value="" size="20" tabindex="20" /></label>
 	</p>
 <?php do_action('login_form'); ?>
-	<p class="forgetmenot"><label><input name="rememberme" type="checkbox" id="rememberme" value="forever" tabindex="90"<?php checked( $rememberme ); ?> /> <?php esc_attr_e('Remember Me'); ?></label></p>
+	<p class="forgetmenot"><label for="rememberme"><input name="rememberme" type="checkbox" id="rememberme" value="forever" tabindex="90"<?php checked( $rememberme ); ?> /> <?php esc_attr_e('Remember Me'); ?></label></p>
 	<p class="submit">
 		<input type="submit" name="wp-submit" id="wp-submit" class="button-primary" value="<?php esc_attr_e('Log In'); ?>" tabindex="100" />
 <?php	if ( $interim_login ) { ?>
@@ -659,9 +653,9 @@ default:
 <?php if ( isset($_GET['checkemail']) && in_array( $_GET['checkemail'], array('confirm', 'newpass') ) ) : ?>
 <?php elseif ( get_option('users_can_register') ) : ?>
 <a href="<?php echo site_url('wp-login.php?action=register', 'login') ?>"><?php _e('Register') ?></a> |
-<a href="<?php echo site_url('wp-login.php?action=lostpassword', 'login') ?>" title="<?php _e('Password Lost and Found') ?>"><?php _e('Lost your password?') ?></a>
+<a href="<?php echo wp_lostpassword_url() ?>" title="<?php esc_attr_e('Password Lost and Found') ?>"><?php _e('Lost your password?') ?></a>
 <?php else : ?>
-<a href="<?php echo site_url('wp-login.php?action=lostpassword', 'login') ?>" title="<?php _e('Password Lost and Found') ?>"><?php _e('Lost your password?') ?></a>
+<a href="<?php echo wp_lostpassword_url() ?>" title="<?php esc_attr_e('Password Lost and Found') ?>"><?php _e('Lost your password?') ?></a>
 <?php endif; ?>
 </p>
 <?php } ?>

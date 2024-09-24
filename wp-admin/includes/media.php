@@ -1282,17 +1282,18 @@ function media_upload_form( $errors = null ) {
 	}
 ?>
 
-<div id="media-upload-notice">
-<?php if (isset($errors['upload_notice']) ) { ?>
-	<?php echo $errors['upload_notice']; ?>
-<?php } ?>
-</div>
+<div id="media-upload-notice"><?php
 
-<div id="media-upload-error">
-<?php if (isset($errors['upload_error']) && is_wp_error($errors['upload_error'])) { ?>
-	<?php echo $errors['upload_error']->get_error_message(); ?>
-<?php } ?>
-</div>
+	if (isset($errors['upload_notice']) )
+		echo $errors['upload_notice'];
+
+?></div>
+<div id="media-upload-error"><?php
+
+	if (isset($errors['upload_error']) && is_wp_error($errors['upload_error']))
+		echo $errors['upload_error']->get_error_message();
+
+?></div>
 <?php
 // Check quota for this blog if multisite
 if ( is_multisite() && !is_upload_space_available() ) {
@@ -1343,9 +1344,9 @@ wpUploaderInit = <?php echo json_encode($plupload_init); ?>;
 <?php do_action('pre-plupload-upload-ui'); // hook change, old name: 'pre-flash-upload-ui' ?>
 <div id="drag-drop-area">
 	<div class="drag-drop-inside">
-	<p class="drag-drop-info"><?php _e('Drop files here or'); ?></p>
-	<p class="drag-drop-buttons"><input id="plupload-browse-button" type="button" value="<?php esc_attr_e('Select Files'); ?>" class="button" />
-	<input id="cancel-upload" disabled="true" onclick="cancelUpload()" type="button" value="<?php esc_attr_e('Cancel Upload'); ?>" class="button" /></p>
+	<p class="drag-drop-info"><?php _e('Drop files here'); ?></p>
+	<p><?php _ex('or', 'Uploader: Drop files here - or - Select Files'); ?></p>
+	<p class="drag-drop-buttons"><input id="plupload-browse-button" type="button" value="<?php esc_attr_e('Select Files'); ?>" class="button" /></p>
 	</div>
 </div>
 <?php do_action('post-plupload-upload-ui'); // hook change, old name: 'post-flash-upload-ui' ?>
@@ -1363,8 +1364,8 @@ wpUploaderInit = <?php echo json_encode($plupload_init); ?>;
 <?php do_action('post-html-upload-ui'); ?>
 </div>
 
-<p><?php printf( __( 'Maximum upload file size: %d%s.' ), esc_html($upload_size_unit), esc_html($sizes[$u]) ); ?> 
-<?php _e('After a file has been uploaded, you can add titles and descriptions.'); ?></p>
+<p><?php printf( __( 'Maximum upload file size: %d%s.' ), esc_html($upload_size_unit), esc_html($sizes[$u]) );
+echo ' ' . __('After a file has been uploaded, you can add titles and descriptions.'); ?></p>
 
 <?php
 	do_action('post-upload-ui');
@@ -1983,32 +1984,6 @@ function _insert_into_post_button($type) {
 	';
 }
 
-/**
- * {@internal Missing Short Description}}
- *
- * @since 2.6.0
- */
-function media_upload_max_image_resize() {
-	$checked = get_user_setting('upload_resize') ? ' checked="true"' : '';
-	$a = $end = '';
-
-	if ( current_user_can( 'manage_options' ) ) {
-		$a = '<a href="' . esc_url( admin_url( 'options-media.php' ) ) . '" target="_blank">';
-		$end = '</a>';
-	}
-?>
-<p class="hide-if-no-js"><label>
-<input name="image_resize" type="checkbox" id="image_resize" value="true"<?php echo $checked; ?> />
-<?php
-	/* translators: %1$s is link start tag, %2$s is link end tag, %3$d is width, %4$d is height*/
-	printf( __( 'Scale images to match the large size selected in %1$simage options%2$s (%3$d &times; %4$d).' ), $a, $end, (int) get_option( 'large_size_w', '1024' ), (int) get_option( 'large_size_h', '1024' ) );
-?>
-</label></p>
-<?php 
-}
-
-add_action( 'post-upload-ui', 'media_upload_max_image_resize' );
-
 add_filter( 'async_upload_image', 'get_media_item', 10, 2 );
 add_filter( 'async_upload_audio', 'get_media_item', 10, 2 );
 add_filter( 'async_upload_video', 'get_media_item', 10, 2 );
@@ -2021,35 +1996,3 @@ add_action( 'media_upload_file',  'wp_media_upload_handler' );
 
 add_filter( 'media_upload_gallery', 'media_upload_gallery' );
 add_filter( 'media_upload_library', 'media_upload_library' );
-
-function media_upload_image() {
-	return wp_media_upload_handler();
-}
-
-function media_upload_audio() {
-	return wp_media_upload_handler();
-}
-
-function media_upload_video() {
-	return wp_media_upload_handler();
-}
-
-function media_upload_file() {
-	return wp_media_upload_handler();
-}
-
-function type_url_form_image() {
-	return wp_media_insert_url_form( 'image' );
-}
-
-function type_url_form_audio() {
-	return wp_media_insert_url_form( 'audio' );
-}
-
-function type_url_form_video() {
-	return wp_media_insert_url_form( 'video' );
-}
-
-function type_url_form_file() {
-	return wp_media_insert_url_form( 'file' );
-}

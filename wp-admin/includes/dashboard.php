@@ -550,7 +550,7 @@ function wp_dashboard_quick_press() {
 
 		<p class="submit">
 			<input type="hidden" name="action" id="quickpost-action" value="post-quickpress-save" />
-			<input type="hidden" name="quickpress_post_ID" value="<?php echo $post_ID; ?>" />
+			<input type="hidden" name="post_ID" value="<?php echo $post_ID; ?>" />
 			<input type="hidden" name="post_type" value="post" />
 			<?php wp_nonce_field('add-post'); ?>
 			<?php submit_button( __( 'Save Draft' ), 'button', 'save', false, array( 'id' => 'save-post', 'tabindex'=> 4 ) ); ?>
@@ -1265,6 +1265,7 @@ function wp_dashboard_empty() {}
  * @since 3.3
  */
 function wp_welcome_panel() {
+	global $wp_version;
 
 	if ( ! current_user_can( 'edit_theme_options' ) )
 		return;
@@ -1274,6 +1275,7 @@ function wp_welcome_panel() {
 	if ( ! get_user_option( 'show_welcome_panel' ) )
 		$classes .= ' hidden';
 
+	list( $display_version ) = explode( '-', $wp_version );
 	?>
 	<div id="welcome-panel" class="<?php echo esc_attr( $classes ); ?>">
 
@@ -1281,10 +1283,19 @@ function wp_welcome_panel() {
 
 		<a class="welcome-panel-close" href="#"><?php _e('Close'); ?></a>
 
+		<div class="wp-badge"><?php printf( __( 'Version %s' ), $display_version ); ?></div>
+
+		<div class="welcome-panel-content">
+
 		<h3><?php _e( 'Welcome to WordPress!' ); ?></h3>
-		<p><?php _e( 'Welcome to your new WordPress site! Here are some things most people do when they set up a new WordPress site. To get started, use the links below and we&#8217;ll give you some extra help with these tasks.' ); ?></p>
+		<p class="about-description"><?php _e( 'Welcome to your new site! Here are some things most people do when they set up a new WordPress site. To get started, use the links below and we&#8217;ll give you some extra help with these tasks:' ); ?></p>
 
 		<div class="welcome-panel-column">
+			<h4>
+				<span class="icon16 icon-settings"></span>
+				<?php _e( 'Customize your site' ); ?>
+			</h4>
+			<p><?php echo ( 'Holy pancakes, filler content! You should customize your site settings!' ); ?></p>
 			<ul>
 				<li>
 					<?php echo sprintf(
@@ -1300,17 +1311,7 @@ function wp_welcome_panel() {
 				</li>
 				<li>
 					<?php echo sprintf(
-						__( '<a href="%s">Set your time zone</a>.' ),
-						esc_url( admin_url('options-general.php') )
-					); ?>
-				</li>
-			</ul>
-		</div>
-		<div class="welcome-panel-column">
-			<ul>
-				<li>
-					<?php echo sprintf(
-						__( '<a href="%s">Edit your site tagline</a>.' ),
+						__( '<a href="%s">Set your time zone and site tagline</a>.' ),
 						esc_url( admin_url('options-general.php') )
 					); ?>
 				</li>
@@ -1320,19 +1321,18 @@ function wp_welcome_panel() {
 						esc_url( admin_url('themes.php') )
 					); ?>
 				</li>
-				<li>
-					<?php echo sprintf(
-						__( '<a href="%s">Add some widgets</a>.' ),
-						esc_url( admin_url('widgets.php') )
-					); ?>
-				</li>
 			</ul>
 		</div>
 		<div class="welcome-panel-column">
+			<h4>
+				<span class="icon16 icon-page"></span>
+				<?php _e( 'Create some content' ); ?>
+			</h4>
+			<p><?php echo ( 'What is a WordPress site without a voice? Publishing brings joy to the web.' ); ?></p>
 			<ul>
 				<li>
 					<?php echo sprintf(
-						__( 'Delete the default <a href="%1$s">post</a> and <a href="%2$s">comment</a>.' ),
+						__( 'Delete the <a href="%1$s">sample post</a> and <a href="%2$s">page</a>.' ),
 						esc_url( admin_url('edit.php') ),
 						esc_url( admin_url('edit-comments.php') )
 					); ?>
@@ -1345,11 +1345,12 @@ function wp_welcome_panel() {
 				</li>
 				<li>
 					<?php echo sprintf(
-						__( '<a href="%s">Edit the sample page</a> to be about you.' ),
+						__( '<a href="%s">Create an about page</a>.' ),
 						esc_url( admin_url('edit.php?post_type=page') )
 					); ?>
 				</li>
 			</ul>
+		</div>
 		</div>
 	</div>
 	<?php

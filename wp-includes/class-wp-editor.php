@@ -95,6 +95,9 @@ class WP_Editor {
 
 		echo '<div id="wp-' . $editor_id . '-wrap" class="wp-editor-wrap ' . $switch_class . '">';
 
+		if ( empty($this->first_init) )
+			wp_print_styles('editor-buttons');
+
 		if ( !empty($set['editor_css']) )
 			echo $set['editor_css'] . "\n";
 
@@ -136,35 +139,25 @@ class WP_Editor {
 		$first_run = false;
 
 		if ( $this->this_quicktags ) {
-			$qt_buttons = array();
 
 			$qtInit = array(
 				'id' => $editor_id,
-				'buttons' => '',
-				'disabled_buttons' => ''
+				'buttons' => ''
 			);
 
 			if ( is_array($set['quicktags']) )
 				$qtInit = array_merge($qtInit, $set['quicktags']);
 
-			$qtInit = apply_filters( 'quicktags_settings', $qtInit, $editor_id );
-
-			$this->qt_settings[$editor_id] = $qtInit;
-
-			if ( !empty($qtInit['buttons']) || !empty($qtInit['disabled_buttons']) ) {
-				if ( strpos( ',' . $qtInit['buttons'] . ',', ',link,' ) !== false )
-					$qt_buttons[] = 'link';
-
-				if ( strpos( ',' . $qtInit['disabled_buttons'] . ',', ',link,' ) !== false )
-					$qt_buttons = array();
-			} else {
-				$qt_buttons[] = 'link';
-			}
+			if ( empty($qtInit['buttons']) )
+				$qtInit['buttons'] = 'strong,em,link,block,del,ins,img,ul,ol,li,code,more,spell,close';
 
 			if ( $set['dfw'] )
-				$qt_buttons[] = 'fullscreen';
+				$qtInit['buttons'] .= ',fullscreen';
 
-			$this->qt_buttons = array_merge( $this->qt_buttons, $qt_buttons );
+			$qtInit = apply_filters('quicktags_settings', $qtInit, $editor_id);
+			$this->qt_settings[$editor_id] = $qtInit;
+
+			$this->qt_buttons = array_merge( $this->qt_buttons, explode(',', $qtInit['buttons']) );
 		}
 
 		if ( $this->this_tinymce ) {
@@ -375,7 +368,7 @@ class WP_Editor {
 				elseif ( ($key = array_search('fullscreen', $mce_buttons_2)) !== false )
 					$mce_buttons_2[$key] = 'wp_fullscreen';
 				elseif ( ($key = array_search('fullscreen', $mce_buttons_3)) !== false )
-					$mce_buttons_3[$key] = 'wp_fullscreen';	
+					$mce_buttons_3[$key] = 'wp_fullscreen';
 				elseif ( ($key = array_search('fullscreen', $mce_buttons_4)) !== false )
 					$mce_buttons_4[$key] = 'wp_fullscreen';
 			}
@@ -456,7 +449,6 @@ class WP_Editor {
 
 	function enqueue_scripts() {
 		wp_enqueue_script('word-count');
-		wp_enqueue_style('editor-buttons');
 
 		if ( $this->has_tinymce )
 			wp_enqueue_script('editor');
@@ -811,7 +803,7 @@ class WP_Editor {
 			<a class="submitdelete deletion" href="#"><?php _e( 'Cancel' ); ?></a>
 		</div>
 		<div id="wp-link-update">
-			<input type="submit" tabindex="100" value="<?php _e( 'Add Link' ); ?>" class="button-primary" id="wp-link-submit" name="wp-link-submit">
+			<input type="submit" tabindex="100" value="<?php esc_attr_e( 'Add Link' ); ?>" class="button-primary" id="wp-link-submit" name="wp-link-submit">
 		</div>
 	</div>
 	</form>
