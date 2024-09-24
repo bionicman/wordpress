@@ -64,13 +64,19 @@ function redirect_page($page_ID) {
 		$location = add_query_arg( 'message', 1, get_edit_post_link( $page_ID, 'url' ) );
 	}
 
-	wp_redirect($location);
+	wp_redirect( apply_filters( 'redirect_page_location', $location, $page_ID ) );
 }
 
 if (isset($_POST['deletepost']))
 	$action = "delete";
 elseif ( isset($_POST['wp-preview']) && 'dopreview' == $_POST['wp-preview'] )
 	$action = 'preview';
+
+$sendback = wp_get_referer();
+if ( strpos($sendback, 'page.php') !== false || strpos($sendback, 'page-new.php') !== false )
+	$sendback = admin_url('edit-pages.php');
+else
+	$sendback = remove_query_arg( array('trashed', 'untrashed', 'deleted', 'ids'), $sendback );
 
 switch($action) {
 case 'post':
@@ -150,19 +156,13 @@ case 'trash':
 
 	$post = & get_post($post_id);
 
-	if ( !current_user_can('delete_page', $page_id) )
+	if ( !current_user_can('delete_page', $post_id) )
 		wp_die( __('You are not allowed to move this page to the trash.') );
 
 	if ( !wp_trash_post($post_id) )
 		wp_die( __('Error in moving to trash...') );
 
-	$sendback = remove_query_arg( array('trashed', 'untrashed', 'deleted', 'ids'), wp_get_referer() );
-	if ( strpos($sendback, 'page.php') !== false || strpos($sendback, 'page-new.php') !== false )
-		$sendback = admin_url('edit-pages.php?trashed=1&ids='.$post_id);
-	else
-		$sendback = add_query_arg( array('trashed' => 1, 'ids' => $post_id), $sendback );
-
-	wp_redirect($sendback);
+	wp_redirect( add_query_arg( array('trashed' => 1, 'ids' => $post_id), $sendback ) );
 	exit();
 	break;
 
@@ -172,19 +172,13 @@ case 'untrash':
 
 	$post = & get_post($post_id);
 
-	if ( !current_user_can('delete_page', $page_id) )
+	if ( !current_user_can('delete_page', $post_id) )
 		wp_die( __('You are not allowed to move this page out of the trash.') );
 
 	if ( !wp_untrash_post($post_id) )
 		wp_die( __('Error in restoring from trash...') );
 
-	$sendback = wp_get_referer();
-	if ( strpos($sendback, 'page.php') !== false )
-		$sendback = admin_url('edit-pages.php?untrashed=1');
-	else
-		$sendback = add_query_arg('untrashed', 1, $sendback);
-
-	wp_redirect($sendback);
+	wp_redirect( add_query_arg('untrashed', 1, $sendback) );
 	exit();
 	break;
 
@@ -205,13 +199,7 @@ case 'delete':
 			wp_die( __('Error in deleting...') );
 	}
 
-	$sendback = wp_get_referer();
-	if ( strpos($sendback, 'page.php') !== false )
-		$sendback = admin_url('edit-pages.php?deleted=1');
-	else
-		$sendback = add_query_arg('deleted', 1, $sendback);
-
-	wp_redirect($sendback);
+	wp_redirect( add_query_arg('deleted', 1, $sendback) );
 	exit();
 	break;
 

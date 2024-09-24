@@ -195,8 +195,6 @@ function wp_tempnam($filename = '', $dir = ''){
  * @return unknown
  */
 function validate_file_to_edit( $file, $allowed_files = '' ) {
-	$file = stripslashes( $file );
-
 	$code = validate_file( $file, $allowed_files );
 
 	if (!$code )
@@ -206,8 +204,8 @@ function validate_file_to_edit( $file, $allowed_files = '' ) {
 		case 1 :
 			wp_die( __('Sorry, can&#8217;t edit files with &#8220;..&#8221; in the name. If you are trying to edit a file in your WordPress home directory, you can just type the name of the file in.' ));
 
-		case 2 :
-			wp_die( __('Sorry, can&#8217;t call files with their real path.' ));
+		//case 2 :
+		//	wp_die( __('Sorry, can&#8217;t call files with their real path.' ));
 
 		case 3 :
 			wp_die( __('Sorry, that file cannot be edited.' ));
@@ -738,9 +736,9 @@ function request_filesystem_credentials($form_post, $type = '', $error = false, 
 		unset($credentials['port']);
 	}
 
-	if ( defined('FTP_SSH') || (defined('FS_METHOD') && 'ssh' == FS_METHOD) )
+	if ( (defined('FTP_SSH') && FTP_SSH) || (defined('FS_METHOD') && 'ssh' == FS_METHOD) )
 		$credentials['connection_type'] = 'ssh';
-	else if ( defined('FTP_SSL') && 'ftpext' == $type ) //Only the FTP Extension understands SSL
+	else if ( (defined('FTP_SSL') && FTP_SSL) && 'ftpext' == $type ) //Only the FTP Extension understands SSL
 		$credentials['connection_type'] = 'ftps';
 	else if ( !empty($_POST['connection_type']) )
 		$credentials['connection_type'] = stripslashes($_POST['connection_type']);
@@ -837,7 +835,7 @@ jQuery(function($){
 <fieldset><legend class="screen-reader-text"><span><?php _e('Connection Type') ?></span></legend>
 <?php
 
-	$disabled = defined('FTP_SSL') || defined('FTP_SSH') ? '' : ' disabled="disabled"';
+	$disabled = (defined('FTP_SSL') && FTP_SSL) || (defined('FTP_SSH') && FTP_SSH) ? ' disabled="disabled"' : '';
 
 	foreach ( $types as $name => $text ) : ?>
 	<label for="<?php echo esc_attr($name) ?>">

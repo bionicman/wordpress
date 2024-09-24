@@ -2852,6 +2852,10 @@ table .inline-edit-row fieldset ul.cat-hover {
 	max-width: 128px;
 }
 
+#wpbody-content #async-upload-wrap a {
+	display: none;
+}
+
 .media-upload-form td label {
 	margin-right: 6px;
 	margin-left: 2px;
@@ -3428,12 +3432,12 @@ td.imgedit-settings input {
 	margin: 0 8px 0 3px;
 }
 
-.imgedit-fliph {
+.imgedit-flipv {
 	background: transparent url(images/imgedit.gif) no-repeat scroll -127px 2px;
 	margin: 0 3px;
 }
 
-.imgedit-flipv {
+.imgedit-fliph {
 	background: transparent url(images/imgedit.gif) no-repeat scroll -95px 3px;
 	margin: 0 8px 0 3px;
 }
@@ -3516,15 +3520,26 @@ span.imgedit-scale-warn {
 	padding: 2px 10px;
 }
 
-#dashboard_recent_comments .trash-undo {
+#dashboard_recent_comments div.undo {
 	border-top-style: solid;
 	border-top-width: 1px;
 	margin: 0 -10px;
-	padding: 3px;
+	padding: 3px 8px;
+	font-size: 11px;
 }
 
-.trash-undo-inside {
-	margin: 3px 8px;
+.trash-undo-inside,
+.spam-undo-inside {
+	margin: 1px 8px 1px 0;
+	line-height: 16px;
+}
+
+.spam-undo-inside .avatar,
+.trash-undo-inside .avatar {
+	height: 20px;
+	width: 20px;
+	margin-right: 8px;
+	vertical-align: middle;
 }
 
 /* tag hints */

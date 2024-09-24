@@ -10,7 +10,8 @@ html {
 textarea,
 input,
 select {
-	border-color: #DFDFDF;
+	border-color: #dfdfdf;
+	background-color: #fff;
 }
 
 kbd,
@@ -187,7 +188,8 @@ strong .post-com-count span {
 	border-right-color: #99d;
 }
 
-#media-upload {
+#media-upload,
+#media-upload .media-item .slidetoggle {
 	background: #fff;
 }
 
@@ -614,9 +616,12 @@ tr.inactive + tr.plugin-update-tr .plugin-update {
 	color: #557799;
 }
 
-#the-comment-list .unapproved,
-#the-comment-list .unapproved th,
-#the-comment-list .unapproved td {
+#the-comment-list tr.undo,
+#the-comment-list div.undo {
+	background-color: #f4f4f4;
+}
+
+#the-comment-list .unapproved {
 	background-color: #ffffe0;
 }
 
@@ -628,8 +633,8 @@ tr.inactive + tr.plugin-update-tr .plugin-update {
 	color: #d98500;
 }
 
-table.widefat .delete a,
-table.widefat .trash a,
+table.widefat span.delete a,
+table.widefat span.trash a,
 #dashboard_recent_comments .delete a,
 #dashboard_recent_comments .trash a {
 	color: #bc0b0b;
@@ -1673,10 +1678,6 @@ div.widgets-sortables,
 	opacity: 0.4;
 }
 
-.trash-undo {
-	background-color: #ebffe0;
-}
-
-#dashboard_recent_comments .trash-undo {
+#dashboard_recent_comments div.undo {
 	border-top-color: #dfdfdf;
 }

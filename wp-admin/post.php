@@ -69,13 +69,19 @@ function redirect_post($post_ID = '') {
 		$location = add_query_arg( 'message', 4, get_edit_post_link( $post_ID, 'url' ) );
 	}
 
-	wp_redirect( $location );
+	wp_redirect( apply_filters( 'redirect_post_location', $location, $post_ID ) );
 }
 
 if ( isset( $_POST['deletepost'] ) )
 	$action = 'delete';
 elseif ( isset($_POST['wp-preview']) && 'dopreview' == $_POST['wp-preview'] )
 	$action = 'preview';
+
+$sendback = wp_get_referer();
+if ( strpos($sendback, 'post.php') !== false || strpos($sendback, 'post-new.php') !== false )
+	$sendback = admin_url('edit.php');
+else
+	$sendback = remove_query_arg( array('trashed', 'untrashed', 'deleted', 'ids'), $sendback );
 
 switch($action) {
 case 'postajaxpost':
@@ -196,13 +202,7 @@ case 'trash':
 	if ( ! wp_trash_post($post_id) )
 		wp_die( __('Error in moving to trash...') );
 
-	$sendback = remove_query_arg( array('trashed', 'untrashed', 'deleted', 'ids'), wp_get_referer() );
-	if ( strpos($sendback, 'post.php') !== false || strpos($sendback, 'post-new.php') !== false )
-		$sendback = admin_url('edit.php?trashed=1&ids='.$post_id);
-	else
-		$sendback = add_query_arg( array('trashed' => 1, 'ids' => $post_id), $sendback );
-
-	wp_redirect($sendback);
+	wp_redirect( add_query_arg( array('trashed' => 1, 'ids' => $post_id), $sendback ) );
 	exit();
 	break;
 
@@ -218,13 +218,7 @@ case 'untrash':
 	if ( ! wp_untrash_post($post_id) )
 		wp_die( __('Error in restoring from trash...') );
 
-	$sendback = wp_get_referer();
-	if ( strpos($sendback, 'post.php') !== false )
-		$sendback = admin_url('edit.php?untrashed=1');
-	else
-		$sendback = add_query_arg('untrashed', 1, $sendback);
-
-	wp_redirect($sendback);
+	wp_redirect( add_query_arg('untrashed', 1, $sendback) );
 	exit();
 	break;
 
@@ -245,13 +239,7 @@ case 'delete':
 			wp_die( __('Error in deleting...') );
 	}
 
-	$sendback = wp_get_referer();
-	if ( strpos($sendback, 'post.php') !== false )
-		$sendback = admin_url('edit.php?deleted=1');
-	else
-		$sendback = add_query_arg('deleted', 1, $sendback);
-
-	wp_redirect($sendback);
+	wp_redirect( add_query_arg('deleted', 1, $sendback) );
 	exit();
 	break;
 

@@ -713,6 +713,7 @@ function update_meta( $meta_id, $meta_key, $meta_value ) {
  * @return unknown
  */
 function _fix_attachment_links( $post_ID ) {
+	global $_fix_attachment_link_id;
 
 	$post = & get_post( $post_ID, ARRAY_A );
 
@@ -740,7 +741,8 @@ function _fix_attachment_links( $post_ID ) {
 		}
 
 		$post_search[$i] = $anchor;
-		$post_replace[$i] = preg_replace( "#href=(\"|')[^'\"]*\\1#e", "stripslashes( 'href=\\1' ).get_attachment_link( $id ).stripslashes( '\\1' )", $anchor );
+		 $_fix_attachment_link_id = $id;
+		$post_replace[$i] = preg_replace_callback( "#href=(\"|')[^'\"]*\\1#", '_fix_attachment_links_replace_cb', $anchor );
 		++$i;
 	}
 
@@ -750,6 +752,11 @@ function _fix_attachment_links( $post_ID ) {
 	$post = add_magic_quotes( $post);
 
 	return wp_update_post( $post);
+}
+
+function _fix_attachment_links_replace_cb($match) {
+        global $_fix_attachment_link_id;
+        return stripslashes( 'href='.$match[1] ).get_attachment_link( $_fix_attachment_link_id ).stripslashes( $match[1] );
 }
 
 /**
@@ -766,7 +773,17 @@ function _relocate_children( $old_ID, $new_ID ) {
 	global $wpdb;
 	$old_ID = (int) $old_ID;
 	$new_ID = (int) $new_ID;
-	return $wpdb->update($wpdb->posts, array('post_parent' => $new_ID), array('post_parent' => $old_ID) );
+
+	$children = $wpdb->get_col( $wpdb->prepare("
+		SELECT post_id
+		FROM $wpdb->postmeta
+		WHERE meta_key = '_wp_attachment_temp_parent'
+		AND meta_value = %d", $old_ID) );
+
+	foreach ( $children as $child_id ) {
+		$wpdb->update($wpdb->posts, array('post_parent' => $new_ID), array('ID' => $child_id) );
+		delete_post_meta($child_id, '_wp_attachment_temp_parent');
+	}
 }
 
 /**
@@ -926,10 +943,10 @@ function postbox_classes( $id, $page ) {
  *
  * @since unknown
  *
- * @param unknown_type $id
- * @param unknown_type $title
- * @param unknown_type $name
- * @return unknown
+ * @param int|object $id    Post ID or post object. 
+ * @param string $title (optional) Title 
+ * @param string $name (optional) Name 
+ * @return array With two entries of type string 
  */
 function get_sample_permalink($id, $title = null, $name = null) {
 	$post = &get_post($id);
@@ -944,7 +961,7 @@ function get_sample_permalink($id, $title = null, $name = null) {
 	// drafts, so we will fake, that our post is published
 	if (in_array($post->post_status, array('draft', 'pending'))) {
 		$post->post_status = 'publish';
-		$post->post_name = sanitize_title($post->post_name? $post->post_name : $post->post_title, $post->ID);
+		$post->post_name = sanitize_title($post->post_name ? $post->post_name : $post->post_title, $post->ID);
 	}
 
 	$post->post_name = wp_unique_post_slug($post->post_name, $post->ID, $post->post_status, $post->post_type, $post->post_parent);
@@ -952,7 +969,7 @@ function get_sample_permalink($id, $title = null, $name = null) {
 	// If the user wants to set a new name -- override the current one
 	// Note: if empty name is supplied -- use the title instead, see #6072
 	if (!is_null($name)) {
-		$post->post_name = sanitize_title($name? $name : $title, $post->ID);
+		$post->post_name = sanitize_title($name ? $name : $title, $post->ID);
 	}
 
 	$post->filter = 'sample';
@@ -980,14 +997,16 @@ function get_sample_permalink($id, $title = null, $name = null) {
 }
 
 /**
- * {@internal Missing Short Description}}
+ * sample permalink html
  *
+ * intended to be used for the inplace editor of the permalink post slug on in the post (and page?) editor.
+ * 
  * @since unknown
  *
- * @param unknown_type $id
- * @param unknown_type $new_title
- * @param unknown_type $new_slug
- * @return unknown
+ * @param int|object $id Post ID or post object. 
+ * @param string $new_title (optional) New title  
+ * @param string $new_slug (optional) New slug 
+ * @return string intended to be used for the inplace editor of the permalink post slug on in the post (and page?) editor. 
  */
 function get_sample_permalink_html( $id, $new_title = null, $new_slug = null ) {
 	$post = &get_post($id);

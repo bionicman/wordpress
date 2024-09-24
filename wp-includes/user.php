@@ -448,15 +448,15 @@ function update_usermeta( $user_id, $meta_key, $meta_value ) {
  * @global string $user_pass_md5 MD5 of the user's password
  * @global string $user_identity The display name of the user
  *
- * @param int $user_id Optional. User ID to setup global data.
+ * @param int $for_user_id Optional. User ID to setup global data.
  */
-function setup_userdata($user_id = '') {
+function setup_userdata($for_user_id = '') {
 	global $user_login, $userdata, $user_level, $user_ID, $user_email, $user_url, $user_pass_md5, $user_identity;
 
-	if ( '' == $user_id )
+	if ( '' == $for_user_id )
 		$user = wp_get_current_user();
 	else
-		$user = new WP_User($user_id);
+		$user = new WP_User($for_user_id);
 
 	if ( 0 == $user->ID )
 		return;
@@ -464,7 +464,7 @@ function setup_userdata($user_id = '') {
 	$userdata = $user->data;
 	$user_login	= $user->user_login;
 	$user_level	= (int) isset($user->user_level) ? $user->user_level : 0;
-	$user_ID	= (int) $user->ID;
+	$user_ID = (int) $user->ID;
 	$user_email	= $user->user_email;
 	$user_url	= $user->user_url;
 	$user_pass_md5	= md5($user->user_pass);

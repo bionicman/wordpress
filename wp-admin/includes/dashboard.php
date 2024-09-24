@@ -448,7 +448,7 @@ function wp_dashboard_recent_drafts( $drafts = false ) {
 		foreach ( $drafts as $draft ) {
 			$url = get_edit_post_link( $draft->ID );
 			$title = _draft_or_post_title( $draft->ID );
-			$item = "<h4><a href='$url' title='" . sprintf( __( 'Edit &#8220;%s&#8221;' ), esc_attr( $title ) ) . "'>$title</a> <abbr title='" . get_the_time(__('Y/m/d g:i:s A'), $draft) . "'>" . get_the_time( get_option( 'date_format' ), $draft ) . '</abbr></h4>';
+			$item = "<h4><a href='$url' title='" . sprintf( __( 'Edit &#8220;%s&#8221;' ), esc_attr( $title ) ) . "'>" . esc_html($title) . "</a> <abbr title='" . get_the_time(__('Y/m/d g:i:s A'), $draft) . "'>" . get_the_time( get_option( 'date_format' ), $draft ) . '</abbr></h4>';
 			if ( $the_content = preg_split( '#\s#', strip_tags( $draft->post_content ), 11, PREG_SPLIT_NO_EMPTY ) )
 				$item .= '<p>' . join( ' ', array_slice( $the_content, 0, 10 ) ) . ( 10 < count( $the_content ) ? '&hellip;' : '' ) . '</p>';
 			$list[] = $item;
@@ -529,10 +529,17 @@ function _wp_dashboard_recent_comments_row( &$comment, $show_date = true ) {
 	$comment_post_link = "<a href='$comment_post_url'>$comment_post_title</a>";
 	$comment_link = '<a class="comment-link" href="' . esc_url(get_comment_link()) . '">#</a>';
 
-	$actions = array();
-
 	$actions_string = '';
 	if ( current_user_can('edit_post', $comment->comment_post_ID) ) {
+		// preorder it: Approve | Reply | Edit | Spam | Trash
+		$actions = array(
+			'approve' => '', 'unapprove' => '',
+			'reply' => '',
+			'edit' => '',
+			'spam' => '',
+			'trash' => '', 'delete' => ''
+		);
+
 		$del_nonce = esc_html( '_wpnonce=' . wp_create_nonce( "delete-comment_$comment->comment_ID" ) );
 		$approve_nonce = esc_html( '_wpnonce=' . wp_create_nonce( "approve-comment_$comment->comment_ID" ) );
 
@@ -552,7 +559,7 @@ function _wp_dashboard_recent_comments_row( &$comment, $show_date = true ) {
 		else
 			$actions['trash'] = "<a href='$trash_url' class='delete:the-comment-list:comment-$comment->comment_ID::trash=1 delete vim-d vim-destructive' title='" . __( 'Move this comment to the trash' ) . "'>" . _x('Trash', 'verb') . '</a>';
 
-		$actions = apply_filters( 'comment_row_actions', $actions, $comment );
+		$actions = apply_filters( 'comment_row_actions', array_filter($actions), $comment );
 
 		$i = 0;
 		foreach ( $actions as $action => $link ) {
@@ -629,6 +636,8 @@ function wp_dashboard_incoming_links_output() {
 
 	if ( !$rss->get_item_quantity() ) {
 		echo '<p>' . __('This dashboard widget queries <a href="http://blogsearch.google.com/">Google Blog Search</a> so that when another blog links to your site it will show up here. It has found no incoming links&hellip; yet. It&#8217;s okay &#8212; there is no rush.') . "</p>\n";
+		$rss->__destruct(); 
+		unset($rss);
 		return;
 	}
 
@@ -682,7 +691,8 @@ function wp_dashboard_incoming_links_output() {
 	}
 
 	echo "</ul>\n";
-
+	$rss->__destruct(); 
+	unset($rss);
 }
 
 function wp_dashboard_incoming_links_control() {
@@ -738,11 +748,15 @@ function wp_dashboard_secondary_output() {
 			echo '</p></div>';
 		}
 	} elseif ( !$rss->get_item_quantity() ) {
+		$rss->__destruct(); 
+		unset($rss);
 		return false;
 	} else {
 		echo '<div class="rss-widget">';
 		wp_widget_rss_output( $rss, $widgets['dashboard_secondary'] );
 		echo '</div>';
+		$rss->__destruct(); 
+		unset($rss);
 	}
 }
 
@@ -825,6 +839,9 @@ function wp_dashboard_plugins_output() {
 		echo "<h4>$label</h4>\n";
 		echo "<h5><a href='$link'>$title</a></h5>&nbsp;<span>(<a href='$ilink' class='thickbox' title='$title'>" . __( 'Install' ) . "</a>)</span>\n";
 		echo "<p>$description</p>\n";
+		
+		$$feed->__destruct();
+		unset($$feed);
 	}
 }
 
@@ -918,10 +935,13 @@ function wp_dashboard_rss_control( $widget_id, $form_inputs = array() ) {
 		// title is optional.  If black, fill it if possible
 		if ( !$widget_options[$widget_id]['title'] && isset($_POST['widget-rss'][$number]['title']) ) {
 			$rss = fetch_feed($widget_options[$widget_id]['url']);
-			if ( ! is_wp_error($rss) )
-				$widget_options[$widget_id]['title'] = htmlentities(strip_tags($rss->get_title()));
-			else
+			if ( is_wp_error($rss) ) {
 				$widget_options[$widget_id]['title'] = htmlentities(__('Unknown Feed'));
+			} else {
+				$widget_options[$widget_id]['title'] = htmlentities(strip_tags($rss->get_title()));	
+				$rss->__destruct();
+				unset($rss);				
+			}
 		}
 		update_option( 'dashboard_widget_options', $widget_options );
 	}

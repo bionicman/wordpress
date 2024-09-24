@@ -177,14 +177,14 @@ function _cat_row( $category, $level, $name_override = false ) {
 				$output .= "<td $attributes>$edit";
 				$output .= '<div class="hidden" id="inline_' . $qe_data->term_id . '">';
 				$output .= '<div class="name">' . $qe_data->name . '</div>';
-				$output .= '<div class="slug">' . $qe_data->slug . '</div>';
+				$output .= '<div class="slug">' . apply_filters('editable_slug', $qe_data->slug) . '</div>';
 				$output .= '<div class="cat_parent">' . $qe_data->parent . '</div></div></td>';
 				break;
 			case 'description':
 				$output .= "<td $attributes>$category->description</td>";
 				break;
 			case 'slug':
-				$output .= "<td $attributes>$category->slug</td>";
+				$output .= "<td $attributes>" . apply_filters('editable_slug', $category->slug) . "</td>";
 				break;
 			case 'posts':
 				$attributes = 'class="posts column-posts num"' . $style;
@@ -347,14 +347,14 @@ function link_cat_row( $category, $name_override = false ) {
 				$output .= "<td $attributes>$edit";
 				$output .= '<div class="hidden" id="inline_' . $qe_data->term_id . '">';
 				$output .= '<div class="name">' . $qe_data->name . '</div>';
-				$output .= '<div class="slug">' . $qe_data->slug . '</div>';
+				$output .= '<div class="slug">' . apply_filters('editable_slug', $qe_data->slug) . '</div>';
 				$output .= '<div class="cat_parent">' . $qe_data->parent . '</div></div></td>';
 				break;
 			case 'description':
 				$output .= "<td $attributes>$category->description</td>";
 				break;
 			case 'slug':
-				$output .= "<td $attributes>$category->slug</td>";
+				$output .= "<td $attributes>" . apply_filters('editable_slug', $category->slug) . "</td>";
 				break;
 			case 'links':
 				$attributes = 'class="links column-links num"' . $style;
@@ -681,13 +681,13 @@ function _tag_row( $tag, $class = '', $taxonomy = 'post_tag' ) {
 					$out .= '</div>';
 					$out .= '<div class="hidden" id="inline_' . $qe_data->term_id . '">';
 					$out .= '<div class="name">' . $qe_data->name . '</div>';
-					$out .= '<div class="slug">' . $qe_data->slug . '</div></div></td>';
+					$out .= '<div class="slug">' . apply_filters('editable_slug', $qe_data->slug) . '</div></div></td>';
 					break;
 				case 'description':
 					$out .= "<td $attributes>$tag->description</td>";
 					break;
 				case 'slug':
-					$out .= "<td $attributes>$tag->slug</td>";
+					$out .= "<td $attributes>" . apply_filters('editable_slug', $tag->slug) . "</td>";
 					break;
 				case 'posts':
 					$attributes = 'class="posts column-posts num"' . $style;
@@ -1060,15 +1060,15 @@ function inline_edit_row( $type ) {
 <?php endif; // $bulk
 
 		$authors = get_editable_user_ids( $current_user->id, true, $type ); // TODO: ROLE SYSTEM
+		$authors_dropdown = '';
 		if ( $authors && count( $authors ) > 1 ) :
 			$users_opt = array('include' => $authors, 'name' => 'post_author', 'class'=> 'authors', 'multi' => 1, 'echo' => 0);
 			if ( $bulk )
 				$users_opt['show_option_none'] = __('- No Change -');
-
-		$authors_dropdown  = '<label>';
-		$authors_dropdown .= '<span class="title">' . __( 'Author' ) . '</span>';
-		$authors_dropdown .= wp_dropdown_users( $users_opt );
-		$authors_dropdown .= '</label>';
+			$authors_dropdown  = '<label>';
+			$authors_dropdown .= '<span class="title">' . __( 'Author' ) . '</span>';
+			$authors_dropdown .= wp_dropdown_users( $users_opt );
+			$authors_dropdown .= '</label>';
 
 		endif; // authors
 ?>
@@ -1295,7 +1295,7 @@ function get_inline_data($post) {
 	echo '
 <div class="hidden" id="inline_' . $post->ID . '">
 	<div class="post_title">' . $title . '</div>
-	<div class="post_name">' . $post->post_name . '</div>
+	<div class="post_name">' . apply_filters('editable_slug', $post->post_name) . '</div>
 	<div class="post_author">' . $post->post_author . '</div>
 	<div class="comment_status">' . $post->comment_status . '</div>
 	<div class="ping_status">' . $post->ping_status . '</div>
@@ -2114,12 +2114,13 @@ function _wp_comment_row( $comment_id, $mode, $comment_status, $checkbox = true,
 		$del_nonce = esc_html( '_wpnonce=' . wp_create_nonce( "delete-comment_$comment->comment_ID" ) );
 		$approve_nonce = esc_html( '_wpnonce=' . wp_create_nonce( "approve-comment_$comment->comment_ID" ) );
 
-		$delete_url = esc_url( "comment.php?action=deletecomment&p=$post->ID&c=$comment->comment_ID&$del_nonce" );
 		$approve_url = esc_url( "comment.php?action=approvecomment&p=$post->ID&c=$comment->comment_ID&$approve_nonce" );
 		$unapprove_url = esc_url( "comment.php?action=unapprovecomment&p=$post->ID&c=$comment->comment_ID&$approve_nonce" );
-		$spam_url = esc_url( "comment.php?action=deletecomment&dt=spam&p=$post->ID&c=$comment->comment_ID&$del_nonce" );
+		$spam_url = esc_url( "comment.php?action=spamcomment&p=$post->ID&c=$comment->comment_ID&$del_nonce" );
+		$unspam_url = esc_url( "comment.php?action=unspamcomment&p=$post->ID&c=$comment->comment_ID&$del_nonce" );
 		$trash_url = esc_url( "comment.php?action=trashcomment&p=$post->ID&c=$comment->comment_ID&$del_nonce" );
 		$untrash_url = esc_url( "comment.php?action=untrashcomment&p=$post->ID&c=$comment->comment_ID&$del_nonce" );
+		$delete_url = esc_url( "comment.php?action=deletecomment&p=$post->ID&c=$comment->comment_ID&$del_nonce" );
 	}
 
 	echo "<tr id='comment-$comment->comment_ID' class='$the_comment_status'>";
@@ -2157,43 +2158,50 @@ function _wp_comment_row( $comment_id, $mode, $comment_status, $checkbox = true,
 				</div>
 				<?php
 				}
-				$actions = array();
 
 				if ( $user_can ) {
-					if ( 'trash' == $the_comment_status ) {
-						$actions['untrash'] = "<a href='$untrash_url' class='delete:the-comment-list:comment-$comment->comment_ID:ABF888:untrash=1 vim-z vim-destructive'>" . __( 'Restore' ) . '</a>';
-						$actions['delete'] = "<a href='$delete_url' class='delete:the-comment-list:comment-$comment->comment_ID::delete=1 delete vim-d vim-destructive'>" . __('Delete Permanently') . '</a>';
+					// preorder it: Approve | Reply | Quick Edit | Edit | Spam | Trash
+					$actions = array(
+						'approve' => '', 'unapprove' => '',
+						'reply' => '',
+						'quickedit' => '',
+						'edit' => '',
+						'spam' => '', 'unspam' => '',
+						'trash' => '', 'untrash' => '', 'delete' => ''
+					);
+
+					if ( $comment_status && 'all' != $comment_status ) { // not looking at all comments
+						if ( 'approved' == $the_comment_status )
+							$actions['unapprove'] = "<a href='$unapprove_url' class='delete:the-comment-list:comment-$comment->comment_ID:e7e7d3:action=dim-comment&amp;new=unapproved vim-u vim-destructive' title='" . __( 'Unapprove this comment' ) . "'>" . __( 'Unapprove' ) . '</a>';
+						else if ( 'unapproved' == $the_comment_status )
+							$actions['approve'] = "<a href='$approve_url' class='delete:the-comment-list:comment-$comment->comment_ID:e7e7d3:action=dim-comment&amp;new=approved vim-a vim-destructive' title='" . __( 'Approve this comment' ) . "'>" . __( 'Approve' ) . '</a>';
 					} else {
 						$actions['approve'] = "<a href='$approve_url' class='dim:the-comment-list:comment-$comment->comment_ID:unapproved:e7e7d3:e7e7d3:new=approved vim-a' title='" . __( 'Approve this comment' ) . "'>" . __( 'Approve' ) . '</a>';
 						$actions['unapprove'] = "<a href='$unapprove_url' class='dim:the-comment-list:comment-$comment->comment_ID:unapproved:e7e7d3:e7e7d3:new=unapproved vim-u' title='" . __( 'Unapprove this comment' ) . "'>" . __( 'Unapprove' ) . '</a>';
+					}
 
-						if ( $comment_status && 'all' != $comment_status ) { // not looking at all comments
-							if ( 'approved' == $the_comment_status ) {
-								$actions['unapprove'] = "<a href='$unapprove_url' class='delete:the-comment-list:comment-$comment->comment_ID:e7e7d3:action=dim-comment&amp;new=unapproved vim-u vim-destructive' title='" . __( 'Unapprove this comment' ) . "'>" . __( 'Unapprove' ) . '</a>';
-								unset($actions['approve']);
-							} else {
-								$actions['approve'] = "<a href='$approve_url' class='delete:the-comment-list:comment-$comment->comment_ID:e7e7d3:action=dim-comment&amp;new=approved vim-a vim-destructive' title='" . __( 'Approve this comment' ) . "'>" . __( 'Approve' ) . '</a>';
-								unset($actions['unapprove']);
-							}
-						}
+					if ( 'spam' != $the_comment_status && 'trash' != $the_comment_status ) {
+						$actions['spam'] = "<a href='$spam_url' class='delete:the-comment-list:comment-$comment->comment_ID::spam=1 vim-s vim-destructive' title='" . __( 'Mark this comment as spam' ) . "'>" . /* translators: mark as spam link */ _x( 'Spam', 'verb' ) . '</a>';
+					} elseif ( 'spam' == $the_comment_status ) {
+						$actions['unspam'] = "<a href='$untrash_url' class='delete:the-comment-list:comment-$comment->comment_ID:66cc66:unspam=1 vim-z vim-destructive'>" . __( 'Not Spam' ) . '</a>';
+					} elseif ( 'trash' == $the_comment_status ) {
+						$actions['untrash'] = "<a href='$untrash_url' class='delete:the-comment-list:comment-$comment->comment_ID:66cc66:untrash=1 vim-z vim-destructive'>" . __( 'Restore' ) . '</a>';
+					}
 
-						if ( 'spam' != $the_comment_status ) {
-							$actions['spam'] = "<a href='$spam_url' class='delete:the-comment-list:comment-$comment->comment_ID::spam=1 vim-s vim-destructive' title='" . __( 'Mark this comment as spam' ) . "'>" . /* translators: mark as spam link */ _x( 'Spam', 'verb' ) . '</a>';
-						}
-						if ( 'spam' == $the_comment_status || !EMPTY_TRASH_DAYS ) {
-							$actions['delete'] = "<a href='$delete_url' class='delete:the-comment-list:comment-$comment->comment_ID::delete=1 delete vim-d vim-destructive'>" . __('Delete Permanently') . '</a>';
-						} else {
-							$actions['trash'] = "<a href='$trash_url' class='delete:the-comment-list:comment-$comment->comment_ID::trash=1 delete vim-d vim-destructive' title='" . __( 'Move this comment to the trash' ) . "'>" . _x('Trash', 'verb') . '</a>';
-						}
+					if ( 'spam' == $the_comment_status || 'trash' == $the_comment_status || !EMPTY_TRASH_DAYS ) {
+						$actions['delete'] = "<a href='$delete_url' class='delete:the-comment-list:comment-$comment->comment_ID::delete=1 delete vim-d vim-destructive'>" . __('Delete Permanently') . '</a>';
+					} else {
+						$actions['trash'] = "<a href='$trash_url' class='delete:the-comment-list:comment-$comment->comment_ID::trash=1 delete vim-d vim-destructive' title='" . __( 'Move this comment to the trash' ) . "'>" . _x('Trash', 'verb') . '</a>';
+					}
 
+					if ( 'trash' != $the_comment_status ) {
 						$actions['edit'] = "<a href='comment.php?action=editcomment&amp;c={$comment->comment_ID}' title='" . __('Edit comment') . "'>". __('Edit') . '</a>';
 						$actions['quickedit'] = '<a onclick="commentReply.open(\''.$comment->comment_ID.'\',\''.$post->ID.'\',\'edit\');return false;" class="vim-q" title="'.__('Quick Edit').'" href="#">' . __('Quick&nbsp;Edit') . '</a>';
-
 						if ( 'spam' != $the_comment_status )
 							$actions['reply'] = '<a onclick="commentReply.open(\''.$comment->comment_ID.'\',\''.$post->ID.'\');return false;" class="vim-r" title="'.__('Reply to this comment').'" href="#">' . __('Reply') . '</a>';
 					}
 
-					$actions = apply_filters( 'comment_row_actions', $actions, $comment );
+					$actions = apply_filters( 'comment_row_actions', array_filter($actions), $comment );
 
 					$i = 0;
 					echo '<div class="row-actions">';
@@ -2204,7 +2212,7 @@ function _wp_comment_row( $comment_id, $mode, $comment_status, $checkbox = true,
 						// Reply and quickedit need a hide-if-no-js span when not added with ajax
 						if ( ('reply' == $action || 'quickedit' == $action) && ! $from_ajax )
 							$action .= ' hide-if-no-js';
-						elseif ($action == 'untrash' && $the_comment_status == 'trash') {
+						elseif ( ($action == 'untrash' && $the_comment_status == 'trash') || ($action == 'unspam' && $the_comment_status == 'spam') ) {
 							if ('1' == get_comment_meta($comment_id, '_wp_trash_meta_status', true))
 								$action .= ' approve';
 							else
@@ -2371,8 +2379,11 @@ function wp_comment_reply($position = '1', $checkbox = false, $mode = 'single', 
  */
 function wp_comment_trashnotice() {
 ?>
-<div class="hidden" id="undo-holder">
-<div class="trash-undo-inside"><?php _e('Comment by'); ?> <strong></strong> <?php _e('moved to the trash.'); ?> <span class="untrash"><a class="undo-trash" href="#"><?php _e('Undo'); ?></a></span></div>
+<div class="hidden" id="trash-undo-holder">
+	<div class="trash-undo-inside"><?php printf(__('Comment by %s moved to the trash.'), '<strong></strong>'); ?> <span class="undo untrash"><a href="#"><?php _e('Undo'); ?></a></span></div>
+</div>
+<div class="hidden" id="spam-undo-holder">
+	<div class="spam-undo-inside"><?php printf(__('Comment by %s marked as spam.'), '<strong></strong>'); ?> <span class="undo unspam"><a href="#"><?php _e('Undo'); ?></a></span></div>
 </div>
 <?php
 }
@@ -3162,7 +3173,7 @@ function do_settings_fields($page, $section) {
 		else
 			echo '<th scope="row">' . $field['title'] . '</th>';
 		echo '<td>';
-		call_user_func($field['callback']);
+		call_user_func($field['callback'], $field['args']);
 		echo '</td>';
 		echo '</tr>';
 	}

@@ -210,6 +210,7 @@ if ( defined('WP_DEBUG') && WP_DEBUG == true ) {
 		ini_set('error_log', WP_CONTENT_DIR . '/debug.log');
 	}
 } else {
+	define('WP_DEBUG', false);
 	if ( defined('E_RECOVERABLE_ERROR') )
 		error_reporting(E_ERROR | E_WARNING | E_PARSE | E_USER_ERROR | E_USER_WARNING | E_RECOVERABLE_ERROR);
 	else
@@ -217,7 +218,7 @@ if ( defined('WP_DEBUG') && WP_DEBUG == true ) {
 }
 
 // For an advanced caching plugin to use, static because you would only want one
-if ( defined('WP_CACHE') )
+if ( defined('WP_CACHE') && WP_CACHE )
 	@include WP_CONTENT_DIR . '/advanced-cache.php';
 
 /**

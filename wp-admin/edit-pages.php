@@ -141,7 +141,7 @@ require_once('admin-header.php'); ?>
 
 <div class="wrap">
 <?php screen_icon(); ?>
-<h2><?php echo esc_html( $title ); ?> <a href="page-new.php" class="button add-new-h2"><?php esc_html_e('Add New'); ?></a> <?php
+<h2><?php echo esc_html( $title ); ?> <a href="page-new.php" class="button add-new-h2"><?php echo esc_html_x('Add New', 'page'); ?></a> <?php
 if ( isset($_GET['s']) && $_GET['s'] )
 	printf( '<span class="subtitle">' . __('Search results for &#8220;%s&#8221;') . '</span>', esc_html( get_search_query() ) ); ?>
 </h2>
@@ -167,7 +167,7 @@ if ( isset($_GET['deleted']) && (int) $_GET['deleted'] ) {
 if ( isset($_GET['trashed']) && (int) $_GET['trashed'] ) {
 	printf( _n( 'Page moved to the trash.', '%s pages moved to the trash.', $_GET['trashed'] ), number_format_i18n( $_GET['trashed'] ) );
 	$ids = isset($_GET['ids']) ? $_GET['ids'] : 0;
-	echo ' <a href="' . esc_url( wp_nonce_url( "edit-pages.php?doaction=undo&action=untrash&ids=$ids", "bulk-pages" ) ) . '">' . __('Undo?') . '</a><br />';
+	echo ' <a href="' . esc_url( wp_nonce_url( "edit-pages.php?doaction=undo&action=untrash&ids=$ids", "bulk-pages" ) ) . '">' . __('Undo') . '</a><br />';
 	unset($_GET['trashed']);
 }
 if ( isset($_GET['untrashed']) && (int) $_GET['untrashed'] ) {
@@ -198,7 +198,7 @@ $status_links[] = "<li><a href='edit-pages.php'$class>" . sprintf( _nx( 'All <sp
 foreach ( $post_stati as $status => $label ) {
 	$class = '';
 
-	if ( !in_array($status, $avail_post_stati) )
+	if ( !in_array($status, $avail_post_stati) || $num_posts->$status <= 0 )
 		continue;
 
 	if ( isset( $_GET['post_status'] ) && $status == $_GET['post_status'] )

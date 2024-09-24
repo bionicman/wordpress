@@ -301,6 +301,7 @@ function get_objects_in_term( $terms, $taxonomies, $args = array() ) {
  */
 function &get_term($term, $taxonomy, $output = OBJECT, $filter = 'raw') {
 	global $wpdb;
+	$null = null;
 
 	if ( empty($term) ) {
 		$error = new WP_Error('invalid_term', __('Empty Term'));
@@ -321,6 +322,8 @@ function &get_term($term, $taxonomy, $output = OBJECT, $filter = 'raw') {
 		$term = (int) $term;
 		if ( ! $_term = wp_cache_get($term, $taxonomy) ) {
 			$_term = $wpdb->get_row( $wpdb->prepare( "SELECT t.*, tt.* FROM $wpdb->terms AS t INNER JOIN $wpdb->term_taxonomy AS tt ON t.term_id = tt.term_id WHERE tt.taxonomy = %s AND t.term_id = %s LIMIT 1", $taxonomy, $term) );
+			if ( ! $_term )
+				return $null;
 			wp_cache_add($term, $_term, $taxonomy);
 		}
 	}
@@ -1515,7 +1518,7 @@ function wp_set_object_terms($object_id, $terms, $taxonomy, $append = false) {
 			$wpdb->query("INSERT INTO $wpdb->term_relationships (object_id, term_taxonomy_id, term_order) VALUES " . join(',', $values) . " ON DUPLICATE KEY UPDATE term_order = VALUES(term_order)");
 	}
 
-	do_action('set_object_terms', $object_id, $terms, $tt_ids, $taxonomy, $append);
+	do_action('set_object_terms', $object_id, $terms, $tt_ids, $taxonomy, $append, $old_tt_ids);
 	return $tt_ids;
 }
 
@@ -1677,13 +1680,13 @@ function wp_update_term( $term_id, $taxonomy, $args = array() ) {
 		else
 			return new WP_Error('duplicate_term_slug', sprintf(__('The slug &#8220;%s&#8221; is already in use by another term'), $slug));
 	}
-	do_action( 'edit_terms', $alias->term_id );
+	do_action( 'edit_terms', $term_id );
 	$wpdb->update($wpdb->terms, compact( 'name', 'slug', 'term_group' ), compact( 'term_id' ) );
 	if ( empty($slug) ) {
 		$slug = sanitize_title($name, $term_id);
 		$wpdb->update( $wpdb->terms, compact( 'slug' ), compact( 'term_id' ) );
 	}
-	do_action( 'edited_terms', $alias->term_id );
+	do_action( 'edited_terms', $term_id );
 
 	$tt_id = $wpdb->get_var( $wpdb->prepare( "SELECT tt.term_taxonomy_id FROM $wpdb->term_taxonomy AS tt INNER JOIN $wpdb->terms AS t ON tt.term_id = t.term_id WHERE tt.taxonomy = %s AND t.term_id = %d", $taxonomy, $term_id) );
 	do_action( 'edit_term_taxonomy', $tt_id );
@@ -2213,7 +2216,7 @@ function get_term_link( $term, $taxonomy ) {
 	$slug = $term->slug;
 
 	if ( empty($termlink) ) {
-		$file = get_option('home') . '/';
+		$file = trailingslashit( get_option('home') );
 		$t = get_taxonomy($taxonomy);
 		if ( $t->query_var )
 			$termlink = "$file?$t->query_var=$slug";

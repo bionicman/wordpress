@@ -971,34 +971,6 @@ function maybe_serialize( $data ) {
 }
 
 /**
- * Strip HTML and put links at the bottom of stripped content.
- *
- * Searches for all of the links, strips them out of the content, and places
- * them at the bottom of the content with numbers.
- *
- * @since 0.71
- *
- * @param string $content Content to get links
- * @return string HTML stripped out of content with links at the bottom.
- */
-function make_url_footnote( $content ) {
-	preg_match_all( '/<a(.+?)href=\"(.+?)\"(.*?)>(.+?)<\/a>/', $content, $matches );
-	$links_summary = "\n";
-	for ( $i=0; $i<count($matches[0]); $i++ ) {
-		$link_match = $matches[0][$i];
-		$link_number = '['.($i+1).']';
-		$link_url = $matches[2][$i];
-		$link_text = $matches[4][$i];
-		$content = str_replace( $link_match, $link_text . ' ' . $link_number, $content );
-		$link_url = ( ( strtolower( substr( $link_url, 0, 7 ) ) != 'http://' ) && ( strtolower( substr( $link_url, 0, 8 ) ) != 'https://' ) ) ? get_option( 'home' ) . $link_url : $link_url;
-		$links_summary .= "\n" . $link_number . ' ' . $link_url;
-	}
-	$content  = strip_tags( $content );
-	$content .= $links_summary;
-	return $content;
-}
-
-/**
  * Retrieve post title from XMLRPC XML.
  *
  * If the title element is not part of the XML, then the default post title from
@@ -2133,11 +2105,11 @@ function wp_unique_filename( $dir, $filename, $unique_filename_callback = null )
 
 	// separate the filename into a name and extension
 	$info = pathinfo($filename);
-	$ext = !empty($info['extension']) ? $info['extension'] : '';
-	$name = basename($filename, ".{$ext}");
+	$ext = !empty($info['extension']) ? '.' . $info['extension'] : '';
+	$name = basename($filename, $ext);
 
 	// edge case: if file is named '.ext', treat as an empty name
-	if( $name === ".$ext" )
+	if( $name === $ext )
 		$name = '';
 
 	// Increment the file number until we have a unique file to save in $dir. Use $override['unique_filename_callback'] if supplied.
@@ -2146,8 +2118,20 @@ function wp_unique_filename( $dir, $filename, $unique_filename_callback = null )
 	} else {
 		$number = '';
 
-		if ( !empty( $ext ) )
-			$ext = ".$ext";
+		// change '.ext' to lower case
+		if ( $ext && strtolower($ext) != $ext ) {
+			$ext2 = strtolower($ext);
+			$filename2 = preg_replace( '|' . preg_quote($ext) . '$|', $ext2, $filename );
+
+			// check for both lower and upper case extension or image sub-sizes may be overwritten
+			while ( file_exists($dir . "/$filename") || file_exists($dir . "/$filename2") ) {
+				$new_number = $number + 1;
+				$filename = str_replace( "$number$ext", "$new_number$ext", $filename );
+				$filename2 = str_replace( "$number$ext2", "$new_number$ext2", $filename2 );
+				$number = $new_number;
+			}
+			return $filename2;
+		}
 
 		while ( file_exists( $dir . "/$filename" ) ) {
 			if ( '' == "$number$ext" )
@@ -2299,6 +2283,7 @@ function get_allowed_mime_types() {
 		'asf|asx|wax|wmv|wmx' => 'video/asf',
 		'avi' => 'video/avi',
 		'divx' => 'video/divx',
+		'flv' => 'video/x-flv',
 		'mov|qt' => 'video/quicktime',
 		'mpeg|mpg|mpe' => 'video/mpeg',
 		'txt|c|cc|h' => 'text/plain',
@@ -2454,12 +2439,12 @@ function wp_explain_nonce( $action ) {
 function wp_nonce_ays( $action ) {
 	$title = __( 'WordPress Failure Notice' );
 	$html = esc_html( wp_explain_nonce( $action ) );
-	if ( wp_get_referer() )
-		$html .= "</p><p><a href='" . esc_url( remove_query_arg( 'updated', wp_get_referer() ) ) . "'>" . __( 'Please try again.' ) . "</a>";
-	elseif ( 'log-out' == $action )
+	if ( 'log-out' == $action )
 		$html .= "</p><p>" . sprintf( __( "Do you really want to <a href='%s'>log out</a>?"), wp_logout_url() );
+	elseif ( wp_get_referer() )
+		$html .= "</p><p><a href='" . esc_url( remove_query_arg( 'updated', wp_get_referer() ) ) . "'>" . __( 'Please try again.' ) . "</a>";
 
-	wp_die( $html, $title);
+	wp_die( $html, $title, array('response' => 403) );
 }
 
 /**
@@ -2537,6 +2522,7 @@ function wp_die( $message, $title = '', $args = array() ) {
 	if ( ( $wp_locale ) && ( 'rtl' == $wp_locale->text_direction ) ) $text_direction = 'rtl';
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<!-- Ticket #11289, IE bug fix: always pad the error page with enough characters such that it is greater than 512 bytes, even after gzip compression abcdefghijklmnopqrstuvwxyz1234567890aabbccddeeffgghhiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz11223344556677889900abacbcbdcdcededfefegfgfhghgihihjijikjkjlklkmlmlnmnmononpopoqpqprqrqsrsrtstsubcbcdcdedefefgfabcadefbghicjkldmnoepqrfstugvwxhyz1i234j567k890laabmbccnddeoeffpgghqhiirjjksklltmmnunoovppqwqrrxsstytuuzvvw0wxx1yyz2z113223434455666777889890091abc2def3ghi4jkl5mno6pqr7stu8vwx9yz11aab2bcc3dd4ee5ff6gg7hh8ii9j0jk1kl2lmm3nnoo4p5pq6qrr7ss8tt9uuvv0wwx1x2yyzz13aba4cbcb5dcdc6dedfef8egf9gfh0ghg1ihi2hji3jik4jkj5lkl6kml7mln8mnm9ono -->
 <html xmlns="http://www.w3.org/1999/xhtml" <?php if ( function_exists( 'language_attributes' ) ) language_attributes(); ?>>
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
@@ -2551,7 +2537,6 @@ if ( 'rtl' == $text_direction ) : ?>
 <?php endif; ?>
 	<?php echo $message; ?>
 </body>
-<!-- Ticket #8942, IE bug fix: always pad the error page with enough characters such that it is greater than 512 bytes, even after gzip compression abcdefghijklmnopqrstuvwxyz1234567890aabbccddeeffgghhiijjkkllmmnnooppqqrrssttuuvvwwxxyyzz11223344556677889900abacbcbdcdcededfefegfgfhghgihihjijikjkjlklkmlmlnmnmononpopoqpqprqrqsrsrtstsubcbcdcdedefefgfabcadefbghicjkldmnoepqrfstugvwxhyz1i234j567k890laabmbccnddeoeffpgghqhiirjjksklltmmnunoovppqwqrrxsstytuuzvvw0wxx1yyz2z113223434455666777889890091abc2def3ghi4jkl5mno6pqr7stu8vwx9yz11aab2bcc3dd4ee5ff6gg7hh8ii9j0jk1kl2lmm3nnoo4p5pq6qrr7ss8tt9uuvv0wwx1x2yyzz13aba4cbcb5dcdc6dedfef8egf9gfh0ghg1ihi2hji3jik4jkj5lkl6kml7mln8mnm9ono -->
 </html>
 <?php
 	die();
@@ -2955,8 +2940,7 @@ function atom_service_url_filter($url)
  * to get the backtrace up to what file and function called the deprecated
  * function.
  *
- * The current behavior is to trigger an user error if WP_DEBUG is defined and
- * is true.
+ * The current behavior is to trigger an user error if WP_DEBUG is true.
  *
  * This function is to be used in every function in depreceated.php
  *
@@ -2977,7 +2961,7 @@ function _deprecated_function($function, $version, $replacement=null) {
 	do_action('deprecated_function_run', $function, $replacement);
 
 	// Allow plugin to filter the output error trigger
-	if( defined('WP_DEBUG') && ( true === WP_DEBUG ) && apply_filters( 'deprecated_function_trigger_error', true )) {
+	if( WP_DEBUG && apply_filters( 'deprecated_function_trigger_error', true )) {
 		if( !is_null($replacement) )
 			trigger_error( sprintf( __('%1$s is <strong>deprecated</strong> since version %2$s! Use %3$s instead.'), $function, $version, $replacement ) );
 		else
@@ -2992,8 +2976,7 @@ function _deprecated_function($function, $version, $replacement=null) {
  * to get the backtrace up to what file and function included the deprecated
  * file.
  *
- * The current behavior is to trigger an user error if WP_DEBUG is defined and
- * is true.
+ * The current behavior is to trigger an user error if WP_DEBUG is true.
  *
  * This function is to be used in every file that is depreceated
  *
@@ -3014,7 +2997,7 @@ function _deprecated_file($file, $version, $replacement=null) {
 	do_action('deprecated_file_included', $file, $replacement);
 
 	// Allow plugin to filter the output error trigger
-	if( defined('WP_DEBUG') && ( true === WP_DEBUG ) && apply_filters( 'deprecated_file_trigger_error', true )) {
+	if( WP_DEBUG && apply_filters( 'deprecated_file_trigger_error', true ) ) {
 		if( !is_null($replacement) )
 			trigger_error( sprintf( __('%1$s is <strong>deprecated</strong> since version %2$s! Use %3$s instead.'), $file, $version, $replacement ) );
 		else
@@ -3085,11 +3068,11 @@ function validate_file( $file, $allowed_files = '' ) {
 	if ( false !== strpos( $file, './' ))
 		return 1;
 
-	if (':' == substr( $file, 1, 1 ))
-		return 2;
-
 	if (!empty ( $allowed_files ) && (!in_array( $file, $allowed_files ) ) )
 		return 3;
+
+	if (':' == substr( $file, 1, 1 ))
+		return 2;
 
 	return 0;
 }

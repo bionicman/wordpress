@@ -132,6 +132,7 @@ function get_approved_comments($post_id) {
  */
 function &get_comment(&$comment, $output = OBJECT) {
 	global $wpdb;
+	$null = null;
 
 	if ( empty($comment) ) {
 		if ( isset($GLOBALS['comment']) )
@@ -146,6 +147,8 @@ function &get_comment(&$comment, $output = OBJECT) {
 			$_comment = & $GLOBALS['comment'];
 		} elseif ( ! $_comment = wp_cache_get($comment, 'comment') ) {
 			$_comment = $wpdb->get_row($wpdb->prepare("SELECT * FROM $wpdb->comments WHERE comment_ID = %d LIMIT 1", $comment));
+			if ( ! $_comment )
+				return $null;
 			wp_cache_add($_comment->comment_ID, $_comment, 'comment');
 		}
 	}
@@ -490,7 +493,7 @@ function wp_allow_comment($commentdata) {
 
 	// Simple duplicate check
 	// expected_slashed ($comment_post_ID, $comment_author, $comment_author_email, $comment_content)
-	$dupe = "SELECT comment_ID FROM $wpdb->comments WHERE comment_post_ID = '$comment_post_ID' AND ( comment_author = '$comment_author' ";
+	$dupe = "SELECT comment_ID FROM $wpdb->comments WHERE comment_post_ID = '$comment_post_ID' AND comment_approved != 'trash' AND ( comment_author = '$comment_author' ";
 	if ( $comment_author_email )
 		$dupe .= "OR comment_author_email = '$comment_author_email' ";
 	$dupe .= ") AND comment_content = '$comment_content' LIMIT 1";
@@ -863,22 +866,22 @@ function wp_trash_comment($comment_id) {
 
 	do_action('trash_comment', $comment_id);
 
-	add_comment_meta($comment_id, '_wp_trash_meta_status', $comment->comment_approved);
-	add_comment_meta($comment_id, '_wp_trash_meta_time', time() );
+	if ( wp_set_comment_status($comment_id, 'trash') ) {
+		add_comment_meta($comment_id, '_wp_trash_meta_status', $comment->comment_approved);
+		add_comment_meta($comment_id, '_wp_trash_meta_time', time() );
+		do_action('trashed_comment', $comment_id);
+		return true;
+	}
 
-	wp_set_comment_status($comment_id, 'trash');
-
-	do_action('trashed_comment', $comment_id);
-
-	return true;
+	return false;
 }
 
 /**
  * Removes a comment from the Trash
  *
  * @since 2.9.0
- * @uses do_action() on 'untrash_comment' before undeletion
- * @uses do_action() on 'untrashed_comment' after undeletion
+ * @uses do_action() on 'untrash_comment' before untrashing
+ * @uses do_action() on 'untrashed_comment' after untrashing
  *
  * @param int $comment_id Comment ID.
  * @return mixed False on failure
@@ -889,22 +892,72 @@ function wp_untrash_comment($comment_id) {
 
 	do_action('untrash_comment', $comment_id);
 
-	$comment = array('comment_ID'=>$comment_id);
-
-	$status = get_comment_meta($comment_id, '_wp_trash_meta_status', true);
+	$status = (string) get_comment_meta($comment_id, '_wp_trash_meta_status', true);
 	if ( empty($status) )
 		$status = '0';
 
-	$comment['comment_approved'] = $status;
+	if ( wp_set_comment_status($comment_id, $status) ) {
+		delete_comment_meta($comment_id, '_wp_trash_meta_time');
+		delete_comment_meta($comment_id, '_wp_trash_meta_status');
+		do_action('untrashed_comment', $comment_id);
+		return true;
+	}
 
-	delete_comment_meta($comment_id, '_wp_trash_meta_time');
-	delete_comment_meta($comment_id, '_wp_trash_meta_status');
+	return false;
+}
 
-	wp_update_comment($comment);
+/**
+ * Marks a comment as Spam
+ *
+ * @since 2.9.0
+ * @uses do_action() on 'spam_comment' before spamming
+ * @uses do_action() on 'spammed_comment' after spamming
+ *
+ * @param int $comment_id Comment ID.
+ * @return mixed False on failure
+ */
+function wp_spam_comment($comment_id) {
+	if ( !$comment = get_comment($comment_id) )
+		return false;
 
-	do_action('untrashed_comment', $comment_id);
+	do_action('spam_comment', $comment_id);
 
-	return true;
+	if ( wp_set_comment_status($comment_id, 'spam') ) {
+		add_comment_meta($comment_id, '_wp_trash_meta_status', $comment->comment_approved);
+		do_action('spammed_comment', $comment_id);
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * Removes a comment from the Spam
+ *
+ * @since 2.9.0
+ * @uses do_action() on 'unspam_comment' before unspamming
+ * @uses do_action() on 'unspammed_comment' after unspamming
+ *
+ * @param int $comment_id Comment ID.
+ * @return mixed False on failure
+ */
+function wp_unspam_comment($comment_id) {
+	if ( ! (int)$comment_id )
+		return false;
+
+	do_action('unspam_comment', $comment_id);
+
+	$status = (string) get_comment_meta($comment_id, '_wp_trash_meta_status', true);
+	if ( empty($status) )
+		$status = '0';
+
+	if ( wp_set_comment_status($comment_id, $status) ) {
+		delete_comment_meta($comment_id, '_wp_trash_meta_status');
+		do_action('unspammed_comment', $comment_id);
+		return true;
+	}
+
+	return false;
 }
 
 /**
@@ -1073,7 +1126,10 @@ function wp_insert_comment($commentdata) {
  * @return array Parsed comment information.
  */
 function wp_filter_comment($commentdata) {
-	$commentdata['user_id']              = apply_filters('pre_user_id', $commentdata['user_ID']);
+	if ( isset($commentdata['user_ID']) )
+		$commentdata['user_id'] = apply_filters('pre_user_id', $commentdata['user_ID']);
+	elseif ( isset($commentdata['user_id']) )
+		$commentdata['user_id'] = apply_filters('pre_user_id', $commentdata['user_id']);
 	$commentdata['comment_agent']        = apply_filters('pre_comment_user_agent', $commentdata['comment_agent']);
 	$commentdata['comment_author']       = apply_filters('pre_comment_author_name', $commentdata['comment_author']);
 	$commentdata['comment_content']      = apply_filters('pre_comment_content', $commentdata['comment_content']);
@@ -1124,9 +1180,12 @@ function wp_new_comment( $commentdata ) {
 	$commentdata = apply_filters('preprocess_comment', $commentdata);
 
 	$commentdata['comment_post_ID'] = (int) $commentdata['comment_post_ID'];
-	$commentdata['user_ID']         = (int) $commentdata['user_ID'];
+	if ( isset($commentdata['user_ID']) )
+		$commentdata['user_id'] = $commentdata['user_ID'] = (int) $commentdata['user_ID'];
+	elseif ( isset($commentdata['user_id']) )
+		$commentdata['user_id'] = (int) $commentdata['user_id'];
 
-	$commentdata['comment_parent'] = absint($commentdata['comment_parent']);
+	$commentdata['comment_parent'] = isset($commentdata['comment_parent']) ? absint($commentdata['comment_parent']) : 0;
 	$parent_status = ( 0 < $commentdata['comment_parent'] ) ? wp_get_comment_status($commentdata['comment_parent']) : '';
 	$commentdata['comment_parent'] = ( 'approved' == $parent_status || 'unapproved' == $parent_status ) ? $commentdata['comment_parent'] : 0;
 
@@ -1150,7 +1209,7 @@ function wp_new_comment( $commentdata ) {
 
 		$post = &get_post($commentdata['comment_post_ID']); // Don't notify if it's your own comment
 
-		if ( get_option('comments_notify') && $commentdata['comment_approved'] && $post->post_author != $commentdata['user_ID'] )
+		if ( get_option('comments_notify') && $commentdata['comment_approved'] && $post->post_author != $commentdata['user_id'] )
 			wp_notify_postauthor($comment_ID, $commentdata['comment_type']);
 	}
 
@@ -1201,7 +1260,7 @@ function wp_set_comment_status($comment_id, $comment_status, $wp_error = false) 
 			return false;
 	}
 
-	$comment_old = get_comment($comment_id);
+	$comment_old = wp_clone(get_comment($comment_id));
 
 	if ( !$wpdb->update( $wpdb->comments, array('comment_approved' => $status), array('comment_ID' => $comment_id) ) ) {
 		if ( $wp_error )

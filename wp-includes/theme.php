@@ -316,9 +316,8 @@ function get_themes() {
 				 * The parent theme doesn't exist in the current theme's folder or sub folder
 				 * so lets use the theme root for the parent template.
 				 */
-				$parent_theme_root = $theme_files[$template]['theme_root'];
-				if ( file_exists( "$parent_theme_root/$template/index.php" ) ) {
-					$template_directory = "$parent_theme_root/$template";
+				if ( isset($theme_files[$template]) && file_exists( $theme_files[$template]['theme_root'] . "/$template/index.php" ) ) {
+					$template_directory = $theme_files[$template]['theme_root'] . "/$template";
 				} else {
 					$wp_broken_themes[$name] = array('Name' => $name, 'Title' => $title, 'Description' => __('Template is missing.'));
 					continue;
@@ -366,6 +365,10 @@ function get_themes() {
 			@ $template_dir->close();
 		}
 
+		//Make unique and remove duplicates when stylesheet and template are the same i.e. most themes
+		$template_files = array_unique($template_files);
+		$stylesheet_files = array_unique($stylesheet_files);
+				
 		$template_dir = dirname($template_files[0]);
 		$stylesheet_dir = dirname($stylesheet_files[0]);
 
@@ -596,7 +599,6 @@ function search_theme_directories() {
 		if ( is_dir( $theme_dir ) )
 			@closedir( $theme_dir );
 	}
-
 	return $theme_files;
 }
 

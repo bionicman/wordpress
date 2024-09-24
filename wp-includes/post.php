@@ -1186,8 +1186,7 @@ function wp_delete_post( $postid = 0, $force_delete = false ) {
 	delete_post_meta($postid,'_wp_trash_meta_status');
 	delete_post_meta($postid,'_wp_trash_meta_time');
 
-	/** @todo delete for pluggable post taxonomies too */
-	wp_delete_object_term_relationships($postid, array('category', 'post_tag'));
+	wp_delete_object_term_relationships($postid, get_object_taxonomies($post->post_type));
 
 	$parent_data = array( 'post_parent' => $post->post_parent );
 	$parent_where = array( 'post_parent' => $postid );
@@ -1237,9 +1236,9 @@ function wp_delete_post( $postid = 0, $force_delete = false ) {
 		do_action( 'deleted_postmeta', $post_meta_ids );
 	}
 
-	do_action( 'delete_post', $post_id );
+	do_action( 'delete_post', $postid );
 	$wpdb->query( $wpdb->prepare( "DELETE FROM $wpdb->posts WHERE ID = %d", $postid ));
-	do_action( 'deleted_post', $post_id );
+	do_action( 'deleted_post', $postid );
 
 	if ( 'page' == $post->post_type ) {
 		clean_page_cache($postid);
@@ -1504,12 +1503,12 @@ function wp_get_recent_posts($num = 10) {
 
 	// Set the limit clause, if we got a limit
 	$num = (int) $num;
-	if ($num) {
+	if ( $num ) {
 		$limit = "LIMIT $num";
 	}
 
-	$sql = "SELECT * FROM $wpdb->posts WHERE post_type = 'post' ORDER BY post_date DESC $limit";
-	$result = $wpdb->get_results($sql,ARRAY_A);
+	$sql = "SELECT * FROM $wpdb->posts WHERE post_type = 'post' AND post_status IN ( 'draft', 'publish', 'future', 'pending', 'private' ) ORDER BY post_date DESC $limit";
+	$result = $wpdb->get_results($sql, ARRAY_A);
 
 	return $result ? $result : array();
 }
@@ -1610,7 +1609,7 @@ function wp_insert_post($postarr = array(), $wp_error = false) {
 		$previous_status = 'new';
 	}
 
-	if ( ('' == $post_content) && ('' == $post_title) && ('' == $post_excerpt) ) {
+	if ( ('' == $post_content) && ('' == $post_title) && ('' == $post_excerpt) && ('attachment' != $post_type) ) {
 		if ( $wp_error )
 			return new WP_Error('empty_content', __('Content, title, and excerpt are empty.'));
 		else
@@ -1941,6 +1940,8 @@ function check_and_publish_future_post($post_id) {
 /**
  * Given the desired slug and some post details computes a unique slug for the post.
  *
+ * @global wpdb $wpdb 
+ * @global WP_Rewrite $wp_rewrite 
  * @param string $slug the desired slug (post_name)
  * @param integer $post_ID
  * @param string $post_status no uniqueness checks are made if the post is still draft or pending
@@ -1953,13 +1954,18 @@ function wp_unique_post_slug($slug, $post_ID, $post_status, $post_type, $post_pa
 		return $slug;
 
 	global $wpdb, $wp_rewrite;
+
+	$feeds = $wp_rewrite->feeds;
+	if ( !is_array($feeds) )
+		$feeds = array();
+
 	$hierarchical_post_types = apply_filters('hierarchical_post_types', array('page'));
 	if ( 'attachment' == $post_type ) {
 		// Attachment slugs must be unique across all types.
 		$check_sql = "SELECT post_name FROM $wpdb->posts WHERE post_name = %s AND ID != %d LIMIT 1";
 		$post_name_check = $wpdb->get_var($wpdb->prepare($check_sql, $slug, $post_ID));
 
-		if ( $post_name_check || in_array($slug, $wp_rewrite->feeds) ) {
+		if ( $post_name_check || in_array($slug, $feeds) ) {
 			$suffix = 2;
 			do {
 				$alt_post_name = substr($slug, 0, 200-(strlen($suffix)+1)). "-$suffix";
@@ -1974,7 +1980,7 @@ function wp_unique_post_slug($slug, $post_ID, $post_status, $post_type, $post_pa
 		$check_sql = "SELECT post_name FROM $wpdb->posts WHERE post_name = %s AND post_type IN ( '" . implode("', '", esc_sql($hierarchical_post_types)) . "' ) AND ID != %d AND post_parent = %d LIMIT 1";
 		$post_name_check = $wpdb->get_var($wpdb->prepare($check_sql, $slug, $post_ID, $post_parent));
 
-		if ( $post_name_check || in_array($slug, $wp_rewrite->feeds) ) {
+		if ( $post_name_check || in_array($slug, $feeds) ) {
 			$suffix = 2;
 			do {
 				$alt_post_name = substr($slug, 0, 200-(strlen($suffix)+1)). "-$suffix";
@@ -2599,6 +2605,7 @@ function &get_pages($args = '') {
 		foreach ( $children as $child )
 			$excludes[] = $child->ID;
 		$excludes[] = $exclude;
+		$num_pages = count($pages);
 		for ( $i = 0; $i < $num_pages; $i++ ) {
 			if ( in_array($pages[$i]->ID, $excludes) )
 				unset($pages[$i]);
@@ -2796,6 +2803,9 @@ function wp_insert_attachment($object, $file = false, $parent = 0) {
 
 	clean_post_cache($post_ID);
 
+	if ( isset($post_parent) && $post_parent < 0 )
+		add_post_meta($post_ID, '_wp_attachment_temp_parent', $post_parent, true);
+
 	if ( $update) {
 		do_action('edit_attachment', $post_ID);
 	} else {
@@ -2841,8 +2851,8 @@ function wp_delete_attachment( $post_id, $force_delete = false ) {
 
 	do_action('delete_attachment', $post_id);
 
-	/** @todo Delete for pluggable post taxonomies too */
 	wp_delete_object_term_relationships($post_id, array('category', 'post_tag'));
+	wp_delete_object_term_relationships($post_id, get_object_taxonomies($post->post_type));
 
 	$wpdb->query( $wpdb->prepare( "DELETE FROM $wpdb->postmeta WHERE meta_key = '_thumbnail_id' AND meta_value = %d", $post_id ));
 
@@ -3695,7 +3705,7 @@ function _wp_post_revision_fields( $post = null, $autosave = false ) {
  */
 function wp_save_post_revision( $post_id ) {
 	// We do autosaves manually with wp_create_post_autosave()
-	if ( @constant( 'DOING_AUTOSAVE' ) )
+	if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE )
 		return;
 
 	// WP_POST_REVISIONS = 0, false

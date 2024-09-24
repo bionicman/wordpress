@@ -1756,4 +1756,58 @@ function the_content_rss($more_link_text='(more...)', $stripteaser=0, $more_file
 	echo $content;
 }
 
+/**
+ * Strip HTML and put links at the bottom of stripped content.
+ *
+ * Searches for all of the links, strips them out of the content, and places
+ * them at the bottom of the content with numbers.
+ *
+ * @since 0.71
+ * @deprecated 2.9.0
+ *
+ * @param string $content Content to get links
+ * @return string HTML stripped out of content with links at the bottom.
+ */
+function make_url_footnote( $content ) {
+	_deprecated_function(__FUNCTION__, '2.9', '' );
+	preg_match_all( '/<a(.+?)href=\"(.+?)\"(.*?)>(.+?)<\/a>/', $content, $matches );
+	$links_summary = "\n";
+	for ( $i=0; $i<count($matches[0]); $i++ ) {
+		$link_match = $matches[0][$i];
+		$link_number = '['.($i+1).']';
+		$link_url = $matches[2][$i];
+		$link_text = $matches[4][$i];
+		$content = str_replace( $link_match, $link_text . ' ' . $link_number, $content );
+		$link_url = ( ( strtolower( substr( $link_url, 0, 7 ) ) != 'http://' ) && ( strtolower( substr( $link_url, 0, 8 ) ) != 'https://' ) ) ? get_option( 'home' ) . $link_url : $link_url;
+		$links_summary .= "\n" . $link_number . ' ' . $link_url;
+	}
+	$content  = strip_tags( $content );
+	$content .= $links_summary;
+	return $content;
+}
+
+/**
+ * Retrieve translated string with vertical bar context
+ *
+ * Quite a few times, there will be collisions with similar translatable text
+ * found in more than two places but with different translated context.
+ *
+ * In order to use the separate contexts, the _c() function is used and the
+ * translatable string uses a pipe ('|') which has the context the string is in.
+ *
+ * When the translated string is returned, it is everything before the pipe, not
+ * including the pipe character. If there is no pipe in the translated text then
+ * everything is returned.
+ *
+ * @since 2.2.0
+ * @deprecated 2.9.0
+ *
+ * @param string $text Text to translate
+ * @param string $domain Optional. Domain to retrieve the translated text
+ * @return string Translated context string without pipe
+ */
+function _c( $text, $domain = 'default' ) {
+	_deprecated_function(__FUNCTION__, '2.9', '_x' );
+	return translate_with_context( $text, $domain );
+}
 ?>

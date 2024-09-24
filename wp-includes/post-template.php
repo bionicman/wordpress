@@ -247,7 +247,6 @@ function the_excerpt() {
  */
 function get_the_excerpt($deprecated = '') {
 	global $post;
-	$output = '';
 	$output = $post->post_excerpt;
 	if ( post_password_required($post) ) {
 		$output = __('There is no excerpt because this is a protected post.');
@@ -304,6 +303,9 @@ function get_post_class( $class = '', $post_id = null ) {
 	$post = get_post($post_id);
 
 	$classes = array();
+
+	if ( empty($post) )
+		return $classes;
 
 	$classes[] = 'post-' . $post->ID;
 	$classes[] = $post->post_type;

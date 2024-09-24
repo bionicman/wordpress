@@ -91,6 +91,8 @@ case 'wp-compression-test' :
 		 	echo $test_str;
 		 	die;
 		 } elseif ( 2 == $_GET['test'] ) {
+			if ( !isset($_SERVER['HTTP_ACCEPT_ENCODING']) )
+				die('-1');
 			if ( false !== strpos( strtolower($_SERVER['HTTP_ACCEPT_ENCODING']), 'deflate') && function_exists('gzdeflate') && ! $force_gzip ) {
 				header('Content-Encoding: deflate');
 				$out = gzdeflate( $test_str, 1 );
@@ -217,7 +219,11 @@ case 'delete-comment' : // On success, die with time() instead of 1
 	} elseif ( isset($_POST['spam']) && 1 == $_POST['spam'] ) {
 		if ( 'spam' == $status )
 			die( (string) time() );
-		$r = wp_set_comment_status( $comment->comment_ID, 'spam' );
+		$r = wp_spam_comment( $comment->comment_ID );
+	} elseif ( isset($_POST['unspam']) && 1 == $_POST['unspam'] ) {
+		if ( 'spam' != $status )
+			die( (string) time() );
+		$r = wp_unspam_comment( $comment->comment_ID );
 	} elseif ( isset($_POST['delete']) && 1 == $_POST['delete'] ) {
 		$r = wp_delete_comment( $comment->comment_ID );
 	} else {
@@ -1206,7 +1212,7 @@ case 'find_posts':
 	$search_terms = array_map('_search_terms_tidy', $matches[0]);
 
 	$searchand = $search = '';
-	foreach( (array) $search_terms as $term) {
+	foreach ( (array) $search_terms as $term ) {
 		$term = addslashes_gpc($term);
 		$search .= "{$searchand}(($wpdb->posts.post_title LIKE '%{$term}%') OR ($wpdb->posts.post_content LIKE '%{$term}%'))";
 		$searchand = ' AND ';
@@ -1215,12 +1221,12 @@ case 'find_posts':
 	if ( count($search_terms) > 1 && $search_terms[0] != $s )
 		$search .= " OR ($wpdb->posts.post_title LIKE '%{$term}%') OR ($wpdb->posts.post_content LIKE '%{$term}%')";
 
-	$posts = $wpdb->get_results( "SELECT ID, post_title, post_status, post_date FROM $wpdb->posts WHERE post_type = '$what' AND $search ORDER BY post_date_gmt DESC LIMIT 50" );
+	$posts = $wpdb->get_results( "SELECT ID, post_title, post_status, post_date FROM $wpdb->posts WHERE post_type = '$what' AND post_status IN ('draft', 'publish') AND ($search) ORDER BY post_date_gmt DESC LIMIT 50" );
 
 	if ( ! $posts )
 		exit( __('No posts found.') );
 
-	$html = '<table class="widefat" cellspacing="0"><thead><tr><th class="found-radio"><br /></th><th>'.__('Title').'</th><th>'.__('Time').'</th><th>'.__('Status').'</th></tr></thead><tbody>';
+	$html = '<table class="widefat" cellspacing="0"><thead><tr><th class="found-radio"><br /></th><th>'.__('Title').'</th><th>'.__('Date').'</th><th>'.__('Status').'</th></tr></thead><tbody>';
 	foreach ( $posts as $post ) {
 
 		switch ( $post->post_status ) {
@@ -1235,7 +1241,7 @@ case 'find_posts':
 				$stat = __('Pending Review');
 				break;
 			case 'draft' :
-				$stat = __('Unpublished');
+				$stat = __('Draft');
 				break;
 		}
 

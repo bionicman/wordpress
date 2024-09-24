@@ -112,9 +112,10 @@ function prepareMediaItemInit(fileObj) {
 					jQuery('#attachments-count').text(jQuery('#attachments-count').text()-0+1);
 
 				jQuery('.filename .trashnotice', item).remove();
+				jQuery('.filename .title', item).css('font-weight','normal');
 				jQuery('a.undo', item).addClass('hidden');
 				jQuery('a.describe-toggle-on, .menu_order_input', item).show();
-				item.animate( {backgroundColor: '#fff'}, { queue: false, duration: 200, complete: function(){ jQuery(this).css({backgroundColor:''}); } });
+				item.css( {backgroundColor:'#ceb'} ).animate( {backgroundColor: '#fff'}, { queue: false, duration: 500, complete: function(){ jQuery(this).css({backgroundColor:''}); } }).removeClass('undo');
 			}
 		});
 		return false;
@@ -153,13 +154,14 @@ function deleteSuccess(data, textStatus) {
 	// Vanish it.
 	jQuery('.toggle', item).toggle();
 	jQuery('.slidetoggle', item).slideUp(200).siblings().removeClass('hidden');
-	item.css( {backgroundColor:'#fff'} ).animate( {backgroundColor:'#ffc0c0'}, {queue:false, duration:500} );
+	item.css( {backgroundColor:'#faa'} ).animate( {backgroundColor:'#f4f4f4'}, {queue:false, duration:500} ).addClass('undo');
 
 	jQuery('.filename:empty', item).remove();
+	jQuery('.filename .title', item).css('font-weight','bold');
 	jQuery('.filename', item).append('<span class="trashnotice"> ' + swfuploadL10n.deleted + ' </span>').siblings('a.toggle').hide();
 	jQuery('.filename', item).append( jQuery('a.undo', item).removeClass('hidden') );
 	jQuery('.menu_order_input', item).hide();
-
+	
 	return;
 }
 
@@ -169,7 +171,7 @@ function deleteError(X, textStatus, errorThrown) {
 
 function updateMediaForm() {
 	var one = jQuery('form.type-form #media-items').children(), items = jQuery('#media-items').children();
-	storeState();
+
 	// Just one file, no need for collapsible part
 	if ( one.length == 1 ) {
 		jQuery('.slidetoggle', one).slideDown(500).siblings().addClass('hidden').filter('.toggle').toggle();
@@ -316,38 +318,22 @@ function cancelUpload() {
 }
 
 // remember the last used image size, alignment and url
-var storeState;
-(function($){
+jQuery(document).ready(function($){
+	$('input[type="radio"]', '#media-items').live('click', function(){
+		var tr = $(this).closest('tr');
 
-storeState = function(){
-	var align = getUserSetting('align') || '', imgsize = getUserSetting('imgsize') || '';
+		if ( $(tr).hasClass('align') )
+			setUserSetting('align', $(this).val());
+		else if ( $(tr).hasClass('image-size') )
+			setUserSetting('imgsize', $(this).val());
+	});
 
-	$('tr.align input[type="radio"]').click(function(){
-		setUserSetting('align', $(this).val());
-	}).filter(function(){
-		if ( $(this).val() == align )
-			return true;
-		return false;
-	}).attr('checked','checked');
-
-	$('tr.image-size input[type="radio"]').click(function(){
-		setUserSetting('imgsize', $(this).val());
-	}).filter(function(){
-		if ( $(this).attr('disabled') || $(this).val() != imgsize )
-			return false;
-		return true;
-	}).attr('checked','checked');
-
-	$('tr.url button').click(function(){
+	$('button.button', '#media-items').live('click', function(){
 		var c = this.className || '';
-		c = c.replace(/.*?(url[^ '"]+).*/, '$1');
-		if (c) setUserSetting('urlbutton', c);
-		$(this).siblings('.urlfield').val( $(this).attr('title') );
+		c = c.match(/url([^ '"]+)/);
+		if ( c && c[1] ) {
+			setUserSetting('urlbutton', c[1]);
+			$(this).siblings('.urlfield').val( $(this).attr('title') );
+		}
 	});
-
-	$('tr.url .urlfield').each(function(){
-		var b = getUserSetting('urlbutton');
-		$(this).val( $(this).siblings('button.'+b).attr('title') );
-	});
-}
-})(jQuery);
+});

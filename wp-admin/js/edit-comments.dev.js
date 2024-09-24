@@ -32,52 +32,51 @@ setCommentsList = function() {
 
 	// Send current total, page, per_page and url
 	delBefore = function( settings, list ) {
-		var cl = $(settings.target).attr('className'), id, el, n, h, a, to, author;
+		var cl = $(settings.target).attr('className'), id, el, n, h, a, author, action = false;
 
 		settings.data._total = totalInput.val() || 0;
 		settings.data._per_page = perPageInput.val() || 0;
 		settings.data._page = pageInput.val() || 0;
 		settings.data._url = document.location.href;
 
-		if ( cl.indexOf(':trash=1') != -1 ) {
+		if ( cl.indexOf(':trash=1') != -1 )
+			action = 'trash';
+		else if ( cl.indexOf(':spam=1') != -1 )
+			action = 'spam';
+
+		if ( action ) {
 			id = cl.replace(/.*?comment-([0-9]+).*/, '$1');
 			el = $('#comment-' + id);
-			note = $('#undo-holder').html();
+			note = $('#' + action + '-undo-holder').html();
 
 			if ( el.siblings('#replyrow').length && commentReply.cid == id )
 				commentReply.close();
 
 			if ( el.is('tr') ) {
 				n = el.children(':visible').length;
-				author = $('.author strong', el).html();
-				h = $('<tr id="trashundo-' + id + '" style="display:none;"><td class="trash-undo" colspan="' + n + '">' + note + '</td></tr>');
+				author = $('.author strong', el).text();
+				h = $('<tr id="undo-' + id + '" class="undo un' + action + '" style="display:none;"><td colspan="' + n + '">' + note + '</td></tr>');
 			} else {
-				author = $('.comment-author', el).html();
-				h = $('<div id="trashundo-' + id + '" style="display:none;" class="trash-undo">' + note + '</div>');
+				author = $('.comment-author', el).text();
+				h = $('<div id="undo-' + id + '" style="display:none;" class="undo un' + action + '">' + note + '</div>');
 			}
 
 			el.before(h);
 
-			$('strong', '#trashundo-' + id).html(author + ' ');
-			a = $('a.undo-trash', '#trashundo-' + id);
-			a.attr('href', 'comment.php?action=untrashcomment&c=' + id + '&_ajax_nonce=' + settings.data._ajax_nonce);
-			a.attr('className', 'delete:the-comment-list:comment-' + id + '::untrash=1 vim-z vim-destructive');
+			$('strong', '#undo-' + id).text(author + ' ');
+			a = $('.undo a', '#undo-' + id);
+			a.attr('href', 'comment.php?action=un' + action + 'comment&c=' + id + '&_wpnonce=' + settings.data._ajax_nonce);
+			a.attr('className', 'delete:the-comment-list:comment-' + id + '::un' + action + '=1 vim-z vim-destructive');
+			$('.avatar', el).clone().prependTo('#undo-' + id + ' .' + action + '-undo-inside');
 
 			a.click(function(){
 				list.wpList.del(this);
-				$('#trashundo-' + id).fadeOut(300, function(){
+				$('#undo-' + id).css( {backgroundColor:'#ceb'} ).fadeOut(350, function(){
 					$(this).remove();
 					$('#comment-' + id).css('backgroundColor', '').fadeIn(300, function(){ $(this).show() });
 				});
 				return false;
 			});
-
-			if ( to )
-				window.clearTimeout(to);
-
-			to = window.setTimeout( function(){
-				$('#trashundo-' + id).fadeOut('slow', function(){ $(this).remove(); });
-			}, 7000 );
 		}
 
 		return settings;
@@ -107,14 +106,12 @@ setCommentsList = function() {
 		total = $('span.total-count', dash);
 		appr = $('span.approved-count', dash);
 		totalN = getCount(total);
-		apprN = getCount(appr);
 
-		if ( totalN ) {
-			totalN = totalN + n;
-			apprN = totalN - getCount( $('span.pending-count', dash) );
-			updateCount(total, totalN);
-			updateCount(appr, apprN);
-		}
+		totalN = totalN + n;
+		apprN = totalN - getCount( $('span.pending-count', dash) ) - getCount( $('span.spam-count', dash) );
+		updateCount(total, totalN);
+		updateCount(appr, apprN);
+
 	}
 
 	function getCount(el) {
@@ -141,7 +138,7 @@ setCommentsList = function() {
 
 	// In admin-ajax.php, we send back the unix time stamp instead of 1 on success
 	delAfter = function( r, settings ) {
-		var total, pageLinks, N, untrash = $(settings.target).parent().is('span.untrash'), spam, trash;
+		var total, pageLinks, N, untrash = $(settings.target).parent().is('span.untrash'), unspam = $(settings.target).parent().is('span.unspam'), spam, trash;
 
 		function getUpdate(s) {
 			if ( $(settings.target).parent().is('span.' + s) )
@@ -156,11 +153,13 @@ setCommentsList = function() {
 
 		if ( untrash )
 			trash = -1;
+		if ( unspam )
+			spam = -1;
 
 		$('span.pending-count').each( function() {
 			var a = $(this), n = getCount(a), unapproved = $('#' + settings.element).is('.unapproved');
 
-			if ( $(settings.target).parent().is('span.unapprove') || ( untrash && unapproved ) ) { // we "deleted" an approved comment from the approved list by clicking "Unapprove"
+			if ( $(settings.target).parent().is('span.unapprove') || ( ( untrash || unspam ) && unapproved ) ) { // we "deleted" an approved comment from the approved list by clicking "Unapprove"
 				n = n + 1;
 			} else if ( unapproved ) { // we deleted a formerly unapproved comment
 				n = n - 1;
@@ -182,27 +181,25 @@ setCommentsList = function() {
 		});
 
 		if ( $('#dashboard_right_now').length ) {
-			N = spam || trash || 0;
-			if ( N > 0 )
-				dashboardTotals(-1);
-			else if ( N < 0 )
-				dashboardTotals(1);
+			N = trash ? -1 * trash : 0;
+			dashboardTotals(N);
 		} else {
-			// XML response
+			total = totalInput.val() ? parseInt( totalInput.val(), 10 ) : 0;
+			total = total - spam - trash;
+			if ( total < 0 )
+				total = 0;
+
 			if ( ( 'object' == typeof r ) && lastConfidentTime < settings.parsed.responses[0].supplemental.time ) {
 				pageLinks = settings.parsed.responses[0].supplemental.pageLinks || '';
 				if ( $.trim( pageLinks ) )
 					$('.tablenav-pages').find( '.page-numbers' ).remove().end().append( $( pageLinks ) );
 				else
 					$('.tablenav-pages').find( '.page-numbers' ).remove();
+
+				updateTotalCount( total, settings.parsed.responses[0].supplemental.time, true );
+			} else {
+				updateTotalCount( total, r, false );
 			}
-
-			total = totalInput.val() ? parseInt( totalInput.val(), 10 ) : 0;
-			total = total - spam - trash;
-			if ( total < 0 )
-				total = 0;
-
-			updateTotalCount( total, r, false );
 		}
 
 		if ( theExtraList.size() == 0 || theExtraList.children().size() == 0 || untrash ) {
@@ -218,8 +215,8 @@ setCommentsList = function() {
 		.bind('wpListDelEnd', function(e, s){
 			var id = s.element.replace(/[^0-9]+/g, '');
 
-			if ( s.target.className.indexOf(':trash=1') != -1 )
-				$('#trashundo-' + id).fadeIn(300, function(){ $(this).show() });
+			if ( s.target.className.indexOf(':trash=1') != -1 || s.target.className.indexOf(':spam=1') != -1 )
+				$('#undo-' + id).fadeIn(300, function(){ $(this).show() });
 		});
 };
 

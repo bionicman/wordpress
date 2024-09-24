@@ -184,7 +184,7 @@ if ( $can_publish ) : // Contributors don't get to choose the date of publish ?>
 <?php do_action('post_submitbox_start'); ?>
 <div id="delete-action">
 <?php
-if ( current_user_can("delete_${post_type}", $post->ID) ) {
+if ( ( 'edit' == $action ) && current_user_can("delete_${post_type}", $post->ID) ) {
 	if ( !EMPTY_TRASH_DAYS ) {
 		$delete_url = wp_nonce_url( add_query_arg( array('action' => 'delete', 'post' => $post->ID) ), "delete-${post_type}_{$post->ID}" );
 		$delete_text = __('Delete Permanently');
@@ -375,8 +375,8 @@ function post_comment_status_meta_box($post) {
 ?>
 <input name="advanced_view" type="hidden" value="1" />
 <p class="meta-options">
-	<label for="comment_status" class="selectit"> <input name="comment_status" type="checkbox" id="comment_status" value="open" <?php checked($post->comment_status, 'open'); ?> /> <?php _e('Allow Comments') ?></label><br />
-	<label for="ping_status" class="selectit"><input name="ping_status" type="checkbox" id="ping_status" value="open" <?php checked($post->ping_status, 'open'); ?> /> <?php _e('Allow <a href="http://codex.wordpress.org/Introduction_to_Blogging#Managing_Comments" target="_blank">trackbacks and pingbacks</a>') ?></label>
+	<label for="comment_status" class="selectit"><input name="comment_status" type="checkbox" id="comment_status" value="open" <?php checked($post->comment_status, 'open'); ?> /><?php _e('Allow Comments on this page.') ?></label><br />
+	<label for="ping_status" class="selectit"><input name="ping_status" type="checkbox" id="ping_status" value="open" <?php checked($post->ping_status, 'open'); ?> /><?php printf( __('Allow <a href="%s" target="_blank">trackbacks and pingbacks</a> on this page.'),_x('http://codex.wordpress.org/Introduction_to_Blogging#Managing_Comments','Url to codex article on Managing Comments')); ?></label>
 </p>
 <?php
 }
@@ -479,7 +479,7 @@ function page_attributes_meta_box($post){
 <h5><?php _e('Parent') ?></h5>
 <label class="screen-reader-text" for="parent_id"><?php _e('Page Parent') ?></label>
 <?php wp_dropdown_pages(array('exclude_tree' => $post->ID, 'selected' => $post->post_parent, 'name' => 'parent_id', 'show_option_none' => __('Main Page (no parent)'), 'sort_column'=> 'menu_order, post_title')); ?>
-<p><?php _e('You can arrange your pages in hierarchies, for example you could have an &#8220;About&#8221; page that has &#8220;Life Story&#8221; and &#8220;My Dog&#8221; pages under it. There are no limits to how deeply nested you can make pages.'); ?></p>
+<p><?php _e('You can arrange your pages in hierarchies. For example, you could have an &#8220;About&#8221; page that has &#8220;Life Story&#8221; and &#8220;My Dog&#8221; pages under it. There are no limits to how deeply nested you can make pages.'); ?></p>
 <?php
 	if ( 0 != count( get_page_templates() ) ) { ?>
 <h5><?php _e('Template') ?></h5>
@@ -492,7 +492,7 @@ function page_attributes_meta_box($post){
 	} ?>
 <h5><?php _e('Order') ?></h5>
 <p><label class="screen-reader-text" for="menu_order"><?php _e('Page Order') ?></label><input name="menu_order" type="text" size="4" id="menu_order" value="<?php echo esc_attr($post->menu_order) ?>" /></p>
-<p><?php _e('Pages are usually ordered alphabetically, but you can put a number above to change the order pages appear in. (We know this is a little janky, it&#8217;ll be better in future releases.)'); ?></p>
+<p><?php _e('Pages are usually ordered alphabetically, but you can put a number above to change the order pages appear in.'); ?></p>
 <?php
 }
 
@@ -801,7 +801,7 @@ function link_advanced_meta_box($link) {
 		<th valign="top"  scope="row"><label for="link_rating"><?php _e('Rating') ?></label></th>
 		<td><select name="link_rating" id="link_rating" size="1">
 		<?php
-			for ($r = 0; $r < 10; $r++) {
+			for ($r = 0; $r <= 10; $r++) {
 				echo('            <option value="'. esc_attr($r) .'" ');
 				if ( isset($link->link_rating) && $link->link_rating == $r)
 					echo 'selected="selected"';
