@@ -212,12 +212,12 @@ add_action( 'update_option_home', 'update_home_siteurl', 10, 2 );
 add_action( 'update_option_siteurl', 'update_home_siteurl', 10, 2 );
 
 /**
- * {@internal Missing Short Description}}
+ * Shorten an URL, to be used as link text
  *
- * @since unknown
+ * @since 1.2.1
  *
- * @param unknown_type $url
- * @return unknown
+ * @param string $url
+ * @return string
  */
 function url_shorten( $url ) {
 	$short_url = str_replace( 'http://', '', stripslashes( $url ));
@@ -343,12 +343,18 @@ function set_screen_options() {
 
 		switch ( $map_option ) {
 			case 'edit_per_page':
-			case 'ms_sites_per_page':
-			case 'ms_users_per_page':
+			case 'users_per_page':
 			case 'edit_comments_per_page':
 			case 'upload_per_page':
 			case 'edit_tags_per_page':
 			case 'plugins_per_page':
+			// Network admin
+			case 'sites_network_per_page':
+			case 'users_network_per_page':
+			case 'site_users_network_per_page':
+			case 'plugins_network_per_page':
+			case 'themes_network_per_page':
+			case 'site_themes_network_per_page':
 				$value = (int) $value;
 				if ( $value < 1 || $value > 999 )
 					return;
@@ -571,7 +577,7 @@ function win_is_writable($path) {
 	 * see http://bugs.php.net/bug.php?id=30931
 	 */
 
-    if ( $path{strlen($path)-1} == '/' ) // recursively return a temporary file path
+    if ( $path[strlen($path)-1] == '/' ) // recursively return a temporary file path
         return win_is_writable($path . uniqid(mt_rand()) . '.tmp');
     else if ( is_dir($path) )
         return win_is_writable($path . '/' . uniqid(mt_rand()) . '.tmp');

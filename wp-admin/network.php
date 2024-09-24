@@ -18,8 +18,14 @@ require_once( './admin.php' );
 if ( ! is_super_admin() )
 	wp_die( __( 'You do not have sufficient permissions to manage options for this site.' ) );
 
-if ( is_multisite() && ! defined( 'MULTISITE' ) )
-	wp_die( __( 'The Network creation panel is not for WordPress MU networks.' ) );
+if ( is_multisite() ) {
+	if ( ! is_network_admin() ) {
+		wp_redirect( network_admin_url( 'setup.php' ) );
+		exit;
+	}
+	if ( ! defined( 'MULTISITE' ) )
+		wp_die( __( 'The Network creation panel is not for WordPress MU networks.' ) );
+}
 
 // We need to create references to ms global tables to enable Network.
 foreach ( $wpdb->tables( 'ms_global' ) as $table => $prefixed_table )
@@ -89,8 +95,13 @@ function get_clean_basedomain() {
 if ( ! network_domain_check() && ( ! defined( 'WP_ALLOW_MULTISITE' ) || ! WP_ALLOW_MULTISITE ) )
 	wp_die( __( 'You must define the <code>WP_ALLOW_MULTISITE</code> constant as true in your wp-config.php file to allow creation of a Network.' ) );
 
-$title = __( 'Create a Network of WordPress Sites' );
-$parent_file = 'tools.php';
+if ( is_network_admin() ) {
+	$title = __( 'Network Setup' );
+	$parent_file = 'settings.php';
+} else {
+	$title = __( 'Create a Network of WordPress Sites' );
+	$parent_file = 'tools.php';
+}
 
 add_contextual_help($current_screen,
 	'<p>' . __('This screen allows you to configure a network as having subdomains (<code>site1.example.com</code>) or subdirectories (<code>example.com/site1</code>). Subdomains require wildcard subdomains to be enabled in Apache and DNS records, if your host allows it.') . '</p>' .
@@ -105,10 +116,10 @@ add_contextual_help($current_screen,
 	'<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
 );
 
-include( './admin-header.php' );
+include( ABSPATH . 'wp-admin/admin-header.php' );
 ?>
 <div class="wrap">
-<?php screen_icon(); ?>
+<?php screen_icon('tools'); ?>
 <h2><?php echo esc_html( $title ); ?></h2>
 
 <?php
@@ -125,6 +136,13 @@ function network_step1( $errors = false ) {
 
 	if ( get_option( 'siteurl' ) != get_option( 'home' ) ) {
 		echo '<div class="error"><p><strong>' . __('Error:') . '</strong> ' . sprintf( __( 'Your <strong>WordPress address</strong> must match your <strong>Site address</strong> before creating a Network. See <a href="%s">General Settings</a>.' ), esc_url( admin_url( 'options-general.php' ) ) ) . '</p></div>';
+		echo '</div>';
+		include ('./admin-footer.php' );
+		die();
+	}
+
+	if ( defined('DO_NOT_UPGRADE_GLOBAL_TABLES') ) {
+		echo '<div class="error"><p><strong>' . __('Error:') . '</strong> ' . __( 'The constant DO_NOT_UPGRADE_GLOBAL_TABLES cannot be defined when creating a network.' ) . '</p></div>';
 		echo '</div>';
 		include ('./admin-footer.php' );
 		die();
@@ -275,9 +293,9 @@ function network_step1( $errors = false ) {
 				</td>
 			</tr>
 		</table>
-		<p class='submit'><input class="button-primary" name='submit' type='submit' value='<?php esc_attr_e( 'Install' ); ?>' /></p>
+		<?php submit_button( __( 'Install' ), 'primary', 'submit' ); ?>
 	</form>
-		<?php
+	<?php
 }
 
 /**
@@ -294,13 +312,17 @@ function network_step2( $errors = false ) {
 		echo '<div class="error">' . $errors->get_error_message() . '</div>';
 
 	if ( $_POST ) {
-		$subdomain_install = allow_subdomain_install() ? ( allow_subdirectory_install() ? ! empty( $_POST['subdomain_install'] ) : true ) : false;
+		if ( allow_subdomain_install() )
+			$subdomain_install = allow_subdirectory_install() ? ! empty( $_POST['subdomain_install'] ) : true;
+		else
+			$subdomain_install = false;
 	} else {
 		if ( is_multisite() ) {
 			$subdomain_install = is_subdomain_install();
 ?>
-	<div class="updated"><p><strong><?php _e( 'Notice: The Network feature is already enabled.' ); ?></strong> <?php _e( 'The original configuration steps are shown here for reference.' ); ?></p></div>
-<?php	} else {
+	<p><?php _e( 'The original configuration steps are shown here for reference.' ); ?></p>
+<?php
+		} else {
 			$subdomain_install = (bool) $wpdb->get_var( "SELECT meta_value FROM $wpdb->sitemeta WHERE site_id = 1 AND meta_key = 'subdomain_install'" );
 ?>
 	<div class="error"><p><strong><?php _e('Warning:'); ?></strong> <?php _e( 'An existing WordPress network was detected.' ); ?></p></div>
@@ -324,7 +346,7 @@ function network_step2( $errors = false ) {
 ?>
 		<ol>
 			<li><p><?php
-				printf( __( 'Create a <code>blogs.dir</code> directory in <code>%s</code>. This directory is used to stored uploaded media for your additional sites and must be writeable by the web server.' ), WP_CONTENT_DIR );
+				printf( __( 'Create a <code>blogs.dir</code> directory at <code>%s/blogs.dir</code>. This directory is used to store uploaded media for your additional sites and must be writeable by the web server.' ), WP_CONTENT_DIR );
 				if ( WP_CONTENT_DIR != ABSPATH . 'wp-content' )
 					echo ' <strong>' . __('Warning:') . ' ' . __( 'Networks may not be fully compatible with custom wp-content directories.' ) . '</strong';
 			?></p></li>
@@ -361,7 +383,7 @@ define( 'BLOG_ID_CURRENT_SITE', 1 );</textarea>
 		echo _n( 'This unique authentication key is also missing from your <code>wp-config.php</code> file.', 'These unique authentication keys are also missing from your <code>wp-config.php</code> file.', $num_keys_salts ); ?> <?php _e( 'To make your installation more secure, you should also add:' ) ?></p>
 	<textarea class="code" readonly="readonly" cols="100" rows="<?php echo $num_keys_salts; ?>"><?php
 	foreach ( $keys_salts as $c => $v ) {
-		echo "\ndefine( '$c', '$v' );";
+		echo "\ndefine( '$c', '" . esc_textarea( $v ) . "' );";
 	}
 ?></textarea>
 <?php
@@ -430,7 +452,7 @@ define( 'BLOG_ID_CURRENT_SITE', 1 );</textarea>
                     <action type="None" />
                 </rule>
                 <rule name="WordPress Rule 5" stopProcessing="true">
-                    <match url="^([_0-9a-zA-Z-]+/)?(wp-(content|admin|includes).*)" ignoreCase="false" />
+                    <match url="^[_0-9a-zA-Z-]+/(wp-(content|admin|includes).*)" ignoreCase="false" />
                     <action type="Rewrite" url="{R:2}" />
                 </rule>
                 <rule name="WordPress Rule 6" stopProcessing="true">
@@ -449,7 +471,7 @@ define( 'BLOG_ID_CURRENT_SITE', 1 );</textarea>
 	?>
 		<li><p><?php printf( __( 'Add the following to your <code>web.config</code> file in <code>%s</code>, replacing other WordPress rules:' ), ABSPATH ); ?></p>
 		<textarea class="code" readonly="readonly" cols="100" rows="20">
-		<?php echo wp_htmledit_pre( $web_config_file ); ?>
+		<?php echo esc_textarea( $web_config_file ); ?>
 		</textarea></li>
 		</ol>
 
@@ -471,14 +493,14 @@ RewriteRule ^ - [L]';
 
 		// @todo custom content dir.
 		if ( ! $subdomain_install )
-			$htaccess_file .= "\nRewriteRule  ^([_0-9a-zA-Z-]+/)?(wp-(content|admin|includes).*) $2 [L]\nRewriteRule  ^([_0-9a-zA-Z-]+/)?(.*\.php)$ $2 [L]";
+			$htaccess_file .= "\nRewriteRule  ^[_0-9a-zA-Z-]+/(wp-(content|admin|includes).*) $1 [L]\nRewriteRule  ^[_0-9a-zA-Z-]+/(.*\.php)$ $1 [L]";
 
 		$htaccess_file .= "\nRewriteRule . index.php [L]";
 
 		?>
 		<li><p><?php printf( __( 'Add the following to your <code>.htaccess</code> file in <code>%s</code>, replacing other WordPress rules:' ), ABSPATH ); ?></p>
 		<textarea class="code" readonly="readonly" cols="100" rows="<?php echo $subdomain_install ? 11 : 16; ?>">
-<?php echo wp_htmledit_pre( $htaccess_file ); ?></textarea></li>
+<?php echo esc_textarea( $htaccess_file ); ?></textarea></li>
 		</ol>
 
 	<?php endif; // end IIS/Apache code branches.
@@ -520,4 +542,4 @@ if ( $_POST ) {
 ?>
 </div>
 
-<?php include( './admin-footer.php' ); ?>
+<?php include( ABSPATH . 'wp-admin/admin-footer.php' ); ?>

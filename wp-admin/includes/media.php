@@ -140,6 +140,11 @@ function image_add_caption( $html, $id, $caption, $title, $align, $url, $size, $
 
 	$width = $matches[1];
 
+	$caption = str_replace(	array( '>',    '<',    '"',      "'" ),
+							array( '&gt;', '&lt;', '&quot;', '&#039;' ),
+							$caption
+						  );
+
 	$html = preg_replace( '/(class=["\'][^\'"]*)align(none|left|right|center)\s?/', '$1', $html );
 	if ( empty($align) )
 		$align = 'none';
@@ -234,15 +239,15 @@ function media_handle_upload($file_id, $post_id, $post_data = array(), $override
 }
 
 /**
- * {@internal Missing Short Description}}
+ * This handles a sideloaded file in the same way as an uploaded file is handled by {@link media_handle_upload()}
  *
- * @since unknown
+ * @since 2.6
  *
- * @param unknown_type $file_array
- * @param unknown_type $post_id
- * @param unknown_type $desc
- * @param unknown_type $post_data
- * @return unknown
+ * @param array $file_array Array similar to a {@link $_FILES} upload array
+ * @param int $post_id The post ID the media is associated with
+ * @param string $desc Description of the sideloaded file
+ * @param array $post_data allows you to overwrite some of the attachment
+ * @return int|object The ID of the attachment or a WP_Error on failure
  */
 function media_handle_sideload($file_array, $post_id, $desc = null, $post_data = array()) {
 	$overrides = array('test_form'=>false);
@@ -278,10 +283,9 @@ function media_handle_sideload($file_array, $post_id, $desc = null, $post_data =
 
 	// Save the attachment metadata
 	$id = wp_insert_attachment($attachment, $file, $post_id);
-	if ( !is_wp_error($id) ) {
+	if ( !is_wp_error($id) )
 		wp_update_attachment_metadata( $id, wp_generate_attachment_metadata( $id, $file ) );
-		return $url;
-	}
+
 	return $id;
 }
 
@@ -493,7 +497,6 @@ function media_upload_image() {
 	$id = 0;
 
 	if ( isset($_POST['html-upload']) && !empty($_FILES) ) {
-		check_admin_referer('media-form');
 		// Upload File button was clicked
 		$id = media_handle_upload('async-upload', $_REQUEST['post_id']);
 		unset($_FILES);
@@ -563,14 +566,14 @@ function media_sideload_image($file, $post_id, $desc = null) {
 		$file_array['tmp_name'] = $tmp;
 
 		// If error storing temporarily, unlink
-		if ( is_wp_error($tmp) ) {
+		if ( is_wp_error( $tmp ) ) {
 			@unlink($file_array['tmp_name']);
 			$file_array['tmp_name'] = '';
 		}
 
 		// do the validation and storage stuff
-		$id = media_handle_sideload($file_array, $post_id, @$desc);
-		$src = $id;
+		$id = media_handle_sideload( $file_array, $post_id, @$desc );
+		$src = get_attachment_link( $id );
 
 		// If error storing permanently, unlink
 		if ( is_wp_error($id) ) {
@@ -599,7 +602,6 @@ function media_upload_audio() {
 	$id = 0;
 
 	if ( isset($_POST['html-upload']) && !empty($_FILES) ) {
-		check_admin_referer('media-form');
 		// Upload File button was clicked
 		$id = media_handle_upload('async-upload', $_REQUEST['post_id']);
 		unset($_FILES);
@@ -658,7 +660,6 @@ function media_upload_video() {
 	$id = 0;
 
 	if ( isset($_POST['html-upload']) && !empty($_FILES) ) {
-		check_admin_referer('media-form');
 		// Upload File button was clicked
 		$id = media_handle_upload('async-upload', $_REQUEST['post_id']);
 		unset($_FILES);
@@ -717,7 +718,6 @@ function media_upload_file() {
 	$id = 0;
 
 	if ( isset($_POST['html-upload']) && !empty($_FILES) ) {
-		check_admin_referer('media-form');
 		// Upload File button was clicked
 		$id = media_handle_upload('async-upload', $_REQUEST['post_id']);
 		unset($_FILES);
@@ -839,7 +839,7 @@ function image_align_input_fields( $post, $checked = '' ) {
  * @since unknown
  *
  * @param unknown_type $post
- * @param unknown_type $checked
+ * @param unknown_type $check
  * @return unknown
  */
 function image_size_input_fields( $post, $check = '' ) {
@@ -1083,6 +1083,8 @@ function get_attachment_fields_to_edit($post, $errors = null) {
 
 	foreach ( get_attachment_taxonomies($post) as $taxonomy ) {
 		$t = (array) get_taxonomy($taxonomy);
+		if ( ! $t['public'] )
+			continue;
 		if ( empty($t['label']) )
 			$t['label'] = $taxonomy;
 		if ( empty($t['args']) )
@@ -1167,8 +1169,9 @@ function get_media_item( $attachment_id, $args = null ) {
 
 	$post = get_post( $attachment_id );
 
-	$default_args = array( 'errors' => null, 'send' => post_type_supports(get_post_type($post->post_parent), 'editor'), 'delete' => true, 'toggle' => true, 'show_title' => true );
+	$default_args = array( 'errors' => null, 'send' => $post->post_parent ? post_type_supports( get_post_type( $post->post_parent ), 'editor' ) : true, 'delete' => true, 'toggle' => true, 'show_title' => true );
 	$args = wp_parse_args( $args, $default_args );
+	$args = apply_filters( 'get_media_item_args', $args );
 	extract( $args, EXTR_SKIP );
 
 	$toggle_on  = __( 'Show' );
@@ -1269,7 +1272,7 @@ function get_media_item( $attachment_id, $args = null ) {
 	);
 
 	if ( $send )
-		$send = "<input type='submit' class='button' name='send[$attachment_id]' value='" . esc_attr__( 'Insert into Post' ) . "' />";
+		$send = get_submit_button( __( 'Insert into Post' ), 'button', "send[$attachment_id]", false );
 	if ( $delete && current_user_can( 'delete_post', $attachment_id ) ) {
 		if ( !EMPTY_TRASH_DAYS ) {
 			$delete = "<a href='" . wp_nonce_url( "post.php?action=delete&amp;post=$attachment_id", 'delete-attachment_' . $attachment_id ) . "' id='del[$attachment_id]' class='delete'>" . __( 'Delete Permanently' ) . '</a>';
@@ -1304,7 +1307,7 @@ function get_media_item( $attachment_id, $args = null ) {
 	$hidden_fields = array();
 
 	foreach ( $form_fields as $id => $field ) {
-		if ( $id{0} == '_' )
+		if ( $id[0] == '_' )
 			continue;
 
 		if ( !empty( $field['tr'] ) ) {
@@ -1329,7 +1332,7 @@ function get_media_item( $attachment_id, $args = null ) {
 		if ( !empty( $field[ $field['input'] ] ) )
 			$item .= $field[ $field['input'] ];
 		elseif ( $field['input'] == 'textarea' ) {
-			$item .= "<textarea type='text' id='$name' name='$name' $aria_required>" . esc_html( $field['value'] ) . '</textarea>';
+			$item .= "<textarea type='text' id='$name' name='$name' $aria_required>" . esc_textarea( $field['value'] ) . '</textarea>';
 		} else {
 			$item .= "<input type='text' class='text' id='$name' name='$name' value='" . esc_attr( $field['value'] ) . "' $aria_required />";
 		}
@@ -1444,14 +1447,33 @@ if ( is_multisite() && !is_upload_space_available() ) {
 
 do_action('pre-upload-ui');
 
-if ( $flash ) : ?>
+if ( $flash ) : 
+
+// Set the post params, which SWFUpload will post back with the file, and pass 
+// them through a filter.
+$post_params = array(
+		"post_id" => $post_id,
+		"auth_cookie" => (is_ssl() ? $_COOKIE[SECURE_AUTH_COOKIE] : $_COOKIE[AUTH_COOKIE]),
+		"logged_in_cookie" => $_COOKIE[LOGGED_IN_COOKIE],
+		"_wpnonce" => wp_create_nonce('media-form'),
+		"type" => $type,
+		"tab" => $tab,
+		"short" => "1",
+);
+$post_params = apply_filters( 'swfupload_post_params', $post_params );
+$p = array();
+foreach ( $post_params as $param => & $val )
+	$p[] = "\t\t'$param' : '$val'";
+$post_params_str = implode( ", \n", $p );
+
+?>
 <script type="text/javascript">
 //<![CDATA[
 var swfu;
 SWFUpload.onload = function() {
 	var settings = {
 			button_text: '<span class="button"><?php _e('Select Files'); ?><\/span>',
-			button_text_style: '.button { text-align: center; font-weight: bold; font-family:"Lucida Grande",Verdana,Arial,"Bitstream Vera Sans",sans-serif; font-size: 11px; text-shadow: 0 1px 0 #FFFFFF; color:#464646; }',
+			button_text_style: '.button { text-align: center; font-weight: bold; font-family:Verdana,Arial,"Bitstream Vera Sans",sans-serif; font-size: 11px; text-shadow: 0 1px 0 #FFFFFF; color:#464646; }',
 			button_height: "23",
 			button_width: "132",
 			button_text_top_padding: 3,
@@ -1462,13 +1484,7 @@ SWFUpload.onload = function() {
 			file_post_name: "async-upload",
 			file_types: "<?php echo apply_filters('upload_file_glob', '*.*'); ?>",
 			post_params : {
-				"post_id" : "<?php echo $post_id; ?>",
-				"auth_cookie" : "<?php echo (is_ssl() ? $_COOKIE[SECURE_AUTH_COOKIE] : $_COOKIE[AUTH_COOKIE]); ?>",
-				"logged_in_cookie": "<?php echo $_COOKIE[LOGGED_IN_COOKIE]; ?>",
-				"_wpnonce" : "<?php echo wp_create_nonce('media-form'); ?>",
-				"type" : "<?php echo $type; ?>",
-				"tab" : "<?php echo $tab; ?>",
-				"short" : "1"
+				<?php echo $post_params_str; ?>
 			},
 			file_size_limit : "<?php echo $max_upload_size; ?>b",
 			file_dialog_start_handler : fileDialogStart,
@@ -1476,7 +1492,7 @@ SWFUpload.onload = function() {
 			upload_start_handler : uploadStart,
 			upload_progress_handler : uploadProgress,
 			upload_error_handler : uploadError,
-			upload_success_handler : uploadSuccess,
+			upload_success_handler : <?php echo apply_filters( 'swfupload_success_handler', 'uploadSuccess' ); ?>,
 			upload_complete_handler : uploadComplete,
 			file_queue_error_handler : fileQueueError,
 			file_dialog_complete_handler : fileDialogComplete,
@@ -1510,8 +1526,10 @@ SWFUpload.onload = function() {
 <div id="html-upload-ui">
 <?php do_action('pre-html-upload-ui'); ?>
 	<p id="async-upload-wrap">
-	<label class="screen-reader-text" for="async-upload"><?php _e('Upload'); ?></label>
-	<input type="file" name="async-upload" id="async-upload" /> <input type="submit" class="button" name="html-upload" value="<?php esc_attr_e('Upload'); ?>" /> <a href="#" onclick="try{top.tb_remove();}catch(e){}; return false;"><?php _e('Cancel'); ?></a>
+		<label class="screen-reader-text" for="async-upload"><?php _e('Upload'); ?></label>
+		<input type="file" name="async-upload" id="async-upload" />
+		<?php submit_button( __( 'Upload' ), 'button', 'html-upload', false ); ?>
+		<a href="#" onclick="try{top.tb_remove();}catch(e){}; return false;"><?php _e('Cancel'); ?></a>
 	</p>
 	<div class="clear"></div>
 	<p class="media-upload-size"><?php printf( __( 'Maximum upload file size: %d%s' ), $upload_size_unit, $sizes[$u] ); ?></p>
@@ -1543,7 +1561,7 @@ function media_upload_type_form($type = 'file', $errors = null, $id = null) {
 ?>
 
 <form enctype="multipart/form-data" method="post" action="<?php echo esc_attr($form_action_url); ?>" class="media-upload-form type-form validate" id="<?php echo $type; ?>-form">
-<input type="submit" class="hidden" name="save" value="" />
+<?php submit_button( '', 'hidden', 'save', false ); ?>
 <input type="hidden" name="post_id" id="post_id" value="<?php echo (int) $post_id; ?>" />
 <?php wp_nonce_field('media-form'); ?>
 
@@ -1576,7 +1594,7 @@ if ( $id ) {
 ?>
 </div>
 <p class="savebutton ml-submit">
-<input type="submit" class="button" name="save" value="<?php esc_attr_e( 'Save all changes' ); ?>" />
+<?php submit_button( __( 'Save all changes' ), 'button', 'save', false ); ?>
 </p>
 </form>
 <?php
@@ -1756,7 +1774,7 @@ jQuery(function($){
 </div>
 
 <p class="ml-submit">
-<input type="submit" class="button savebutton" style="display:none;" name="save" id="save-all" value="<?php esc_attr_e( 'Save all changes' ); ?>" />
+<?php submit_button( __( 'Save all changes' ), 'button savebutton', 'save', false, array( 'id' => 'save-all', 'style' => 'display: none;' ) ); ?>
 <input type="hidden" name="post_id" id="post_id" value="<?php echo (int) $post_id; ?>" />
 <input type="hidden" name="type" value="<?php echo esc_attr( $GLOBALS['type'] ); ?>" />
 <input type="hidden" name="tab" value="<?php echo esc_attr( $GLOBALS['tab'] ); ?>" />
@@ -1819,6 +1837,7 @@ jQuery(function($){
 	</th>
 	<td class="field">
 		<select id="columns" name="columns">
+			<option value="1">1</option>
 			<option value="2">2</option>
 			<option value="3" selected="selected">3</option>
 			<option value="4">4</option>
@@ -1879,7 +1898,7 @@ function media_upload_library_form($errors) {
 <p id="media-search" class="search-box">
 	<label class="screen-reader-text" for="media-search-input"><?php _e('Search Media');?>:</label>
 	<input type="text" id="media-search-input" name="s" value="<?php the_search_query(); ?>" />
-	<input type="submit" value="<?php esc_attr_e( 'Search Media' ); ?>" class="button" />
+	<?php submit_button( __( 'Search Media' ), 'button', '', false ); ?>
 </p>
 
 <ul class="subsubsub">
@@ -1912,9 +1931,9 @@ foreach ( $post_mime_types as $mime_type => $label ) {
 	if ( isset($_GET['post_mime_type']) && wp_match_mime_types($mime_type, $_GET['post_mime_type']) )
 		$class = ' class="current"';
 
-	$type_links[] = "<li><a href='" . esc_url(add_query_arg(array('post_mime_type'=>$mime_type, 'paged'=>false))) . "'$class>" . sprintf(_n($label[2][0], $label[2][1], $num_posts[$mime_type]), "<span id='$mime_type-counter'>" . number_format_i18n( $num_posts[$mime_type] ) . '</span>') . '</a>';
+	$type_links[] = "<li><a href='" . esc_url(add_query_arg(array('post_mime_type'=>$mime_type, 'paged'=>false))) . "'$class>" . sprintf( translate_nooped_plural( $label[2], $num_posts[$mime_type] ), "<span id='$mime_type-counter'>" . number_format_i18n( $num_posts[$mime_type] ) . '</span>') . '</a>';
 }
-echo implode(' | </li>', $type_links) . '</li>';
+echo implode(' | </li>', apply_filters( 'media_upload_mime_type_links', $type_links ) ) . '</li>';
 unset($type_links);
 ?>
 </ul>
@@ -1966,7 +1985,7 @@ foreach ($arc_result as $arc_row) {
 </select>
 <?php } ?>
 
-<input type="submit" id="post-query-submit" value="<?php echo esc_attr( __( 'Filter &#187;' ) ); ?>" class="button-secondary" />
+<?php submit_button( __( 'Filter &#187;' ), 'secondary', 'post-query-submit', false ); ?>
 
 </div>
 
@@ -1996,7 +2015,7 @@ jQuery(function($){
 <?php echo get_media_items(null, $errors); ?>
 </div>
 <p class="ml-submit">
-<input type="submit" class="button savebutton" name="save" value="<?php esc_attr_e( 'Save all changes' ); ?>" />
+<?php submit_button( __( 'Save all changes' ), 'button savebutton', 'save', false ); ?>
 <input type="hidden" name="post_id" id="post_id" value="<?php echo (int) $post_id; ?>" />
 </p>
 </form>
@@ -2194,7 +2213,7 @@ function _insert_into_post_button($type) {
 		<tr>
 			<td></td>
 			<td>
-				<input type="submit" class="button" name="insertonlybutton" value="' . esc_attr__('Insert into Post') . '" />
+				' . get_submit_button( __( 'Insert into Post' ), 'button', 'insertonlybutton', false ) . '
 			</td>
 		</tr>
 	';

@@ -35,48 +35,19 @@ add_contextual_help($current_screen,
  * @subpackage Permalink_Settings_Panel
  */
 function add_js() {
-?>
+	?>
 <script type="text/javascript">
 //<![CDATA[
-function GetElementsWithClassName(elementName, className) {
-var allElements = document.getElementsByTagName(elementName);
-var elemColl = new Array();
-for (i = 0; i < allElements.length; i++) {
-if (allElements[i].className == className) {
-elemColl[elemColl.length] = allElements[i];
-}
-}
-return elemColl;
-}
-
-function upit() {
-var inputColl = GetElementsWithClassName('input', 'tog');
-var structure = document.getElementById('permalink_structure');
-var inputs = '';
-for (i = 0; i < inputColl.length; i++) {
-if ( inputColl[i].checked && inputColl[i].value != '') {
-inputs += inputColl[i].value + ' ';
-}
-}
-inputs = inputs.substr(0,inputs.length - 1);
-if ( 'custom' != inputs )
-structure.value = inputs;
-}
-
-function blurry() {
-if (!document.getElementById) return;
-
-var structure = document.getElementById('permalink_structure');
-structure.onfocus = function () { document.getElementById('custom_selection').checked = 'checked'; }
-
-var aInputs = document.getElementsByTagName('input');
-
-for (var i = 0; i < aInputs.length; i++) {
-aInputs[i].onclick = aInputs[i].onkeyup = upit;
-}
-}
-
-window.onload = blurry;
+jQuery(document).ready(function() {
+	jQuery('input:radio.tog').change(function() {
+		if ( 'custom' == this.value )
+			return;
+		jQuery('#permalink_structure').val( this.value );
+	});
+	jQuery('#permalink_structure').focus(function() {
+		jQuery("#custom_selection").attr('checked', 'checked');
+	});
+});
 //]]>
 </script>
 <?php
@@ -250,9 +221,7 @@ $structures = array(
 
 <?php do_settings_sections('permalink'); ?>
 
-<p class="submit">
-	<input type="submit" name="submit" class="button-primary" value="<?php esc_attr_e('Save Changes') ?>" />
-</p>
+<?php submit_button(); ?>
   </form>
 <?php if ( !is_multisite() ) { ?>
 <?php if ( $iis7_permalinks ) :
@@ -261,14 +230,14 @@ $structures = array(
 <p><?php _e('If your <code>web.config</code> file were <a href="http://codex.wordpress.org/Changing_File_Permissions">writable</a>, we could do this automatically, but it isn&#8217;t so this is the url rewrite rule you should have in your <code>web.config</code> file. Click in the field and press <kbd>CTRL + a</kbd> to select all. Then insert this rule inside of the <code>/&lt;configuration&gt;/&lt;system.webServer&gt;/&lt;rewrite&gt;/&lt;rules&gt;</code> element in <code>web.config</code> file.') ?></p>
 <form action="options-permalink.php" method="post">
 <?php wp_nonce_field('update-permalink') ?>
-	<p><textarea rows="9" class="large-text readonly" name="rules" id="rules" readonly="readonly"><?php echo esc_html($wp_rewrite->iis7_url_rewrite_rules()); ?></textarea></p>
+	<p><textarea rows="9" class="large-text readonly" name="rules" id="rules" readonly="readonly"><?php echo esc_textarea( $wp_rewrite->iis7_url_rewrite_rules() ); ?></textarea></p>
 </form>
 <p><?php _e('If you temporarily make your <code>web.config</code> file writable for us to generate rewrite rules automatically, do not forget to revert the permissions after rule has been saved.')  ?></p>
 		<?php else : ?>
 <p><?php _e('If the root directory of your site were <a href="http://codex.wordpress.org/Changing_File_Permissions">writable</a>, we could do this automatically, but it isn&#8217;t so this is the url rewrite rule you should have in your <code>web.config</code> file. Create a new file, called <code>web.config</code> in the root directory of your site. Click in the field and press <kbd>CTRL + a</kbd> to select all. Then insert this code into the <code>web.config</code> file.') ?></p>
 <form action="options-permalink.php" method="post">
 <?php wp_nonce_field('update-permalink') ?>
-	<p><textarea rows="18" class="large-text readonly" name="rules" id="rules" readonly="readonly"><?php echo esc_html($wp_rewrite->iis7_url_rewrite_rules(true)); ?></textarea></p>
+	<p><textarea rows="18" class="large-text readonly" name="rules" id="rules" readonly="readonly"><?php echo esc_textarea( $wp_rewrite->iis7_url_rewrite_rules(true) ); ?></textarea></p>
 </form>
 <p><?php _e('If you temporarily make your site&#8217;s root directory writable for us to generate the <code>web.config</code> file automatically, do not forget to revert the permissions after the file has been created.')  ?></p>
 		<?php endif; ?>
@@ -278,7 +247,7 @@ $structures = array(
 <p><?php _e('If your <code>.htaccess</code> file were <a href="http://codex.wordpress.org/Changing_File_Permissions">writable</a>, we could do this automatically, but it isn&#8217;t so these are the mod_rewrite rules you should have in your <code>.htaccess</code> file. Click in the field and press <kbd>CTRL + a</kbd> to select all.') ?></p>
 <form action="options-permalink.php" method="post">
 <?php wp_nonce_field('update-permalink') ?>
-	<p><textarea rows="6" class="large-text readonly" name="rules" id="rules" readonly="readonly"><?php echo esc_html($wp_rewrite->mod_rewrite_rules()); ?></textarea></p>
+	<p><textarea rows="6" class="large-text readonly" name="rules" id="rules" readonly="readonly"><?php echo esc_textarea( $wp_rewrite->mod_rewrite_rules() ); ?></textarea></p>
 </form>
 	<?php endif; ?>
 <?php endif; ?>

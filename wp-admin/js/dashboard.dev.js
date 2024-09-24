@@ -16,7 +16,7 @@ jQuery(document).ready( function($) {
 			if ( e.length ) {
 				p = e.parent();
 				setTimeout( function(){
-					p.load('index-extra.php?jax=' + id, '', function() {
+					p.load( ajaxurl.replace( '/admin-ajax.php', '' ) + '/index-extra.php?jax=' + id, '', function() {
 						p.hide().slideDown('normal', function(){
 							$(this).css('display', '');
 							if ( 'dashboard_plugins' == id && $.isFunction(tb_init) )
@@ -42,7 +42,7 @@ jQuery(document).ready( function($) {
 	};
 	ajaxPopulateWidgets();
 
-	postboxes.add_postbox_toggles('dashboard', { pbshow: ajaxPopulateWidgets } );
+	postboxes.add_postbox_toggles(pagenow, { pbshow: ajaxPopulateWidgets } );
 
 	/* QuickPress */
 	quickPressLoad = function() {

@@ -6,7 +6,6 @@ require( dirname(__FILE__) . '/wp-load.php' );
 add_action( 'wp_head', 'signuppageheaders' ) ;
 
 require( './wp-blog-header.php' );
-require_once( ABSPATH . WPINC . '/registration.php' );
 
 if ( is_array( get_site_option( 'illegal_names' )) && isset( $_GET[ 'new' ] ) && in_array( $_GET[ 'new' ], get_site_option( 'illegal_names' ) ) == true ) {
 	wp_redirect( network_home_url() );
@@ -23,7 +22,7 @@ function signuppageheaders() {
 }
 
 if ( !is_multisite() ) {
-	wp_redirect( get_option( 'siteurl' ) . "/wp-login.php?action=register" );
+	wp_redirect( site_url('wp-login.php?action=register') );
 	die();
 }
 

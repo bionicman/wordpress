@@ -80,25 +80,6 @@ function wp_create_categories($categories, $post_id = '') {
 }
 
 /**
- * Deletes one existing category.
- *
- * @since 2.0.0
- *
- * @param int $cat_ID
- * @return mixed Returns true if completes delete action; false if term doesnt exist; Zero on attempted deletion of default Category; WP_Error object is also a possibility.
- */
-function wp_delete_category($cat_ID) {
-	$cat_ID = (int) $cat_ID;
-	$default = get_option('default_category');
-
-	// Don't delete the default cat
-	if ( $cat_ID == $default )
-		return 0;
-
-	return wp_delete_term($cat_ID, 'category', array('default' => $default));
-}
-
-/**
  * Updates an existing Category or creates a new Category.
  *
  * @since 2.0.0
@@ -194,6 +175,30 @@ function wp_update_category($catarr) {
  *
  * @since unknown
  *
+ * @param unknown_type $tag_name
+ * @return unknown
+ */
+function tag_exists($tag_name) {
+	return term_exists($tag_name, 'post_tag');
+}
+
+/**
+ * {@internal Missing Short Description}}
+ *
+ * @since unknown
+ *
+ * @param unknown_type $tag_name
+ * @return unknown
+ */
+function wp_create_tag($tag_name) {
+	return wp_create_term( $tag_name, 'post_tag');
+}
+
+/**
+ * {@internal Missing Short Description}}
+ *
+ * @since unknown
+ *
  * @param unknown_type $post_id
  * @return unknown
  */
@@ -229,30 +234,6 @@ function get_terms_to_edit( $post_id, $taxonomy = 'post_tag' ) {
 	$tags_to_edit = apply_filters( 'terms_to_edit', $tags_to_edit, $taxonomy );
 
 	return $tags_to_edit;
-}
-
-/**
- * {@internal Missing Short Description}}
- *
- * @since unknown
- *
- * @param unknown_type $tag_name
- * @return unknown
- */
-function tag_exists($tag_name) {
-	return term_exists($tag_name, 'post_tag');
-}
-
-/**
- * {@internal Missing Short Description}}
- *
- * @since unknown
- *
- * @param unknown_type $tag_name
- * @return unknown
- */
-function wp_create_tag($tag_name) {
-	return wp_create_term( $tag_name, 'post_tag');
 }
 
 /**

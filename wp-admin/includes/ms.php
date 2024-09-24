@@ -177,72 +177,6 @@ function wpmu_delete_user( $id ) {
 	return true;
 }
 
-function confirm_delete_users( $users ) {
-	$current_user = wp_get_current_user();
-	if ( !is_array( $users ) )
-		return false;
-
-	screen_icon();
-	?>
-	<h2><?php esc_html_e( 'Users' ); ?></h2>
-	<p><?php _e( 'Transfer or delete posts and links before deleting users.' ); ?></p>
-	<form action="ms-edit.php?action=dodelete" method="post">
-	<input type="hidden" name="dodelete" />
-	<?php
-	wp_nonce_field( 'ms-users-delete' );
-	$site_admins = get_super_admins();
-	$admin_out = "<option value='$current_user->ID'>$current_user->user_login</option>";
-
-	foreach ( ( $allusers = (array) $_POST['allusers'] ) as $key => $val ) {
-		if ( $val != '' && $val != '0' ) {
-			$delete_user = new WP_User( $val );
-
-			if ( in_array( $delete_user->user_login, $site_admins ) )
-				wp_die( sprintf( __( 'Warning! User cannot be deleted. The user %s is a network admnistrator.' ), $delete_user->user_login ) );
-
-			echo "<input type='hidden' name='user[]' value='{$val}'/>\n";
-			$blogs = get_blogs_of_user( $val, true );
-
-			if ( !empty( $blogs ) ) {
-				?>
-				<br /><fieldset><p><legend><?php printf( __( "What should be done with posts and links owned by <em>%s</em>?" ), $delete_user->user_login ); ?></legend></p>
-				<?php
-				foreach ( (array) $blogs as $key => $details ) {
-					$blog_users = get_users_of_blog( $details->userblog_id );
-					if ( is_array( $blog_users ) && !empty( $blog_users ) ) {
-						$user_site = "<a href='" . esc_url( get_home_url( $details->userblog_id ) ) . "'>{$details->blogname}</a>";
-						$user_dropdown = "<select name='blog[$val][{$key}]'>";
-						$user_list = '';
-						foreach ( $blog_users as $user ) {
-							if ( $user->user_id != $val && !in_array( $user->user_id, $allusers ) )
-								$user_list .= "<option value='{$user->user_id}'>{$user->user_login}</option>";
-						}
-						if ( '' == $user_list )
-							$user_list = $admin_out;
-						$user_dropdown .= $user_list;
-						$user_dropdown .= "</select>\n";
-						?>
-						<ul style="list-style:none;">
-							<li><?php printf( __( 'Site: %s' ), $user_site ); ?></li>
-							<li><label><input type="radio" id="delete_option0" name="delete[<?php echo $details->userblog_id . '][' . $delete_user->ID ?>]" value="delete" checked="checked" />
-							<?php _e( 'Delete all posts and links.' ); ?></label></li>
-							<li><label><input type="radio" id="delete_option1" name="delete[<?php echo $details->userblog_id . '][' . $delete_user->ID ?>]" value="reassign" />
-							<?php echo __( 'Attribute all posts and links to:' ) . '</label>' . $user_dropdown; ?></li>
-						</ul>
-						<?php
-					}
-				}
-				echo "</fieldset>";
-			}
-		}
-	}
-	?>
-	<p class="submit"><input type="submit" class="button-secondary delete" value="<?php esc_attr_e( 'Confirm Deletion' ); ?>" /></p>
-	</form>
-    <?php
-	return true;
-}
-
 function wpmu_get_blog_allowedthemes( $blog_id = 0 ) {
 	$themes = get_themes();
 
@@ -483,46 +417,6 @@ function display_space_usage() {
 	<?php
 }
 
-// Display File upload quota on dashboard
-function dashboard_quota() {
-	if ( get_site_option( 'upload_space_check_disabled' ) )
-		return true;
-
-	$quota = get_space_allowed();
-	$used = get_dirsize( BLOGUPLOADDIR ) / 1024 / 1024;
-
-	if ( $used > $quota )
-		$percentused = '100';
-	else
-		$percentused = ( $used / $quota ) * 100;
-	$used_color = ( $percentused < 70 ) ? ( ( $percentused >= 40 ) ? 'waiting' : 'approved' ) : 'spam';
-	$used = round( $used, 2 );
-	$percentused = number_format( $percentused );
-
-	?>
-	<p class="sub musub"><?php _e( 'Storage Space' ); ?></p>
-	<div class="table table_content musubtable">
-	<table>
-		<tr class="first">
-			<td class="first b b-posts"><?php printf( __( '<a href="%1$s" title="Manage Uploads" class="musublink">%2$sMB</a>' ), esc_url( admin_url( 'upload.php' ) ), $quota ); ?></td>
-			<td class="t posts"><?php _e( 'Space Allowed' ); ?></td>
-		</tr>
-	</table>
-	</div>
-	<div class="table table_discussion musubtable">
-	<table>
-		<tr class="first">
-			<td class="b b-comments"><?php printf( __( '<a href="%1$s" title="Manage Uploads" class="musublink">%2$sMB (%3$s%%)</a>' ), esc_url( admin_url( 'upload.php' ) ), $used, $percentused ); ?></td>
-			<td class="last t comments <?php echo $used_color;?>"><?php _e( 'Space Used' );?></td>
-		</tr>
-	</table>
-	</div>
-	<br class="clear" />
-	<?php
-}
-if ( current_user_can( 'edit_posts' ) )
-	add_action( 'activity_box_end', 'dashboard_quota' );
-
 // Edit blog upload space setting on Edit Blog page
 function upload_space_setting( $id ) {
 	$quota = get_blog_option( $id, 'blog_upload_space' );
@@ -608,29 +502,14 @@ function redirect_user_to_blog() {
 	$c ++;
 
 	$blog = get_active_blog_for_user( get_current_user_id() );
-	$dashboard_blog = get_dashboard_blog();
+
 	if ( is_object( $blog ) ) {
 		wp_redirect( get_admin_url( $blog->blog_id, '?c=' . $c ) ); // redirect and count to 5, "just in case"
 		exit;
+	} else {
+		wp_redirect( user_admin_url( '?c=' . $c ) ); // redirect and count to 5, "just in case"
 	}
 
-	/*
-	   If the user is a member of only 1 blog and the user's primary_blog isn't set to that blog,
-	   then update the primary_blog record to match the user's blog
-	 */
-	$blogs = get_blogs_of_user( get_current_user_id() );
-
-	if ( !empty( $blogs ) ) {
-		foreach( $blogs as $blogid => $blog ) {
-			if ( $blogid != $dashboard_blog->blog_id && get_user_meta( get_current_user_id() , 'primary_blog', true ) == $dashboard_blog->blog_id ) {
-				update_user_meta( get_current_user_id(), 'primary_blog', $blogid );
-				continue;
-			}
-		}
-		$blog = get_blog_details( get_user_meta( get_current_user_id(), 'primary_blog', true ) );
-			wp_redirect( get_admin_url( $blog->blog_id, '?c=' . $c ) );
-		exit;
-	}
 	wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
 }
 add_action( 'admin_page_access_denied', 'redirect_user_to_blog', 99 );
@@ -695,43 +574,12 @@ function secret_salt_warning() {
 }
 add_action( 'admin_notices', 'secret_salt_warning' );
 
-function admin_notice_feed() {
-	global $current_screen;
-	if ( $current_screen->id != 'dashboard' )
-		return;
-
-	if ( !empty( $_GET['feed_dismiss'] ) ) {
-		update_user_option( get_current_user_id(), 'admin_feed_dismiss', $_GET['feed_dismiss'], true );
-		return;
-	}
-
-	$url = get_site_option( 'admin_notice_feed' );
-	if ( empty( $url ) )
-		return;
-
-	$rss = fetch_feed( $url );
-	if ( ! is_wp_error( $rss ) && $item = $rss->get_item() ) {
-		$title = $item->get_title();
-		if ( md5( $title ) == get_user_option( 'admin_feed_dismiss' ) )
-			return;
-		$msg = "<h3>" . esc_html( $title ) . "</h3>\n";
-		$content = $item->get_description();
-		$content = $content ? wp_html_excerpt( $content, 200 ) . ' &hellip; ' : '';
-		$link = esc_url( strip_tags( $item->get_link() ) );
-		$msg .= "<p>" . $content . "<a href='$link'>" . __( 'Read More' ) . "</a> <a href='index.php?feed_dismiss=" . md5( $title ) . "'>" . __( 'Dismiss' ) . "</a></p>";
-		echo "<div class='updated'>$msg</div>";
-	} elseif ( is_super_admin() ) {
-		printf( '<div class="update-nag">' . __( 'Your feed at %s is empty.' ) . '</div>', esc_html( $url ) );
-	}
-}
-add_action( 'admin_notices', 'admin_notice_feed' );
-
 function site_admin_notice() {
 	global $wp_db_version;
 	if ( !is_super_admin() )
 		return false;
 	if ( get_site_option( 'wpmu_upgrade_site' ) != $wp_db_version )
-		echo "<div class='update-nag'>" . sprintf( __( 'Thank you for Updating! Please visit the <a href="%s">Update Network</a> page to update all your sites.' ), esc_url( admin_url( 'ms-upgrade-network.php' ) ) ) . "</div>";
+		echo "<div class='update-nag'>" . sprintf( __( 'Thank you for Updating! Please visit the <a href="%s">Update Network</a> page to update all your sites.' ), esc_url( network_admin_url( 'upgrade.php' ) ) ) . "</div>";
 }
 add_action( 'admin_notices', 'site_admin_notice' );
 
@@ -805,16 +653,6 @@ function choose_primary_blog() {
 	<?php
 }
 
-function show_post_thumbnail_warning() {
-	if ( ! is_super_admin() )
-		return;
-	$mu_media_buttons = get_site_option( 'mu_media_buttons', array() );
-	if ( empty($mu_media_buttons['image']) && current_theme_supports( 'post-thumbnails' ) ) {
-		echo "<div class='update-nag'>" . sprintf( __( "Warning! The current theme supports Featured Images. You must enable image uploads on <a href='%s'>the options page</a> for it to work." ), esc_url( admin_url( 'ms-options.php' ) ) ) . "</div>";
-	}
-}
-add_action( 'admin_notices', 'show_post_thumbnail_warning' );
-
 function ms_deprecated_blogs_file() {
 	if ( ! is_super_admin() )
 		return;
@@ -825,21 +663,10 @@ function ms_deprecated_blogs_file() {
 add_action( 'admin_notices', 'ms_deprecated_blogs_file' );
 
 /**
- * Outputs the notice message for multisite regarding activation of plugin page.
- *
- * @since 3.0.0
- * @return none
- */
-function _admin_notice_multisite_activate_plugins_page() {
-	$message = sprintf( __( 'The plugins page is not visible to normal users. It must be activated first. %s' ), '<a href="' . esc_url( admin_url( 'ms-options.php#menu' ) ) . '">' . __( 'Activate' ) . '</a>' );
-	echo "<div class='error'><p>$message</p></div>";
-}
-
-/**
  * Grants super admin privileges.
  *
  * @since 3.0.0
- * @param $user_id
+ * @param int $user_id
  */
 function grant_super_admin( $user_id ) {
 	global $super_admins;
@@ -867,7 +694,7 @@ function grant_super_admin( $user_id ) {
  * Revokes super admin privileges.
  *
  * @since 3.0.0
- * @param $user_id
+ * @param int $user_id
  */
 function revoke_super_admin( $user_id ) {
 	global $super_admins;

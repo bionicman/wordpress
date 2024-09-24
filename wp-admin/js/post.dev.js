@@ -36,10 +36,7 @@ tagBox = {
 	},
 
 	quickClicks : function(el) {
-		var thetags = $('.the-tags', el),
-			tagchecklist = $('.tagchecklist', el),
-			id = $(el).attr('id'),
-			current_tags, disabled;
+		var thetags = $('.the-tags', el), tagchecklist = $('.tagchecklist', el), current_tags, disabled;
 
 		if ( !thetags.length )
 			return;
@@ -50,25 +47,19 @@ tagBox = {
 		tagchecklist.empty();
 
 		$.each( current_tags, function( key, val ) {
-			var span, xbutton;
+			var txt, button_id, id = $(el).attr('id');
 
-			val = $.trim( val );
-
-			if ( ! val )
-				return;
-
-			// Create a new span, and ensure the text is properly escaped.
-			span = $('<span />').text( val );
-
-			// If tags editing isn't disabled, create the X button.
-			if ( ! disabled ) {
-				xbutton = $( '<a id="' + id + '-check-num-' + key + '" class="ntdelbutton">X</a>' );
-				xbutton.click( function(){ tagBox.parseTags(this); });
-				span.prepend('&nbsp;').prepend( xbutton );
+			val = $.trim(val);
+			if ( !val.match(/^\s+$/) && '' != val ) {
+				button_id = id + '-check-num-' + key;
+				if ( disabled )
+		 			txt = '<span>' + val + '</span> ';
+				else
+		 			txt = '<span><a id="' + button_id + '" class="ntdelbutton">X</a>&nbsp;' + val + '</span> ';
+	 			tagchecklist.append(txt);
+				if ( ! disabled )
+		 			$( '#' + button_id ).click( function(){ tagBox.parseTags(this); });
 			}
-
-			// Append the span to the tag list.
-			tagchecklist.append( span );
 		});
 	},
 
@@ -369,8 +360,8 @@ jQuery(document).ready( function($) {
 		}
 
 		function updateText() {
-			var attemptedDate, originalDate, currentDate, publishOn, page = 'page' == pagenow || 'page-new' == pagenow,
-				postStatus = $('#post_status'),	optPublish = $('option[value=publish]', postStatus), aa = $('#aa').val(),
+			var attemptedDate, originalDate, currentDate, publishOn, postStatus = $('#post_status'),
+				optPublish = $('option[value=publish]', postStatus), aa = $('#aa').val(),
 				mm = $('#mm').val(), jj = $('#jj').val(), hh = $('#hh').val(), mn = $('#mn').val();
 
 			attemptedDate = new Date( aa, mm - 1, jj, hh, mn );
@@ -392,10 +383,7 @@ jQuery(document).ready( function($) {
 				$('#publish').val( postL10n.publish );
 			} else {
 				publishOn = postL10n.publishOnPast;
-				if ( page )
-					$('#publish').val( postL10n.updatePage );
-				else
-					$('#publish').val( postL10n.updatePost );
+				$('#publish').val( postL10n.update );
 			}
 			if ( originalDate.toUTCString() == attemptedDate.toUTCString() ) { //hack
 				$('#timestamp').html(stamp);
@@ -411,10 +399,7 @@ jQuery(document).ready( function($) {
 			}
 
 			if ( $('input:radio:checked', '#post-visibility-select').val() == 'private' ) {
-				if ( page )
-					$('#publish').val( postL10n.updatePage );
-				else
-					$('#publish').val( postL10n.updatePost );
+				$('#publish').val( postL10n.update );
 				if ( optPublish.length == 0 ) {
 					postStatus.append('<option value="publish">' + postL10n.privatelyPublished + '</option>');
 				} else {
@@ -491,6 +476,27 @@ jQuery(document).ready( function($) {
 
 		$('input:radio', '#post-visibility-select').change(function() {
 			updateVisibility();
+		});
+
+		$('.edit-post-format', '#post-formats').click(function () {
+			$('#post-formats-select').slideDown("normal");
+			$(this).hide();
+			return false;
+		});
+
+		$('.cancel-post-format', '#post-formats-select').click(function () {
+			$('#post-formats-select').slideUp("normal");
+			$('#post-format-' + $('#old-post-format').val()).attr('checked', true);
+			$('#post-format-display').text( $('label[for="post-format-' + $('#old-post-format').val() + '"]', '#post-formats-select').text() );
+			$('.edit-post-format').show();
+			return false;
+		});
+
+		$('.save-post-format', '#post-formats-select').click(function () {
+			$('#post-formats-select').slideUp("normal");
+			$('#post-format-display').text( $('label[for="' + $('input:checked', '#post-formats-select').attr('id') + '"]', '#post-formats-select').text() );
+			$('.edit-post-format').show();
+			return false;
 		});
 
 		$('#timestampdiv').siblings('a.edit-timestamp').click(function() {

@@ -93,13 +93,14 @@ break;
 
 default:
 
-	require_once('./admin-header.php');
+	require_once(ABSPATH . 'wp-admin/admin-header.php');
 
 	update_recently_edited($file);
 
 	if ( !is_file($file) )
 		$error = 1;
 
+	$content = '';
 	if ( !$error && filesize($file) > 0 ) {
 		$f = fopen($file, 'r');
 		$content = fread($f, filesize($file));
@@ -115,7 +116,7 @@ default:
 			$docs_select .= '</select>';
 		}
 
-		$content = htmlspecialchars( $content );
+		$content = esc_textarea( $content );
 	}
 
 	?>
@@ -148,7 +149,7 @@ $desc_header = ( $description != $file_show ) ? "<strong>$description</strong> (
 }
 ?>
 		</select>
-		<input type="submit" name="Submit" value="<?php esc_attr_e('Select') ?>" class="button" />
+		<?php submit_button( __( 'Select' ), 'button', 'Submit', false ); ?>
 	</form>
 </div>
 <br class="clear" />
@@ -223,13 +224,10 @@ if ($allowed_files) :
 	<?php } ?>
 
 		<div>
-<?php if ( is_writeable($file) ) : ?>
-			<p class="submit">
 <?php
-	echo "<input type='submit' name='submit' class='button-primary' value='" . esc_attr__('Update File') . "' tabindex='2' />";
-?>
-</p>
-<?php else : ?>
+	if ( is_writeable($file) ) :
+		submit_button( __( 'Update File' ), 'primary', 'submit', true, array( 'tabindex' => '2' ) );
+	else : ?>
 <p><em><?php _e('You need to make this file writable before you can save your changes. See <a href="http://codex.wordpress.org/Changing_File_Permissions">the Codex</a> for more information.'); ?></em></p>
 <?php endif; ?>
 		</div>
@@ -253,4 +251,4 @@ jQuery(document).ready(function($){
 break;
 }
 
-include("./admin-footer.php");
+include(ABSPATH . "wp-admin/admin-footer.php");

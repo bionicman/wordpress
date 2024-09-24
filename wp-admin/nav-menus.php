@@ -10,7 +10,7 @@
  */
 
 /** Load WordPress Administration Bootstrap */
-require_once( 'admin.php' );
+require_once( './admin.php' );
 
 // Load all the nav menu interface functions
 require_once( ABSPATH . 'wp-admin/includes/nav-menu.php' );
@@ -70,7 +70,7 @@ switch ( $action ) {
 				$ordered_menu_items = wp_get_nav_menu_items( $menu_id );
 				$menu_item_data = (array) wp_setup_nav_menu_item( get_post( $menu_item_id ) );
 
-				// setup the data we need in one pass through the array of menu items
+				// set up the data we need in one pass through the array of menu items
 				$dbids_to_orders = array();
 				$orders_to_dbids = array();
 				foreach( (array) $ordered_menu_items as $ordered_menu_item_object ) {
@@ -144,7 +144,7 @@ switch ( $action ) {
 				$ordered_menu_items = wp_get_nav_menu_items( $menu_id );
 				$menu_item_data = (array) wp_setup_nav_menu_item( get_post( $menu_item_id ) );
 
-				// setup the data we need in one pass through the array of menu items
+				// set up the data we need in one pass through the array of menu items
 				$dbids_to_orders = array();
 				$orders_to_dbids = array();
 				foreach( (array) $ordered_menu_items as $ordered_menu_item_object ) {
@@ -459,7 +459,7 @@ $help .= '<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Sup
 add_contextual_help($current_screen, $help);
 
 // Get the admin header
-require_once( 'admin-header.php' );
+require_once( './admin-header.php' );
 ?>
 <div class="wrap">
 	<?php screen_icon(); ?>
@@ -494,7 +494,7 @@ require_once( 'admin-header.php' );
 						<option value="0"><?php esc_html_e('Add New Menu'); ?></option>
 					</select>
 					<input type="hidden" name="action" value="edit" />
-					<input class="button-secondary" name="select_menu" type="submit" value="<?php esc_attr_e('Select'); ?>" />
+					<?php submit_button( __( 'Select' ), 'secondary', 'select_menu', false ); ?>
 				</form>
 			</div>
 			<div class="nav-tabs-wrapper">
@@ -556,7 +556,7 @@ require_once( 'admin-header.php' );
 								<?php endif; ?>
 								<br class="clear" />
 								<div class="publishing-action">
-									<input class="button-primary menu-save" name="save_menu" type="submit" value="<?php empty($nav_menu_selected_id) ? esc_attr_e('Create Menu') : esc_attr_e('Save Menu'); ?>" />
+									<?php submit_button( empty( $nav_menu_selected_id ) ? __( 'Create Menu' ) : __( 'Save Menu' ), 'button-primary menu-save', 'save_menu', false ); ?>
 								</div><!-- END .publishing-action -->
 
 								<?php if ( ! empty( $nav_menu_selected_id ) ) : ?>
@@ -590,6 +590,13 @@ require_once( 'admin-header.php' );
 							?>
 						</div><!-- /#post-body-content -->
 					</div><!-- /#post-body -->
+					<div id="nav-menu-footer">
+						<div class="major-publishing-actions">
+						<div class="publishing-action">
+							<?php submit_button( empty( $nav_menu_selected_id ) ? __( 'Create Menu' ) : __( 'Save Menu' ), 'button-primary menu-save', 'save_menu', false ); ?>
+						</div>
+						</div>
+					</div><!-- /#nav-menu-footer -->
 				</form><!-- /#update-nav-menu -->
 			</div><!-- /.menu-edit -->
 		</div><!-- /#menu-management -->
@@ -598,4 +605,4 @@ require_once( 'admin-header.php' );
 </div><!-- /.wrap-->
 
 
-<?php include( 'admin-footer.php' ); ?>
+<?php include( './admin-footer.php' ); ?>

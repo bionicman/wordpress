@@ -26,6 +26,35 @@ function is_subdomain_install() {
 }
 
 /**
+ * Returns array of network plugin files to be included in global scope.
+ *
+ * The default directory is wp-content/plugins. To change the default directory
+ * manually, define <code>WP_PLUGIN_DIR</code> and <code>WP_PLUGIN_URL</code>
+ * in wp-config.php.
+ *
+ * @access private
+ * @since 3.1.0
+ * @return array Files to include
+ */
+function wp_get_active_network_plugins() {
+	$active_plugins = (array) get_site_option( 'active_sitewide_plugins', array() );
+	if ( empty( $active_plugins ) )
+		return array();
+
+	$active_plugins = array_keys( $active_plugins );
+	sort( $active_plugins );
+
+	foreach ( $active_plugins as $plugin ) {
+		if ( ! validate_file( $plugin ) // $plugin must validate as file
+			&& '.php' == substr( $plugin, -4 ) // $plugin must end with '.php'
+			&& file_exists( WP_PLUGIN_DIR . '/' . $plugin ) // $plugin must exist
+			)
+		$plugins[] = WP_PLUGIN_DIR . '/' . $plugin;
+	}
+	return $plugins;
+}
+
+/**
  * Checks status of current blog.
  *
  * Checks if the blog is deleted, inactive, archived, or spammed.
@@ -87,16 +116,15 @@ function ms_site_check() {
  */
 function get_current_site_name( $current_site ) {
 	global $wpdb;
-	$current_site->site_name = wp_cache_get( $current_site->id . ':current_site_name', 'site-options' );
+
+	$current_site->site_name = wp_cache_get( $current_site->id . ':site_name', 'site-options' );
 	if ( ! $current_site->site_name ) {
-		$current_site->site_name = wp_cache_get( $current_site->id . ':site_name', 'site-options' );
-		if ( ! $current_site->site_name ) {
-			$current_site->site_name = $wpdb->get_var( $wpdb->prepare( "SELECT meta_value FROM $wpdb->sitemeta WHERE site_id = %d AND meta_key = 'site_name'", $current_site->id ) );
-			if ( ! $current_site->site_name )
-				$current_site->site_name = ucfirst( $current_site->domain );
-		}
-		wp_cache_set( $current_site->id . ':current_site_name', $current_site->site_name, 'site-options' );
+		$current_site->site_name = $wpdb->get_var( $wpdb->prepare( "SELECT meta_value FROM $wpdb->sitemeta WHERE site_id = %d AND meta_key = 'site_name'", $current_site->id ) );
+		if ( ! $current_site->site_name )
+			$current_site->site_name = ucfirst( $current_site->domain );
 	}
+	wp_cache_set( $current_site->id . ':site_name', $current_site->site_name, 'site-options' );
+
 	return $current_site;
 }
 

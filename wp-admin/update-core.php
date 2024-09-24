@@ -58,19 +58,19 @@ function list_core_update( $update ) {
 	echo '<input name="version" value="'. esc_attr($update->current) .'" type="hidden"/>';
 	echo '<input name="locale" value="'. esc_attr($update->locale) .'" type="hidden"/>';
 	if ( $show_buttons ) {
-		echo '<input id="upgrade" class="button" type="submit" value="' . esc_attr($submit) . '" name="upgrade" />&nbsp;';
-		echo '<a href="' . esc_url($update->package) . '" class="button">' . $download . '</a>&nbsp;';
+		submit_button( $submit, 'button', 'upgrade', false );
+		echo '&nbsp;<a href="' . esc_url($update->package) . '" class="button">' . $download . '</a>&nbsp;';
 	}
 	if ( 'en_US' != $update->locale )
 		if ( !isset( $update->dismissed ) || !$update->dismissed )
-			echo '<input id="dismiss" class="button" type="submit" value="' . esc_attr__('Hide this update') . '" name="dismiss" />';
+			submit_button( __('Hide this update'), 'button', 'dismiss', false );
 		else
-			echo '<input id="undismiss" class="button" type="submit" value="' . esc_attr__('Bring back this update') . '" name="undismiss" />';
+			submit_button( __('Bring back this update'), 'button', 'undismiss', false );
 	echo '</p>';
 	if ( 'en_US' != $update->locale && ( !isset($wp_local_package) || $wp_local_package != $update->locale ) )
 	    echo '<p class="hint">'.__('This localized version contains both the translation and various other localization fixes. You can skip upgrading if you want to keep your current translation.').'</p>';
 	else if ( 'en_US' == $update->locale && get_locale() != 'en_US' ) {
-	    echo '<p class="hint">'.sprintf( __('You are about to install WordPress %s <strong>in English.</strong> There is a chance this upgrade will break your translation. You may prefer to wait for the localized version to be released.'), $update->current ).'</p>';
+	    echo '<p class="hint">'.sprintf( __('You are about to install WordPress %s <strong>in English (US).</strong> There is a chance this upgrade will break your translation. You may prefer to wait for the localized version to be released.'), $update->current ).'</p>';
 	}
 	echo '</form>';
 
@@ -121,17 +121,26 @@ function core_upgrade_preamble() {
 <?php
 	if ( $upgrade_error ) {
 		echo '<div class="error"><p>';
-		_e('Please select one or more plugins to upgrade.');
+		if ( $upgrade_error == 'themes' )
+			_e('Please select one or more themes to update.');
+		else
+			_e('Please select one or more plugins to update.');
 		echo '</p></div>';
 	}
+
+	echo '<p>';
+	/* translators: %1 date, %2 time. */
+	printf( __('Last checked on %1$s at %2$s.'), date_i18n( get_option( 'date_format' ) ), date_i18n( get_option( 'time_format' ) ) );
+	echo ' &nbsp; <a class="button" href="' . esc_url( self_admin_url('update-core.php') ) . '">' . __( 'Check Again' ) . '</a>';
+	echo '</p>';
 
 	if ( !isset($updates[0]->response) || 'latest' == $updates[0]->response ) {
 		echo '<h3>';
 		_e('You have the latest version of WordPress.');
 		echo '</h3>';
 	} else {
-		echo '<div class="updated"><p>';
-		_e('<strong>Important:</strong> before updating, please <a href="http://codex.wordpress.org/WordPress_Backups">backup your database and files</a>. For help with updates, visit the <a href="http://codex.wordpress.org/Updating_WordPress">Updating WordPress</a> Codex page.');
+		echo '<div class="updated inline"><p>';
+		_e('<strong>Important:</strong> before updating, please <a href="http://codex.wordpress.org/WordPress_Backups">back up your database and files</a>. For help with updates, visit the <a href="http://codex.wordpress.org/Updating_WordPress">Updating WordPress</a> Codex page.');
 		echo '</p></div>';
 
 		echo '<h3 class="response">';
@@ -142,9 +151,7 @@ function core_upgrade_preamble() {
 	echo '<ul class="core-updates">';
 	$alternate = true;
 	foreach( (array) $updates as $update ) {
-		$class = $alternate? ' class="alternate"' : '';
-		$alternate = !$alternate;
-		echo "<li $class>";
+		echo '<li>';
 		list_core_update( $update );
 		echo '</li>';
 	}
@@ -252,7 +259,7 @@ function list_theme_updates() {
 ?>
 <h3><?php _e( 'Themes' ); ?></h3>
 <p><?php _e( 'The following themes have new versions available. Check the ones you want to update and then click &#8220;Update Themes&#8221;.' ); ?></p>
-<p><?php printf( __('<strong>Please Note:</strong> Any customizations you have made to the Themes files will be lost. Please consider using <a href="%s">child themes</a> for modifications.'), _x('http://codex.wordpress.org/Child_Themes', 'Link used in suggestion to use child themes in GUU') ); ?></p>
+<p><?php printf( __('<strong>Please Note:</strong> Any customizations you have made to theme files will be lost. Please consider using <a href="%s">child themes</a> for modifications.'), _x('http://codex.wordpress.org/Child_Themes', 'Link used in suggestion to use child themes in GUU') ); ?></p>
 <form method="post" action="<?php echo $form_action; ?>" name="upgrade-themes" class="upgrade">
 <?php wp_nonce_field('upgrade-core'); ?>
 <p><input id="upgrade-themes" class="button" type="submit" value="<?php esc_attr_e('Update Themes'); ?>" name="upgrade" /></p>
@@ -320,7 +327,7 @@ function do_core_upgrade( $reinstall = false ) {
 	}
 ?>
 	<div class="wrap">
-	<?php screen_icon(); ?>
+	<?php screen_icon('tools'); ?>
 	<h2><?php _e('Update WordPress'); ?></h2>
 <?php
 	if ( $wp_filesystem->errors->get_error_code() ) {
@@ -341,7 +348,7 @@ function do_core_upgrade( $reinstall = false ) {
 			show_message( __('Installation Failed') );
 	} else {
 		show_message( __('WordPress updated successfully') );
-		show_message( '<strong>' . __('Actions:') . '</strong> <a href="' . esc_url( admin_url() ) . '">' . __('Go to Dashboard') . '</a>' );
+		show_message( '<a href="' . esc_url( self_admin_url() ) . '">' . __('Go to Dashboard') . '</a>' );
 	}
 	echo '</div>';
 }
@@ -373,8 +380,9 @@ function no_update_actions($actions) {
 $action = isset($_GET['action']) ? $_GET['action'] : 'upgrade-core';
 
 $upgrade_error = false;
-if ( 'do-plugin-upgrade' == $action && !isset($_GET['plugins']) && !isset($_POST['checked']) ) {
-	$upgrade_error = true;
+if ( ( 'do-theme-upgrade' == $action || ( 'do-plugin-upgrade' == $action && ! isset( $_GET['plugins'] ) ) )
+	&& ! isset( $_POST['checked'] ) ) {
+	$upgrade_error = $action == 'do-theme-upgrade' ? 'themes' : 'plugins';
 	$action = 'upgrade-core';
 }
 
@@ -392,7 +400,7 @@ add_contextual_help($current_screen,
 
 if ( 'upgrade-core' == $action ) {
 	wp_version_check();
-	require_once('./admin-header.php');
+	require_once(ABSPATH . 'wp-admin/admin-header.php');
 	core_upgrade_preamble();
 } elseif ( 'do-core-upgrade' == $action || 'do-core-reinstall' == $action ) {
 	check_admin_referer('upgrade-core');
@@ -404,7 +412,7 @@ if ( 'upgrade-core' == $action ) {
 	elseif ( isset( $_POST['undismiss'] ) )
 		do_undismiss_core_update();
 
-	require_once('./admin-header.php');
+	require_once(ABSPATH . 'wp-admin/admin-header.php');
 	if ( 'do-core-reinstall' == $action )
 		$reinstall = true;
 	else
@@ -421,7 +429,7 @@ if ( 'upgrade-core' == $action ) {
 	} elseif ( isset( $_POST['checked'] ) ) {
 		$plugins = (array) $_POST['checked'];
 	} else {
-		wp_redirect('update-core.php');
+		wp_redirect( admin_url('update-core.php') );
 		exit;
 	}
 
@@ -430,7 +438,7 @@ if ( 'upgrade-core' == $action ) {
 
 	$title = __('Update Plugins');
 
-	require_once('./admin-header.php');
+	require_once(ABSPATH . 'wp-admin/admin-header.php');
 	echo '<div class="wrap">';
 	screen_icon('plugins');
 	echo '<h2>' . esc_html__('Update Plugins') . '</h2>';
@@ -444,7 +452,7 @@ if ( 'upgrade-core' == $action ) {
 	} elseif ( isset( $_POST['checked'] ) ) {
 		$themes = (array) $_POST['checked'];
 	} else {
-		wp_redirect('update-core.php');
+		wp_redirect( admin_url('update-core.php') );
 		exit;
 	}
 
@@ -453,7 +461,7 @@ if ( 'upgrade-core' == $action ) {
 
 	$title = __('Update Themes');
 
-	require_once('./admin-header.php');
+	require_once(ABSPATH . 'wp-admin/admin-header.php');
 	echo '<div class="wrap">';
 	screen_icon('themes');
 	echo '<h2>' . esc_html__('Update Themes') . '</h2>';
@@ -461,4 +469,4 @@ if ( 'upgrade-core' == $action ) {
 	echo '</div>';
 }
 
-include('./admin-footer.php');
+include(ABSPATH . 'wp-admin/admin-footer.php');

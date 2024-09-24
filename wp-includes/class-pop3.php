@@ -14,7 +14,7 @@
  *
  * pop3 class
  *
- * $Id: class-pop3.php 9503 2008-11-03 23:25:11Z ryan $
+ * $Id: class-pop3.php 16340 2010-11-13 09:53:55Z nacin $
  */
 
 class POP3 {
@@ -367,7 +367,7 @@ class POP3 {
         $line = fgets($fp,$buffer);
         while ( !ereg("^\.\r\n",$line))
         {
-            if ( $line{0} == '.' ) { $line = substr($line,1); }
+            if ( $line[0] == '.' ) { $line = substr($line,1); }
             $MsgArray[$count] = $line;
             $count++;
             $line = fgets($fp,$buffer);

@@ -15,7 +15,7 @@
  * @since 2.6.0
  *
  * @param bool $update Are we updating a pre-existing post?
- * @param post_data array Array of post data. Defaults to the contents of $_POST.
+ * @param array $post_data Array of post data. Defaults to the contents of $_POST.
  * @return object|bool WP_Error on failure, true on success.
  */
 function _wp_translate_postdata( $update = false, $post_data = null ) {
@@ -177,6 +177,19 @@ function edit_post( $post_data = null ) {
 		}
 	}
 
+	// Post Formats
+	if ( current_theme_supports( 'post-formats' ) && isset( $post_data['post_format'] ) ) {
+		$formats = get_theme_support( 'post-formats' );
+		if ( is_array( $formats ) ) {
+			$formats = $formats[0];
+			if ( in_array( $post_data['post_format'], $formats ) ) {
+				set_post_format( $post_ID, $post_data['post_format'] );
+			} elseif ( '0' == $post_data['post_format'] ) {
+				set_post_format( $post_ID, false );
+			}
+		}
+	}
+
 	// Meta Stuff
 	if ( isset($post_data['meta']) && $post_data['meta'] ) {
 		foreach ( $post_data['meta'] as $key => $value )
@@ -205,11 +218,11 @@ function edit_post( $post_data = null ) {
 
 	wp_set_post_lock( $post_ID, $GLOBALS['current_user']->ID );
 
-	if ( current_user_can( 'edit_others_posts' ) ) {
-		if ( !empty($post_data['sticky']) )
-			stick_post($post_ID);
+	if ( current_user_can( $ptype->cap->edit_others_posts ) ) {
+		if ( ! empty( $post_data['sticky'] ) )
+			stick_post( $post_ID );
 		else
-			unstick_post($post_ID);
+			unstick_post( $post_ID );
 	}
 
 	return $post_ID;
@@ -336,7 +349,7 @@ function bulk_edit_posts( $post_data = null ) {
 		$post_data['ID'] = $post_ID;
 		$updated[] = wp_update_post( $post_data );
 
-		if ( isset( $post_data['sticky'] ) && current_user_can( 'edit_others_posts' ) ) {
+		if ( isset( $post_data['sticky'] ) && current_user_can( $ptype->cap->edit_others_posts ) ) {
 			if ( 'sticky' == $post_data['sticky'] )
 				stick_post( $post_ID );
 			else
@@ -353,7 +366,7 @@ function bulk_edit_posts( $post_data = null ) {
  *
  * @since unknown
  *
- *@param string A post type string, defaults to 'post'.
+ * @param string $post_type A post type string, defaults to 'post'.
  * @return object stdClass object containing all the default post data as attributes
  */
 function get_default_post_to_edit( $post_type = 'post', $create_in_db = false ) {
@@ -689,8 +702,6 @@ function get_post_meta_by_id( $mid ) {
 	$mid = (int) $mid;
 
 	$meta = $wpdb->get_row( $wpdb->prepare("SELECT * FROM $wpdb->postmeta WHERE meta_id = %d", $mid) );
-	if ( empty($meta) )
-		return false;
 	if ( is_serialized_string( $meta->meta_value ) )
 		$meta->meta_value = maybe_unserialize( $meta->meta_value );
 	return $meta;
@@ -882,16 +893,15 @@ function wp_edit_posts_query( $q = false ) {
 		$perm = 'readable';
 	}
 
-	if ( isset($q['post_status']) && 'pending' === $q['post_status'] ) {
+	if ( isset($q['orderby']) )
+		$orderby = $q['orderby'];
+	elseif ( isset($q['post_status']) && in_array($q['post_status'], array('pending', 'draft')) )
+		$orderby = 'modified';
+
+	if ( isset($q['order']) )
+		$order = $q['order'];
+	elseif ( isset($q['post_status']) && 'pending' == $q['post_status'] )
 		$order = 'ASC';
-		$orderby = 'modified';
-	} elseif ( isset($q['post_status']) && 'draft' === $q['post_status'] ) {
-		$order = 'DESC';
-		$orderby = 'modified';
-	} else {
-		$order = 'DESC';
-		$orderby = 'date';
-	}
 
 	$per_page = 'edit_' . $post_type . '_per_page';
 	$posts_per_page = (int) get_user_option( $per_page );
@@ -904,12 +914,15 @@ function wp_edit_posts_query( $q = false ) {
 	$query = compact('post_type', 'post_status', 'perm', 'order', 'orderby', 'posts_per_page');
 
 	// Hierarchical types require special args.
-	if ( is_post_type_hierarchical( $post_type ) ) {
+	if ( is_post_type_hierarchical( $post_type ) && !isset($orderby) ) {
 		$query['orderby'] = 'menu_order title';
 		$query['order'] = 'asc';
 		$query['posts_per_page'] = -1;
 		$query['posts_per_archive_page'] = -1;
 	}
+
+	if ( ! empty( $q['show_sticky'] ) )
+		$query['post__in'] = (array) get_option( 'sticky_posts' );
 
 	wp( $query );
 
@@ -975,9 +988,19 @@ function wp_edit_attachments_query( $q = false ) {
 	if ( isset($q['post_mime_type']) && !array_intersect( (array) $q['post_mime_type'], array_keys($post_mime_types) ) )
 		unset($q['post_mime_type']);
 
-	wp($q);
+	if ( isset($q['detached']) )
+		add_filter('posts_where', '_edit_attachments_query_helper');
+
+	wp( $q );
+
+	if ( isset($q['detached']) )
+		remove_filter('posts_where', '_edit_attachments_query_helper');
 
 	return array($post_mime_types, $avail_post_mime_types);
+}
+
+function _edit_attachments_query_helper($where) {
+	return $where .= ' AND post_parent < 1';
 }
 
 /**
@@ -1054,7 +1077,7 @@ function get_sample_permalink($id, $title = null, $name = null) {
 		$uri = untrailingslashit($uri);
 		if ( !empty($uri) )
 			$uri .= '/';
-		$permalink = str_replace('%pagename%', "${uri}%pagename%", $permalink);
+		$permalink = str_replace('%pagename%', "{$uri}%pagename%", $permalink);
 	}
 
 	$permalink = array($permalink, apply_filters('editable_slug', $post->post_name));
@@ -1359,10 +1382,10 @@ function wp_tiny_mce( $teeny = false, $settings = false ) {
 	$mce_spellchecker_languages = apply_filters('mce_spellchecker_languages', '+English=en,Danish=da,Dutch=nl,Finnish=fi,French=fr,German=de,Italian=it,Polish=pl,Portuguese=pt,Spanish=es,Swedish=sv');
 
 	if ( $teeny ) {
-		$plugins = apply_filters( 'teeny_mce_plugins', array('safari', 'inlinepopups', 'media', 'fullscreen', 'wordpress') );
+		$plugins = apply_filters( 'teeny_mce_plugins', array('inlinepopups', 'media', 'fullscreen', 'wordpress', 'wplink', 'wpdialogs') );
 		$ext_plugins = '';
 	} else {
-		$plugins = array( 'safari', 'inlinepopups', 'spellchecker', 'paste', 'wordpress', 'media', 'fullscreen', 'wpeditimage', 'wpgallery', 'tabfocus' );
+		$plugins = array( 'inlinepopups', 'spellchecker', 'paste', 'wordpress', 'media', 'fullscreen', 'wpeditimage', 'wpgallery', 'tabfocus', 'wplink', 'wpdialogs' );
 
 		/*
 		The following filter takes an associative array of external plugins for TinyMCE in the form 'plugin_name' => 'url'.
@@ -1443,8 +1466,6 @@ function wp_tiny_mce( $teeny = false, $settings = false ) {
 		}
 	}
 
-	$plugins = implode($plugins, ',');
-
 	if ( $teeny ) {
 		$mce_buttons = apply_filters( 'teeny_mce_buttons', array('bold, italic, underline, blockquote, separator, strikethrough, bullist, numlist,justifyleft, justifycenter, justifyright, undo, redo, link, unlink, fullscreen') );
 		$mce_buttons = implode($mce_buttons, ',');
@@ -1453,9 +1474,10 @@ function wp_tiny_mce( $teeny = false, $settings = false ) {
 		$mce_buttons = apply_filters('mce_buttons', array('bold', 'italic', 'strikethrough', '|', 'bullist', 'numlist', 'blockquote', '|', 'justifyleft', 'justifycenter', 'justifyright', '|', 'link', 'unlink', 'wp_more', '|', 'spellchecker', 'fullscreen', 'wp_adv' ));
 		$mce_buttons = implode($mce_buttons, ',');
 
-		$mce_buttons_2 = array('formatselect', 'underline', 'justifyfull', 'forecolor', '|', 'pastetext', 'pasteword', 'removeformat', '|', 'media', 'charmap', '|', 'outdent', 'indent', '|', 'undo', 'redo', 'wp_help' );
-		if ( is_multisite() )
-			unset( $mce_buttons_2[ array_search( 'media', $mce_buttons_2 ) ] );
+		$mce_buttons_2 = array('formatselect', 'underline', 'justifyfull', 'forecolor', '|', 'pastetext', 'pasteword', 'removeformat', '|' );
+		if ( ! is_multisite() )
+			$mce_buttons_2[] = 'media';
+		array_push( $mce_buttons_2,  'charmap', '|', 'outdent', 'indent', '|', 'undo', 'redo', 'wp_help' );
 		$mce_buttons_2 = apply_filters('mce_buttons_2', $mce_buttons_2);
 		$mce_buttons_2 = implode($mce_buttons_2, ',');
 
@@ -1486,6 +1508,21 @@ function wp_tiny_mce( $teeny = false, $settings = false ) {
 		'theme_advanced_resizing' => true,
 		'theme_advanced_resize_horizontal' => false,
 		'dialog_type' => 'modal',
+		'formats' => "{
+			alignleft : [
+				{selector : 'p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li', styles : {textAlign : 'left'}},
+				{selector : 'img,table', classes : 'alignleft'}
+			],
+			aligncenter : [
+				{selector : 'p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li', styles : {textAlign : 'center'}},
+				{selector : 'img,table', classes : 'aligncenter'}
+			],
+			alignright : [
+				{selector : 'p,h1,h2,h3,h4,h5,h6,td,th,div,ul,ol,li', styles : {textAlign : 'right'}},
+				{selector : 'img,table', classes : 'alignright'}
+			],
+			strikethrough : {inline : 'del'}
+		}",
 		'relative_urls' => false,
 		'remove_script_host' => false,
 		'convert_urls' => false,
@@ -1499,8 +1536,9 @@ function wp_tiny_mce( $teeny = false, $settings = false ) {
 		'paste_remove_styles' => true,
 		'paste_remove_spans' => true,
 		'paste_strip_class_attributes' => 'all',
+		'paste_text_use_dialog' => true,
 		'wpeditimage_disable_captions' => $no_captions,
-		'plugins' => $plugins
+		'plugins' => implode( ',', $plugins ),
 	);
 
 	if ( ! empty( $editor_styles ) && is_array( $editor_styles ) ) {
@@ -1570,8 +1608,18 @@ function wp_tiny_mce( $teeny = false, $settings = false ) {
 		include_once(ABSPATH . WPINC . '/js/tinymce/langs/wp-langs.php');
 
 	$mce_options = '';
-	foreach ( $initArray as $k => $v )
-	    $mce_options .= $k . ':"' . $v . '", ';
+	foreach ( $initArray as $k => $v ) {
+		if ( is_bool($v) ) {
+			$val = $v ? 'true' : 'false';
+			$mce_options .= $k . ':' . $val . ', ';
+			continue;
+		} elseif ( !empty($v) && is_string($v) && ( '{' == $v{0} || '[' == $v{0} ) ) {
+			$mce_options .= $k . ':' . $v . ', ';
+			continue;
+		}
+
+		$mce_options .= $k . ':"' . $v . '", ';
+	}
 
 	$mce_options = rtrim( trim($mce_options), '\n\r,' ); ?>
 
@@ -1601,14 +1649,33 @@ tinyMCEPreInit = {
 
 <script type="text/javascript">
 /* <![CDATA[ */
-<?php if ( $ext_plugins ) echo "$ext_plugins\n"; ?>
-<?php if ( $compressed ) { ?>
-tinyMCEPreInit.go();
-<?php } else { ?>
+<?php
+	if ( $ext_plugins )
+		echo "$ext_plugins\n";
+
+	if ( ! $compressed ) {
+?>
 (function(){var t=tinyMCEPreInit,sl=tinymce.ScriptLoader,ln=t.mceInit.language,th=t.mceInit.theme,pl=t.mceInit.plugins;sl.markDone(t.base+'/langs/'+ln+'.js');sl.markDone(t.base+'/themes/'+th+'/langs/'+ln+'.js');sl.markDone(t.base+'/themes/'+th+'/langs/'+ln+'_dlg.js');tinymce.each(pl.split(','),function(n){if(n&&n.charAt(0)!='-'){sl.markDone(t.base+'/plugins/'+n+'/langs/'+ln+'.js');sl.markDone(t.base+'/plugins/'+n+'/langs/'+ln+'_dlg.js');}});})();
 <?php } ?>
 tinyMCE.init(tinyMCEPreInit.mceInit);
 /* ]]> */
 </script>
 <?php
+
+	// Load additional inline scripts based on active plugins.
+	if ( in_array( 'wpdialogs', $plugins ) ) {
+		wp_print_scripts( array( 'wpdialogs-popup' ) );
+		wp_print_styles('wp-jquery-ui-dialog');
+	}
+	if ( in_array( 'wplink', $plugins ) ) {
+		require_once ABSPATH . 'wp-admin/includes/internal-linking.php';
+		add_action('tiny_mce_preload_dialogs', 'wp_link_dialog');
+		wp_print_scripts('wplink');
+		wp_print_styles('wplink');
+	}
 }
+function wp_tiny_mce_preload_dialogs() { ?>
+	<div id="preloaded-dialogs" style="display:none;">
+<?php 	do_action('tiny_mce_preload_dialogs'); ?>
+	</div>
+<?php }

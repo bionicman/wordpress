@@ -67,9 +67,9 @@ case 'update':
 			wp_redirect(add_query_arg('_wpnonce', wp_create_nonce('edit-plugin-test_' . $file), "plugin-editor.php?file=$file&liveupdate=1&scrollto=$scrollto&networkwide=" . $network_wide));
 			exit;
 		}
-		wp_redirect("plugin-editor.php?file=$file&a=te&scrollto=$scrollto");
+		wp_redirect( self_admin_url("plugin-editor.php?file=$file&a=te&scrollto=$scrollto") );
 	} else {
-		wp_redirect("plugin-editor.php?file=$file&scrollto=$scrollto");
+		wp_redirect( self_admin_url("plugin-editor.php?file=$file&scrollto=$scrollto") );
 	}
 	exit;
 
@@ -87,7 +87,7 @@ default:
 		if ( ! is_plugin_active($file) )
 			activate_plugin($file, "plugin-editor.php?file=$file&phperror=1", ! empty( $_GET['networkwide'] ) ); // we'll override this later if the plugin can be included without fatal error
 
-		wp_redirect("plugin-editor.php?file=$file&a=te&scrollto=$scrollto");
+		wp_redirect( self_admin_url("plugin-editor.php?file=$file&a=te&scrollto=$scrollto") );
 		exit;
 	}
 
@@ -117,7 +117,7 @@ default:
 		'<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
 	);
 
-	require_once('./admin-header.php');
+	require_once(ABSPATH . 'wp-admin/admin-header.php');
 
 	update_recently_edited(WP_PLUGIN_DIR . '/' . $file);
 
@@ -136,7 +136,7 @@ default:
 		}
 	}
 
-	$content = htmlspecialchars( $content );
+	$content = esc_textarea( $content );
 	?>
 <?php if (isset($_GET['a'])) : ?>
  <div id="message" class="updated"><p><?php _e('File edited successfully.') ?></p></div>
@@ -185,7 +185,7 @@ default:
 	}
 ?>
 		</select>
-		<input type="submit" name="Submit" value="<?php esc_attr_e('Select') ?>" class="button" />
+		<?php submit_button( __( 'Select' ), 'button', 'Submit', false ); ?>
 	</form>
 </div>
 <br class="clear" />
@@ -229,10 +229,12 @@ foreach ( $plugin_files as $plugin_file ) :
 	<?php } ?>
 	<p class="submit">
 	<?php
-		if ( isset($_GET['phperror']) )
-			echo "<input type='hidden' name='phperror' value='1' /><input type='submit' name='submit' class='button-primary' value='" . esc_attr__('Update File and Attempt to Reactivate') . "' tabindex='2' />";
-		else
-			echo "<input type='submit' name='submit' class='button-primary' value='" . esc_attr__('Update File') . "' tabindex='2' />";
+		if ( isset($_GET['phperror']) ) {
+			echo "<input type='hidden' name='phperror' value='1' />";
+			submit_button( __( 'Update File and Attempt to Reactivate' ), 'primary', 'submit', false, array( 'tabindex' => '2' ) );
+		} else {
+			submit_button( __( 'Update File' ), 'primary', 'submit', false, array( 'tabindex' => '2' ) );
+		}
 	?>
 	</p>
 <?php else : ?>
@@ -252,4 +254,4 @@ jQuery(document).ready(function($){
 <?php
 	break;
 }
-include("./admin-footer.php");
+include(ABSPATH . "wp-admin/admin-footer.php");
