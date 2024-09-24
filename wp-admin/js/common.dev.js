@@ -172,9 +172,9 @@ showNotice = {
 jQuery(document).ready( function($) {
 	var lastClicked = false, checks, first, last, checked;
 
-	// Move .updated and .error alert boxes
+	// Move .updated and .error alert boxes. Don't move boxes designed to be inline.
 	$('div.wrap h2:first').nextAll('div.updated, div.error').addClass('below-h2');
-	$('div.updated, div.error').not('.below-h2').insertAfter( $('div.wrap h2:first') );
+	$('div.updated, div.error').not('.below-h2, .inline').insertAfter( $('div.wrap h2:first') );
 
 	// screen settings tab
 	$('#show-settings-link').click(function () {
@@ -267,24 +267,37 @@ jQuery(document).ready( function($) {
 		$('div.default-password-nag').hide();
 		return false;
 	});
-});
 
-jQuery(document).ready( function($){
-	var turboNag = $('span.turbo-nag', '#user_info');
+	// tab in textareas
+	$('#newcontent').keydown(function(e) {
+		if ( e.keyCode != 9 )
+			return true;
 
-	if ( !turboNag.length || ('undefined' != typeof(google) && google.gears) )
-		return;
+		var el = e.target, selStart = el.selectionStart, selEnd = el.selectionEnd, val = el.value, scroll, sel;
 
-	if ( 'undefined' != typeof GearsFactory ) {
-		return;
-	} else {
 		try {
-			if ( ( 'undefined' != typeof window.ActiveXObject && ActiveXObject('Gears.Factory') ) ||
-				( 'undefined' != typeof navigator.mimeTypes && navigator.mimeTypes['application/x-googlegears'] ) ) {
-					return;
-			}
-		} catch(e){}
-	}
+			this.lastKey = 9; // not a standard DOM property, lastKey is to help stop Opera tab event.  See blur handler below.
+		} catch(err) {}
 
-	turboNag.show();
+		if ( document.selection ) {
+			el.focus();
+			sel = document.selection.createRange();
+			sel.text = '\t';
+		} else if ( selStart >= 0 ) {
+			scroll = this.scrollTop;
+			el.value = val.substring(0, selStart).concat('\t', val.substring(selEnd) );
+			el.selectionStart = el.selectionEnd = selStart + 1;
+			this.scrollTop = scroll;
+		}
+
+		if ( e.stopPropagation )
+			e.stopPropagation();
+		if ( e.preventDefault )
+			e.preventDefault();
+	});
+
+	$('#newcontent').blur(function(e) {
+		if ( this.lastKey && 9 == this.lastKey )
+			this.focus();
+	});
 });

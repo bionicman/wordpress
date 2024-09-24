@@ -9,8 +9,8 @@
 /** WordPress Administration Bootstrap */
 require_once('admin.php');
 
-if ( ! current_user_can('manage_options') )
-	wp_die(__('You do not have sufficient permissions to manage options for this blog.'));
+if ( ! current_user_can( 'manage_options' ) )
+	wp_die( __( 'You do not have sufficient permissions to manage options for this site.' ) );
 
 $title = __('Writing Settings');
 $parent_file = 'options-general.php';
@@ -52,7 +52,7 @@ wp_dropdown_categories(array('hide_empty' => 0, 'name' => 'default_category', 'o
 <th scope="row"><label for="default_link_category"><?php _e('Default Link Category') ?></label></th>
 <td>
 <?php
-wp_dropdown_categories(array('hide_empty' => 0, 'name' => 'default_link_category', 'orderby' => 'name', 'selected' => get_option('default_link_category'), 'hierarchical' => true, 'type' => 'link'));
+wp_dropdown_categories(array('hide_empty' => 0, 'name' => 'default_link_category', 'orderby' => 'name', 'selected' => get_option('default_link_category'), 'hierarchical' => true, 'taxonomy' => 'link_category'));
 ?>
 </td>
 </tr>
@@ -81,6 +81,7 @@ wp_dropdown_categories(array('hide_empty' => 0, 'name' => 'default_link_category
 <?php do_settings_fields('writing', 'remote_publishing'); ?>
 </table>
 
+<?php if ( apply_filters( 'enable_post_by_email_configuration', true ) ) { ?>
 <h3><?php _e('Post via e-mail') ?></h3>
 <p><?php printf(__('To post to WordPress by e-mail you must set up a secret e-mail account with POP3 access. Any mail received at this address will be posted, so it&#8217;s a good idea to keep this address very secret. Here are three random strings you could use: <kbd>%s</kbd>, <kbd>%s</kbd>, <kbd>%s</kbd>.'), wp_generate_password(8, false), wp_generate_password(8, false), wp_generate_password(8, false)) ?></p>
 
@@ -112,7 +113,8 @@ wp_dropdown_categories(array('hide_empty' => 0, 'name' => 'default_email_categor
 </tr>
 <?php do_settings_fields('writing', 'post_via_email'); ?>
 </table>
-
+<?php } ?>
+<?php if ( apply_filters( 'enable_update_services_configuration', true ) ) { ?>
 <h3><?php _e('Update Services') ?></h3>
 
 <?php if ( get_option('blog_public') ) : ?>
@@ -123,9 +125,10 @@ wp_dropdown_categories(array('hide_empty' => 0, 'name' => 'default_email_categor
 
 <?php else : ?>
 
-	<p><?php printf(__('WordPress is not notifying any <a href="http://codex.wordpress.org/Update_Services">Update Services</a> because of your blog&#8217;s <a href="%s">privacy settings</a>.'), 'options-privacy.php'); ?></p>
+	<p><?php printf(__('WordPress is not notifying any <a href="http://codex.wordpress.org/Update_Services">Update Services</a> because of your site&#8217;s <a href="%s">privacy settings</a>.'), 'options-privacy.php'); ?></p>
 
 <?php endif; ?>
+<?php } // multisite ?>
 
 <?php do_settings_sections('writing'); ?>
 

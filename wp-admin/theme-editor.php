@@ -37,9 +37,9 @@ if (empty($file)) {
 } else {
 	$file = stripslashes($file);
 	if ( 'theme' == $dir ) {
-		$file = dirname(dirname($themes[$theme]['Template Dir'])) . $file ; 
+		$file = dirname(dirname($themes[$theme]['Template Dir'])) . $file ;
 	} else if ( 'style' == $dir) {
-		$file = dirname(dirname($themes[$theme]['Stylesheet Dir'])) . $file ; 
+		$file = dirname(dirname($themes[$theme]['Stylesheet Dir'])) . $file ;
 	}
 }
 
@@ -107,7 +107,7 @@ default:
 
 	?>
 <?php if (isset($_GET['a'])) : ?>
- <div id="message" class="updated fade"><p><?php _e('File edited successfully.') ?></p></div>
+ <div id="message" class="updated"><p><?php _e('File edited successfully.') ?></p></div>
 <?php endif;
 
 $description = get_file_description($file);
@@ -141,12 +141,11 @@ $desc_header = ( $description != $file_show ) ? "<strong>$description</strong> (
 <br class="clear" />
 </div>
 	<div id="templateside">
-	<h3><?php _e("Theme Files"); ?></h3>
 
 <?php
 if ($allowed_files) :
 ?>
-	<h4><?php _e('Templates'); ?></h4>
+	<h3><?php _e('Templates'); ?></h3>
 	<ul>
 <?php
 	$template_mapping = array();
@@ -154,12 +153,12 @@ if ($allowed_files) :
 	foreach ( $themes[$theme]['Template Files'] as $template_file ) {
 		$description = trim( get_file_description($template_file) );
 		$template_show = basename($template_file);
-		$filedesc = ( $description != $template_file ) ? "$description <span class='nonessential'>($template_show)</span>" : "$description";
-		$filedesc = ( $template_file == $file ) ? "<span class='highlight'>$description <span class='nonessential'>($template_show)</span></span>" : $filedesc;
+		$filedesc = ( $description != $template_file ) ? "$description<br /><span class='nonessential'>($template_show)</span>" : "$description";
+		$filedesc = ( $template_file == $file ) ? "<div class='highlight'>$description<br /><span class='nonessential'>($template_show)</span></div>" : $filedesc;
 
 		// If we have two files of the same name prefer the one in the Template Directory
 		// This means that we display the correct files for child themes which overload Templates as well as Styles
-		if( array_key_exists($description, $template_mapping ) ) {
+		if ( array_key_exists($description, $template_mapping ) ) {
 			if ( false !== strpos( $template_file, $template_dir ) )  {
 				$template_mapping[ $description ] = array( _get_template_edit_filename($template_file, $template_dir), $filedesc );
 			}
@@ -173,7 +172,7 @@ if ($allowed_files) :
 		<li><a href="theme-editor.php?file=<?php echo "$template_file"; ?>&amp;theme=<?php echo urlencode($theme) ?>&amp;dir=theme"><?php echo $filedesc ?></a></li>
 <?php endwhile; ?>
 	</ul>
-	<h4><?php /* translators: Theme stylesheets in theme editor */ echo _x('Styles', 'Theme stylesheets in theme editor'); ?></h4>
+	<h3><?php /* translators: Theme stylesheets in theme editor */ echo _x('Styles', 'Theme stylesheets in theme editor'); ?></h3>
 	<ul>
 <?php
 	$template_mapping = array();
@@ -181,8 +180,8 @@ if ($allowed_files) :
 	foreach ( $themes[$theme]['Stylesheet Files'] as $style_file ) {
 		$description = trim( get_file_description($style_file) );
 		$style_show = basename($style_file);
-		$filedesc = ( $description != $style_file ) ? "$description <span class='nonessential'>($style_show)</span>" : "$description";
-		$filedesc = ( $style_file == $file ) ? "<span class='highlight'>$description <span class='nonessential'>($style_show)</span></span>" : $filedesc;
+		$filedesc = ( $description != $style_file ) ? "$description<br /><span class='nonessential'>($style_show)</span>" : "$description";
+		$filedesc = ( $style_file == $file ) ? "<div class='highlight'>$description<br /><span class='nonessential'>($style_show)</span></div>" : $filedesc;
 		$template_mapping[ $description ] = array( _get_template_edit_filename($style_file, $stylesheet_dir), $filedesc );
 	}
 	ksort( $template_mapping );

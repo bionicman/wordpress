@@ -15,6 +15,10 @@ require_once( ABSPATH . WPINC . '/registration.php');
 if ( !current_user_can('edit_users') )
 	wp_die(__('Cheatin&#8217; uh?'));
 
+$del_cap_type = 'remove';
+if ( !is_multisite() && current_user_can('delete_users') )
+	$del_cap_type = 'delete';
+
 $title = __('Users');
 $parent_file = 'users.php';
 
@@ -43,22 +47,22 @@ switch ($doaction) {
 case 'promote':
 	check_admin_referer('bulk-users');
 
-	if (empty($_REQUEST['users'])) {
+	if ( empty($_REQUEST['users']) ) {
 		wp_redirect($redirect);
 		exit();
 	}
 
 	$editable_roles = get_editable_roles();
-	if (!$editable_roles[$_REQUEST['new_role']])
+	if ( !$editable_roles[$_REQUEST['new_role']] )
 		wp_die(__('You can&#8217;t give users that role.'));
 
 	$userids = $_REQUEST['users'];
 	$update = 'promote';
-	foreach($userids as $id) {
+	foreach ( $userids as $id ) {
 		if ( ! current_user_can('edit_user', $id) )
 			wp_die(__('You can&#8217;t edit that user.'));
 		// The new role of the current user must also have edit_users caps
-		if($id == $current_user->ID && !$wp_roles->role_objects[$_REQUEST['new_role']]->has_cap('edit_users')) {
+		if ( $id == $current_user->ID && !$wp_roles->role_objects[$_REQUEST['new_role']]->has_cap('edit_users') ) {
 			$update = 'err_admin_role';
 			continue;
 		}
@@ -81,7 +85,7 @@ case 'dodelete':
 		exit();
 	}
 
-	if ( !current_user_can('delete_users') )
+	if ( !current_user_can($del_cap_type . '_users') )
 		wp_die(__('You can&#8217;t delete users.'));
 
 	$userids = $_REQUEST['users'];
@@ -89,19 +93,25 @@ case 'dodelete':
 	$delete_count = 0;
 
 	foreach ( (array) $userids as $id) {
-		if ( ! current_user_can('delete_user', $id) )
+		if ( ! current_user_can($del_cap_type . '_user', $id) )
 			wp_die(__('You can&#8217;t delete that user.'));
 
-		if($id == $current_user->ID) {
+		if ( $id == $current_user->ID ) {
 			$update = 'err_admin_del';
 			continue;
 		}
-		switch($_REQUEST['delete_option']) {
+		switch ( $_REQUEST['delete_option'] ) {
 		case 'delete':
-			wp_delete_user($id);
+			if ( !is_multisite() && current_user_can('delete_user', $id) )
+				wp_delete_user($id);
+			else
+				remove_user_from_blog($id, $blog_id); // WPMU only remove user from blog
 			break;
 		case 'reassign':
-			wp_delete_user($id, $_REQUEST['reassign_user']);
+			if ( !is_multisite() && current_user_can('delete_user', $id) )
+				wp_delete_user($id, $_REQUEST['reassign_user']);
+			else
+				remove_user_from_blog($id, $blog_id, $_REQUEST['reassign_user']);
 			break;
 		}
 		++$delete_count;
@@ -122,7 +132,7 @@ case 'delete':
 		exit();
 	}
 
-	if ( !current_user_can('delete_users') )
+	if ( !current_user_can($del_cap_type . '_users') )
 		$errors = new WP_Error('edit_users', __('You can&#8217;t delete users.'));
 
 	if ( empty($_REQUEST['users']) )
@@ -153,7 +163,12 @@ case 'delete':
 			$go_delete = true;
 		}
 	}
-	$all_logins = $wpdb->get_results("SELECT ID, user_login FROM $wpdb->users ORDER BY user_login");
+	if ( !is_multisite() ) {
+		$all_logins = $wpdb->get_results("SELECT ID, user_login FROM $wpdb->users ORDER BY user_login");
+	} else {
+		// WPMU only searches users of current blog
+		$all_logins = $wpdb->get_results("SELECT ID, user_login FROM $wpdb->users, $wpdb->usermeta WHERE $wpdb->users.ID = $wpdb->usermeta.user_id AND meta_key = '".$wpdb->prefix."capabilities' ORDER BY user_login");
+	}
 	$user_dropdown = '<select name="reassign_user">';
 	foreach ( (array) $all_logins as $login )
 		if ( $login->ID == $current_user->ID || !in_array($login->ID, $userids) )
@@ -193,8 +208,14 @@ default:
 	$userspage = isset($_GET['userspage']) ? $_GET['userspage'] : null;
 	$role = isset($_GET['role']) ? $_GET['role'] : null;
 
-	// Query the users
+	// Query the user IDs for this page
 	$wp_user_search = new WP_User_Search($usersearch, $userspage, $role);
+
+	// Query the post counts for this page
+	$post_counts = count_many_users_posts($wp_user_search->get_results());
+
+	// Query the users for this page
+	cache_users($wp_user_search->get_results());
 
 	$messages = array();
 	if ( isset($_GET['update']) ) :
@@ -202,21 +223,21 @@ default:
 		case 'del':
 		case 'del_many':
 			$delete_count = isset($_GET['delete_count']) ? (int) $_GET['delete_count'] : 0;
-			$messages[] = '<div id="message" class="updated fade"><p>' . sprintf(_n('%s user deleted', '%s users deleted', $delete_count), $delete_count) . '</p></div>';
+			$messages[] = '<div id="message" class="updated"><p>' . sprintf(_n('%s user deleted', '%s users deleted', $delete_count), $delete_count) . '</p></div>';
 			break;
 		case 'add':
-			$messages[] = '<div id="message" class="updated fade"><p>' . __('New user created.') . '</p></div>';
+			$messages[] = '<div id="message" class="updated"><p>' . __('New user created.') . '</p></div>';
 			break;
 		case 'promote':
-			$messages[] = '<div id="message" class="updated fade"><p>' . __('Changed roles.') . '</p></div>';
+			$messages[] = '<div id="message" class="updated"><p>' . __('Changed roles.') . '</p></div>';
 			break;
 		case 'err_admin_role':
 			$messages[] = '<div id="message" class="error"><p>' . __('The current user&#8217;s role must have user editing capabilities.') . '</p></div>';
-			$messages[] = '<div id="message" class="updated fade"><p>' . __('Other user roles have been changed.') . '</p></div>';
+			$messages[] = '<div id="message" class="updated"><p>' . __('Other user roles have been changed.') . '</p></div>';
 			break;
 		case 'err_admin_del':
 			$messages[] = '<div id="message" class="error"><p>' . __('You can&#8217;t delete the current user.') . '</p></div>';
-			$messages[] = '<div id="message" class="updated fade"><p>' . __('Other users have been deleted.') . '</p></div>';
+			$messages[] = '<div id="message" class="updated"><p>' . __('Other users have been deleted.') . '</p></div>';
 			break;
 		}
 	endif; ?>
@@ -239,7 +260,7 @@ if ( ! empty($messages) ) {
 
 <div class="wrap">
 <?php screen_icon(); ?>
-<h2><?php echo esc_html( $title ); ?>  <a href="user-new.php" class="button add-new-h2"><?php echo esc_html_x('Add New', 'user'); ?></a> <?php
+<h2><?php echo esc_html( $title ); if ( current_user_can( 'create_users' ) ) { ?>  <a href="user-new.php" class="button add-new-h2"><?php echo esc_html_x('Add New', 'user'); ?></a><?php }
 if ( isset($_GET['usersearch']) && $_GET['usersearch'] )
 	printf( '<span class="subtitle">' . __('Search results for &#8220;%s&#8221;') . '</span>', esc_html( $_GET['usersearch'] ) ); ?>
 </h2>
@@ -248,22 +269,14 @@ if ( isset($_GET['usersearch']) && $_GET['usersearch'] )
 <form id="list-filter" action="" method="get">
 <ul class="subsubsub">
 <?php
-$role_links = array();
-$avail_roles = array();
-$users_of_blog = get_users_of_blog();
-$total_users = count( $users_of_blog );
-foreach ( (array) $users_of_blog as $b_user ) {
-	$b_roles = unserialize($b_user->meta_value);
-	foreach ( (array) $b_roles as $b_role => $val ) {
-		if ( !isset($avail_roles[$b_role]) )
-			$avail_roles[$b_role] = 0;
-		$avail_roles[$b_role]++;
-	}
-}
+$users_of_blog = count_users();
+$total_users = $users_of_blog['total_users'];
+$avail_roles =& $users_of_blog['avail_roles'];
 unset($users_of_blog);
 
 $current_role = false;
 $class = empty($role) ? ' class="current"' : '';
+$role_links = array();
 $role_links[] = "<li><a href='users.php'$class>" . sprintf( _nx( 'All <span class="count">(%s)</span>', 'All <span class="count">(%s)</span>', $total_users, 'users' ), number_format_i18n( $total_users ) ) . '</a>';
 foreach ( $wp_roles->get_names() as $this_role => $name ) {
 	if ( !isset($avail_roles[$this_role]) )
@@ -356,8 +369,11 @@ foreach ( $wp_user_search->get_results() as $userid ) {
 	$roles = $user_object->roles;
 	$role = array_shift($roles);
 
+	if ( is_multisite() && empty( $role ) )
+		continue;
+
 	$style = ( ' class="alternate"' == $style ) ? '' : ' class="alternate"';
-	echo "\n\t" . user_row($user_object, $style, $role);
+	echo "\n\t", user_row( $user_object, $style, $role, $post_counts[ $userid ] );
 }
 ?>
 </tbody>
@@ -384,6 +400,16 @@ foreach ( $wp_user_search->get_results() as $userid ) {
 
 </form>
 </div>
+
+<?php
+if ( is_multisite() ) {
+	foreach ( array('user_login' => 'user_login', 'first_name' => 'user_firstname', 'last_name' => 'user_lastname', 'email' => 'user_email', 'url' => 'user_uri', 'role' => 'user_role') as $formpost => $var ) {
+		$var = 'new_' . $var;
+		$$var = isset($_REQUEST[$formpost]) ? esc_attr(stripslashes($_REQUEST[$formpost])) : '';
+	}
+	unset($name);
+}
+?>
 
 <br class="clear" />
 <?php

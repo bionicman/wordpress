@@ -9,22 +9,18 @@
 /** WordPress Administration Bootstrap */
 require_once('admin.php');
 
+wp_enqueue_script('list-revisions');
+
 wp_reset_vars(array('revision', 'left', 'right', 'diff', 'action'));
+
 $revision_id = absint($revision);
 $diff        = absint($diff);
 $left        = absint($left);
 $right       = absint($right);
 
-$parent_file = $redirect = 'edit.php';
+$redirect = 'edit.php';
 
 switch ( $action ) :
-case 'delete' : // stubs
-case 'edit' :
-	if ( constant('WP_POST_REVISIONS') ) // stub
-		$redirect = remove_query_arg( 'action' );
-	else // Revisions disabled
-		$redirect = 'edit.php';
-	break;
 case 'restore' :
 	if ( !$revision = wp_get_post_revision( $revision_id ) )
 		break;
@@ -33,7 +29,7 @@ case 'restore' :
 	if ( !$post = get_post( $revision->post_parent ) )
 		break;
 
-	if ( !constant('WP_POST_REVISIONS') && !wp_is_post_autosave( $revision ) ) // Revisions disabled and we're not looking at an autosave
+	if ( ! WP_POST_REVISIONS && !wp_is_post_autosave( $revision ) ) // Revisions disabled and we're not looking at an autosave
 		break;
 
 	check_admin_referer( "restore-post_$post->ID|$revision->ID" );
@@ -72,7 +68,7 @@ case 'diff' :
 	else
 		break; // Don't diff two unrelated revisions
 
-	if ( !constant('WP_POST_REVISIONS') ) { // Revisions disabled
+	if ( ! WP_POST_REVISIONS ) { // Revisions disabled
 		if (
 			// we're not looking at an autosave
 			( !wp_is_post_autosave( $left_revision ) && !wp_is_post_autosave( $right_revision ) )
@@ -110,12 +106,15 @@ default :
 	if ( !current_user_can( 'read_post', $revision->ID ) || !current_user_can( 'read_post', $post->ID ) )
 		break;
 
-	if ( !constant('WP_POST_REVISIONS') && !wp_is_post_autosave( $revision ) ) // Revisions disabled and we're not looking at an autosave
+	if ( ! WP_POST_REVISIONS && !wp_is_post_autosave( $revision ) ) // Revisions disabled and we're not looking at an autosave
 		break;
+
+	$post_type_object = get_post_type_object($post->post_type);
 
 	$post_title = '<a href="' . get_edit_post_link() . '">' . get_the_title() . '</a>';
 	$revision_title = wp_post_revision_title( $revision, false );
-	$h2 = sprintf( __( 'Post Revision for &#8220;%1$s&#8221; created on %2$s' ), $post_title, $revision_title );
+	$h2 = sprintf( __( 'Revision for &#8220;%1$s&#8221; created on %2$s' ), $post_title, $revision_title );
+	$title = __( 'Revisions' );
 
 	// Sets up the diff radio buttons
 	$left  = $revision->ID;
@@ -125,21 +124,23 @@ default :
 	break;
 endswitch;
 
-if ( !$redirect && !in_array( $post->post_type, array( 'post', 'page' ) ) )
-	$redirect = 'edit.php';
+if ( !$redirect ) {
+	if ( empty($post->post_type) ) // Empty post_type means either malformed object found, or no valid parent was found.
+		$redirect = 'edit.php';
+	elseif ( !post_type_supports($post->post_type, 'revisions') )
+		$redirect = 'edit.php?post_type=' . $post->post_type;
+}
 
-if ( $redirect ) {
+if ( !empty($redirect) ) {
 	wp_redirect( $redirect );
 	exit;
 }
 
-if ( 'page' == $post->post_type ) {
-	$submenu_file = 'edit-pages.php';
-	$title = __( 'Page Revisions' );
-} else {
-	$submenu_file = 'edit.php';
-	$title = __( 'Post Revisions' );
-}
+// This is so that the correct "Edit" menu item is selected.
+if ( !empty($post->post_type) && 'post' != $post->post_type )
+	$parent_file = $submenu_file = 'edit.php?post_type=' . $post->post_type;
+else
+	$parent_file = $submenu_file = 'edit.php';
 
 require_once( 'admin-header.php' );
 
@@ -206,7 +207,7 @@ endif;
 <?php
 
 $args = array( 'format' => 'form-table', 'parent' => true, 'right' => $right, 'left' => $left );
-if ( !constant( 'WP_POST_REVISIONS' ) )
+if ( ! WP_POST_REVISIONS )
 	$args['type'] = 'autosave';
 
 wp_list_post_revisions( $post, $args );

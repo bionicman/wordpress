@@ -2,8 +2,6 @@
 /**
  * Links Import Administration Panel.
  *
- * @copyright 2002 Mike Little <mike@zed1.com>
- * @author Mike Little <mike@zed1.com>
  * @package WordPress
  * @subpackage Administration
  */
@@ -17,13 +15,11 @@ class OPML_Import {
 
 	function dispatch() {
 		global $wpdb, $user_ID;
-$step = $_POST['step'];
-if (!$step) $step = 0;
-?>
-<?php
+$step = isset( $_POST['step'] ) ? $_POST['step'] : 0;
+
 switch ($step) {
 	case 0: {
-		include_once('admin-header.php');
+		include_once( ABSPATH . 'wp-admin/admin-header.php' );
 		if ( !current_user_can('manage_links') )
 			wp_die(__('Cheatin&#8217; uh?'));
 
@@ -39,7 +35,7 @@ switch ($step) {
 <p><?php _e('If a program or website you use allows you to export your links or subscriptions as OPML you may import them here.'); ?></p>
 <div style="width: 70%; margin: auto; height: 8em;">
 <input type="hidden" name="step" value="1" />
-<input type="hidden" name="MAX_FILE_SIZE" value="30000" />
+<input type="hidden" name="MAX_FILE_SIZE" value="<?php echo wp_max_upload_size(); ?>" />
 <div style="width: 48%;" class="alignleft">
 <h3><label for="opml_url"><?php _e('Specify an OPML URL:'); ?></label></h3>
 <input type="text" name="opml_url" id="opml_url" size="50" class="code" style="width: 90%;" value="http://" />
@@ -55,7 +51,7 @@ switch ($step) {
 <p style="clear: both; margin-top: 1em;"><label for="cat_id"><?php _e('Now select a category you want to put these links in.') ?></label><br />
 <?php _e('Category:') ?> <select name="cat_id" id="cat_id">
 <?php
-$categories = get_terms('link_category', 'get=all');
+$categories = get_terms('link_category', array('get' => 'all'));
 foreach ($categories as $category) {
 ?>
 <option value="<?php echo $category->term_id; ?>"><?php echo esc_html(apply_filters('link_category', $category->name)); ?></option>
@@ -75,7 +71,7 @@ foreach ($categories as $category) {
 	case 1: {
 		check_admin_referer('import-bookmarks');
 
-		include_once('admin-header.php');
+		include_once( ABSPATH . 'wp-admin/admin-header.php' );
 		if ( !current_user_can('manage_links') )
 			wp_die(__('Cheatin&#8217; uh?'));
 ?>
@@ -112,7 +108,7 @@ foreach ($categories as $category) {
 			}
 
 			/** Load OPML Parser */
-			include_once('link-parse-opml.php');
+			include_once( ABSPATH . 'wp-admin/link-parse-opml.php' );
 
 			$link_count = count($names);
 			for ( $i = 0; $i < $link_count; $i++ ) {

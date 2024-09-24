@@ -64,7 +64,7 @@ function image_constrain_size_for_editor($width, $height, $size = 'medium') {
 	} elseif ( isset( $_wp_additional_image_sizes ) && count( $_wp_additional_image_sizes ) && in_array( $size, array_keys( $_wp_additional_image_sizes ) ) ) {
 		$max_width = intval( $_wp_additional_image_sizes[$size]['width'] );
 		$max_height = intval( $_wp_additional_image_sizes[$size]['height'] );
-		if ( intval($content_width) > 0 )
+		if ( intval($content_width) > 0 && is_admin() ) // Only in admin. Assume that theme authors know what they're doing.
 			$max_width = min( intval($content_width), $max_width );
 	}
 	// $size == 'full' has no constraint
@@ -231,10 +231,37 @@ function get_image_tag($id, $alt, $title, $align, $size='medium') {
 }
 
 /**
+ * Load an image from a string, if PHP supports it.
+ *
+ * @since 2.1.0
+ *
+ * @param string $file Filename of the image to load.
+ * @return resource The resulting image resource on success, Error string on failure.
+ */
+function wp_load_image( $file ) {
+	if ( is_numeric( $file ) )
+		$file = get_attached_file( $file );
+
+	if ( ! file_exists( $file ) )
+		return sprintf(__('File &#8220;%s&#8221; doesn&#8217;t exist?'), $file);
+
+	if ( ! function_exists('imagecreatefromstring') )
+		return __('The GD image library is not installed.');
+
+	// Set artificially high because GD uses uncompressed images in memory
+	@ini_set('memory_limit', '256M');
+	$image = imagecreatefromstring( file_get_contents( $file ) );
+
+	if ( !is_resource( $image ) )
+		return sprintf(__('File &#8220;%s&#8221; is not an image.'), $file);
+
+	return $image;
+}
+
+/**
  * Calculates the new dimentions for a downsampled image.
  *
- * Same as {@link wp_shrink_dimensions()}, except the max parameters are
- * optional. If either width or height are empty, no constraint is applied on
+ * If either width or height are empty, no constraint is applied on
  * that dimension.
  *
  * @since 2.5.0
@@ -355,7 +382,7 @@ function image_resize( $file, $max_w, $max_h, $crop = false, $suffix = null, $de
 
 	$image = wp_load_image( $file );
 	if ( !is_resource( $image ) )
-		return new WP_Error('error_loading_image', $image);
+		return new WP_Error( 'error_loading_image', $image, $file );
 
 	$size = @getimagesize( $file );
 	if ( !$size )
@@ -372,7 +399,7 @@ function image_resize( $file, $max_w, $max_h, $crop = false, $suffix = null, $de
 	imagecopyresampled( $newimage, $image, $dst_x, $dst_y, $src_x, $src_y, $dst_w, $dst_h, $src_w, $src_h);
 
 	// convert from full colors to index colors, like original PNG.
-	if ( IMAGETYPE_PNG == $orig_type && !imageistruecolor( $image ) )
+	if ( IMAGETYPE_PNG == $orig_type && function_exists('imageistruecolor') && !imageistruecolor( $image ) )
 		imagetruecolortopalette( $newimage, false, imagecolorstotal( $image ) );
 
 	// we don't need the original in memory anymore
@@ -485,6 +512,13 @@ function image_get_intermediate_size($post_id, $size='thumbnail') {
 			foreach ( $areas as $_size ) {
 				$data = $imagedata['sizes'][$_size];
 				if ( $data['width'] >= $size[0] || $data['height'] >= $size[1] ) {
+					// Skip images with unexpectedly divergent aspect ratios (crops)
+					// First, we calculate what size the original image would be if constrained to a box the size of the current image in the loop
+					$maybe_cropped = image_resize_dimensions($imagedata['width'], $imagedata['height'], $data['width'], $data['height'], false );
+					// If the size doesn't match exactly, then it is of a different aspect ratio, so we skip it, unless it's the thumbnail size
+					if ( 'thumbnail' != $_size && ( !$maybe_cropped || $maybe_cropped[0] != $data['width'] || $maybe_cropped[1] != $data['height'] ) )
+						continue;
+					// If we're still here, then we're going to use this size
 					$file = $data['file'];
 					list($width, $height) = image_constrain_size_for_editor( $data['width'], $data['height'], $size );
 					return compact( 'file', 'width', 'height' );
@@ -504,6 +538,20 @@ function image_get_intermediate_size($post_id, $size='thumbnail') {
 		$data['url'] = path_join( dirname($file_url), $data['file'] );
 	}
 	return $data;
+}
+
+/**
+ * Get the available image sizes
+ * @since 3.0.0
+ * @return array Returns a filtered array of image size strings
+ */
+function get_intermediate_image_sizes() {
+	global $_wp_additional_image_sizes;
+	$image_sizes = array('thumbnail', 'medium', 'large'); // Standard sizes
+	if ( isset( $_wp_additional_image_sizes ) && count( $_wp_additional_image_sizes ) )
+		$image_sizes = array_merge( $image_sizes, array_keys( $_wp_additional_image_sizes ) );
+
+	return apply_filters( 'intermediate_image_sizes', $image_sizes );
 }
 
 /**
@@ -582,7 +630,6 @@ function wp_get_attachment_image($attachment_id, $size = 'thumbnail', $icon = fa
  * Uses the begin_fetch_post_thumbnail_html and end_fetch_post_thumbnail_html action hooks to
  * dynamically add/remove itself so as to only filter post thumbnail thumbnails
  *
- * @author Mark Jaquith
  * @since 2.9.0
  * @param array $attr Attributes including src, class, alt, title
  * @return array
@@ -595,7 +642,6 @@ function _wp_post_thumbnail_class_filter( $attr ) {
 /**
  * Adds _wp_post_thumbnail_class_filter to the wp_get_attachment_image_attributes filter
  *
- * @author Mark Jaquith
  * @since 2.9.0
  */
 function _wp_post_thumbnail_class_filter_add( $attr ) {
@@ -605,7 +651,6 @@ function _wp_post_thumbnail_class_filter_add( $attr ) {
 /**
  * Removes _wp_post_thumbnail_class_filter from the wp_get_attachment_image_attributes filter
  *
- * @author Mark Jaquith
  * @since 2.9.0
  */
 function _wp_post_thumbnail_class_filter_remove( $attr ) {
@@ -731,8 +776,8 @@ function gallery_shortcode($attr) {
 	$captiontag = tag_escape($captiontag);
 	$columns = intval($columns);
 	$itemwidth = $columns > 0 ? floor(100/$columns) : 100;
-	$float = $wp_locale->text_direction == 'rtl' ? 'right' : 'left'; 
-	
+	$float = $wp_locale->text_direction == 'rtl' ? 'right' : 'left';
+
 	$selector = "gallery-{$instance}";
 
 	$output = apply_filters('gallery_style', "
@@ -1099,7 +1144,7 @@ class WP_Embed {
 			}
 
 			// Use oEmbed to get the HTML
-			$attr['discover'] = ( apply_filters('embed_oembed_discover', false) && author_can( $post_ID, 'unfiltered_html' ) ) ? true : false;
+			$attr['discover'] = ( apply_filters('embed_oembed_discover', false) && author_can( $post_ID, 'unfiltered_html' ) );
 			$html = wp_oembed_get( $url, $attr );
 
 			// Cache the result
@@ -1232,15 +1277,20 @@ function wp_embed_defaults() {
 
 	$width = get_option('embed_size_w');
 
-	if ( !$width && !empty($theme_width) )
+	if ( empty($width) && !empty($theme_width) )
 		$width = $theme_width;
 
-	if ( !$width )
+	if ( empty($width) )
 		$width = 500;
 
+	$height = get_option('embed_size_h');
+
+	if ( empty($height) )
+		$height = 700;
+
 	return apply_filters( 'embed_defaults', array(
-		'width' => $width,
-		'height' => 700,
+		'width'  => $width,
+		'height' => $height,
 	) );
 }
 
@@ -1294,7 +1344,7 @@ function wp_oembed_get( $url, $args = '' ) {
  *
  * @param string $format The format of URL that this provider can handle. You can use asterisks as wildcards.
  * @param string $provider The URL to the oEmbed provider.
- * @param boolean $regex Whether the $format parameter is in a regex format or not.
+ * @param boolean $regex Whether the $format parameter is in a regex format.
  */
 function wp_oembed_add_provider( $format, $provider, $regex = false ) {
 	require_once( 'class-oembed.php' );

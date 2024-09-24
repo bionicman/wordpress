@@ -23,35 +23,56 @@ define('WXR_VERSION', '1.0');
  *
  * @param unknown_type $author
  */
-function export_wp($author='') {
+function export_wp($author='', $category='', $post_type='', $status='', $start_date='', $end_date='') {
 global $wpdb, $post_ids, $post, $wp_taxonomies;
 
 do_action('export_wp');
 
-$filename = 'wordpress.' . date('Y-m-d') . '.xml';
+if(strlen($start_date) > 4 && strlen($end_date) > 4) {
+	$filename = 'wordpress.' . $start_date . '.' . $end_date . '.xml';
+} else {
+	$filename = 'wordpress.' . date('Y-m-d') . '.xml';
+}
 
 header('Content-Description: File Transfer');
 header("Content-Disposition: attachment; filename=$filename");
 header('Content-Type: text/xml; charset=' . get_option('blog_charset'), true);
 
-$where = '';
+if ( $post_type and $post_type != 'all' ) {
+		$where = $wpdb->prepare("WHERE post_type = %s ", $post_type);
+} else {
+		$where = "WHERE post_type != 'revision' ";
+}
 if ( $author and $author != 'all' ) {
-	$author_id = (int) $author;
-	$where = $wpdb->prepare(" WHERE post_author = %d ", $author_id);
+		$author_id = (int) $author;
+		$where .= $wpdb->prepare("AND post_author = %d ", $author_id);
+}
+if ( $start_date and $start_date != 'all' ) {
+		$where .= $wpdb->prepare("AND post_date >= %s ", $start_date);
+}
+if ( $end_date and $end_date != 'all' ) {
+		$where .= $wpdb->prepare("AND post_date < %s ", $end_date);
+}
+if ( $category and $category != 'all' ) {
+		$taxomony_id = (int) $category;
+		$where .= $wpdb->prepare("AND ID IN (SELECT object_id FROM {$wpdb->term_relationships} " . "WHERE term_taxonomy_id = %d) ", $taxomony_id);
+}
+if ( $status and $status != 'all' ) {
+		$where .= $wpdb->prepare("AND post_status = %s ", $status);
 }
 
 // grab a snapshot of post IDs, just in case it changes during the export
 $post_ids = $wpdb->get_col("SELECT ID FROM $wpdb->posts $where ORDER BY post_date_gmt ASC");
 
-$categories = (array) get_categories('get=all');
-$tags = (array) get_tags('get=all');
+$categories = (array) get_categories(array('get' => 'all'));
+$tags = (array) get_tags(array('get' => 'all'));
 
 $custom_taxonomies = $wp_taxonomies;
 unset($custom_taxonomies['category']);
 unset($custom_taxonomies['post_tag']);
 unset($custom_taxonomies['link_category']);
 $custom_taxonomies = array_keys($custom_taxonomies);
-$terms = (array) get_terms($custom_taxonomies, 'get=all');
+$terms = (array) get_terms($custom_taxonomies, array('get' => 'all'));
 
 /**
  * {@internal Missing Short Description}}
@@ -76,7 +97,7 @@ function wxr_missing_parents($categories) {
 }
 
 while ( $parents = wxr_missing_parents($categories) ) {
-	$found_parents = get_categories("include=" . join(', ', $parents));
+	$found_parents = get_categories(array('include' => join(', ', $parents)));
 	if ( is_array($found_parents) && count($found_parents) )
 		$categories = array_merge($categories, $found_parents);
 	else
@@ -223,27 +244,24 @@ function wxr_term_description($t) {
  * @since unknown
  */
 function wxr_post_taxonomy() {
-	$categories = get_the_category();
-	$tags = get_the_tags();
+	global $post;
+
 	$the_list = '';
 	$filter = 'rss';
 
-	if ( !empty($categories) ) foreach ( (array) $categories as $category ) {
-		$cat_name = sanitize_term_field('name', $category->name, $category->term_id, 'category', $filter);
-		// for backwards compatibility
-		$the_list .= "\n\t\t<category><![CDATA[$cat_name]]></category>\n";
-		// forwards compatibility: use a unique identifier for each cat to avoid clashes
-		// http://trac.wordpress.org/ticket/5447
-		$the_list .= "\n\t\t<category domain=\"category\" nicename=\"{$category->slug}\"><![CDATA[$cat_name]]></category>\n";
-	}
-
-	if ( !empty($tags) ) foreach ( (array) $tags as $tag ) {
-		$tag_name = sanitize_term_field('name', $tag->name, $tag->term_id, 'post_tag', $filter);
-		$the_list .= "\n\t\t<category domain=\"tag\"><![CDATA[$tag_name]]></category>\n";
+	$taxonomies = get_object_taxonomies('post');
+	$terms = wp_get_post_terms($post->ID, $taxonomies);
+	foreach ( (array) $terms as $term ) {
+		$domain = ( 'post_tag' == $term->taxonomy ) ? 'tag' : $term->taxonomy;
+		$term_name = sanitize_term_field('name', $term->name, $term->term_id, $term->taxonomy, $filter);
+		// Back compat.
+		if ( 'category' == $term->taxonomy )
+			$the_list .= "\n\t\t<category><![CDATA[$term_name]]></category>\n";
+		elseif ( 'post_tag' == $term->taxonomy )
+			$the_list .= "\n\t\t<category domain=\"$domain\"><![CDATA[$term_name]]></category>\n";
 		// forwards compatibility as above
-		$the_list .= "\n\t\t<category domain=\"tag\" nicename=\"{$tag->slug}\"><![CDATA[$tag_name]]></category>\n";
+		$the_list .= "\n\t\t<category domain=\"$domain\" nicename=\"{$term->slug}\"><![CDATA[$term_name]]></category>\n";
 	}
-
 	echo $the_list;
 }
 
@@ -303,9 +321,6 @@ echo '<?xml version="1.0" encoding="' . get_bloginfo('charset') . '"?' . ">\n";
 			$where = "WHERE ID IN (".join(',', $next_posts).")";
 			$posts = $wpdb->get_results("SELECT * FROM $wpdb->posts $where ORDER BY post_date_gmt ASC");
 				foreach ($posts as $post) {
-			// Don't export revisions.  They bloat the export.
-			if ( 'revision' == $post->post_type )
-				continue;
 			setup_postdata($post);
 
 			$is_sticky = 0;
@@ -347,7 +362,7 @@ if ( $postmeta ) {
 <?php foreach( $postmeta as $meta ) { ?>
 <wp:postmeta>
 <wp:meta_key><?php echo $meta->meta_key; ?></wp:meta_key>
-<wp:meta_value><?Php echo $meta->meta_value; ?></wp:meta_value>
+<wp:meta_value><?php echo wxr_cdata( $meta->meta_value ); ?></wp:meta_value>
 </wp:postmeta>
 <?php } ?>
 <?php } ?>

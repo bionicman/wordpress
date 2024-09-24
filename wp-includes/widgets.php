@@ -461,7 +461,8 @@ function unregister_widget($widget_class) {
  * The default for the name is "Sidebar #", with '#' being replaced with the
  * number the sidebar is currently when greater than one. If first sidebar, the
  * name will be just "Sidebar". The default for id is "sidebar-" followed by the
- * number the sidebar creation is currently at.
+ * number the sidebar creation is currently at. If the id is provided, and mutliple
+ * sidebars are being defined, the id will have "-2" appended, and so on.
  *
  * @since 2.2.0
  *
@@ -480,25 +481,27 @@ function register_sidebars($number = 1, $args = array()) {
 	if ( is_string($args) )
 		parse_str($args, $args);
 
-	for ( $i=1; $i <= $number; $i++ ) {
+	for ( $i = 1; $i <= $number; $i++ ) {
 		$_args = $args;
 
-		if ( $number > 1 ) {
+		if ( $number > 1 )
 			$_args['name'] = isset($args['name']) ? sprintf($args['name'], $i) : sprintf(__('Sidebar %d'), $i);
-		} else {
+		else
 			$_args['name'] = isset($args['name']) ? $args['name'] : __('Sidebar');
-		}
 
-		if (isset($args['id'])) {
+		// Custom specified ID's are suffixed if they exist already.
+		// Automatically generated sidebar names need to be suffixed regardless starting at -0
+		if ( isset($args['id']) ) {
 			$_args['id'] = $args['id'];
+			$n = 2; // Start at -2 for conflicting custom ID's
+			while ( isset($wp_registered_sidebars[$_args['id']]) )
+				$_args['id'] = $args['id'] . '-' . $n++;
 		} else {
 			$n = count($wp_registered_sidebars);
 			do {
-				$n++;
-				$_args['id'] = "sidebar-$n";
-			} while (isset($wp_registered_sidebars[$_args['id']]));
+				$_args['id'] = 'sidebar-' . ++$n;
+			} while ( isset($wp_registered_sidebars[$_args['id']]) );
 		}
-
 		register_sidebar($_args);
 	}
 }
@@ -558,6 +561,8 @@ function register_sidebar($args = array()) {
 	$sidebar = array_merge($defaults, (array) $args);
 
 	$wp_registered_sidebars[$sidebar['id']] = $sidebar;
+
+	add_theme_support('widgets');
 
 	return $sidebar['id'];
 }
@@ -963,7 +968,7 @@ function is_dynamic_sidebar() {
 function is_active_sidebar( $index ) {
 	$index = ( is_int($index) ) ? "sidebar-$index" : sanitize_title($index);
 	$sidebars_widgets = wp_get_sidebars_widgets();
-	if ( isset($sidebars_widgets[$index]) && !empty($sidebars_widgets[$index]) )
+	if ( !empty($sidebars_widgets[$index]) )
 		return true;
 
 	return false;
@@ -980,10 +985,13 @@ function is_active_sidebar( $index ) {
  * @since 2.2.0
  * @access private
  *
- * @param bool $update Optional, deprecated.
+ * @param bool $deprecated. Not used.
  * @return array Upgraded list of widgets to version 3 array format when called from the admin.
  */
 function wp_get_sidebars_widgets($deprecated = true) {
+	if ( $deprecated !== true )
+		_deprecated_argument( __FUNCTION__, '2.8.1' );
+
 	global $wp_registered_widgets, $wp_registered_sidebars, $_wp_sidebars_widgets;
 
 	// If loading from front page, consult $_wp_sidebars_widgets rather than options
@@ -1165,114 +1173,6 @@ function wp_convert_widget_settings($base_name, $option_name, $settings) {
 		update_option( $option_name, $settings );
 
 	return $settings;
-}
-
-/**
- * Deprecated API
- */
-
-/**
- * Register widget for sidebar with backwards compatibility.
- *
- * Allows $name to be an array that accepts either three elements to grab the
- * first element and the third for the name or just uses the first element of
- * the array for the name.
- *
- * Passes to {@link wp_register_sidebar_widget()} after argument list and
- * backwards compatibility is complete.
- *
- * @since 2.2.0
- * @uses wp_register_sidebar_widget() Passes the compiled arguments.
- *
- * @param string|int $name Widget ID.
- * @param callback $output_callback Run when widget is called.
- * @param string $classname Classname widget option.
- * @param mixed $params,... Widget parameters.
- */
-function register_sidebar_widget($name, $output_callback, $classname = '') {
-	// Compat
-	if ( is_array($name) ) {
-		if ( count($name) == 3 )
-			$name = sprintf($name[0], $name[2]);
-		else
-			$name = $name[0];
-	}
-
-	$id = sanitize_title($name);
-	$options = array();
-	if ( !empty($classname) && is_string($classname) )
-		$options['classname'] = $classname;
-	$params = array_slice(func_get_args(), 2);
-	$args = array($id, $name, $output_callback, $options);
-	if ( !empty($params) )
-		$args = array_merge($args, $params);
-
-	call_user_func_array('wp_register_sidebar_widget', $args);
-}
-
-/**
- * Alias of {@link wp_unregister_sidebar_widget()}.
- *
- * @see wp_unregister_sidebar_widget()
- *
- * @since 2.2.0
- *
- * @param int|string $id Widget ID.
- */
-function unregister_sidebar_widget($id) {
-	return wp_unregister_sidebar_widget($id);
-}
-
-/**
- * Registers widget control callback for customizing options.
- *
- * Allows $name to be an array that accepts either three elements to grab the
- * first element and the third for the name or just uses the first element of
- * the array for the name.
- *
- * Passes to {@link wp_register_widget_control()} after the argument list has
- * been compiled.
- *
- * @since 2.2.0
- *
- * @param int|string $name Sidebar ID.
- * @param callback $control_callback Widget control callback to display and process form.
- * @param int $width Widget width.
- * @param int $height Widget height.
- */
-function register_widget_control($name, $control_callback, $width = '', $height = '') {
-	// Compat
-	if ( is_array($name) ) {
-		if ( count($name) == 3 )
-			$name = sprintf($name[0], $name[2]);
-		else
-			$name = $name[0];
-	}
-
-	$id = sanitize_title($name);
-	$options = array();
-	if ( !empty($width) )
-		$options['width'] = $width;
-	if ( !empty($height) )
-		$options['height'] = $height;
-	$params = array_slice(func_get_args(), 4);
-	$args = array($id, $name, $control_callback, $options);
-	if ( !empty($params) )
-		$args = array_merge($args, $params);
-
-	call_user_func_array('wp_register_widget_control', $args);
-}
-
-/**
- * Alias of {@link wp_unregister_widget_control()}.
- *
- * @since 2.2.0
- * @see wp_unregister_widget_control()
- *
- * @param int|string $id Widget ID.
- */
-function unregister_widget_control($id) {
-	return wp_unregister_widget_control($id);
 }
 
 /**

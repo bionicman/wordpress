@@ -20,7 +20,7 @@ require( '../wp-load.php' );
 timer_start();
 require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );
 
-delete_transient('update_core');
+delete_site_transient('update_core');
 
 if ( isset( $_GET['step'] ) )
 	$step = $_GET['step'];
@@ -60,11 +60,11 @@ $mysql_compat   = version_compare( $mysql_version, $required_mysql_version, '>='
 
 <?php elseif ( !$php_compat || !$mysql_compat ) :
 	if ( !$mysql_compat && !$php_compat )
-		printf( __('You cannot upgrade because WordPress %1$s requires PHP version %2$s or higher and MySQL version %3$s or higher. You are running PHP version %4$s and MySQL version %5$s.'), $wp_version, $required_php_version, $required_mysql_version, $php_version, $mysql_version );
+		printf( __('You cannot upgrade because <a href="http://codex.wordpress.org/Version_%1$s">WordPress %1$s</a> requires PHP version %2$s or higher and MySQL version %3$s or higher. You are running PHP version %4$s and MySQL version %5$s.'), $wp_version, $required_php_version, $required_mysql_version, $php_version, $mysql_version );
 	elseif ( !$php_compat )
-		printf( __('You cannot upgrade because WordPress %1$s requires PHP version %2$s or higher. You are running version %3$s.'), $wp_version, $required_php_version, $php_version );
+		printf( __('You cannot upgrade because <a href="http://codex.wordpress.org/Version_%1$s">WordPress %1$s</a> requires PHP version %2$s or higher. You are running version %3$s.'), $wp_version, $required_php_version, $php_version );
 	elseif ( !$mysql_compat )
-		printf( __('You cannot upgrade because WordPress %1$s requires MySQL version %2$s or higher. You are running version %3$s.'), $wp_version, $required_mysql_version, $mysql_version );
+		printf( __('You cannot upgrade because <a href="http://codex.wordpress.org/Version_%1$s">WordPress %1$s</a> requires MySQL version %2$s or higher. You are running version %3$s.'), $wp_version, $required_mysql_version, $mysql_version );
 ?>
 <?php else :
 switch ( $step ) :
@@ -82,9 +82,8 @@ switch ( $step ) :
 	case 1:
 		wp_upgrade();
 
-			$backto = empty($_GET['backto']) ? '' : $_GET['backto'] ;
-			$backto = stripslashes( urldecode( $backto ) );
-			$backto = esc_url_raw( $backto  );
+			$backto = !empty($_GET['backto']) ? stripslashes( urldecode( $_GET['backto'] ) ) :  __get_option( 'home' ) . '/';
+			$backto = esc_url_raw( $backto );
 			$backto = wp_validate_redirect($backto, __get_option( 'home' ) . '/');
 ?>
 <h2><?php _e( 'Upgrade Complete' ); ?></h2>

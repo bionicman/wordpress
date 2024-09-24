@@ -33,6 +33,14 @@ do_action( 'sidebar_admin_setup' );
 $title = __( 'Widgets' );
 $parent_file = 'themes.php';
 
+$help = '
+	<p>' . __('Widgets are added and arranged by simple drag &#8217;n&#8217; drop. If you hover your mouse over the titlebar of a widget, you&#8217;ll see a 4-arrow cursor which indicates that the widget is movable.  Click on the titlebar, hold down the mouse button and drag the widget to a sidebar. As you drag, you&#8217;ll see a dotted box that also moves. This box shows where the widget will go once you drop it.') . '</p>
+	<p>' . __('To remove a widget from a sidebar, drag it back to Available Widgets or click on the arrow on its titlebar to reveal its settings, and then click Remove.') . '</p>
+	<p>' . __('To remove a widget from a sidebar <em>and keep its configuration</em>, drag it to Inactive Widgets.') . '</p>
+	<p>' . __('The Inactive Widgets area stores widgets that are configured but not curently used. If you change themes and the new theme has fewer sidebars than the old, all extra widgets will be stored to Inactive Widgets automatically.') . '</p>
+';
+add_contextual_help($current_screen, $help);
+
 // register the inactive_widgets area as sidebar
 register_sidebar(array(
 	'name' => __('Inactive Widgets'),
@@ -279,7 +287,7 @@ if ( isset($_GET['editwidget']) && $_GET['editwidget'] ) {
 			}
 			$selected = '';
 			echo "\t\t<select name='{$sbname}_position'>\n";
-			echo "\t\t<option value=''>" . __('-- select --') . "</option>\n";
+			echo "\t\t<option value=''>" . __('&mdash; Select &mdash;') . "</option>\n";
 			for ( $i = 1; $i <= $j; $i++ ) {
 				if ( in_array($widget_id, $sidebars_widgets[$sbname], true) )
 					$selected = selected( $i, $key + 1, false );
@@ -329,11 +337,13 @@ require_once( 'admin-header.php' ); ?>
 <h2><?php echo esc_html( $title ); ?></h2>
 
 <?php if ( isset($_GET['message']) && isset($messages[$_GET['message']]) ) { ?>
-<div id="message" class="updated fade"><p><?php echo $messages[$_GET['message']]; ?></p></div>
+<div id="message" class="updated"><p><?php echo $messages[$_GET['message']]; ?></p></div>
 <?php } ?>
 <?php if ( isset($_GET['error']) && isset($errors[$_GET['error']]) ) { ?>
 <div id="message" class="error"><p><?php echo $errors[$_GET['error']]; ?></p></div>
 <?php } ?>
+
+<?php do_action( 'widgets_admin_page' ); ?>
 
 <div class="widget-liquid-left">
 <div id="widgets-left">
@@ -355,7 +365,7 @@ require_once( 'admin-header.php' ); ?>
 		<div class="sidebar-name">
 		<div class="sidebar-name-arrow"><br /></div>
 		<h3><?php _e('Inactive Widgets'); ?>
-		<span><img src="images/wpspin_light.gif" class="ajax-feedback" title="" alt="" /></span></h3></div>
+		<span><img src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" class="ajax-feedback" title="" alt="" /></span></h3></div>
 		<div class="widget-holder inactive">
 		<p class="description"><?php _e('Drag widgets here to remove them from the sidebar but keep their settings.'); ?></p>
 		<?php wp_list_widget_controls('wp_inactive_widgets'); ?>
@@ -377,7 +387,7 @@ foreach ( $wp_registered_sidebars as $sidebar => $registered_sidebar ) {
 	<div class="sidebar-name">
 	<div class="sidebar-name-arrow"><br /></div>
 	<h3><?php echo esc_html( $registered_sidebar['name'] ); ?>
-	<span><img src="images/wpspin_dark.gif" class="ajax-feedback" title="" alt="" /></span></h3></div>
+	<span><img src="<?php echo esc_url( admin_url( 'images/wpspin_dark.gif' ) ); ?>" class="ajax-feedback" title="" alt="" /></span></h3></div>
 	<?php wp_list_widget_controls( $sidebar ); // Show the control forms for each of the widgets in this sidebar ?>
 	</div>
 <?php

@@ -4,8 +4,6 @@
  *
  * @package WordPress
  * @subpackage Importer
- * @author Shayne Sweeney
- * @link http://www.theshayne.com/
  */
 
 /**
@@ -27,12 +25,6 @@ class BW_Import {
 
 	function footer() {
 		echo '</div>';
-	}
-
-	function unhtmlentities($string) { // From php.net for < 4.3 compat
-		$trans_tbl = get_html_translation_table(HTML_ENTITIES);
-		$trans_tbl = array_flip($trans_tbl);
-		return strtr($string, $trans_tbl);
 	}
 
 	function greet() {
@@ -62,7 +54,7 @@ class BW_Import {
 			flush();
 			preg_match('|<item type=\"(.*?)\">|is', $post, $post_type);
 			$post_type = $post_type[1];
-			if($post_type == "photo") {
+			if ($post_type == "photo") {
 				preg_match('|<photoFilename>(.*?)</photoFilename>|is', $post, $post_title);
 			} else {
 				preg_match('|<title>(.*?)</title>|is', $post, $post_title);
@@ -78,18 +70,18 @@ class BW_Import {
 
 			$cat_index = 0;
 			foreach ($categories as $category) {
-				$categories[$cat_index] = $wpdb->escape($this->unhtmlentities($category));
+				$categories[$cat_index] = $wpdb->escape( html_entity_decode($category) );
 				$cat_index++;
 			}
 
-			if(strcasecmp($post_type, "photo") === 0) {
+			if ( strcasecmp($post_type, "photo") === 0 ) {
 				preg_match('|<sizedPhotoUrl>(.*?)</sizedPhotoUrl>|is', $post, $post_content);
 				$post_content = '<img src="'.trim($post_content[1]).'" />';
-				$post_content = $this->unhtmlentities($post_content);
+				$post_content = html_entity_decode( $post_content );
 			} else {
 				preg_match('|<body>(.*?)</body>|is', $post, $post_content);
 				$post_content = str_replace(array ('<![CDATA[', ']]>'), '', trim($post_content[1]));
-				$post_content = $this->unhtmlentities($post_content);
+				$post_content = html_entity_decode( $post_content );
 			}
 
 			// Clean up content
@@ -117,7 +109,7 @@ class BW_Import {
 					echo '</li>';
 					break;
 				}
-				if(0 != count($categories))
+				if ( 0 != count($categories) )
 					wp_create_categories($categories, $post_id);
 			}
 
@@ -130,7 +122,7 @@ class BW_Import {
 				foreach ($comments as $comment) {
 					preg_match('|<body>(.*?)</body>|is', $comment, $comment_content);
 					$comment_content = str_replace(array ('<![CDATA[', ']]>'), '', trim($comment_content[1]));
-					$comment_content = $this->unhtmlentities($comment_content);
+					$comment_content = html_entity_decode( $comment_content );
 
 					// Clean up content
 					$comment_content = preg_replace_callback('|<(/?[A-Z]+)|', array( &$this, '_normalize_tag' ), $comment_content);

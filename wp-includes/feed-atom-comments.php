@@ -16,7 +16,7 @@ echo '<?xml version="1.0" encoding="' . get_option('blog_charset') . '" ?' . '>'
 >
 	<title type="text"><?php
 		if ( is_singular() )
-			printf(ent2ncr(__('Comments on: %s')), get_the_title_rss());
+			printf(ent2ncr(__('Comments on %s')), get_the_title_rss());
 		elseif ( is_search() )
 			printf(ent2ncr(__('Comments for %1$s searching on %2$s')), get_bloginfo_rss( 'name' ), esc_attr(get_search_query()));
 		else
@@ -25,18 +25,17 @@ echo '<?xml version="1.0" encoding="' . get_option('blog_charset') . '" ?' . '>'
 	<subtitle type="text"><?php bloginfo_rss('description'); ?></subtitle>
 
 	<updated><?php echo mysql2date('Y-m-d\TH:i:s\Z', get_lastcommentmodified('GMT'), false); ?></updated>
-	<?php the_generator( 'atom' ); ?>
 
 <?php if ( is_singular() ) { ?>
 	<link rel="alternate" type="<?php bloginfo_rss('html_type'); ?>" href="<?php echo get_comments_link(); ?>" />
 	<link rel="self" type="application/atom+xml" href="<?php echo get_post_comments_feed_link('', 'atom'); ?>" />
 	<id><?php echo get_post_comments_feed_link('', 'atom'); ?></id>
 <?php } elseif(is_search()) { ?>
-	<link rel="alternate" type="<?php bloginfo_rss('html_type'); ?>" href="<?php echo get_option('home') . '?s=' . esc_attr(get_search_query()); ?>" />
+	<link rel="alternate" type="<?php bloginfo_rss('html_type'); ?>" href="<?php echo home_url() . '?s=' . esc_attr(get_search_query()); ?>" />
 	<link rel="self" type="application/atom+xml" href="<?php echo get_search_comments_feed_link('', 'atom'); ?>" />
 	<id><?php echo get_search_comments_feed_link('', 'atom'); ?></id>
 <?php } else { ?>
-	<link rel="alternate" type="<?php bloginfo_rss('html_type'); ?>" href="<?php bloginfo_rss('home'); ?>" />
+	<link rel="alternate" type="<?php bloginfo_rss('html_type'); ?>" href="<?php bloginfo_rss('url'); ?>" />
 	<link rel="self" type="application/atom+xml" href="<?php bloginfo_rss('comments_atom_url'); ?>" />
 	<id><?php bloginfo_rss('comments_atom_url'); ?></id>
 <?php } ?>

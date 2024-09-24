@@ -39,7 +39,7 @@ if ( force_ssl_admin() && !is_ssl() ) {
  * @param WP_Error $wp_error Optional. WordPress Error Object
  */
 function login_header($title = 'Log In', $message = '', $wp_error = '') {
-	global $error, $is_iphone, $interim_login;
+	global $error, $is_iphone, $interim_login, $current_site;
 
 	// Don't index any of these forms
 	add_filter( 'pre_option_blog_public', create_function( '$a', 'return 0;' ) );
@@ -47,6 +47,14 @@ function login_header($title = 'Log In', $message = '', $wp_error = '') {
 
 	if ( empty($wp_error) )
 		$wp_error = new WP_Error();
+
+	// Shake it!
+	$shake_error_codes = array( 'empty_password', 'empty_email', 'invalid_email', 'invalidcombo', 'empty_username', 'invalid_username', 'incorrect_password' );
+	$shake_error_codes = apply_filters( 'shake_error_codes', $shake_error_codes );
+
+	if ( $shake_error_codes && $wp_error->get_error_code() && in_array( $wp_error->get_error_code(), $shake_error_codes ) )
+		add_action( 'login_head', 'wp_shake_js', 12 );
+
 	?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" <?php language_attributes(); ?>>
@@ -74,9 +82,12 @@ function login_header($title = 'Log In', $message = '', $wp_error = '') {
 	do_action('login_head'); ?>
 </head>
 <body class="login">
-
+<?php   if ( !is_multisite() ) { ?>
 <div id="login"><h1><a href="<?php echo apply_filters('login_headerurl', 'http://wordpress.org/'); ?>" title="<?php echo apply_filters('login_headertitle', __('Powered by WordPress')); ?>"><?php bloginfo('name'); ?></a></h1>
-<?php
+<?php   } else { ?>
+<div id="login"><h1><a href="<?php echo apply_filters('login_headerurl', network_home_url() ); ?>" title="<?php echo apply_filters('login_headertitle', $current_site->site_name ); ?>"><span class="hide"><?php bloginfo('name'); ?></span></a></h1>
+<?php   }
+
 	$message = apply_filters('login_message', $message);
 	if ( !empty( $message ) ) echo $message . "\n";
 
@@ -104,6 +115,17 @@ function login_header($title = 'Log In', $message = '', $wp_error = '') {
 			echo '<p class="message">' . apply_filters('login_messages', $messages) . "</p>\n";
 	}
 } // End of login_header()
+function wp_shake_js() {
+?>
+<script type="text/javascript">
+addLoadEvent = function(func){if(typeof jQuery!="undefined")jQuery(document).ready(func);else if(typeof wpOnload!='function'){wpOnload=func;}else{var oldonload=wpOnload;wpOnload=function(){oldonload();func();}}};
+function s(id,pos){g(id).left=pos+'px';}
+function g(id){return document.getElementById(id).style;}
+function shake(id,a,d){c=a.shift();s(id,c);if(a.length>0){setTimeout(function(){shake(id,a,d);},d);}else{try{wp_attempt_focus();}catch(e){}}}
+addLoadEvent(function(){ var p=new Array(15,30,15,0,-15,-30,-15,0);p=p.concat(p.concat(p));var i=document.forms[0].id;g(i).position='relative';shake(i,p,20);});
+</script>
+<?php
+}
 
 /**
  * Handles sending password retrieval email to user.
@@ -113,7 +135,7 @@ function login_header($title = 'Log In', $message = '', $wp_error = '') {
  * @return bool|WP_Error True: when finish. WP_Error on error
  */
 function retrieve_password() {
-	global $wpdb;
+	global $wpdb, $current_site;
 
 	$errors = new WP_Error();
 
@@ -162,22 +184,25 @@ function retrieve_password() {
 		$wpdb->update($wpdb->users, array('user_activation_key' => $key), array('user_login' => $user_login));
 	}
 	$message = __('Someone has asked to reset the password for the following site and username.') . "\r\n\r\n";
-	$message .= get_option('siteurl') . "\r\n\r\n";
+	$message .= network_site_url() . "\r\n\r\n";
 	$message .= sprintf(__('Username: %s'), $user_login) . "\r\n\r\n";
 	$message .= __('To reset your password visit the following address, otherwise just ignore this email and nothing will happen.') . "\r\n\r\n";
-	$message .= site_url("wp-login.php?action=rp&key=$key&login=" . rawurlencode($user_login), 'login') . "\r\n";
+	$message .= network_site_url("wp-login.php?action=rp&key=$key&login=" . rawurlencode($user_login), 'login') . "\r\n";
 
-	// The blogname option is escaped with esc_html on the way into the database in sanitize_option
-	// we want to reverse this for the plain text arena of emails.
-	$blogname = wp_specialchars_decode(get_option('blogname'), ENT_QUOTES);
+	if ( is_multisite() )
+		$blogname = $GLOBALS['current_site']->site_name;
+	else
+		// The blogname option is escaped with esc_html on the way into the database in sanitize_option
+		// we want to reverse this for the plain text arena of emails.
+		$blogname = wp_specialchars_decode(get_option('blogname'), ENT_QUOTES);
 
-	$title = sprintf(__('[%s] Password Reset'), $blogname);
+	$title = sprintf( __('[%s] Password Reset'), $blogname );
 
 	$title = apply_filters('retrieve_password_title', $title);
 	$message = apply_filters('retrieve_password_message', $message, $key);
 
 	if ( $message && !wp_mail($user_email, $title, $message) )
-		die('<p>' . __('The e-mail could not be sent.') . "<br />\n" . __('Possible reason: your host may have disabled the mail() function...') . '</p>');
+		wp_die( __('The e-mail could not be sent.') . "<br />\n" . __('Possible reason: your host may have disabled the mail() function...') );
 
 	return true;
 }
@@ -211,22 +236,25 @@ function reset_password($key, $login) {
 	do_action('password_reset', $user, $new_pass);
 
 	wp_set_password($new_pass, $user->ID);
-	update_usermeta($user->ID, 'default_password_nag', true); //Set up the Password change nag.
+	update_user_option($user->ID, 'default_password_nag', true, true); //Set up the Password change nag.
 	$message  = sprintf(__('Username: %s'), $user->user_login) . "\r\n";
 	$message .= sprintf(__('Password: %s'), $new_pass) . "\r\n";
 	$message .= site_url('wp-login.php', 'login') . "\r\n";
 
-	// The blogname option is escaped with esc_html on the way into the database in sanitize_option
-	// we want to reverse this for the plain text arena of emails.
-	$blogname = wp_specialchars_decode(get_option('blogname'), ENT_QUOTES);
+	if ( is_multisite() )
+		$blogname = $GLOBALS['current_site']->site_name;
+	else
+		// The blogname option is escaped with esc_html on the way into the database in sanitize_option
+		// we want to reverse this for the plain text arena of emails.
+		$blogname = wp_specialchars_decode(get_option('blogname'), ENT_QUOTES);
 
-	$title = sprintf(__('[%s] Your new password'), $blogname);
+	$title = sprintf( __('[%s] Your new password'), $blogname );
 
 	$title = apply_filters('password_reset_title', $title);
 	$message = apply_filters('password_reset_message', $message, $new_pass);
 
 	if ( $message && !wp_mail($user->user_email, $title, $message) )
-  		die('<p>' . __('The e-mail could not be sent.') . "<br />\n" . __('Possible reason: your host may have disabled the mail() function...') . '</p>');
+  		wp_die( __('The e-mail could not be sent.') . "<br />\n" . __('Possible reason: your host may have disabled the mail() function...') );
 
 	wp_password_change_notification($user);
 
@@ -278,6 +306,8 @@ function register_new_user($user_login, $user_email) {
 		return $errors;
 	}
 
+	update_user_option($user_id, 'default_password_nag', true, true); //Set up the Password change nag.
+
 	wp_new_user_notification($user_id, $user_pass);
 
 	return $user_id;
@@ -305,7 +335,7 @@ if ( defined('RELOCATE') ) { // Move flag is set
 	if ( isset( $_SERVER['PATH_INFO'] ) && ($_SERVER['PATH_INFO'] != $_SERVER['PHP_SELF']) )
 		$_SERVER['PHP_SELF'] = str_replace( $_SERVER['PATH_INFO'], '', $_SERVER['PHP_SELF'] );
 
-	$schema = ( isset($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) == 'on' ) ? 'https://' : 'http://';
+	$schema = is_ssl() ? 'https://' : 'http://';
 	if ( dirname($schema . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF']) != get_option('siteurl') )
 		update_option('siteurl', dirname($schema . $_SERVER['HTTP_HOST'] . $_SERVER['PHP_SELF']) );
 }
@@ -325,11 +355,8 @@ case 'logout' :
 	check_admin_referer('log-out');
 	wp_logout();
 
-	$redirect_to = 'wp-login.php?loggedout=true';
-	if ( isset( $_REQUEST['redirect_to'] ) )
-		$redirect_to = $_REQUEST['redirect_to'];
-
-	wp_safe_redirect($redirect_to);
+	$redirect_to = !empty( $_REQUEST['redirect_to'] ) ? $_REQUEST['redirect_to'] : 'wp-login.php?loggedout=true';
+	wp_safe_redirect( $redirect_to );
 	exit();
 
 break;
@@ -339,12 +366,14 @@ case 'retrievepassword' :
 	if ( $http_post ) {
 		$errors = retrieve_password();
 		if ( !is_wp_error($errors) ) {
-			wp_redirect('wp-login.php?checkemail=confirm');
+			$redirect_to = !empty( $_REQUEST['redirect_to'] ) ? $_REQUEST['redirect_to'] : 'wp-login.php?checkemail=confirm';
+			wp_safe_redirect( $redirect_to );
 			exit();
 		}
 	}
 
 	if ( isset($_GET['error']) && 'invalidkey' == $_GET['error'] ) $errors->add('invalidkey', __('Sorry, that key does not appear to be valid.'));
+	$redirect_to = apply_filters( 'lostpassword_redirect', !empty( $_REQUEST['redirect_to'] ) ? $_REQUEST['redirect_to'] : '' );
 
 	do_action('lost_password');
 	login_header(__('Lost Password'), '<p class="message">' . __('Please enter your username or e-mail address. You will receive a new password via e-mail.') . '</p>', $errors);
@@ -359,6 +388,7 @@ case 'retrievepassword' :
 		<input type="text" name="user_login" id="user_login" class="input" value="<?php echo esc_attr($user_login); ?>" size="20" tabindex="10" /></label>
 	</p>
 <?php do_action('lostpassword_form'); ?>
+	<input type="hidden" name="redirect_to" value="<?php echo esc_attr( $redirect_to ); ?>" />
 	<p class="submit"><input type="submit" name="wp-submit" id="wp-submit" class="button-primary" value="<?php esc_attr_e('Get New Password'); ?>" tabindex="100" /></p>
 </form>
 
@@ -377,6 +407,7 @@ case 'retrievepassword' :
 
 <script type="text/javascript">
 try{document.getElementById('user_login').focus();}catch(e){}
+if(typeof wpOnload=='function')wpOnload();
 </script>
 </body>
 </html>
@@ -398,6 +429,12 @@ case 'rp' :
 break;
 
 case 'register' :
+	if ( is_multisite() ) {
+		// Multisite uses wp-signup.php
+		wp_redirect( apply_filters( 'wp_signup_location', get_bloginfo('wpurl') . '/wp-signup.php' ) );
+		exit;
+	}
+
 	if ( !get_option('users_can_register') ) {
 		wp_redirect('wp-login.php?registration=disabled');
 		exit();
@@ -412,11 +449,13 @@ case 'register' :
 		$user_email = $_POST['user_email'];
 		$errors = register_new_user($user_login, $user_email);
 		if ( !is_wp_error($errors) ) {
-			wp_redirect('wp-login.php?checkemail=registered');
+			$redirect_to = !empty( $_POST['redirect_to'] ) ? $_POST['redirect_to'] : 'wp-login.php?checkemail=registered';
+			wp_safe_redirect( $redirect_to );
 			exit();
 		}
 	}
 
+	$redirect_to = apply_filters( 'registration_redirect', !empty( $_REQUEST['redirect_to'] ) ? $_REQUEST['redirect_to'] : '' );
 	login_header(__('Registration Form'), '<p class="message register">' . __('Register For This Site') . '</p>', $errors);
 ?>
 
@@ -432,6 +471,7 @@ case 'register' :
 <?php do_action('register_form'); ?>
 	<p id="reg_passmail"><?php _e('A password will be e-mailed to you.') ?></p>
 	<br class="clear" />
+	<input type="hidden" name="redirect_to" value="<?php echo esc_attr( $redirect_to ); ?>" />
 	<p class="submit"><input type="submit" name="wp-submit" id="wp-submit" class="button-primary" value="<?php esc_attr_e('Register'); ?>" tabindex="100" /></p>
 </form>
 
@@ -446,6 +486,7 @@ case 'register' :
 
 <script type="text/javascript">
 try{document.getElementById('user_login').focus();}catch(e){}
+if(typeof wpOnload=='function')wpOnload();
 </script>
 </body>
 </html>
@@ -477,6 +518,9 @@ default:
 		$redirect_to = admin_url();
 	}
 
+	// If the user was redirected to a secure login form from a non-secure admin page, and secure login is required but secure admin is not, then don't use a secure
+	// cookie and redirect back to the referring non-secure admin page.  This allows logins to always be POSTed over SSL while allowing the user to choose visiting
+	// the admin via http or https.
 	if ( !$secure_cookie && is_ssl() && force_ssl_login() && !force_ssl_admin() && ( 0 !== strpos($redirect_to, 'https') ) && ( 0 === strpos($redirect_to, 'http') ) )
 		$secure_cookie = false;
 
@@ -530,7 +574,6 @@ default:
 		$user_login = ( 'incorrect_password' == $errors->get_error_code() || 'empty_password' == $errors->get_error_code() ) ? esc_attr(stripslashes($_POST['log'])) : '';
 ?>
 
-<?php if ( !isset($_GET['checkemail']) || !in_array( $_GET['checkemail'], array('confirm', 'newpass') ) ) : ?>
 <form name="loginform" id="loginform" action="<?php echo site_url('wp-login.php', 'login_post') ?>" method="post">
 	<p>
 		<label><?php _e('Username') ?><br />
@@ -552,12 +595,11 @@ default:
 		<input type="hidden" name="testcookie" value="1" />
 	</p>
 </form>
-<?php endif; ?>
 
 <?php if ( !$interim_login ) { ?>
 <p id="nav">
 <?php if ( isset($_GET['checkemail']) && in_array( $_GET['checkemail'], array('confirm', 'newpass') ) ) : ?>
-<?php elseif (get_option('users_can_register')) : ?>
+<?php elseif ( get_option('users_can_register') ) : ?>
 <a href="<?php echo site_url('wp-login.php?action=register', 'login') ?>"><?php _e('Register') ?></a> |
 <a href="<?php echo site_url('wp-login.php?action=lostpassword', 'login') ?>" title="<?php _e('Password Lost and Found') ?>"><?php _e('Lost your password?') ?></a>
 <?php else : ?>
@@ -570,16 +612,23 @@ default:
 </div>
 
 <script type="text/javascript">
-<?php if ( $user_login || $interim_login ) { ?>
+function wp_attempt_focus(){
 setTimeout( function(){ try{
+<?php if ( $user_login || $interim_login ) { ?>
 d = document.getElementById('user_pass');
+<?php } else { ?>
+d = document.getElementById('user_login');
+<?php } ?>
 d.value = '';
 d.focus();
 } catch(e){}
 }, 200);
-<?php } else { ?>
-try{document.getElementById('user_login').focus();}catch(e){}
+}
+
+<?php if ( !$error ) { ?>
+wp_attempt_focus();
 <?php } ?>
+if(typeof wpOnload=='function')wpOnload();
 </script>
 </body>
 </html>

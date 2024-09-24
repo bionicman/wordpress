@@ -32,10 +32,11 @@ if ( isset($_REQUEST['doaction']) ||  isset($_REQUEST['doaction2']) || isset($_R
 		$comment_ids = array_map( 'absint', explode(',', $_REQUEST['ids']) );
 		$doaction = $_REQUEST['action'];
 	} else {
-		wp_redirect($_SERVER['HTTP_REFERER']);
+		wp_redirect( wp_get_referer() );
 	}
 
 	$approved = $unapproved = $spammed = $unspammed = $trashed = $untrashed = $deleted = 0;
+	$redirect_to = remove_query_arg( array('trashed', 'untrashed', 'deleted', 'spammed', 'unspammed', 'approved', 'unapproved', 'ids'), wp_get_referer() );
 
 	foreach ($comment_ids as $comment_id) { // Check the permissions on each
 		$_post_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT comment_post_ID FROM $wpdb->comments WHERE comment_ID = %d", $comment_id) );
@@ -75,8 +76,6 @@ if ( isset($_REQUEST['doaction']) ||  isset($_REQUEST['doaction2']) || isset($_R
 		}
 	}
 
-	$redirect_to = 'edit-comments.php';
-
 	if ( $approved )
 		$redirect_to = add_query_arg( 'approved', $approved, $redirect_to );
 	if ( $unapproved )
@@ -94,18 +93,9 @@ if ( isset($_REQUEST['doaction']) ||  isset($_REQUEST['doaction2']) || isset($_R
 	if ( $trashed || $spammed )
 		$redirect_to = add_query_arg( 'ids', join(',', $comment_ids), $redirect_to );
 
-	if ( $post_id )
-		$redirect_to = add_query_arg( 'p', absint( $post_id ), $redirect_to );
-	if ( isset($_REQUEST['apage']) )
-		$redirect_to = add_query_arg( 'apage', absint($_REQUEST['apage']), $redirect_to );
-	if ( !empty($_REQUEST['mode']) )
-		$redirect_to = add_query_arg('mode', $_REQUEST['mode'], $redirect_to);
-	if ( !empty($_REQUEST['comment_status']) )
-		$redirect_to = add_query_arg('comment_status', $_REQUEST['comment_status'], $redirect_to);
-	if ( !empty($_REQUEST['s']) )
-		$redirect_to = add_query_arg('s', $_REQUEST['s'], $redirect_to);
 	wp_redirect( $redirect_to );
-} elseif ( isset($_GET['_wp_http_referer']) && ! empty($_GET['_wp_http_referer']) ) {
+	exit;
+} elseif ( ! empty($_GET['_wp_http_referer']) ) {
 	 wp_redirect( remove_query_arg( array('_wp_http_referer', '_wpnonce'), stripslashes($_SERVER['REQUEST_URI']) ) );
 	 exit;
 }
@@ -117,7 +107,7 @@ else
 
 require_once('admin-header.php');
 
-$mode = ( ! isset($_GET['mode']) || empty($_GET['mode']) ) ? 'detail' : esc_attr($_GET['mode']);
+$mode = ( empty($_GET['mode']) ) ? 'detail' : esc_attr($_GET['mode']);
 
 $comment_status = isset($_REQUEST['comment_status']) ? $_REQUEST['comment_status'] : 'all';
 if ( !in_array($comment_status, array('all', 'moderated', 'approved', 'spam', 'trash')) )
@@ -136,45 +126,68 @@ if ( isset($_GET['s']) && $_GET['s'] )
 </h2>
 
 <?php
-if ( isset($_GET['approved']) || isset($_GET['deleted']) || isset($_GET['trashed']) || isset($_GET['untrashed']) || isset($_GET['spammed']) || isset($_GET['unspammed']) ) {
-	$approved = isset($_GET['approved']) ? (int) $_GET['approved'] : 0;
-	$deleted = isset($_GET['deleted']) ? (int) $_GET['deleted'] : 0;
-	$trashed = isset($_GET['trashed']) ? (int) $_GET['trashed'] : 0;
-	$untrashed = isset($_GET['untrashed']) ? (int) $_GET['untrashed'] : 0;
-	$spammed = isset($_GET['spammed']) ? (int) $_GET['spammed'] : 0;
-	$unspammed = isset($_GET['unspammed']) ? (int) $_GET['unspammed'] : 0;
+if ( isset( $_GET['error'] ) ) {
+	$error = (int) $_GET['error'];
+	$error_msg = '';
+	switch ( $error ) {
+		case 1 :
+			$error_msg = __( 'Oops, no comment with this ID.' );
+			break;
+		case 2 :
+			$error_msg = __( 'You are not allowed to edit comments on this post.' );
+			break;
+	}
+	if ( $error_msg )
+		echo '<div id="moderated" class="error"><p>' . $error_msg . '</p></div>';
+}
 
-	if ( $approved > 0 || $deleted > 0 || $trashed > 0 || $untrashed > 0 || $spammed > 0 || $unspammed > 0 ) {
-		echo '<div id="moderated" class="updated fade"><p>';
+if ( isset($_GET['approved']) || isset($_GET['deleted']) || isset($_GET['trashed']) || isset($_GET['untrashed']) || isset($_GET['spammed']) || isset($_GET['unspammed']) || isset($_GET['same']) ) {
+	$approved  = isset( $_GET['approved']  ) ? (int) $_GET['approved']  : 0;
+	$deleted   = isset( $_GET['deleted']   ) ? (int) $_GET['deleted']   : 0;
+	$trashed   = isset( $_GET['trashed']   ) ? (int) $_GET['trashed']   : 0;
+	$untrashed = isset( $_GET['untrashed'] ) ? (int) $_GET['untrashed'] : 0;
+	$spammed   = isset( $_GET['spammed']   ) ? (int) $_GET['spammed']   : 0;
+	$unspammed = isset( $_GET['unspammed'] ) ? (int) $_GET['unspammed'] : 0;
+	$same      = isset( $_GET['same'] )      ? (int) $_GET['same']      : 0;
 
-		if ( $approved > 0 ) {
-			printf( _n( '%s comment approved', '%s comments approved', $approved ), $approved );
-			echo '<br />';
-		}
+	if ( $approved > 0 || $deleted > 0 || $trashed > 0 || $untrashed > 0 || $spammed > 0 || $unspammed > 0 || $same > 0 ) {
+		if ( $approved > 0 )
+			$messages[] = sprintf( _n( '%s comment approved', '%s comments approved', $approved ), $approved );
+
 		if ( $spammed > 0 ) {
-			printf( _n( '%s comment marked as spam.', '%s comments marked as spam.', $spammed ), $spammed );
 			$ids = isset($_GET['ids']) ? $_GET['ids'] : 0;
-			echo ' <a href="' . esc_url( wp_nonce_url( "edit-comments.php?doaction=undo&action=unspam&ids=$ids", "bulk-comments" ) ) . '">' . __('Undo') . '</a><br />';
-		}
-		if ( $unspammed > 0 ) {
-			printf( _n( '%s comment restored from the spam', '%s comments restored from the spam', $unspammed ), $unspammed );
-			echo '<br />';
-		}
-		if ( $trashed > 0 ) {
-			printf( _n( '%s comment moved to the trash.', '%s comments moved to the trash.', $trashed ), $trashed );
-			$ids = isset($_GET['ids']) ? $_GET['ids'] : 0;
-			echo ' <a href="' . esc_url( wp_nonce_url( "edit-comments.php?doaction=undo&action=untrash&ids=$ids", "bulk-comments" ) ) . '">' . __('Undo') . '</a><br />';
-		}
-		if ( $untrashed > 0 ) {
-			printf( _n( '%s comment restored from the trash', '%s comments restored from the trash', $untrashed ), $untrashed );
-			echo '<br />';
-		}
-		if ( $deleted > 0 ) {
-			printf( _n( '%s comment permanently deleted', '%s comments permanently deleted', $deleted ), $deleted );
-			echo '<br />';
+			$messages[] = sprintf( _n( '%s comment marked as spam.', '%s comments marked as spam.', $spammed ), $spammed ) . ' <a href="' . esc_url( wp_nonce_url( "edit-comments.php?doaction=undo&action=unspam&ids=$ids", "bulk-comments" ) ) . '">' . __('Undo') . '</a><br />';
 		}
 
-		echo '</p></div>';
+		if ( $unspammed > 0 )
+			$messages = sprintf( _n( '%s comment restored from the spam', '%s comments restored from the spam', $unspammed ), $unspammed );
+
+		if ( $trashed > 0 ) {
+			$ids = isset($_GET['ids']) ? $_GET['ids'] : 0;
+			$messages[] = sprintf( _n( '%s comment moved to the trash.', '%s comments moved to the trash.', $trashed ), $trashed ) . ' <a href="' . esc_url( wp_nonce_url( "edit-comments.php?doaction=undo&action=untrash&ids=$ids", "bulk-comments" ) ) . '">' . __('Undo') . '</a><br />';
+		}
+
+		if ( $untrashed > 0 )
+			$messages[] = sprintf( _n( '%s comment restored from the trash', '%s comments restored from the trash', $untrashed ), $untrashed );
+
+		if ( $deleted > 0 )
+			$messages[] = sprintf( _n( '%s comment permanently deleted', '%s comments permanently deleted', $deleted ), $deleted );
+
+		if ( $same > 0 && $comment = get_comment( $same ) ) {
+			switch ( $comment->comment_approved ) {
+				case '1' :
+					$messages[] = __('This comment is already approved.') . ' <a href="' . esc_url( admin_url( "comment.php?action=editcomment&c=$same" ) ) . '">' . __( 'Edit comment' ) . '</a>';
+					break;
+				case 'trash' :
+					$messages[] = __( 'This comment is already in the Trash.' ) . ' <a href="' . esc_url( admin_url( 'edit-comments.php?comment_status=trash' ) ) . '"> ' . __( 'View Trash' ) . '</a>';
+					break;
+				case 'spam' :
+					$messages[] = __( 'This comment is already marked as spam.' ) . ' <a href="' . esc_url( admin_url( "comment.php?action=editcomment&c=$same" ) ) . '">' . __( 'Edit comment' ) . '</a>';
+					break;
+			}
+		}
+
+		echo '<div id="moderated" class="updated"><p>' . implode( "<br/>\n", $messages ) . '</p></div>';
 	}
 }
 ?>
@@ -187,7 +200,7 @@ $num_comments = ( $post_id ) ? wp_count_comments( $post_id ) : wp_count_comments
 //, number_format_i18n($num_comments->moderated) ), "<span class='comment-count'>" . number_format_i18n($num_comments->moderated) . "</span>"),
 //, number_format_i18n($num_comments->spam) ), "<span class='spam-comment-count'>" . number_format_i18n($num_comments->spam) . "</span>")
 $stati = array(
-		'all' => _n_noop('All', 'All'), // singular not used
+		'all' => _nx_noop('All', 'All', 'comments'), // singular not used
 		'moderated' => _n_noop('Pending <span class="count">(<span class="pending-count">%s</span>)</span>', 'Pending <span class="count">(<span class="pending-count">%s</span>)</span>'),
 		'approved' => _n_noop('Approved', 'Approved'), // singular not used
 		'spam' => _n_noop('Spam <span class="count">(<span class="spam-count">%s</span>)</span>', 'Spam <span class="count">(<span class="spam-count">%s</span>)</span>'),
@@ -202,12 +215,12 @@ if ( !empty($comment_type) && 'all' != $comment_type )
 	$link = add_query_arg( 'comment_type', $comment_type, $link );
 
 foreach ( $stati as $status => $label ) {
-	$class = '';
+	$class = ( $status == $comment_status ) ? ' class="current"' : '';
 
-	if ( $status == $comment_status )
-		$class = ' class="current"';
 	if ( !isset( $num_comments->$status ) )
 		$num_comments->$status = 10;
+	if ( empty( $num_comments->$status ) )
+		continue;
 	$link = add_query_arg( 'comment_status', $status, $link );
 	if ( $post_id )
 		$link = add_query_arg( 'p', absint( $post_id ), $link );
@@ -236,7 +249,7 @@ unset($status_links);
 </p>
 
 <?php
-$comments_per_page = (int) get_user_option( 'edit_comments_per_page', 0, false );
+$comments_per_page = (int) get_user_option( 'edit_comments_per_page' );
 if ( empty( $comments_per_page ) || $comments_per_page < 1 )
 	$comments_per_page = 20;
 $comments_per_page = apply_filters( 'comments_per_page', $comments_per_page, $comment_status );
@@ -254,11 +267,8 @@ $_comment_post_ids = array();
 foreach ( $_comments as $_c ) {
 	$_comment_post_ids[] = $_c->comment_post_ID;
 }
-$_comment_pending_count_temp = (array) get_pending_comments_num($_comment_post_ids);
-foreach ( (array) $_comment_post_ids as $_cpid )
-	$_comment_pending_count[$_cpid] = isset( $_comment_pending_count_temp[$_cpid] ) ? $_comment_pending_count_temp[$_cpid] : 0;
-if ( empty($_comment_pending_count) )
-	$_comment_pending_count = array();
+
+$_comment_pending_count = get_pending_comments_num($_comment_post_ids);
 
 $comments = array_slice($_comments, 0, $comments_per_page);
 $extra_comments = array_slice($_comments, $comments_per_page);
@@ -283,6 +293,7 @@ $page_links = paginate_links( array(
 
 <div class="tablenav">
 
+<?php if ( $comments ) { ?>
 <?php if ( $page_links ) : ?>
 <div class="tablenav-pages"><?php $page_links_text = sprintf( '<span class="displaying-num">' . __( 'Displaying %s&#8211;%s of %s' ) . '</span>%s',
 	number_format_i18n( $start + 1 ),
@@ -359,7 +370,6 @@ if ( ( 'spam' == $comment_status || 'trash' == $comment_status) && current_user_
 
 <div class="clear"></div>
 
-<?php if ( $comments ) { ?>
 <table class="widefat comments fixed" cellspacing="0">
 <thead>
 	<tr>
@@ -449,7 +459,7 @@ if ( $page_links )
 </form>
 
 <?php } else { ?>
-<p><?php _e('No results found.') ?></p>
+<p><?php _e('No comments found.') ?></p>
 </form>
 
 <?php } ?>

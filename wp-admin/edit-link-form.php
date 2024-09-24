@@ -34,6 +34,8 @@ do_action('do_meta_boxes', 'link', 'normal', $link);
 do_action('do_meta_boxes', 'link', 'advanced', $link);
 do_action('do_meta_boxes', 'link', 'side', $link);
 
+add_contextual_help($current_screen, drag_drop_help());
+
 require_once ('admin-header.php');
 
 ?>
@@ -42,7 +44,7 @@ require_once ('admin-header.php');
 <h2><?php echo esc_html( $title ); ?></h2>
 
 <?php if ( isset( $_GET['added'] ) ) : ?>
-<div id="message" class="updated fade"><p><?php _e('Link added.'); ?></p></div>
+<div id="message" class="updated"><p><?php _e('Link added.'); ?></p></div>
 <?php endif; ?>
 
 <?php

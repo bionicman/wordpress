@@ -120,12 +120,15 @@ function insert_with_markers( $filename, $marker, $insertion ) {
  * @since unknown
  */
 function save_mod_rewrite_rules() {
+	if ( is_multisite() )
+		return;
+
 	global $wp_rewrite;
 
 	$home_path = get_home_path();
 	$htaccess_file = $home_path.'.htaccess';
 
-	// If the file doesn't already exists check for write access to the directory and whether of not we have some rules.
+	// If the file doesn't already exist check for write access to the directory and whether we have some rules.
 	// else check for write access to the file.
 	if ((!file_exists($htaccess_file) && is_writable($home_path) && $wp_rewrite->using_mod_rewrite_permalinks()) || is_writable($htaccess_file)) {
 		if ( got_mod_rewrite() ) {
@@ -227,26 +230,28 @@ function url_shorten( $url ) {
 }
 
 /**
- * {@internal Missing Short Description}}
+ * Resets global variables based on $_GET and $_POST
+ *
+ * This function resets global variables based on the names passed
+ * in the $vars array to the value of $_POST[$var] or $_GET[$var] or ''
+ * if neither is defined.
  *
  * @since unknown
  *
- * @param unknown_type $vars
+ * @param array $vars An array of globals to reset.
  */
 function wp_reset_vars( $vars ) {
 	for ( $i=0; $i<count( $vars ); $i += 1 ) {
 		$var = $vars[$i];
 		global $$var;
 
-		if (!isset( $$var ) ) {
-			if ( empty( $_POST["$var"] ) ) {
-				if ( empty( $_GET["$var"] ) )
-					$$var = '';
-				else
-					$$var = $_GET["$var"];
-			} else {
-				$$var = $_POST["$var"];
-			}
+		if ( empty( $_POST[$var] ) ) {
+			if ( empty( $_GET[$var] ) )
+				$$var = '';
+			else
+				$$var = $_GET[$var];
+		} else {
+			$$var = $_POST[$var];
 		}
 	}
 }
@@ -259,13 +264,15 @@ function wp_reset_vars( $vars ) {
  * @param unknown_type $message
  */
 function show_message($message) {
-	if( is_wp_error($message) ){
-		if( $message->get_error_data() )
+	if ( is_wp_error($message) ){
+		if ( $message->get_error_data() )
 			$message = $message->get_error_message() . ': ' . $message->get_error_data();
 		else
 			$message = $message->get_error_message();
 	}
 	echo "<p>$message</p>\n";
+	wp_ob_end_flush_all();
+	flush();
 }
 
 function wp_doc_link_parse( $content ) {
@@ -354,7 +361,7 @@ jQuery('#codepress-off').show();
 }
 
 /**
- * Determine whether to use CodePress or not.
+ * Determine whether to use CodePress.
  *
  * @since 2.8
 **/
@@ -395,9 +402,16 @@ function set_screen_options() {
 
 		$option = str_replace('-', '_', $option);
 
-		switch ( $option ) {
+		$map_option = $option;
+		$type = str_replace('edit_', '', $map_option);
+		$type = str_replace('_per_page', '', $type);
+		if ( in_array($type, get_post_types()) )
+			$map_option = 'edit_per_page';
+
+		switch ( $map_option ) {
 			case 'edit_per_page':
-			case 'edit_pages_per_page':
+			case 'ms_sites_per_page':
+			case 'ms_users_per_page':
 			case 'edit_comments_per_page':
 			case 'upload_per_page':
 			case 'categories_per_page':
@@ -414,7 +428,7 @@ function set_screen_options() {
 				break;
 		}
 
-		update_usermeta($user->ID, $option, $value);
+		update_user_meta($user->ID, $option, $value);
 		wp_redirect( remove_query_arg( array('pagenum', 'apage', 'paged'), wp_get_referer() ) );
 		exit;
 	}
@@ -638,5 +652,34 @@ function win_is_writable($path) {
     if ( ! $rm )
         unlink($path);
     return true;
+}
+
+/**
+ * Display the default admin color scheme picker (Used in user-edit.php)
+ *
+ * @since 3.0.0
+ */
+function admin_color_scheme_picker() {
+	global $_wp_admin_css_colors, $user_id; ?>
+<fieldset><legend class="screen-reader-text"><span><?php _e('Admin Color Scheme')?></span></legend>
+<?php
+$current_color = get_user_option('admin_color', $user_id);
+if ( empty($current_color) )
+	$current_color = 'fresh';
+foreach ( $_wp_admin_css_colors as $color => $color_info ): ?>
+<div class="color-option"><input name="admin_color" id="admin_color_<?php echo $color; ?>" type="radio" value="<?php echo esc_attr($color) ?>" class="tog" <?php checked($color, $current_color); ?> />
+	<table class="color-palette">
+	<tr>
+	<?php foreach ( $color_info->colors as $html_color ): ?>
+	<td style="background-color: <?php echo $html_color ?>" title="<?php echo $color ?>">&nbsp;</td>
+	<?php endforeach; ?>
+	</tr>
+	</table>
+
+	<label for="admin_color_<?php echo $color; ?>"><?php echo $color_info->name ?></label>
+</div>
+	<?php endforeach; ?>
+</fieldset>
+<?php
 }
 ?>

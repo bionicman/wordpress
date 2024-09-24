@@ -1,6 +1,6 @@
 <?php
 /**
- * Turbo Administration Panel.
+ * Tools Administration Panel.
  *
  * @package WordPress
  * @subpackage Administration
@@ -19,13 +19,13 @@ require_once('admin-header.php');
 <?php screen_icon(); ?>
 <h2><?php echo esc_html( $title ); ?></h2>
 
-<div class="tool-box">
 <?php
 if ( ! $is_opera ) {
 ?>
+<div class="tool-box">
 	<div id="gears-msg1">
 	<h3 class="title"><?php _e('Turbo:'); ?> <?php _e('Speed up WordPress'); ?></h3>
-	<p><?php _e('WordPress now has support for Gears, which adds new features to your web browser.'); ?><br />
+	<p><?php _e('WordPress has support for Gears, which adds new features to your web browser.'); ?><br />
 	<a href="http://gears.google.com/" target="_blank" style="font-weight:normal;"><?php _e('More information...'); ?></a></p>
 	<p><?php _e('After you install and enable Gears, most of WordPress&#8217; images, scripts, and CSS files will be stored locally on your computer. This speeds up page load time.'); ?></p>
 	<p><strong><?php _e('Don&#8217;t install on a public or shared computer.'); ?></strong></p>
@@ -72,10 +72,8 @@ if ( ! $is_opera ) {
 	<p><strong><?php _e('Note: Do not enable Gears if this is a public or shared computer!'); ?></strong></p>
 	</div>
 	<script type="text/javascript">wpGears.message();</script>
-<?php } else {
-	_e('Turbo is not available for your browser.');
-} ?>
 </div>
+<?php } ?>
 
 <?php if ( current_user_can('edit_posts') ) : ?>
 <div class="tool-box">
@@ -85,6 +83,17 @@ if ( ! $is_opera ) {
 	<p><?php _e('Use Press This to clip text, images and videos from any web page. Then edit and add more straight from Press This before you save or publish it in a post on your blog.'); ?></p>
 	<p><?php _e('Drag-and-drop the following link to your bookmarks bar or right click it and add it to your favorites for a posting shortcut.') ?></p>
 	<p class="pressthis"><a href="<?php echo htmlspecialchars( get_shortcut_link() ); ?>" title="<?php echo esc_attr(__('Press This')) ?>"><?php _e('Press This') ?></a></p>
+</div>
+<?php
+endif;
+
+$cats = get_taxonomy('category');
+$tags = get_taxonomy('post_tag');
+
+if ( current_user_can($cats->manage_cap) || current_user_can($tags->manage_cap) ) : ?>
+<div class="tool-box">
+    <h3 class="title"><?php _e('Category&#47;Tag Conversion') ?></h3>
+    <p><?php printf(__('Use this to convert <a href="%s">categories to tags</a>, or <a href="%s">tags to categories</a>.'), 'admin.php?import=wp-cat2tag', 'admin.php?import=wp-cat2tag&amp;step=3'); ?></p>
 </div>
 <?php
 endif;

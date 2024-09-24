@@ -28,8 +28,14 @@ function wp_dashboard_setup() {
 	wp_add_dashboard_widget( 'dashboard_right_now', __( 'Right Now' ), 'wp_dashboard_right_now' );
 
 	// Recent Comments Widget
+	if ( !isset( $widget_options['dashboard_recent_comments'] ) || !isset( $widget_options['dashboard_recent_comments']['items'] ) ) {
+		$update = true;
+		$widget_options['dashboard_recent_comments'] = array(
+			'items' => 5,
+		);
+	}
 	$recent_comments_title = __( 'Recent Comments' );
-	wp_add_dashboard_widget( 'dashboard_recent_comments', $recent_comments_title, 'wp_dashboard_recent_comments' );
+	wp_add_dashboard_widget( 'dashboard_recent_comments', $recent_comments_title, 'wp_dashboard_recent_comments', 'wp_dashboard_recent_comments_control' );
 
 	// Incoming Links Widget
 	if ( !isset( $widget_options['dashboard_incoming_links'] ) || !isset( $widget_options['dashboard_incoming_links']['home'] ) || $widget_options['dashboard_incoming_links']['home'] != get_option('home') ) {
@@ -46,7 +52,7 @@ function wp_dashboard_setup() {
 	wp_add_dashboard_widget( 'dashboard_incoming_links', __( 'Incoming Links' ), 'wp_dashboard_incoming_links', 'wp_dashboard_incoming_links_control' );
 
 	// WP Plugins Widget
-	if ( current_user_can( 'activate_plugins' ) )
+	if ( current_user_can( 'install_plugins' ) )
 		wp_add_dashboard_widget( 'dashboard_plugins', __( 'Plugins' ), 'wp_dashboard_plugins' );
 
 	// QuickPress Widget
@@ -206,8 +212,8 @@ function wp_dashboard_right_now() {
 
 	$num_comm = wp_count_comments( );
 
-	echo "\n\t".'<p class="sub">' . __('At a Glance') . '</p>';
-	echo "\n\t".'<div class="table">'."\n\t".'<table>';
+	echo "\n\t".'<div class="table table_content">'."\n\t".'<table>';
+	echo "\n\t".'<p class="sub">' . __('Content') . '</p>';
 	echo "\n\t".'<tr class="first">';
 
 	// Posts
@@ -219,6 +225,8 @@ function wp_dashboard_right_now() {
 	}
 	echo '<td class="first b b-posts">' . $num . '</td>';
 	echo '<td class="t posts">' . $text . '</td>';
+
+	echo '</tr><tr>';
 	/* TODO: Show status breakdown on hover
 	if ( $can_edit_pages && !empty($num_pages->publish) ) { // how many pages is not exposed in feeds.  Don't show if !current_user_can
 		$post_type_texts[] = '<a href="edit-pages.php">'.sprintf( _n( '%s page', '%s pages', $num_pages->publish ), number_format_i18n( $num_pages->publish ) ).'</a>';
@@ -236,31 +244,64 @@ function wp_dashboard_right_now() {
 	}
 	*/
 
+	// Pages
+	$num = number_format_i18n( $num_pages->publish );
+	$text = _n( 'Page', 'Pages', $num_pages->publish );
+	if ( current_user_can( 'edit_pages' ) ) {
+		$num = "<a href='edit.php?post_type=page'>$num</a>";
+		$text = "<a href='edit.php?post_type=page'>$text</a>";
+	}
+	echo '<td class="first b b_pages">' . $num . '</td>';
+	echo '<td class="t pages">' . $text . '</td>';
+
+	echo '</tr><tr>';
+
+	// Categories
+	$num = number_format_i18n( $num_cats );
+	$text = _n( 'Category', 'Categories', $num_cats );
+	if ( current_user_can( 'manage_categories' ) ) {
+		$num = "<a href='edit-tags.php?taxonomy=category'>$num</a>";
+		$text = "<a href='edit-tags.php?taxonomy=category'>$text</a>";
+	}
+	echo '<td class="first b b-cats">' . $num . '</td>';
+	echo '<td class="t cats">' . $text . '</td>';
+
+	echo '</tr><tr>';
+
+	// Tags
+	$num = number_format_i18n( $num_tags );
+	$text = _n( 'Tag', 'Tags', $num_tags );
+	if ( current_user_can( 'manage_categories' ) ) {
+		$num = "<a href='edit-tags.php'>$num</a>";
+		$text = "<a href='edit-tags.php'>$text</a>";
+	}
+	echo '<td class="first b b-tags">' . $num . '</td>';
+	echo '<td class="t tags">' . $text . '</td>';
+
+	echo "</tr>";
+	do_action('right_now_content_table_end');
+	echo "\n\t</table>\n\t</div>";
+
+
+	echo "\n\t".'<div class="table table_discussion">'."\n\t".'<table>';
+	echo "\n\t".'<p class="sub">' . __('Discussion') . '</p>';
+	echo "\n\t".'<tr class="first">';
+
 	// Total Comments
 	$num = '<span class="total-count">' . number_format_i18n($num_comm->total_comments) . '</span>';
 	$text = _n( 'Comment', 'Comments', $num_comm->total_comments );
 	if ( current_user_can( 'moderate_comments' ) ) {
-		$num = "<a href='edit-comments.php'>$num</a>";
-		$text = "<a href='edit-comments.php'>$text</a>";
+		$num = '<a href="edit-comments.php">' . $num . '</a>';
+		$text = '<a href="edit-comments.php">' . $text . '</a>';
 	}
 	echo '<td class="b b-comments">' . $num . '</td>';
 	echo '<td class="last t comments">' . $text . '</td>';
 
 	echo '</tr><tr>';
 
-	// Pages
-	$num = number_format_i18n( $num_pages->publish );
-	$text = _n( 'Page', 'Pages', $num_pages->publish );
-	if ( current_user_can( 'edit_pages' ) ) {
-		$num = "<a href='edit-pages.php'>$num</a>";
-		$text = "<a href='edit-pages.php'>$text</a>";
-	}
-	echo '<td class="first b b_pages">' . $num . '</td>';
-	echo '<td class="t pages">' . $text . '</td>';
-
 	// Approved Comments
 	$num = '<span class="approved-count">' . number_format_i18n($num_comm->approved) . '</span>';
-	$text = _nc( 'Approved|Right Now', 'Approved', $num_comm->approved );
+	$text = _nx( 'Approved', 'Approved', $num_comm->approved, 'Right Now' );
 	if ( current_user_can( 'moderate_comments' ) ) {
 		$num = "<a href='edit-comments.php?comment_status=approved'>$num</a>";
 		$text = "<a class='approved' href='edit-comments.php?comment_status=approved'>$text</a>";
@@ -269,16 +310,6 @@ function wp_dashboard_right_now() {
 	echo '<td class="last t">' . $text . '</td>';
 
 	echo "</tr>\n\t<tr>";
-
-	// Categories
-	$num = number_format_i18n( $num_cats );
-	$text = _n( 'Category', 'Categories', $num_cats );
-	if ( current_user_can( 'manage_categories' ) ) {
-		$num = "<a href='categories.php'>$num</a>";
-		$text = "<a href='categories.php'>$text</a>";
-	}
-	echo '<td class="first b b-cats">' . $num . '</td>';
-	echo '<td class="t cats">' . $text . '</td>';
 
 	// Pending Comments
 	$num = '<span class="pending-count">' . number_format_i18n($num_comm->moderated) . '</span>';
@@ -292,16 +323,6 @@ function wp_dashboard_right_now() {
 
 	echo "</tr>\n\t<tr>";
 
-	// Tags
-	$num = number_format_i18n( $num_tags );
-	$text = _n( 'Tag', 'Tags', $num_tags );
-	if ( current_user_can( 'manage_categories' ) ) {
-		$num = "<a href='edit-tags.php'>$num</a>";
-		$text = "<a href='edit-tags.php'>$text</a>";
-	}
-	echo '<td class="first b b-tags">' . $num . '</td>';
-	echo '<td class="t tags">' . $text . '</td>';
-
 	// Spam Comments
 	$num = number_format_i18n($num_comm->spam);
 	$text = _n( 'Spam', 'Spam', $num_comm->spam );
@@ -314,6 +335,7 @@ function wp_dashboard_right_now() {
 
 	echo "</tr>";
 	do_action('right_now_table_end');
+	do_action('right_now_discussion_table_end');
 	echo "\n\t</table>\n\t</div>";
 
 	echo "\n\t".'<div class="versions">';
@@ -412,14 +434,14 @@ function wp_dashboard_quick_press() {
 		<p class="submit">
 			<input type="hidden" name="action" id="quickpost-action" value="post-quickpress-save" />
 			<input type="hidden" name="quickpress_post_ID" value="<?php echo (int) $post->ID; ?>" />
+			<input type="hidden" name="post_type" value="post" />
 			<?php wp_nonce_field('add-post'); ?>
 			<input type="submit" name="save" id="save-post" class="button" tabindex="4" value="<?php esc_attr_e('Save Draft'); ?>" />
 			<input type="reset" value="<?php esc_attr_e( 'Reset' ); ?>" class="button" />
-			<?php if ( current_user_can('publish_posts') ) { ?>
-			<input type="submit" name="publish" id="publish" accesskey="p" tabindex="5" class="button-primary" value="<?php esc_attr_e('Publish'); ?>" />
-			<?php } else { ?>
-			<input type="submit" name="publish" id="publish" accesskey="p" tabindex="5" class="button-primary" value="<?php esc_attr_e('Submit for Review'); ?>" />
-			<?php } ?>
+			<span id="publishing-action">
+				<input type="submit" name="publish" id="publish" accesskey="p" tabindex="5" class="button-primary" value="<?php current_user_can('publish_posts') ? esc_attr_e('Publish') : esc_attr_e('Submit for Review'); ?>" />
+				<img class="waiting" src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" />
+			</span>
 			<br class="clear" />
 		</p>
 
@@ -481,12 +503,18 @@ function wp_dashboard_recent_comments() {
 	$comments = array();
 	$start = 0;
 
+	$widgets = get_option( 'dashboard_widget_options' );
+	if ( isset( $widgets['dashboard_recent_comments'] ) && isset( $widgets['dashboard_recent_comments']['items'] ) )
+		$total_items = (int) $widgets['dashboard_recent_comments']['items'];
+	else
+		$total_items = 5;
+
 	while ( count( $comments ) < 5 && $possible = $wpdb->get_results( "SELECT * FROM $wpdb->comments c LEFT JOIN $wpdb->posts p ON c.comment_post_ID = p.ID WHERE p.post_status != 'trash' ORDER BY c.comment_date_gmt DESC LIMIT $start, 50" ) ) {
 
 		foreach ( $possible as $comment ) {
-			if ( count( $comments ) >= 5 )
+			if ( count( $comments ) >= $total_items )
 				break;
-			if ( in_array( $comment->comment_approved, $allowed_states ) )
+			if ( in_array( $comment->comment_approved, $allowed_states ) && current_user_can( 'read_post', $comment->comment_post_ID ) )
 				$comments[] = $comment;
 		}
 
@@ -582,7 +610,10 @@ function _wp_dashboard_recent_comments_row( &$comment, $show_date = true ) {
 			<?php echo get_avatar( $comment, 50 ); ?>
 
 			<div class="dashboard-comment-wrap">
-			<h4 class="comment-meta"><?php printf( __( 'From %1$s on %2$s%3$s' ), '<cite class="comment-author">' . get_comment_author_link() . '</cite>', $comment_post_link.' '.$comment_link, ' <span class="approve">' . __( '[Pending]' ) . '</span>' ); ?></h4>
+			<h4 class="comment-meta">
+				<?php printf( /* translators: 1: comment author, 2: post link, 3: notification if the comment is pending */__( 'From %1$s on %2$s%3$s' ),
+					'<cite class="comment-author">' . get_comment_author_link() . '</cite>', $comment_post_link.' '.$comment_link, ' <span class="approve">' . __( '[Pending]' ) . '</span>' ); ?>
+			</h4>
 
 			<?php
 			else :
@@ -611,6 +642,32 @@ function _wp_dashboard_recent_comments_row( &$comment, $show_date = true ) {
 <?php
 }
 
+/**
+ * The recent comments dashboard widget control.
+ *
+ * @since 3.0.0
+ */
+function wp_dashboard_recent_comments_control() {
+	if ( !$widget_options = get_option( 'dashboard_widget_options' ) )
+		$widget_options = array();
+
+	if ( !isset($widget_options['dashboard_recent_comments']) )
+		$widget_options['dashboard_recent_comments'] = array();
+
+	if ( 'POST' == $_SERVER['REQUEST_METHOD'] && isset($_POST['widget-recent-comments']) ) {
+		$number = (int) stripslashes($_POST['widget-recent-comments']['items']);
+		if ( $number < 1 || $number > 30 )
+			$number = 5;
+		$widget_options['dashboard_recent_comments']['items'] = $number;
+		update_option( 'dashboard_widget_options', $widget_options );
+	}
+
+	$number = isset( $widget_options['dashboard_recent_comments']['items'] ) ? (int) $widget_options['dashboard_recent_comments']['items'] : '';
+
+	echo '<p><label for="comments-number">' . __('Number of comments to show:') . '</label>';
+	echo '<input id="comments-number" name="widget-recent-comments[items]" type="text" value="' . $number . '" size="3" /> <small>' . __( '(at most 30)' ) . '</small></p>';
+}
+
 function wp_dashboard_incoming_links() {
 	echo '<p class="widget-loading hide-if-no-js">' . __( 'Loading&#8230;' ) . '</p><p class="describe hide-if-js">' . __('This widget requires JavaScript.') . '</p>';
 }
@@ -636,7 +693,7 @@ function wp_dashboard_incoming_links_output() {
 
 	if ( !$rss->get_item_quantity() ) {
 		echo '<p>' . __('This dashboard widget queries <a href="http://blogsearch.google.com/">Google Blog Search</a> so that when another blog links to your site it will show up here. It has found no incoming links&hellip; yet. It&#8217;s okay &#8212; there is no rush.') . "</p>\n";
-		$rss->__destruct(); 
+		$rss->__destruct();
 		unset($rss);
 		return;
 	}
@@ -691,7 +748,7 @@ function wp_dashboard_incoming_links_output() {
 	}
 
 	echo "</ul>\n";
-	$rss->__destruct(); 
+	$rss->__destruct();
 	unset($rss);
 }
 
@@ -748,14 +805,14 @@ function wp_dashboard_secondary_output() {
 			echo '</p></div>';
 		}
 	} elseif ( !$rss->get_item_quantity() ) {
-		$rss->__destruct(); 
+		$rss->__destruct();
 		unset($rss);
 		return false;
 	} else {
 		echo '<div class="rss-widget">';
 		wp_widget_rss_output( $rss, $widgets['dashboard_secondary'] );
 		echo '</div>';
-		$rss->__destruct(); 
+		$rss->__destruct();
 		unset($rss);
 	}
 }
@@ -839,7 +896,7 @@ function wp_dashboard_plugins_output() {
 		echo "<h4>$label</h4>\n";
 		echo "<h5><a href='$link'>$title</a></h5>&nbsp;<span>(<a href='$ilink' class='thickbox' title='$title'>" . __( 'Install' ) . "</a>)</span>\n";
 		echo "<p>$description</p>\n";
-		
+
 		$$feed->__destruct();
 		unset($$feed);
 	}
@@ -938,9 +995,9 @@ function wp_dashboard_rss_control( $widget_id, $form_inputs = array() ) {
 			if ( is_wp_error($rss) ) {
 				$widget_options[$widget_id]['title'] = htmlentities(__('Unknown Feed'));
 			} else {
-				$widget_options[$widget_id]['title'] = htmlentities(strip_tags($rss->get_title()));	
+				$widget_options[$widget_id]['title'] = htmlentities(strip_tags($rss->get_title()));
 				$rss->__destruct();
-				unset($rss);				
+				unset($rss);
 			}
 		}
 		update_option( 'dashboard_widget_options', $widget_options );

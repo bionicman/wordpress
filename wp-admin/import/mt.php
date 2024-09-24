@@ -59,7 +59,7 @@ class MT_Import {
 		global $wpdb;
 		$users = $wpdb->get_results("SELECT * FROM $wpdb->users ORDER BY ID");
 ?><select name="userselect[<?php echo $n; ?>]">
-	<option value="#NONE#"><?php _e('- Select -') ?></option>
+	<option value="#NONE#"><?php _e('&mdash; Select &mdash;') ?></option>
 	<?php
 
 
@@ -155,7 +155,7 @@ class MT_Import {
 		for ($x = 1; $x < $y; $x ++) {
 			$next = array_shift($temp);
 			if (!(in_array($next, $authors)))
-				array_push($authors, "$next");
+				array_push($authors, $next);
 		}
 
 		$this->fclose($handle);
@@ -171,12 +171,12 @@ class MT_Import {
 			$newname = trim(stripslashes($line));
 			if ($newname == '')
 				$newname = 'left_blank'; //passing author names from step 1 to step 2 is accomplished by using POST. left_blank denotes an empty entry in the form.
-			array_push($formnames, "$newname");
+			array_push($formnames, $newname);
 		} // $formnames is the array with the form entered names
 
 		foreach ($_POST['userselect'] as $user => $key) {
 			$selected = trim(stripslashes($key));
-			array_push($selectnames, "$selected");
+			array_push($selectnames, $selected);
 		}
 
 		$count = count($formnames);
@@ -240,8 +240,6 @@ class MT_Import {
 	}
 
 	function save_post(&$post, &$comments, &$pings) {
-		// Reset the counter
-		set_time_limit(30);
 		$post = get_object_vars($post);
 		$post = add_magic_quotes($post);
 		$post = (object) $post;
@@ -269,7 +267,7 @@ class MT_Import {
 			 // Add tags or keywords
 			if ( 1 < strlen($post->post_keywords) ) {
 			 	// Keywords exist.
-				printf(__('<br />Adding tags <i>%s</i>...'), stripslashes($post->post_keywords));
+				printf('<br />'.__('Adding tags <em>%s</em>...'), stripslashes($post->post_keywords));
 				wp_add_post_tags($post_id, $post->post_keywords);
 			}
 		}
@@ -496,6 +494,7 @@ class MT_Import {
 				break;
 			case 2:
 				check_admin_referer('import-mt');
+				set_time_limit(0);
 				$result = $this->import();
 				if ( is_wp_error( $result ) )
 					echo $result->get_error_message();

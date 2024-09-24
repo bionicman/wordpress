@@ -16,7 +16,34 @@ if ( isset($_GET['action']) ) {
 	$theme = isset($_REQUEST['theme']) ? urldecode($_REQUEST['theme']) : '';
 	$action = isset($_REQUEST['action']) ? $_REQUEST['action'] : '';
 
-	if ( 'upgrade-plugin' == $action ) {
+	if ( 'update-selected' == $action ) {
+		if ( ! current_user_can( 'update_plugins' ) )
+			wp_die( __( 'You do not have sufficient permissions to update plugins for this blog.' ) );
+
+		check_admin_referer( 'bulk-update-plugins' );
+
+		if ( isset( $_GET['plugins'] ) )
+			$plugins = explode( ',', stripslashes($_GET['plugins']) );
+		elseif ( isset( $_POST['checked'] ) )
+			$plugins = (array) $_POST['checked'];
+		else
+			$plugins = array();
+
+		$plugins = array_map('urldecode', $plugins);
+
+		$url = 'update.php?action=update-selected&amp;plugins=' . urlencode(implode(',', $plugins));
+		$nonce = 'bulk-update-plugins';
+
+		require_once( ABSPATH . 'wp-admin/includes/class-wp-upgrader.php' );
+		wp_enqueue_script('jquery');
+		iframe_header();
+
+		$upgrader = new Plugin_Upgrader( new Bulk_Plugin_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
+		$upgrader->bulk_upgrade( $plugins );
+
+		iframe_footer();
+
+	} elseif ( 'upgrade-plugin' == $action ) {
 		if ( ! current_user_can('update_plugins') )
 			wp_die(__('You do not have sufficient permissions to update plugins for this blog.'));
 
@@ -40,23 +67,23 @@ if ( isset($_GET['action']) ) {
 			wp_die(__('You do not have sufficient permissions to update plugins for this blog.'));
 
 		check_admin_referer('activate-plugin_' . $plugin);
-		if( ! isset($_GET['failure']) && ! isset($_GET['success']) ) {
+		if ( ! isset($_GET['failure']) && ! isset($_GET['success']) ) {
 			wp_redirect( 'update.php?action=activate-plugin&failure=true&plugin=' . $plugin . '&_wpnonce=' . $_GET['_wpnonce'] );
 			activate_plugin($plugin);
 			wp_redirect( 'update.php?action=activate-plugin&success=true&plugin=' . $plugin . '&_wpnonce=' . $_GET['_wpnonce'] );
 			die();
 		}
 		iframe_header( __('Plugin Reactivation'), true );
-		if( isset($_GET['success']) )
+		if ( isset($_GET['success']) )
 			echo '<p>' . __('Plugin reactivated successfully.') . '</p>';
 
-		if( isset($_GET['failure']) ){
+		if ( isset($_GET['failure']) ){
 			echo '<p>' . __('Plugin failed to reactivate due to a fatal error.') . '</p>';
 
 			if ( defined('E_RECOVERABLE_ERROR') )
-				error_reporting(E_ERROR | E_WARNING | E_PARSE | E_USER_ERROR | E_USER_WARNING | E_RECOVERABLE_ERROR);
+				error_reporting(E_CORE_ERROR | E_CORE_WARNING | E_COMPILE_ERROR | E_ERROR | E_WARNING | E_PARSE | E_USER_ERROR | E_USER_WARNING | E_RECOVERABLE_ERROR);
 			else
-				error_reporting(E_ERROR | E_WARNING | E_PARSE | E_USER_ERROR | E_USER_WARNING);
+				error_reporting(E_CORE_ERROR | E_CORE_WARNING | E_COMPILE_ERROR | E_ERROR | E_WARNING | E_PARSE | E_USER_ERROR | E_USER_WARNING);
 
 			@ini_set('display_errors', true); //Ensure that Fatal errors are displayed.
 			include(WP_PLUGIN_DIR . '/' . $plugin);
@@ -135,7 +162,32 @@ if ( isset($_GET['action']) ) {
 		$upgrader->upgrade($theme);
 
 		include('admin-footer.php');
+	} elseif ( 'update-selected-themes' == $action ) {
+		if ( ! current_user_can( 'update_themes' ) )
+			wp_die( __( 'You do not have sufficient permissions to update themes for this blog.' ) );
 
+		check_admin_referer( 'bulk-update-themes' );
+
+		if ( isset( $_GET['themes'] ) )
+			$themes = explode( ',', stripslashes($_GET['themes']) );
+		elseif ( isset( $_POST['checked'] ) )
+			$themes = (array) $_POST['checked'];
+		else
+			$themes = array();
+
+		$themes = array_map('urldecode', $themes);
+
+		$url = 'update.php?action=update-selected-themes&amp;themess=' . urlencode(implode(',', $themes));
+		$nonce = 'bulk-update-themes';
+
+		require_once( ABSPATH . 'wp-admin/includes/class-wp-upgrader.php' );
+		wp_enqueue_script('jquery');
+		iframe_header();
+
+		$upgrader = new Theme_Upgrader( new Bulk_Theme_Upgrader_Skin( compact( 'nonce', 'url' ) ) );
+		$upgrader->bulk_upgrade( $themes );
+
+		iframe_footer();
 	} elseif ( 'install-theme' == $action ) {
 
 		if ( ! current_user_can('install_themes') )
@@ -153,10 +205,10 @@ if ( isset($_GET['action']) ) {
 		wp_enqueue_script('theme-preview');
 		$title = __('Install Themes');
 		$parent_file = 'themes.php';
-		$submenu_file = 'theme-install.php';
+		$submenu_file = 'themes.php';
 		require_once('admin-header.php');
 
-		$title = sprintf( __('Installing theme: %s'), $api->name . ' ' . $api->version );
+		$title = sprintf( __('Installing Theme: %s'), $api->name . ' ' . $api->version );
 		$nonce = 'install-theme_' . $theme;
 		$url = 'update.php?action=install-theme&theme=' . $theme;
 		$type = 'web'; //Install theme type, From Web or an Upload.

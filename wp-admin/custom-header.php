@@ -9,7 +9,7 @@
 /**
  * The custom header image class.
  *
- * @since unknown
+ * @since 2.1.0
  * @package WordPress
  * @subpackage Administration
  */
@@ -19,29 +19,52 @@ class Custom_Image_Header {
 	 * Callback for administration header.
 	 *
 	 * @var callback
-	 * @since unknown
+	 * @since 2.1.0
 	 * @access private
 	 */
 	var $admin_header_callback;
 
 	/**
+	 * Callback for header div.
+	 *
+	 * @var callback
+	 * @since 3.0.0
+	 * @access private
+	 */
+	var $admin_image_div_callback;
+
+	/**
+	 * Holds default headers.
+	 *
+	 * @var array
+	 * @since 3.0.0
+	 * @access private
+	 */
+	var $default_headers = array();
+
+	/**
 	 * PHP4 Constructor - Register administration header callback.
 	 *
-	 * @since unknown
+	 * @since 2.1.0
 	 * @param callback $admin_header_callback
+	 * @param callback $admin_image_div_callback Optional custom image div output callback.
 	 * @return Custom_Image_Header
 	 */
-	function Custom_Image_Header($admin_header_callback) {
+	function Custom_Image_Header($admin_header_callback, $admin_image_div_callback = '') {
 		$this->admin_header_callback = $admin_header_callback;
+		$this->admin_image_div_callback = $admin_image_div_callback;
 	}
 
 	/**
-	 * Setup the hooks for the Custom Header admin page.
+	 * Set up the hooks for the Custom Header admin page.
 	 *
-	 * @since unknown
+	 * @since 2.1.0
 	 */
 	function init() {
-		$page = add_theme_page(__('Custom Header'), __('Custom Header'), 'edit_themes', 'custom-header', array(&$this, 'admin_page'));
+		if ( ! current_user_can('switch_themes') )
+			return;
+
+		$page = add_theme_page(__('Header'), __('Header'), 'switch_themes', 'custom-header', array(&$this, 'admin_page'));
 
 		add_action("admin_print_scripts-$page", array(&$this, 'js_includes'));
 		add_action("admin_print_styles-$page", array(&$this, 'css_includes'));
@@ -53,7 +76,7 @@ class Custom_Image_Header {
 	/**
 	 * Get the current step.
 	 *
-	 * @since unknown
+	 * @since 2.6.0
 	 *
 	 * @return int Current step
 	 */
@@ -69,9 +92,9 @@ class Custom_Image_Header {
 	}
 
 	/**
-	 * Setup the enqueue for the JavaScript files.
+	 * Set up the enqueue for the JavaScript files.
 	 *
-	 * @since unknown
+	 * @since 2.1.0
 	 */
 	function js_includes() {
 		$step = $this->step();
@@ -83,7 +106,7 @@ class Custom_Image_Header {
 	}
 
 	/**
-	 * Setup the enqueue for the CSS files
+	 * Set up the enqueue for the CSS files
 	 *
 	 * @since 2.7
 	 */
@@ -99,9 +122,12 @@ class Custom_Image_Header {
 	/**
 	 * Execute custom header modification.
 	 *
-	 * @since unknown
+	 * @since 2.6.0
 	 */
 	function take_action() {
+		if ( ! current_user_can('switch_themes') )
+			return;
+
 		if ( isset( $_POST['textcolor'] ) ) {
 			check_admin_referer('custom-header');
 			if ( 'blank' == $_POST['textcolor'] ) {
@@ -112,16 +138,86 @@ class Custom_Image_Header {
 					set_theme_mod('header_textcolor', $color);
 			}
 		}
+
 		if ( isset($_POST['resetheader']) ) {
 			check_admin_referer('custom-header');
 			remove_theme_mods();
 		}
+
+		if ( isset($_POST['default-header']) ) {
+			check_admin_referer('custom-header');
+			$this->process_default_headers();
+			if ( isset($this->default_headers[$_POST['default-header']]) )
+				set_theme_mod('header_image', esc_url($this->default_headers[$_POST['default-header']]['url']));
+		}
+	}
+
+	/**
+	 * Process the default headers
+	 *
+	 * @since 3.0.0
+	 */
+	function process_default_headers() {
+		global $_wp_default_headers;
+
+		if ( !empty($this->headers) )
+			return;
+
+		if ( !isset($_wp_default_headers) )
+			return;
+
+		$this->default_headers = $_wp_default_headers;
+		foreach ( array_keys($this->default_headers) as $header ) {
+			$this->default_headers[$header]['url'] =  sprintf( $this->default_headers[$header]['url'], get_template_directory_uri(), get_stylesheet_directory_uri() );
+			$this->default_headers[$header]['thumbnail_url'] =  sprintf( $this->default_headers[$header]['thumbnail_url'], get_template_directory_uri(), get_stylesheet_directory_uri() );
+		}
+	}
+
+	/**
+	 * Display UI for selecting one of several default headers.
+	 *
+	 * @since 3.0.0
+	 */
+	function show_default_header_selector() {
+		echo '<table id="available-headers" cellspacing="0" cellpadding="0">';
+
+		$headers = array_keys($this->default_headers);
+		$table = array();
+		$rows = ceil(count($headers) / 3);
+		for ( $row = 1; $row <= $rows; $row++ ) {
+			for ( $col = 1; $col <= 3; $col++ ) {
+				$table[$row][$col] = array_shift($headers);
+			}
+		}
+
+		foreach ( $table as $row => $cols ) {
+			echo '<tr>';
+			foreach ( $cols as $col => $header_key ) {
+				if ( !$header_key )
+					continue;
+				$class = array('available-header');
+				if ( $row == 1 ) $class[] = 'top';
+				if ( $col == 1 ) $class[] = 'left';
+				if ( $row == $rows ) $class[] = 'bottom';
+				if ( $col == 3 ) $class[] = 'right';
+				if ( !isset($this->headers[$header_key]))
+				echo '<td class="' . join(' ', $class) . '">';
+				$header_thumbnail = $this->default_headers[$header_key]['thumbnail_url'];
+				$header_url = $this->default_headers[$header_key]['url'];
+				$header_desc = $this->default_headers[$header_key]['description'];
+				echo '<label><input name="default-header" type="radio" value="' . esc_attr($header_key) . '" ' . checked($header_url, get_header_image(), false) . ' />';
+				echo '<img src="' . $header_thumbnail . '" alt="' . esc_attr($header_desc) .'" /></label>';
+				echo  '</td>';
+			}
+			echo '</tr>';
+		}
+		echo '</table>';
 	}
 
 	/**
 	 * Execute Javascript depending on step.
 	 *
-	 * @since unknown
+	 * @since 2.1.0
 	 */
 	function js() {
 		$step = $this->step();
@@ -134,7 +230,7 @@ class Custom_Image_Header {
 	/**
 	 * Display Javascript based on Step 1.
 	 *
-	 * @since unknown
+	 * @since 2.6.0
 	 */
 	function js_1() { ?>
 <script type="text/javascript">
@@ -189,7 +285,7 @@ class Custom_Image_Header {
 	}
 
 	function toggle_text(force) {
-		if(jQuery('#textcolor').val() == 'blank') {
+		if (jQuery('#textcolor').val() == 'blank') {
 			//Show text
 			jQuery( buttons.toString() ).show();
 			jQuery('#textcolor').val('<?php echo HEADER_TEXTCOLOR; ?>');
@@ -212,7 +308,7 @@ class Custom_Image_Header {
 	/**
 	 * Display Javascript based on Step 2.
 	 *
-	 * @since unknown
+	 * @since 2.6.0
 	 */
 	function js_2() { ?>
 <script type="text/javascript">
@@ -264,39 +360,63 @@ class Custom_Image_Header {
 	/**
 	 * Display first step of custom header image page.
 	 *
-	 * @since unknown
+	 * @since 2.1.0
 	 */
 	function step_1() {
-		if ( $_GET['updated'] ) { ?>
-<div id="message" class="updated fade">
-<p><?php _e('Header updated.') ?></p>
-</div>
-		<?php } ?>
+		$this->process_default_headers();
+ ?>
 
 <div class="wrap">
 <?php screen_icon(); ?>
 <h2><?php _e('Your Header Image'); ?></h2>
-<p><?php _e('This is your header image. You can change the text color or upload and crop a new image.'); ?></p>
 
+<?php
+if ( isset($_GET['updated']) && $_GET['updated'] ) { ?>
+<div id="message" class="updated">
+<p><?php printf(__('Header updated. <a href="%s">Visit your site</a> to see how it looks.'), home_url()); ?></p>
+</div>
+<?php }
+
+if ( get_theme_mod('header_image') || empty($this->default_headers) ) :
+?>
+<p><?php _e('This is your header image. You can change the text color or upload and crop a new image.'); ?></p>
+<?php
+
+if ( $this->admin_image_div_callback ) {
+  call_user_func($this->admin_image_div_callback);
+} else {
+?>
 <div id="headimg" style="background-image: url(<?php esc_url(header_image()) ?>);">
 <h1><a onclick="return false;" href="<?php bloginfo('url'); ?>" title="<?php bloginfo('name'); ?>" id="name"><?php bloginfo('name'); ?></a></h1>
 <div id="desc"><?php bloginfo('description');?></div>
 </div>
+<?php } ?>
+
 <?php if ( !defined( 'NO_HEADER_TEXT' ) ) { ?>
 <form method="post" action="<?php echo admin_url('themes.php?page=custom-header&amp;updated=true') ?>">
 <input type="button" class="button" value="<?php esc_attr_e('Hide Text'); ?>" onclick="hide_text()" id="hidetext" />
 <input type="button" class="button" value="<?php esc_attr_e('Select a Text Color'); ?>" id="pickcolor" /><input type="button" class="button" value="<?php esc_attr_e('Use Original Color'); ?>" onclick="colorDefault()" id="defaultcolor" />
-<?php wp_nonce_field('custom-header') ?>
+<?php wp_nonce_field('custom-header'); ?>
 <input type="hidden" name="textcolor" id="textcolor" value="#<?php esc_attr(header_textcolor()) ?>" /><input name="submit" type="submit" class="button" value="<?php esc_attr_e('Save Changes'); ?>" /></form>
 <?php } ?>
 
 <div id="colorPickerDiv" style="z-index: 100;background:#eee;border:1px solid #ccc;position:absolute;display:none;"> </div>
 </div>
+<?php
+else:
+	echo '<p>' . __('Choose one of these cool headers, or upload your own image below.') . '</p>';
+	echo '<form method="post" action="' . admin_url('themes.php?page=custom-header&amp;updated=true') . '">';
+	wp_nonce_field('custom-header');
+	$this->show_default_header_selector();
+	echo '<input type="submit" class="button" value="' . esc_attr__('Save Changes') . '"  />';
+	echo '</form>';
+	echo '</div>';
+endif;
+?>
 <div class="wrap">
-<h2><?php _e('Upload New Header Image'); ?></h2><p><?php _e('Here you can upload a custom header image to be shown at the top of your blog instead of the default one. On the next screen you will be able to crop the image.'); ?></p>
-<p><?php printf(__('Images of exactly <strong>%1$d x %2$d pixels</strong> will be used as-is.'), HEADER_IMAGE_WIDTH, HEADER_IMAGE_HEIGHT); ?></p>
+<h3><?php _e('Upload New Header Image'); ?></h3><p><?php _e('Here you can upload a custom header image to be shown at the top of your blog instead of the default one. On the next screen you will be able to crop the image.'); ?> <?php printf(__('Images of exactly <strong>%1$d x %2$d pixels</strong> will be used as-is.'), HEADER_IMAGE_WIDTH, HEADER_IMAGE_HEIGHT); ?></p>
 
-<form enctype="multipart/form-data" id="uploadForm" method="POST" action="<?php echo esc_attr(add_query_arg('step', 2)) ?>" style="margin: auto; width: 50%;">
+<form enctype="multipart/form-data" id="uploadForm" method="POST" action="<?php echo esc_attr(add_query_arg('step', 2)) ?>">
 <label for="upload"><?php _e('Choose an image from your computer:'); ?></label><br /><input type="file" id="upload" name="import" />
 <input type="hidden" name="action" value="save" />
 <?php wp_nonce_field('custom-header') ?>
@@ -309,11 +429,23 @@ class Custom_Image_Header {
 
 		<?php if ( get_theme_mod('header_image') || get_theme_mod('header_textcolor') ) : ?>
 <div class="wrap">
-<h2><?php _e('Reset Header Image and Color'); ?></h2>
-<p><?php _e('This will restore the original header image and color. You will not be able to retrieve any customizations.') ?></p>
+<h3><?php _e('Reset Header Image and Color'); ?></h3>
 <form method="post" action="<?php echo esc_attr(add_query_arg('step', 1)) ?>">
-<?php wp_nonce_field('custom-header'); ?>
+<?php
+wp_nonce_field('custom-header');
+if ( !empty($this->default_headers) ) {
+?>
+<p><?php _e('Use one of these cool headers.') ?></p>
+<?php
+	$this->show_default_header_selector();
+?>
+	<input type="submit" class="button" name="resetheader" value="<?php esc_attr_e('Save Changes'); ?>" />
+<?php
+} else {
+?>
+<p><?php _e('This will restore the original header image and color. You will not be able to retrieve any customizations.') ?></p>
 <input type="submit" class="button" name="resetheader" value="<?php esc_attr_e('Restore Original Header'); ?>" />
+<?php } ?>
 </form>
 </div>
 		<?php endif;
@@ -323,7 +455,7 @@ class Custom_Image_Header {
 	/**
 	 * Display second step of custom header image page.
 	 *
-	 * @since unknown
+	 * @since 2.1.0
 	 */
 	function step_2() {
 		check_admin_referer('custom-header');
@@ -360,6 +492,9 @@ class Custom_Image_Header {
 		} elseif ( $width > HEADER_IMAGE_WIDTH ) {
 			$oitar = $width / HEADER_IMAGE_WIDTH;
 			$image = wp_crop_image($file, 0, 0, $width, $height, HEADER_IMAGE_WIDTH, $height / $oitar, false, str_replace(basename($file), 'midsize-'.basename($file), $file));
+			if ( is_wp_error( $image ) )
+				wp_die( __( 'Image could not be processed.  Please go back and try again.' ), __( 'Image Processing Error' ) );
+
 			$image = apply_filters('wp_create_file_in_uploads', $image, $id); // For replication
 
 			$url = str_replace(basename($url), basename($image), $url);
@@ -400,7 +535,7 @@ class Custom_Image_Header {
 	/**
 	 * Display third step of custom header image page.
 	 *
-	 * @since unknown
+	 * @since 2.1.0
 	 */
 	function step_3() {
 		check_admin_referer('custom-header');
@@ -414,6 +549,9 @@ class Custom_Image_Header {
 		$original = get_attached_file( $_POST['attachment_id'] );
 
 		$cropped = wp_crop_image($_POST['attachment_id'], $_POST['x1'], $_POST['y1'], $_POST['width'], $_POST['height'], HEADER_IMAGE_WIDTH, HEADER_IMAGE_HEIGHT);
+		if ( is_wp_error( $cropped ) )
+			wp_die( __( 'Image could not be processed.  Please go back and try again.' ), __( 'Image Processing Error' ) );
+
 		$cropped = apply_filters('wp_create_file_in_uploads', $cropped, $_POST['attachment_id']); // For replication
 
 		$parent = get_post($_POST['attachment_id']);
@@ -446,25 +584,21 @@ class Custom_Image_Header {
 	/**
 	 * Display last step of custom header image page.
 	 *
-	 * @since unknown
+	 * @since 2.1.0
 	 */
 	function finished() {
-		?>
-<div class="wrap">
-<h2><?php _e('Header complete!'); ?></h2>
-
-<p><?php _e('Visit your site and you should see the new header now.'); ?></p>
-
-</div>
-		<?php
+		$_GET['updated'] = 1;
+	  $this->step_1();
 	}
 
 	/**
 	 * Display the page based on the current step.
 	 *
-	 * @since unknown
+	 * @since 2.1.0
 	 */
 	function admin_page() {
+		if ( ! current_user_can('switch_themes') )
+			wp_die(__('You do not have permission to customize headers.'));
 		$step = $this->step();
 		if ( 1 == $step )
 			$this->step_1();

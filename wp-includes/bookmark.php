@@ -33,7 +33,7 @@ function get_bookmark($bookmark, $output = OBJECT, $filter = 'raw') {
 			$_bookmark = & $GLOBALS['link'];
 		} elseif ( ! $_bookmark = wp_cache_get($bookmark, 'bookmark') ) {
 			$_bookmark = $wpdb->get_row($wpdb->prepare("SELECT * FROM $wpdb->links WHERE link_id = %d LIMIT 1", $bookmark));
-			$_bookmark->link_category = array_unique( wp_get_object_terms($_bookmark->link_id, 'link_category', 'fields=ids') );
+			$_bookmark->link_category = array_unique( wp_get_object_terms($_bookmark->link_id, 'link_category', array('fields' => 'ids')) );
 			wp_cache_add($_bookmark->link_id, $_bookmark, 'bookmark');
 		}
 	}
@@ -77,21 +77,6 @@ function get_bookmark_field( $field, $bookmark, $context = 'display' ) {
 		return '';
 
 	return sanitize_bookmark_field($field, $bookmark->$field, $bookmark->link_id, $context);
-}
-
-/**
- * Retrieve bookmark data based on ID.
- *
- * @since 2.0.0
- * @deprecated Use get_bookmark()
- * @see get_bookmark()
- *
- * @param int $bookmark_id ID of link
- * @param string $output Either OBJECT, ARRAY_N, or ARRAY_A
- * @return object|array
- */
-function get_link($bookmark_id, $output = OBJECT, $filter = 'raw') {
-	return get_bookmark($bookmark_id, $output, $filter);
 }
 
 /**
@@ -324,6 +309,13 @@ function sanitize_bookmark_field($field, $value, $bookmark_id, $context) {
 	$int_fields = array('link_id', 'link_rating');
 	if ( in_array($field, $int_fields) )
 		$value = (int) $value;
+
+	// Fields which contain arrays of ints.
+	$array_int_fields = array( 'link_category' );
+	if ( in_array($field, $array_int_fields) ) {
+		$value = array_map( 'absint', $value);
+		return $value;
+	}
 
 	$yesno = array('link_visible');
 	if ( in_array($field, $yesno) )

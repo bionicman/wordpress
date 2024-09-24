@@ -86,6 +86,12 @@ foreach ( array( 'comment_author', 'term_name', 'link_name', 'link_description',
 	add_filter( $filter, 'esc_html'      );
 }
 
+// Format titles
+foreach ( array( 'single_post_title', 'single_cat_title', 'single_tag_title', 'single_month_title' ) as $filter ) {
+	add_filter( $filter, 'wptexturize' );
+	add_filter( $filter, 'strip_tags'  );
+}
+
 // Format text area for display.
 foreach ( array( 'term_description' ) as $filter ) {
 	add_filter( $filter, 'wptexturize'      );
@@ -168,8 +174,9 @@ add_filter( 'editable_slug',        'urldecode'                           );
 add_filter( 'atom_service_url','atom_service_url_filter' );
 
 // Actions
-add_action( 'wp_head',             'wp_enqueue_scripts',             1    );
-add_action( 'wp_head',             'feed_links_extra',               3    );
+add_action( 'wp_head',             'wp_enqueue_scripts',            1     );
+add_action( 'wp_head',             'feed_links',                    2     );
+add_action( 'wp_head',             'feed_links_extra',              3     );
 add_action( 'wp_head',             'rsd_link'                             );
 add_action( 'wp_head',             'wlwmanifest_link'                     );
 add_action( 'wp_head',             'index_rel_link'                       );
@@ -178,12 +185,19 @@ add_action( 'wp_head',             'start_post_rel_link',           10, 0 );
 add_action( 'wp_head',             'adjacent_posts_rel_link',       10, 0 );
 add_action( 'wp_head',             'locale_stylesheet'                    );
 add_action( 'publish_future_post', 'check_and_publish_future_post', 10, 1 );
-add_action( 'wp_head',             'noindex',                        1    );
-add_action( 'wp_head',             'wp_print_styles',                8    );
-add_action( 'wp_head',             'wp_print_head_scripts',          9    );
+add_action( 'wp_head',             'noindex',                       1     );
+add_action( 'wp_head',             'wp_print_styles',               8     );
+add_action( 'wp_head',             'wp_print_head_scripts',         9     );
 add_action( 'wp_head',             'wp_generator'                         );
 add_action( 'wp_head',             'rel_canonical'                        );
 add_action( 'wp_footer',           'wp_print_footer_scripts'              );
+add_action( 'wp_head',             'wp_shortlink_wp_head',          10, 0 );
+add_action( 'template_redirect',   'wp_shortlink_header',           11, 0 );
+
+// Feed Generator Tags
+foreach ( array( 'rss2_head', 'commentsrss2_head', 'rss_head', 'rdf_header', 'atom_head', 'comments_atom_head', 'opml_head', 'app_head' ) as $action ) {
+	add_action( $action, 'the_generator' );
+}
 
 // WP Cron
 if ( !defined( 'DOING_CRON' ) )
@@ -225,3 +239,7 @@ add_action( 'init',               '_show_post_preview'         );
 
 // Timezone
 add_filter( 'pre_option_gmt_offset','wp_timezone_override_offset' );
+
+// Admin Color Schemes
+add_action( 'admin_init', 'register_admin_color_schemes', 1);
+add_action( 'admin_color_scheme_picker', 'admin_color_scheme_picker' );

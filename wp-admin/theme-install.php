@@ -16,6 +16,7 @@ include(ABSPATH . 'wp-admin/includes/theme-install.php');
 
 $title = __('Install Themes');
 $parent_file = 'themes.php';
+$submenu_file = 'themes.php';
 
 wp_reset_vars( array('tab', 'paged') );
 wp_enqueue_style( 'theme-install' );
@@ -41,22 +42,24 @@ $tabs = apply_filters('install_themes_tabs', $tabs );
 $nonmenu_tabs = apply_filters('install_themes_nonmenu_tabs', $nonmenu_tabs);
 
 //If a non-valid menu tab has been selected, And its not a non-menu action.
-if( empty($tab) || ( ! isset($tabs[ $tab ]) && ! in_array($tab, (array)$nonmenu_tabs) ) ) {
+if ( empty($tab) || ( ! isset($tabs[ $tab ]) && ! in_array($tab, (array)$nonmenu_tabs) ) ) {
 	$tab_actions = array_keys($tabs);
 	$tab = $tab_actions[0];
 }
-if( empty($paged) )
+if ( empty($paged) )
 	$paged = 1;
 
 $body_id = $tab;
 
 do_action('install_themes_pre_' . $tab); //Used to override the general interface, Eg, install or theme information.
 
+add_contextual_help($current_screen, plugins_search_help());
+
 include('admin-header.php');
 ?>
 <div class="wrap">
 <?php screen_icon(); ?>
-<h2><?php echo esc_html( $title ); ?></h2>
+<h2><a href="themes.php" class="menu-tabs menu-tab-inactive"><?php echo esc_html_x('Manage Themes', 'theme'); ?></a><a href="theme-install.php" class="menu-tabs"><?php echo esc_html( $title ); ?></a></h2>
 
 	<ul class="subsubsub">
 <?php

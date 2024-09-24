@@ -366,8 +366,6 @@ function display_theme($theme, $actions = null, $show_details = true) {
  * @param int $totalpages Number of pages.
  */
 function display_themes($themes, $page = 1, $totalpages = 1) {
-	global $themes_allowedtags;
-
 	$type = isset($_REQUEST['type']) ? stripslashes( $_REQUEST['type'] ) : '';
 	$term = isset($_REQUEST['s']) ? stripslashes( $_REQUEST['s'] ) : '';
 	?>
@@ -457,8 +455,11 @@ function install_theme_information() {
 	// Sanitize HTML
 	foreach ( (array)$api->sections as $section_name => $content )
 		$api->sections[$section_name] = wp_kses($content, $themes_allowedtags);
-	foreach ( array('version', 'author', 'requires', 'tested', 'homepage', 'downloaded', 'slug') as $key )
-		$api->$key = wp_kses($api->$key, $themes_allowedtags);
+
+	foreach ( array('version', 'author', 'requires', 'tested', 'homepage', 'downloaded', 'slug') as $key ) {
+		if ( isset($api->$key) )
+			$api->$key = wp_kses($api->$key, $themes_allowedtags);
+	}
 
 	iframe_header( __('Theme Install') );
 
@@ -476,7 +477,7 @@ function install_theme_information() {
 	// Default to a "new" theme
 	$type = 'install';
 	// Check to see if this theme is known to be installed, and has an update awaiting it.
-	$update_themes = get_transient('update_themes');
+	$update_themes = get_site_transient('update_themes');
 	if ( is_object($update_themes) && isset($update_themes->response) ) {
 		foreach ( (array)$update_themes->response as $theme_slug => $theme_info ) {
 			if ( $theme_slug === $api->slug ) {
