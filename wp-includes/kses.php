@@ -9,8 +9,11 @@
 # Paper mail:  (not at the moment)
 #
 # [kses strips evil scripts!]
-
-// You could override this in your my-hacks.php file
+if (!defined('CUSTOM_TAGS'))
+	define('CUSTOM_TAGS', false);
+	
+// You can override this in your my-hacks.php file
+if (!CUSTOM_TAGS) {
 $allowedtags = array(
 				'a' => array(
 					'href' => array(),
@@ -40,7 +43,7 @@ $allowedtags = array(
 //				'u' => array(),
 //				'ul' => array(),
 				);
-
+}
 function wp_kses($string, $allowed_html, $allowed_protocols =
                array('http', 'https', 'ftp', 'news', 'nntp', 'telnet',
                      'gopher', 'mailto'))

@@ -6,6 +6,7 @@ function upgrade_all() {
 	upgrade_072();
 	upgrade_100();
 	upgrade_101();
+	upgrade_110();
 }
 
 // General
@@ -147,7 +148,7 @@ function upgrade_072() {
 	  INDEX (option_id, optionvalue_seq)
 	)
 	");
-
+	
 	// TODO: REWRITE THIS
 	$option_types = array(
 		"1" => "INSERT INTO $tableoptiontypes (optiontype_id, optiontype_name) VALUES ('1', 'integer')",
@@ -178,9 +179,6 @@ $guessurl = preg_replace('|/wp-admin/.*|i', '', 'http://' . $HTTP_HOST . $REQUES
 		// general blog setup
 		"9" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (9 ,'start_of_week', 5, '1', 'day at the start of the week', 8, 20)",
 		//"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (10,'use_preview', 2, '1', 'Do you want to use the \'preview\' function', 8, 20)",
-		"11" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (11,'use_bbcode', 2, '0', 'use BBCode, like [b]bold[/b]', 8, 20)",
-		"12" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (12,'use_gmcode', 2, '0', 'use GreyMatter-styles: **bold** \\\\italic\\\\ __underline__', 8, 20)",
-		"13" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (13,'use_quicktags', 2, '1', 'buttons for HTML tags (they won\'t work on IE Mac yet)', 8, 20)",
 		"14" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (14,'use_htmltrans', 2, '1', 'IMPORTANT! set this to false if you are using Chinese, Japanese, Korean, or other double-bytes languages', 8, 20)",
 		"15" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (15,'use_balanceTags', 2, '1', 'this could help balance your HTML code. if it gives bad results, set it to false', 8, 20)",
 		"16" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (16,'use_smilies', 2, '1', 'set this to true to enable smiley conversion in posts (note: this makes smiley conversion in ALL posts)', 8, 20)",
@@ -193,9 +191,6 @@ $guessurl = preg_replace('|/wp-admin/.*|i', '', 'http://' . $HTTP_HOST . $REQUES
 		"23" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (23,'rss_encoded_html', 2, '0', 'for b2rss.php: allow encoded HTML in &lt;description> tag?', 8, 20)",
 		"24" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (24,'rss_excerpt_length', 1, '50', 'length (in words) of excerpts in the RSS feed? 0=unlimited note: in b2rss.php, this will be set to 0 if you use encoded HTML', 8, 20)",
 		"25" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (25,'rss_use_excerpt', 2, '1', 'use the excerpt field for rss feed.', 8, 20)",
-		"26" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (26,'use_weblogsping', 2, '0', 'set this to true if you want your site to be listed on http://weblogs.com when you add a new post', 8, 20)",
-		"27" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (27,'use_blodotgsping', 2, '0', 'set this to true if you want your site to be listed on http://blo.gs when you add a new post', 8, 20)",
-		"28" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (28,'blodotgsping_url', 3, 'http://example.com', 'You shouldn\'t need to change this.', 8, 30)",
 		"29" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (29,'use_trackback', 2, '1', 'set this to false or true, whether you want to allow your posts to be trackback\'able or not note: setting it to false would also disable sending trackbacks', 8, 20)",
 		"30" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (30,'use_pingback', 2, '1', 'set this to false or true, whether you want to allow your posts to be pingback\'able or not note: setting it to false would also disable sending pingbacks', 8, 20)",
 		//file upload
@@ -212,14 +207,10 @@ $guessurl = preg_replace('|/wp-admin/.*|i', '', 'http://' . $HTTP_HOST . $REQUES
 		"40" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (40,'mailserver_pass', 3, 'password', 'mailserver settings', 8, 20)",
 		"41" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (41,'mailserver_port', 1, '110', 'mailserver settings', 8, 20)",
 		"42" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (42,'default_category', 1, '1', 'by default posts will have this category', 8, 20)",
-		"43" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (43,'subjectprefix', 3, 'blog:', 'subject prefix', 8, 20)",
-		"44" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (44,'bodyterminator', 3, '___', 'body terminator string (starting from this string, everything will be ignored, including this string)', 8, 20)",
-		"45" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (45,'emailtestonly', 2, '0', 'set this to true to run in test mode', 8, 20)",
 		"46" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (46,'use_phoneemail', 2, '0', 'some mobile phone email services will send identical subject & content on the same line if you use such a service, set use_phoneemail to true, and indicate a separator string', 8, 20)",
-		"47" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (47,'phoneemail_separator', 3, ':::', 'when you compose your message, you\'ll type your subject then the separator string then you type your login:password, then the separator, then content', 8, 20)",
-
+		
 		// default post stuff
-
+		
 		"55" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(55,'default_post_status',    5, 'publish', 'The default state of each new post', 8, 20)",
 		"56" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(56,'default_comment_status', 5, 'open', 'The default state of comments for each new post', 8, 20)",
 		"57" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(57,'default_ping_status',    5, 'open', 'The default ping state for each new post', 8, 20)",
@@ -253,7 +244,6 @@ $guessurl = preg_replace('|/wp-admin/.*|i', '', 'http://' . $HTTP_HOST . $REQUES
 		"73" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (73,'links_rating_image7',             3, 'wp-links/links-images/rating-7.gif', 'Image for rating 7', 8, 40)",
 		"74" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (74,'links_rating_image8',             3, 'wp-links/links-images/rating-8.gif', 'Image for rating 8', 8, 40)",
 		"75" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (75,'links_rating_image9',             3, 'wp-links/links-images/rating-9.gif', 'Image for rating 9', 8, 40)",
-		"76" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (76,'weblogs_cache_file',              3, 'weblogs.com.changes.cache', 'path/to/cachefile needs to be writable by web server', 8, 40)",
 		"77" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (77,'weblogs_xml_url',                 3, 'http://www.weblogs.com/changes.xml', 'Which file to grab from weblogs.com', 8, 40)",
 		"78" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (78,'weblogs_cacheminutes',            1, '60', 'cache time in minutes (if it is older than this get a new copy)', 8, 10)",
 		"79" => "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (79,'links_updated_date_format',       3, 'd/m/Y h:i', 'The date format for the updated tooltip', 8, 25)",
@@ -267,7 +257,7 @@ $guessurl = preg_replace('|/wp-admin/.*|i', '', 'http://' . $HTTP_HOST . $REQUES
 			$wpdb->query($query);
 		}
 	}
-
+	
 	$option_groups = array(
 	"INSERT INTO $tableoptiongroups (group_id,  group_name, group_desc) VALUES (1, 'Other Options', 'Posts per page etc. Original options page')",
 	"INSERT INTO $tableoptiongroups (group_id,  group_name, group_desc) VALUES (2, 'General blog settings', 'Things you\'ll probably want to tweak')",
@@ -285,16 +275,16 @@ $guessurl = preg_replace('|/wp-admin/.*|i', '', 'http://' . $HTTP_HOST . $REQUES
 		if(!$wpdb->get_var("SELECT * FROM $tableoptiongroups WHERE group_id = '$option_id'")) {
 			$wpdb->query($query);
 			}
-	}
-
+	}	
+	
 	$optiongroup_options = array (		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (1,48,1 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (1,49,2 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (1,50,3 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (1,51,4 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (1,52,5 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (1,53,6 )",
-
-
+		
+		
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (2,9 ,1 )",
 		//"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (2,10,2 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (2,11,3 )",
@@ -307,8 +297,8 @@ $guessurl = preg_replace('|/wp-admin/.*|i', '', 'http://' . $HTTP_HOST . $REQUES
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (2,18,10)",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (2,19,11)",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (2,20,12)",
-
-
+		
+		
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (3,21,1 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (3,22,2 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (3,23,3 )",
@@ -319,8 +309,8 @@ $guessurl = preg_replace('|/wp-admin/.*|i', '', 'http://' . $HTTP_HOST . $REQUES
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (3,28,8 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (3,29,9 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (3,30,10)",
-
-
+		
+		
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (4,31,1 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (4,32,2 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (4,33,3 )",
@@ -328,8 +318,8 @@ $guessurl = preg_replace('|/wp-admin/.*|i', '', 'http://' . $HTTP_HOST . $REQUES
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (4,35,5 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (4,36,6 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (4,37,7 )",
-
-
+		
+		
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (5,38,1 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (5,39,2 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (5,40,3 )",
@@ -340,8 +330,8 @@ $guessurl = preg_replace('|/wp-admin/.*|i', '', 'http://' . $HTTP_HOST . $REQUES
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (5,45,8 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (5,46,9 )",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (5,47,10)",
-
-
+		
+		
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (6,1,1)",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (6,2,2)",
 		"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES (6,3,3)",
@@ -391,8 +381,8 @@ $guessurl = preg_replace('|/wp-admin/.*|i', '', 'http://' . $HTTP_HOST . $REQUES
 		if(!$wpdb->get_var("SELECT * FROM $tableoptiongroup_options WHERE option_id = '$option_id'")) {
 			$wpdb->query($query);
 			}
-	}
-
+	}	
+	
 	$option_values = array(
 		// select data for what to show
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (49, 'days',  'days',        null,null,1)",
@@ -409,43 +399,43 @@ $guessurl = preg_replace('|/wp-admin/.*|i', '', 'http://' . $HTTP_HOST . $REQUES
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (9, '0', 'Sunday',   null,null,1)",
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (9, '1', 'Monday',   null,null,2)",
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (9, '6', 'Saturday', null,null,3)",
-
-
+		
+		
 		// Add in a new page for POST DEFAULTS
-
+		
 		// default_post_status  select one of publish draft private
 		// default_comment_status select one of open closed
 		// default_ping_status select one of open closed
 		// default_pingback_flag select one of checked unchecked
 		// default_post_category sql_select "SELECT cat_id AS value, cat_name AS label FROM $tablecategories order by cat_name"
+		
+	
 
-
-
-
+		
 		// select data for post_status
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (55, 'publish', 'Publish', null,null,1)",
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (55, 'draft',   'Draft',   null,null,2)",
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (55, 'private', 'Private', null,null,3)",
-
+		
 		// select data for comment_status
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (56, 'open', 'Open',   null,null,1)",
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (56, 'closed', 'Closed', null,null,2)",
-
+		
 		// select data for ping_status (aargh duplication!)
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (57, 'open', 'Open',   null,null,1)",
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (57, 'closed', 'Closed', null,null,2)",
-
+		
 		// select data for pingback flag
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (58, '1', 'Checked',   null,null,1)",
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (58, '0', 'Unchecked', null,null,2)",
-
+		
 		// sql select data for default
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (59, 'SELECT cat_id AS value, cat_name AS label FROM $tablecategories order by cat_name', '', null,null,1)",
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (62, 'number', 'Number',    null,null,1)",
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (62, 'char',   'Character', null,null,2)",
 		"INSERT INTO $tableoptionvalues (option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq) VALUES (62, 'image',  'Image',     null,null,3)"
 		);
-
+		
 	foreach ($option_values as $query) {
 		preg_match("|VALUES \(([0-9]+), '([^']+)'|", $query, $matches);
 		$option_id = $matches[1];
@@ -453,12 +443,12 @@ $guessurl = preg_replace('|/wp-admin/.*|i', '', 'http://' . $HTTP_HOST . $REQUES
 		if(!$wpdb->get_var("SELECT * FROM $tableoptionvalues WHERE option_id = '$option_id' AND optionvalue = '$value'")) {
 			$wpdb->query($query);
 			}
-	}
-
+	}	
+		
 
 	    if (file_exists('../wp-links/links.config.php')) {
         include('../wp-links/links.config.php');
-
+    
         // now update the database with those settings
         $query = "UPDATE $tableoptions SET option_value='".addslashes($links_minadminlevel           )."' WHERE option_id=60"; $q = $wpdb->query($query);
         $query = "UPDATE $tableoptions SET option_value='".addslashes($links_use_adminlevels         )."' WHERE option_id=61"; $q = $wpdb->query($query);
@@ -495,7 +485,7 @@ function upgrade_100() {
 	maybe_add_column($tableposts, 'pinged', "ALTER TABLE $tableposts ADD `pinged` TEXT NOT NULL");
 	maybe_add_column($tableposts, 'post_modified', "ALTER TABLE $tableposts ADD `post_modified` DATETIME NOT NULL");
 	maybe_add_column($tableposts, 'post_content_filtered', "ALTER TABLE $tableposts ADD `post_content_filtered` TEXT NOT NULL");
-	maybe_add_column($tablecategories, 'category_nicename', "ALTER TABLE `$tablecategories` ADD `category_nicename` VARCHAR(200) NOT NULL");
+	maybe_add_column($tablecategories, 'category_nicename', "ALTER TABLE `$tablecategories` ADD `category_nicename` VARCHAR(200) NOT NULL");	
 	maybe_add_column($tablecategories, 'category_description', "ALTER TABLE `$tablecategories` ADD `category_description` TEXT NOT NULL");
 	maybe_add_column($tablecategories, 'category_parent', "ALTER TABLE `$tablecategories` ADD `category_parent` INT(4) NOT NULL");
 	maybe_add_column($tablelinks, 'link_rss', "ALTER TABLE `$tablelinks` ADD `link_rss` VARCHAR( 255 ) NOT NULL;");
@@ -512,84 +502,84 @@ function upgrade_100() {
 	if (!$wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'comment_moderation'")) {
 		$wpdb->query("INSERT INTO $tableoptions
 			(option_id, blog_id, option_name, option_can_override, option_type, option_value, option_width, option_height, option_description, option_admin_level)
-			VALUES
+			VALUES 
 			('0', '0', 'comment_moderation', 'Y', '5',' none', 20, 8, 'If enabled, comments will only be shown after they have been approved.', 8)");
 	}
 
-	$oid = $wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'comment_moderation'");
+	$oid = $wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'comment_moderation'");	    
 	$gid = $wpdb->get_var("SELECT group_id FROM $tableoptiongroups WHERE group_name = 'General blog settings'");
 	$seq = $wpdb->get_var("SELECT MAX(seq) FROM $tableoptiongroup_options WHERE group_id = '$gid'");
 	++$seq;
 	if (!$wpdb->get_row("SELECT * FROM $tableoptiongroup_options WHERE group_id = '$gid' AND option_id = '$oid'")) {
-		$wpdb->query("INSERT INTO $tableoptiongroup_options
-		(group_id, option_id, seq)
-		VALUES
+		$wpdb->query("INSERT INTO $tableoptiongroup_options 
+		(group_id, option_id, seq) 
+		VALUES 
 		('$gid', '$oid', '$seq')");
 	}
-
+	  
 	if (!$wpdb->get_row("SELECT * FROM $tableoptionvalues WHERE option_id = $oid AND optionvalue = 'auto'")) {
-		$wpdb->query("INSERT INTO $tableoptionvalues
+		$wpdb->query("INSERT INTO $tableoptionvalues 
 		(option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq)
-		VALUES
+		VALUES 
 		('$oid','auto', 'Automatic', NULL, NULL, 3)");
 	}
 	if (!$wpdb->get_row("SELECT * FROM $tableoptionvalues WHERE option_id = $oid AND optionvalue = 'none'")) {
-		$wpdb->query("INSERT INTO $tableoptionvalues
+		$wpdb->query("INSERT INTO $tableoptionvalues 
 		(option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq)
-		VALUES
+		VALUES 
 		('$oid', 'none', 'None', NULL, NULL, 1)");
 	}
 	if (!$wpdb->get_row("SELECT * FROM $tableoptionvalues WHERE option_id = $oid AND optionvalue = 'manual'")) {
-		$wpdb->query("INSERT INTO $tableoptionvalues
+		$wpdb->query("INSERT INTO $tableoptionvalues 
 		(option_id, optionvalue, optionvalue_desc, optionvalue_max, optionvalue_min, optionvalue_seq)
-		VALUES
+		VALUES 
 		('$oid', 'manual', 'Manual', NULL, NULL, 2)");
 	}
-
+	
 	if (!$wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'moderation_notify'")) {
-		$wpdb->query("INSERT INTO $tableoptions
-			(option_id, blog_id, option_name, option_can_override, option_type, option_value, option_width, option_height, option_description, option_admin_level)
-			VALUES
+		$wpdb->query("INSERT INTO $tableoptions 
+			(option_id, blog_id, option_name, option_can_override, option_type, option_value, option_width, option_height, option_description, option_admin_level) 
+			VALUES 
 			('0', '0', 'moderation_notify' , 'Y', '2', '1', 20, 8, 'Set this to true if you want to be notified about new comments that wait for approval', 8)");
 	}
-
-	$oid = $wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'moderation_notify'");
+	
+	$oid = $wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'moderation_notify'");	    
 	$seq = $wpdb->get_var("SELECT MAX(seq) FROM $tableoptiongroup_options WHERE group_id = '$gid'");
 	++$seq;
 	if (!$wpdb->get_row("SELECT * FROM $tableoptiongroup_options WHERE group_id = '$gid' AND option_id = '$oid'")) {
-		$wpdb->query("INSERT INTO $tableoptiongroup_options
+		$wpdb->query("INSERT INTO $tableoptiongroup_options 
 			(group_id, option_id, seq)
-			VALUES
+			VALUES 
 			('$gid', '$oid', '$seq')");
 	}
 	// Get the title and ID of every post, post_name to check if it already has a value
 	$posts = $wpdb->get_results("SELECT ID, post_title, post_name FROM $tableposts");
 	foreach($posts as $post) {
-		if ('' == $post->post_name) {
+		if ('' == $post->post_name) { 
 			$newtitle = sanitize_title($post->post_title);
 			$wpdb->query("UPDATE $tableposts SET post_name = '$newtitle' WHERE ID = '$post->ID'");
 		}
 	}
-
+	
 	$categories = $wpdb->get_results("SELECT cat_ID, cat_name, category_nicename FROM $tablecategories");
 	foreach ($categories as $category) {
-		if ('' == $category->category_nicename) {
+		if ('' == $category->category_nicename) { 
 			$newtitle = sanitize_title($category->cat_name);
 			$wpdb->query("UPDATE $tablecategories SET category_nicename = '$newtitle' WHERE cat_ID = '$category->cat_ID'");
 		}
 	}
-
+	
 	if (!$wpdb->get_var("SELECT option_name FROM $tableoptions WHERE option_name = 'permalink_structure'")) { // If it's not already there
-		$wpdb->query("INSERT INTO `$tableoptions`
-			(`option_id`, `blog_id`, `option_name`, `option_can_override`, `option_type`, `option_value`, `option_width`, `option_height`, `option_description`, `option_admin_level`)
-			VALUES
+		$wpdb->query("INSERT INTO `$tableoptions` 
+			(`option_id`, `blog_id`, `option_name`, `option_can_override`, `option_type`, `option_value`, `option_width`, `option_height`, `option_description`, `option_admin_level`) 
+			VALUES 
 			('', '0', 'permalink_structure', 'Y', '3', '', '20', '8', 'How the permalinks for your site are constructed. See <a href=\"options-permalink.php\">permalink options page</a> for necessary mod_rewrite rules and more information.', '8');");
 		}
-
+		
 	if (!$wpdb->get_var("SELECT option_name FROM $tableoptions WHERE option_name = 'gzipcompression'")) { // If it's not already there
-		$wpdb->query("INSERT INTO `$tableoptions`
-			(`option_id`, `blog_id`, `option_name`, `option_can_override`, `option_type`, `option_value`, `option_width`, `option_height`, `option_description`, `option_admin_level`)
-			VALUES
+		$wpdb->query("INSERT INTO `$tableoptions` 
+			(`option_id`, `blog_id`, `option_name`, `option_can_override`, `option_type`, `option_value`, `option_width`, `option_height`, `option_description`, `option_admin_level`) 
+			VALUES 
 			('', '0', 'gzipcompression', 'Y', '2', '0', '20', '8', 'Whether your output should be gzipped or not. Enable this if you don&#8217;t already have mod_gzip running.', '8');");
 		$optionid = $wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'gzipcompression'");
 		$wpdb->query("INSERT INTO $tableoptiongroup_options
@@ -598,9 +588,9 @@ function upgrade_100() {
 			(2, $optionid, 5)");
 		}
 	if (!$wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'hack_file'")) {
-		$wpdb->query("INSERT INTO `$tableoptions`
+		$wpdb->query("INSERT INTO `$tableoptions` 
 			( `option_id` , `blog_id` , `option_name` , `option_can_override` , `option_type` , `option_value` , `option_width` , `option_height` , `option_description` , `option_admin_level` )
-			VALUES
+			VALUES 
 			('', '0', 'hack_file', 'Y', '2', '0', '20', '8', 'Set this to true if you plan to use a hacks file. This is a place for you to store code hacks that won&#8217;t be overwritten when you upgrade. The file must be in your wordpress root and called <code>my-hacks.php</code>', '8')");
 		$optionid = $wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'hack_file'");
 		$wpdb->query("INSERT INTO $tableoptiongroup_options
@@ -650,17 +640,17 @@ function upgrade_100() {
 
 function upgrade_101() {
 	global $wpdb, $tableoptionvalues, $tablelinkcategories, $tableposts, $tablecategories, $tablecomments, $tablelinks;
-	// Fix possible duplicate problem from CVS
+	// Fix possible duplicate problem from CVS, we can REMOVE this later
 	$option59 = $wpdb->get_results("SELECT * FROM $tableoptionvalues WHERE option_id  = '59'");
 	if (1 < count($option59)) {
 		$wpdb->query("DELETE FROM $tableoptionvalues WHERE option_id = '59' AND optionvalue LIKE('%FROM  order%')");
 	}
-
+	
 	// Remove 'automatic' option for comment moderation until it actually does something
 	$wpdb->query("DELETE FROM $tableoptionvalues WHERE optionvalue = 'auto'");
 	// Less intrusive default
-	$wpdb->query("ALTER TABLE `$tablelinkcategories` CHANGE `show_description` `show_description` ENUM( 'Y', 'N' ) DEFAULT 'N' NOT NULL");
-
+	$wpdb->query("ALTER TABLE `$tablelinkcategories` CHANGE `show_description` `show_description` ENUM( 'Y', 'N' ) DEFAULT 'N' NOT NULL"); 
+	
 	// Clean up indices, add a few
 	add_clean_index($tableposts, 'post_name');
 	add_clean_index($tableposts, 'post_status');
@@ -669,6 +659,160 @@ function upgrade_101() {
 	add_clean_index($tablecomments, 'comment_post_ID');
 	add_clean_index($tablelinks , 'link_category');
 	add_clean_index($tablelinks , 'link_visible');
+}
+
+
+function upgrade_110() {
+  global $wpdb, $tableusers, $tablecomments, $tableposts, $tableoptiongroups, $tableoptiongroup_options, $tableoptions, $tablepostmeta;
+	
+	maybe_add_column($tablecomments, 'user_id', "ALTER TABLE `$tablecomments` ADD `user_id` INT DEFAULT '0' NOT NULL ;");
+	maybe_add_column($tableusers, 'user_activation_key', "ALTER TABLE `$tableusers` ADD `user_activation_key` VARCHAR( 60 ) NOT NULL ;");
+	maybe_add_column($tableusers, 'user_status', "ALTER TABLE `$tableusers` ADD `user_status` INT DEFAULT '0' NOT NULL ;");
+	$wpdb->query("ALTER TABLE `$tableposts` CHANGE `comment_status` `comment_status` ENUM( 'open', 'closed', 'registered_only' ) DEFAULT 'open' NOT NULL");
+
+	maybe_add_column($tableusers, 'user_nicename', "ALTER TABLE `$tableusers` ADD `user_nicename` VARCHAR(50) DEFAULT '' NOT NULL ;");
+	maybe_add_column($tableposts, 'post_date_gmt', "ALTER TABLE $tableposts ADD post_date_gmt DATETIME NOT NULL AFTER post_date");
+	maybe_add_column($tableposts, 'post_modified_gmt', "ALTER TABLE $tableposts ADD post_modified_gmt DATETIME NOT NULL AFTER post_modified");
+	maybe_add_column($tablecomments, 'comment_date_gmt', "ALTER TABLE $tablecomments ADD comment_date_gmt DATETIME NOT NULL AFTER comment_date");
+
+    // Set user_nicename.
+	$users = $wpdb->get_results("SELECT ID, user_nickname, user_nicename FROM $tableusers");
+	foreach ($users as $user) {
+		if ('' == $user->user_nicename) { 
+			$newname = sanitize_title($user->user_nickname);
+			$wpdb->query("UPDATE $tableusers SET user_nicename = '$newname' WHERE ID = '$user->ID'");
+		}
+	}
+
+	// Convert passwords to MD5 and update table appropiately
+	$query = 'DESCRIBE '.$tableusers.' user_pass';
+	$res = $wpdb->get_results($query);
+	if ($res[0]['Type'] != 'varchar(32)') {
+		$wpdb->query('ALTER TABLE '.$tableusers.' MODIFY user_pass varchar(64) not null');
+	}
+	
+	$query = 'SELECT ID, user_pass from '.$tableusers;
+	foreach ($wpdb->get_results($query) as $row) {
+		if (!preg_match('/^[A-Fa-f0-9]{32}$/', $row->user_pass)) {
+			   $wpdb->query('UPDATE '.$tableusers.' SET user_pass = MD5(\''.$row->user_pass.'\') WHERE ID = \''.$row->ID.'\'');
+		}
+	}
+	
+	$wpdb->query("DELETE FROM $tableoptiongroups WHERE group_id = 1");
+	$wpdb->query("DELETE FROM $tableoptiongroups WHERE group_id = 2");
+	$wpdb->query("DELETE FROM $tableoptiongroups WHERE group_id = 3");
+	$wpdb->query("DELETE FROM $tableoptiongroups WHERE group_id = 4");
+	$wpdb->query("DELETE FROM $tableoptiongroups WHERE group_id = 5");
+	$wpdb->query("DELETE FROM $tableoptiongroups WHERE group_id = 6");
+	$wpdb->query("DELETE FROM $tableoptiongroups WHERE group_id = 7");
+	$wpdb->query("DELETE FROM $tableoptiongroups WHERE group_id = 9");
+
+	$wpdb->query("UPDATE $tableoptiongroups SET group_name = 'Link Manager' WHERE group_id = 8");
+	$wpdb->query("UPDATE $tableoptiongroups SET group_name = 'Geo-data' WHERE group_id = 9");
+
+	// Add blog_charset option
+	if(!$wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'blog_charset'")) {
+		$wpdb->query("INSERT INTO $tableoptions (option_name, option_type, option_value, option_admin_level) VALUES ('blog_charset', 3, 'utf-8', 8)");
+	}
+
+	// Get the GMT offset, we'll use that later on
+	$all_options = get_alloptions();
+	$time_difference = $all_options->time_difference;
+
+	$server_time = time()+date('Z');
+	$weblogger_time = $server_time + $time_difference*3600;
+	$gmt_time = time();
+
+	$diff_gmt_server = ($gmt_time - $server_time) / 3600;
+	$diff_weblogger_server = ($weblogger_time - $server_time) / 3600;
+	$diff_gmt_weblogger = $diff_gmt_server - $diff_weblogger_server;
+	$gmt_offset = -$diff_gmt_weblogger;
+
+	// Add a gmt_offset option, with value $gmt_offset
+	if (!get_settings('gmt_offset')) {
+		if(!$wpdb->get_var("SELECT * FROM $tableoptions WHERE option_name = 'gmt_offset'")) {
+			$wpdb->query("INSERT INTO $tableoptions (option_name, option_type, option_value, option_description, option_admin_level) VALUES ('gmt_offset', 8, $gmt_offset, 'The difference in hours between GMT and your timezone', 8)");
+		}
+
+	}
+
+	// Add post_date_gmt, post_modified_gmt, comment_date_gmt fields
+	$got_gmt_fields = 0;
+	foreach ($wpdb->get_col("DESC $tableposts", 0) as $column ) {
+		if ($debug) echo("checking $column == $column_name<br />");
+		if ($column == 'post_date_gmt') {
+			$got_gmt_fields++;
+		}
+	}
+	if (!$got_gmt_fields) {
+
+		// Add or substract time to all dates, to get GMT dates
+		$add_hours = intval($diff_gmt_weblogger);
+		$add_minutes = intval(60 * ($diff_gmt_weblogger - $add_hours));
+		$wpdb->query("UPDATE $tableposts SET post_date_gmt = DATE_ADD(post_date, INTERVAL '$add_hours:$add_minutes' HOUR_MINUTE)");
+		$wpdb->query("UPDATE $tableposts SET post_modified_gmt = DATE_ADD(post_date, INTERVAL '$add_hours:$add_minutes' HOUR_MINUTE) WHERE post_modified != '0000-00-00 00:00:00'");
+		$wpdb->query("UPDATE $tablecomments SET comment_date_gmt = DATE_ADD(comment_date, INTERVAL '$add_hours:$add_minutes' HOUR_MINUTE)");
+		$wpdb->query("UPDATE $tableusers SET dateYMDhour = DATE_ADD(dateYMDhour, INTERVAL '$add_hours:$add_minutes' HOUR_MINUTE)");
+	}
+
+	// post-meta
+	maybe_create_table($tablepostmeta, "
+	CREATE TABLE $tablepostmeta (
+	  meta_id int(11) NOT NULL auto_increment,
+	  post_id int(11) NOT NULL default 0,
+	  meta_key varchar(255),
+	  meta_value text,
+	  PRIMARY KEY (meta_id),
+	  INDEX (post_id),
+	  INDEX (meta_key)
+	)
+	");
+
+	// First we need to enlarge option_value so it can hold larger values:
+	$wpdb->query("ALTER TABLE `$tableoptions` CHANGE `option_value` `option_value` TEXT NOT NULL");
+	
+	// Now an option for blog pinging
+	if(!$wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'ping_sites'")) {
+		$wpdb->query("INSERT INTO $tableoptions (option_name, option_type, option_value, option_admin_level) VALUES ('ping_sites', 3, '', 8)");
+	}
+	
+	// Option for using the advanced edit screen by default
+	if(!$wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'advanced_edit'")) {
+		$wpdb->query("INSERT INTO $tableoptions (option_name, option_type, option_value, option_admin_level) VALUES ('advanced_edit', 5, '0', 8)");
+	}
+	// Fix for CVS versions
+	$wpdb->query("UPDATE $tableoptions SET option_type = '5' WHERE option_name = 'advanced_edit'");
+	
+	// Now an option for moderation words
+	if(!$wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'moderation_keys'")) {
+		$wpdb->query("INSERT INTO $tableoptions (option_name, option_type, option_value, option_admin_level) VALUES ('moderation_keys', 3, '', 8)");
+	}
+
+	// Option for plugins
+	if(!$wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'active_plugins'")) {
+		$wpdb->query("INSERT INTO $tableoptions (option_name, option_type, option_value, option_admin_level) VALUES ('active_plugins', 3, '', 8)");
+	}
+
+	// Option for max # of links per comment
+	if(!$wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'comment_max_links'")) {
+		$wpdb->query("INSERT INTO $tableoptions (option_name, option_type, option_value, option_admin_level) VALUES ('comment_max_links', 3, '5', 8)");
+	}
+
+	// Option for different blog URL
+	if(!$wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'home'")) {
+		$wpdb->query("INSERT INTO $tableoptions (option_name, option_type, option_value, option_admin_level) VALUES ('home', 3, '', 8)");
+	}
+
+	// Delete unused options
+	$unusedoptions = array ('blodotgsping_url', 'bodyterminator', 'emailtestonly', 'phoneemail_separator', 'smilies_directory', 'subjectprefix', 'use_bbcode', 'use_blodotgsping', 'use_phoneemail', 'use_quicktags', 'use_weblogsping', 'weblogs_cache_file');
+	foreach ($unusedoptions as $option) :
+		delete_option($option);
+	endforeach;
+
+	// Forward-thinking
+	$wpdb->query("ALTER TABLE `$tableposts` CHANGE `post_status` `post_status` ENUM( 'publish', 'draft', 'private', 'static' ) DEFAULT 'publish' NOT NULL");
+	maybe_add_column($tableposts, 'post_parent', "ALTER TABLE `$tableposts` ADD `post_parent` INT NOT NULL ;");
+
 }
 
 ?>

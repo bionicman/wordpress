@@ -5,14 +5,12 @@ $HTTP_RAW_POST_DATA = trim($HTTP_RAW_POST_DATA);
 
 include('wp-config.php');
 
-require_once(ABSPATH.WPINC."/class-xmlrpc.php");
-require_once(ABSPATH.WPINC."/class-xmlrpcs.php");
-require_once(ABSPATH.WPINC."/template-functions.php");
-require_once(ABSPATH.WPINC."/functions.php");
-require_once(ABSPATH.WPINC."/vars.php");
+include_once (ABSPATH . WPINC . '/class-xmlrpc.php');
+include_once (ABSPATH . WPINC . '/class-xmlrpcs.php');
 
-$use_cache = 1;
-$post_autobr = 0;
+// Turn off all warnings and errors.
+error_reporting(0);
+
 $post_default_title = ""; // posts submitted via the xmlrpc interface get that title
 $post_default_category = 1; // posts submitted via the xmlrpc interface go into that category
 
@@ -22,7 +20,7 @@ function logIO($io,$msg) {
 	global $xmlrpc_logging;
 	if ($xmlrpc_logging) {
 		$fp = fopen("./xmlrpc.log","a+");
-		$date = date("Y-m-d H:i:s ");
+		$date = gmdate("Y-m-d H:i:s ");
 		$iot = ($io == "I") ? " Input: " : " Output: ";
 		fwrite($fp, "\n\n".$date.$iot.$msg);
 		fclose($fp);
@@ -35,7 +33,7 @@ function starify($string) {
 	return str_repeat('*', $i);
 }
 
-logIO("I",$HTTP_RAW_POST_DATA);
+logIO("I", $HTTP_RAW_POST_DATA);
 
 /**** DB Functions ****/
 
@@ -54,14 +52,14 @@ function wp_insert_post($postarr = array()) {
 	extract($postarr);
 	
 	// Do some escapes for safety
-	$post_content = $wpdb->escape($post_content);
 	$post_title = $wpdb->escape($post_title);
-	
+	$post_name = sanitize_title($post_title);
+
 	$post_cat = $post_category[0];
-	
+
 	$sql = "INSERT INTO $tableposts 
-		(post_author, post_date, post_content, post_title, post_excerpt, post_category, post_status) 
-		VALUES ('$post_author','$post_date','$post_content','$post_title', '$post_excerpt','$post_cat', '$post_status')";
+		(post_author, post_date, post_date_gmt, post_modified, post_modified_gmt, post_content, post_title, post_excerpt, post_category, post_status, post_name) 
+		VALUES ('$post_author', '$post_date', '$post_date_gmt', '$post_date', '$post_date_gmt', '$post_content', '$post_title', '$post_excerpt', '$post_cat', '$post_status', '$post_name')";
 
 	$result = $wpdb->query($sql);
 	$post_ID = $wpdb->insert_id;
@@ -77,6 +75,9 @@ function wp_get_single_post($postid = 0, $mode = OBJECT) {
 
 	$sql = "SELECT * FROM $tableposts WHERE ID=$postid";
 	$result = $wpdb->get_row($sql, $mode);
+	
+	// Set categories
+	$result['post_category'] = wp_get_post_cats('',$postid);
 
 	return $result;
 }
@@ -99,22 +100,27 @@ function wp_update_post($postarr = array()) {
 	global $wpdb, $tableposts;
 
 	// First get all of the original fields
-	extract(wp_get_single_post($postarr['ID']));	
+	extract(wp_get_single_post($postarr['ID'],ARRAY_A));	
 
 	// Now overwrite any changed values being passed in
 	extract($postarr);
 	
 	// Do some escapes for safety
-	$post_content = $wpdb->escape($post_content);
 	$post_title = $wpdb->escape($post_title);
 	$post_excerpt = $wpdb->escape($post_excerpt);
-	
+
+	$post_modified = current_time('mysql');
+	$post_modified_gmt = current_time('mysql', 1);
+
 	$sql = "UPDATE $tableposts 
 		SET post_content = '$post_content',
 		post_title = '$post_title',
 		post_category = $post_category[0],
 		post_status = '$post_status',
 		post_date = '$post_date',
+		post_date_gmt = '$post_date_gmt',
+		post_modified = '$post_modified',
+		post_modified_gmt = '$post_modified_gmt',
 		post_excerpt = '$post_excerpt',
 		ping_status = '$ping_status',
 		comment_status = '$comment_status'
@@ -130,11 +136,14 @@ function wp_update_post($postarr = array()) {
 function wp_get_post_cats($blogid = '1', $post_ID = 0) {
 	global $wpdb, $tablepost2cat;
 	
-	$sql = "SELECT category_id FROM $tablepost2cat WHERE post_id = $post_ID ORDER BY category_id";
+	$sql = "SELECT category_id 
+		FROM $tablepost2cat 
+		WHERE post_id = $post_ID 
+		ORDER BY category_id";
 
 	$result = $wpdb->get_col($sql);
 
-	return $result;
+	return array_unique($result);
 }
 
 function wp_set_post_cats($blogid = '1', $post_ID = 0, $post_categories = array()) {
@@ -147,23 +156,58 @@ function wp_set_post_cats($blogid = '1', $post_ID = 0, $post_categories = array(
 		$post_categories = array($post_categories);
 	}
 
+	$post_categories = array_unique($post_categories);
+
 	// First the old categories
-	$old_categories = $wpdb->get_col("SELECT category_id FROM $tablepost2cat WHERE post_id = $post_ID");
+	$old_categories = $wpdb->get_col("
+		SELECT category_id 
+		FROM $tablepost2cat 
+		WHERE post_id = $post_ID");
+	
+	if (!$old_categories) {
+		$old_categories = array();
+	} else {
+		$old_categories = array_unique($old_categories);
+	}
+
+
+	$oldies = print_r($old_categories,1);
+	$newbies = print_r($post_categories,1);
+
+	logio("O","Old: $oldies\nNew: $newbies\n");
 
 	// Delete any?
-	foreach ($old_categories as $old_cat) {
-		if (!in_array($old_cat, $post_categories)) // If a category was there before but isn't now
-			$wpdb->query("DELETE FROM $tablepost2cat WHERE category_id = $old_cat AND post_id = $post_ID LIMIT 1");
-logio("O","deleting post/cat: $post_ID, $old_cat");
+	$delete_cats = array_diff($old_categories,$post_categories);
+
+	logio("O","Delete: " . print_r($delete_cats,1));
+		
+	if ($delete_cats) {
+		foreach ($delete_cats as $del) {
+			$wpdb->query("
+				DELETE FROM $tablepost2cat 
+				WHERE category_id = $del 
+					AND post_id = $post_ID 
+				");
+
+			logio("O","deleting post/cat: $post_ID, $del");
+		}
 	}
 
 	// Add any?
-	foreach ($post_categories as $new_cat) {
-		if (!in_array($new_cat, $old_categories))
-			$wpdb->query("INSERT INTO $tablepost2cat (post_id, category_id) VALUES ($post_ID, $new_cat)");
-logio("O","adding post/cat: $post_ID, $new_cat");
+	$add_cats = array_diff($post_categories, $old_categories);
+
+	logio("O","Add: " . print_r($add_cats,1));
+		
+	if ($add_cats) {
+		foreach ($add_cats as $new_cat) {
+			$wpdb->query("
+				INSERT INTO $tablepost2cat (post_id, category_id) 
+				VALUES ($post_ID, $new_cat)");
+
+				logio("O","adding post/cat: $post_ID, $new_cat");
+		}
 	}
-}
+}	// wp_set_post_cats()
 
 function wp_delete_post($postid = 0) {
 	global $wpdb, $tableposts, $tablepost2cat;
@@ -188,9 +232,9 @@ function wp_delete_post($postid = 0) {
 function post_permalink($post_ID=0, $mode = 'id') {
     global $wpdb;
 	global $tableposts;
-	global $siteurl, $blogfilename, $querystring_start, $querystring_equal, $querystring_separator;
+	global $querystring_start, $querystring_equal, $querystring_separator;
 
-	$blog_URL = $siteurl.'/'.$blogfilename;
+	$blog_URL = get_settings('home') .'/'. get_settings('blogfilename');
 
 	$postdata = get_postdata($post_ID);
 
@@ -350,7 +394,7 @@ function b2newpost($m) {
     global $wpdb;
 
 	global $xmlrpcerruser; // import user errcode value
-	global $blog_ID,$cache_userdata,$tableposts,$use_rss,$use_weblogsping,$post_autobr;
+	global $blog_ID,$cache_userdata,$tableposts,$use_rss;
 	global $post_default_title,$post_default_category;
 	global $cafelogID, $sleep_after_edit;
 	$err="";
@@ -386,14 +430,14 @@ function b2newpost($m) {
 		$post_title = addslashes($title);
 
 
-		$time_difference = get_settings("time_difference");
 		if ($postdate != "") {
 			$post_date = $postdate;
 		} else {
-			$post_date = date("Y-m-d H:i:s",(time() + ($time_difference * 3600)));
+			$post_date = current_time('mysql');
+			$post_date_gmt = current_time('mysql', 1);
 		}
 
-		$post_data = compact('post_content','post_title','post_date','post_author','post_category');
+		$post_data = compact('post_content','post_title','post_date','post_date_gmt','post_author','post_category');
 		
 		$result = wp_insert_post($post_data);
 
@@ -412,9 +456,6 @@ function b2newpost($m) {
 
 
 
-		pingWeblogs($blog_ID);
-		pingCafelog($cafelogID, $post_title, $post_ID);
-		pingBlogs($blog_ID);
 		pingback($content, $post_ID);
 
 
@@ -493,7 +534,7 @@ $wp_getPostURL_doc = 'Given a blog ID, username, password, and a post ID, return
 function b2_getPostURL($m) {
     global $wpdb;
 	global $xmlrpcerruser, $tableposts;
-	global $siteurl, $blogfilename, $querystring_start, $querystring_equal, $querystring_separator;
+	global $querystring_start, $querystring_equal, $querystring_separator;
 
 
 	// ideally, this would be used:
@@ -520,7 +561,7 @@ function b2_getPostURL($m) {
 
 	if (user_pass_ok($username,$password)) {
 
-		$blog_URL = $siteurl.'/'.$blogfilename;
+		$blog_URL = get_settings('home') .'/' . get_settings('blogfilename');
 
 		$postdata = get_postdata($post_ID);
 
@@ -591,7 +632,7 @@ function bloggernewpost($m) {
     global $wpdb;
 
 	global $xmlrpcerruser; // import user errcode value
-	global $blog_ID,$cache_userdata,$tableposts,$use_rss,$use_weblogsping,$post_autobr;
+	global $blog_ID,$cache_userdata,$tableposts,$use_rss;
 	global $post_default_title,$post_default_category;
 	global $cafelogID, $sleep_after_edit;
 	$err="";
@@ -624,10 +665,10 @@ function bloggernewpost($m) {
 		$content = xmlrpc_removepostdata($content);
 		$post_content = format_to_post($content);
 
-		$time_difference = get_settings("time_difference");
-		$post_date = date("Y-m-d H:i:s",(time() + ($time_difference * 3600)));
+		$post_date = current_time('mysql');
+		$post_date_gmt = current_time('mysql', 1);
 		
-		$postdata = compact('post_author', 'post_date', 'post_content', 'post_title', 'post_category', 'post_status');
+		$postdata = compact('post_author', 'post_date', 'post_date_gmt', 'post_content', 'post_title', 'post_category', 'post_status');
 
 		$post_ID = wp_insert_post($postdata);
 
@@ -642,9 +683,6 @@ function bloggernewpost($m) {
 		}
 
 
-		pingWeblogs($blog_ID);
-		pingCafelog($cafelogID, $post_title, $post_ID);
-		pingBlogs($blog_ID);
 		pingback($content, $post_ID);
 
 		logIO("O","Posted ! ID: $post_ID");
@@ -661,7 +699,7 @@ function bloggernewpost($m) {
 
 ### blogger.editPost ###
 
-$bloggereditpost_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcBoolean));
+$bloggereditpost_sig=array(array($xmlrpcBoolean, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcBoolean));
 
 $bloggereditpost_doc='Edits a post, blogger-api like';
 
@@ -669,7 +707,7 @@ function bloggereditpost($m) {
     global $wpdb;
 
 	global $xmlrpcerruser; // import user errcode value
-	global $blog_ID,$cache_userdata,$tableposts,$use_rss,$use_weblogsping,$post_autobr;
+	global $blog_ID,$cache_userdata,$tableposts,$use_rss;
 	global $post_default_title,$post_default_category, $sleep_after_edit;
 	$err="";
 
@@ -722,7 +760,7 @@ function bloggereditpost($m) {
 		$content = xmlrpc_removepostdata($content);
 		$post_content = format_to_post($content);
 		
-		$postdata = compact('ID','post_content','post_title','post_category','post_status','post_date','post_excerpt');
+		$postdata = compact('ID','post_content','post_title','post_category','post_status','post_excerpt');
 
 		$result = wp_update_post($postdata);
 
@@ -737,9 +775,8 @@ function bloggereditpost($m) {
 		}
 
 
-		pingWeblogs($blog_ID);
 
-		return new xmlrpcresp(new xmlrpcval("1", "boolean"));
+		return new xmlrpcresp(new xmlrpcval(true, "boolean"));
 
 	} else {
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
@@ -759,7 +796,7 @@ function bloggerdeletepost($m) {
     global $wpdb;
 
 	global $xmlrpcerruser; // import user errcode value
-	global $blog_ID,$cache_userdata,$tableposts,$use_rss,$use_weblogsping,$post_autobr;
+	global $blog_ID,$cache_userdata,$tableposts,$use_rss;
 	global $post_default_title,$post_default_category, $sleep_after_edit;
 	$err="";
 
@@ -813,9 +850,8 @@ function bloggerdeletepost($m) {
 		}
 
 
-		pingWeblogs($blog_ID);
 
-		return new xmlrpcresp(new xmlrpcval(1,'boolean'));
+		return new xmlrpcresp(new xmlrpcval(true,'boolean'));
 
 	} else {
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
@@ -827,7 +863,7 @@ function bloggerdeletepost($m) {
 
 ### blogger.getUsersBlogs ###
 
-$bloggergetusersblogs_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString));
+$bloggergetusersblogs_sig=array(array($xmlrpcArray, $xmlrpcString, $xmlrpcString, $xmlrpcString));
 
 $bloggergetusersblogs_doc='returns the user\'s blogs - this is a dummy function, just so that BlogBuddy and other blogs-retrieving apps work';
 
@@ -835,7 +871,7 @@ function bloggergetusersblogs($m) {
     global $wpdb;
 	// this function will have a real purpose with CafeLog's multiple blogs capability
 
-	global $xmlrpcerruser,$siteurl,$blogfilename,$blogname;
+	global $xmlrpcerruser;
 	global $tableusers;
 
 	$user_login = $m->getParam(1);
@@ -849,9 +885,9 @@ function bloggergetusersblogs($m) {
 	$is_admin = $wpdb->num_rows;
 
 	$struct = new xmlrpcval(array("isAdmin" => new xmlrpcval($is_admin,"boolean"),
-									"url" => new xmlrpcval($siteurl."/".$blogfilename),
+									"url" => new xmlrpcval(get_settings('home') .'/'.get_settings('blogfilename')),
 									"blogid" => new xmlrpcval("1"),
-									"blogName" => new xmlrpcval($blogname)
+									"blogName" => new xmlrpcval(get_settings('blogname'))
 									),"struct");
     $resp = new xmlrpcval(array($struct), "array");
 
@@ -862,7 +898,7 @@ function bloggergetusersblogs($m) {
 
 ### blogger.getUserInfo ###
 
-$bloggergetuserinfo_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString));
+$bloggergetuserinfo_sig=array(array($xmlrpcStruct, $xmlrpcString, $xmlrpcString, $xmlrpcString));
 
 $bloggergetuserinfo_doc='gives the info about a user';
 
@@ -899,7 +935,7 @@ function bloggergetuserinfo($m) {
 
 ### blogger.getPost ###
 
-$bloggergetpost_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString));
+$bloggergetpost_sig=array(array($xmlrpcStruct, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString));
 
 $bloggergetpost_doc='fetches a post, blogger-api like';
 
@@ -920,10 +956,7 @@ function bloggergetpost($m) {
 		$postdata = get_postdata($post_ID);
 
 		if ($postdata["Date"] != "") {
-			// Don't convert to GMT
-			//$post_date = mysql2date("U", $postdata["Date"]);
-			$post_date = strtotime($postdata['Date']);
-			$post_date = date("Ymd", $post_date)."T".date("H:i:s", $post_date);
+			$post_date = mysql2date("Ymd\TH:i:s", $postdata['Date']);
 
 			$content  = "<title>".stripslashes($postdata["Title"])."</title>";
 			$content .= "<category>".$postdata["Category"]."</category>";
@@ -951,7 +984,7 @@ function bloggergetpost($m) {
 
 ### blogger.getRecentPosts ###
 
-$bloggergetrecentposts_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcInt));
+$bloggergetrecentposts_sig=array(array($xmlrpcArray, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcInt));
 
 $bloggergetrecentposts_doc='fetches X most recent posts, blogger-api like';
 
@@ -1000,10 +1033,7 @@ function bloggergetrecentposts($m) {
 				"Category" => $row->post_category
 			);
 
-			// Don't convert to GMT
-			//$post_date = mysql2date("U", $postdata["Date"]);
-			$post_date = strtotime($postdata['Date']);
-			$post_date = date("Ymd", $post_date)."T".date("H:i:s", $post_date);
+			$post_date = mysql2date("Ymd\TH:i:s", $postdata['Date']);
 
 			$content  = "<title>".stripslashes($postdata["Title"])."</title>";
 			$content .= "<category>".get_cat_name($postdata["Category"])."</category>";
@@ -1075,7 +1105,7 @@ $bloggergettemplate_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcString,
 $bloggergettemplate_doc='returns the default template file\'s code';
 
 function bloggergettemplate($m) {
-	global $xmlrpcerruser,$tableusers,$blogfilename;
+	global $xmlrpcerruser,$tableusers;
 
 	error_reporting(0); // there is a bug in phpxmlrpc that makes it say there are errors while the output is actually valid, so let's disable errors for that function
 
@@ -1101,8 +1131,8 @@ function bloggergettemplate($m) {
 	if (user_pass_ok($username,$password)) {
 
 	if ($templateType == "main") {
-		if ($blogfilename != "") {
-			$file = $blogfilename;
+		if (get_settings('blogfilename') != '') {
+			$file = get_settings('blogfilename');
 		} else {
 			$file = "wp.php";
 		}
@@ -1130,12 +1160,12 @@ function bloggergettemplate($m) {
 
 # note: on b2, it saves that in your $blogfilename, or b2.php if you didn't specify the variable
 
-$bloggersettemplate_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString));
+$bloggersettemplate_sig=array(array($xmlrpcBoolean, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString));
 
 $bloggersettemplate_doc='saves the default template file\'s code';
 
 function bloggersettemplate($m) {
-	global $xmlrpcerruser,$tableusers,$blogfilename;
+	global $xmlrpcerruser, $tableusers;
 
 	error_reporting(0); // there is a bug in phpxmlrpc that makes it say there are errors while the output is actually valid, so let's disable errors for that function
 
@@ -1163,9 +1193,9 @@ function bloggersettemplate($m) {
 
 	if (user_pass_ok($username,$password)) {
 
-	if ($templateType == "main") {
-		if ($blogfilename != "") {
-			$file = $blogfilename;
+	if ($templateType == 'main') {
+		if (get_settings('blogfilename') != '') {
+			$file = get_settings('blogfilename');
 		} else {
 			$file = "wp.php";
 		}
@@ -1177,7 +1207,7 @@ function bloggersettemplate($m) {
 	fwrite($f, $template);
 	fclose($file);
 
-	return new xmlrpcresp(new xmlrpcval("1", "boolean"));
+	return new xmlrpcresp(new xmlrpcval(true, "boolean"));
 
 	} else {
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
@@ -1206,7 +1236,7 @@ $mwnewpost_doc = 'Add a post, MetaWeblog API-style';
 function mwnewpost($params) {
 	global $xmlrpcerruser;
 	global $blog_ID, $cache_userdata,$tableposts;
-	global $use_rss,$use_weblogsping,$post_autobr,$post_default_title;
+	global $use_rss, $post_default_title;
 	global $post_default_category,$cafelogID,$sleep_after_edit;
 
 	$xblogid = $params->getParam(0);
@@ -1218,7 +1248,7 @@ function mwnewpost($params) {
 	$blogid = $xblogid->scalarval();
 	$username = $xuser->scalarval();
 	$password = $xpass->scalarval();
-	$contentstruct = xmlrpc_decode($xcontent);
+	$contentstruct = phpxmlrpc_decode($xcontent);
 	$post_status = $xpublish->scalarval()?'publish':'draft';
 
 	// Check login
@@ -1245,12 +1275,15 @@ function mwnewpost($params) {
 			$post_content = $post_content . "\n<!--more-->\n" . $post_more;
 		}
 		
-		$time_difference = get_settings("time_difference");
+		// Do some timestamp voodoo
 		$dateCreated = $contentstruct['dateCreated'];
-		$dateCreated = $dateCreated?iso8601_decode($dateCreated):(time()+($time_difference * 3600));
-		$post_date = date("Y-m-d H:i:s", $dateCreated);
+		$dateCreated = $dateCreated ? iso8601_decode($dateCreated) : current_time('timestamp');
+		$post_date = gmdate('Y-m-d H:i:s', $dateCreated);
+		$post_date_gmt = get_gmt_from_date(date('Y-m-d H:i:s', $dateCreated));
 		
 		$catnames = $contentstruct['categories'];
+logio("O","Post cats: " . print_r($catnames));
+		$post_category = array();
 		if ($catnames) {
 			foreach ($catnames as $cat) {
 				$post_category[] = get_cat_ID($cat);
@@ -1260,7 +1293,7 @@ function mwnewpost($params) {
 		}
 		
 		// We've got all the data -- post it:
-		$postarr = compact('post_author','post_date','post_content','post_title','post_category','post_status','post_excerpt','comment_status','ping_status');
+		$postarr = compact('post_author','post_date','post_date_gmt','post_content','post_title','post_category','post_status','post_excerpt','comment_status','ping_status');
 
 		$post_ID = wp_insert_post($postarr);
 		
@@ -1274,9 +1307,6 @@ function mwnewpost($params) {
 			sleep($sleep_after_edit);
 		}
 
-		pingWeblogs($blog_ID);
-		pingCafelog($cafelogID, $post_title, $post_ID);
-		pingBlogs($blog_ID);
 		pingback($content, $post_ID);
 		trackback_url_list($content_struct['mt_tb_ping_urls'],$post_ID);
 
@@ -1307,8 +1337,8 @@ function mweditpost ($params) {	// ($postid, $user, $pass, $content, $publish)
 	$ID = $xpostid->scalarval();
 	$username = $xuser->scalarval();
 	$password = $xpass->scalarval();
-	$contentstruct = xmlrpc_decode($xcontent);
-	$postdata = wp_get_single_post($ID);
+	$contentstruct = phpxmlrpc_decode($xcontent);
+	$postdata = wp_get_single_post($ID,ARRAY_A);
 
 	if (!$postdata)
 		return new xmlrpcresp(0, $xmlrpcerruser+2, // user error 2
@@ -1317,8 +1347,9 @@ function mweditpost ($params) {	// ($postid, $user, $pass, $content, $publish)
 	$userdata = get_userdatabylogin($username);
 	$user_ID = $userdata->ID;
 	$user_level = $userdata->user_level;
+	$time_difference = get_settings('gmt_offset');
 	
-	$post_author_ID = $postdata->post_author;
+	$post_author_ID = $postdata['post_author'];
 	$post_authordata = get_userdata($post_author_ID);
 
 	if (($user_ID != $post_author_ID) && ($user_level <= $post_authordata->user_level)) {
@@ -1330,6 +1361,7 @@ function mweditpost ($params) {	// ($postid, $user, $pass, $content, $publish)
 	if (user_pass_ok($username,$password)) {
 		if ($user_level < 1) {
 			return new xmlrpcresp(0, $xmlrpcerruser+1,
+
 			  "Sorry, level 0 users cannot edit posts");
 		}
 
@@ -1338,8 +1370,11 @@ function mweditpost ($params) {	// ($postid, $user, $pass, $content, $publish)
 		$post_title = $contentstruct['title'];
 		$post_content = format_to_post($contentstruct['description']);
 		$catnames = $contentstruct['categories'];
-		foreach ($catnames as $cat) {
-			$post_category[] = get_cat_ID($cat);
+		
+		if ($catnames) {
+			foreach ($catnames as $cat) {
+				$post_category[] = get_cat_ID($cat);
+			}
 		}
 
 		$post_excerpt = $contentstruct['mt_excerpt'];
@@ -1351,14 +1386,15 @@ function mweditpost ($params) {	// ($postid, $user, $pass, $content, $publish)
 		$comment_status = (1 == $contentstruct['mt_allow_comments'])?'open':'closed';
 		$ping_status = $contentstruct['mt_allow_pings']?'open':'closed';
 
-		
-		$time_difference = get_settings("time_difference");
+		// Do some timestamp voodoo
 		$dateCreated = $contentstruct['dateCreated'];
-		$dateCreated = $dateCreated?iso8601_decode($contentstruct['dateCreated']):(time()+($time_difference * 3600));
-		$post_date = date("Y-m-d H:i:s", $dateCreated);
+		$dateCreated = $dateCreated ? iso8601_decode($dateCreated) : current_time('timestamp');
+		$post_date = gmdate('Y-m-d H:i:s', $dateCreated + $time_difference*3600);
+		$post_date_gmt = gmdate('Y-m-d H:i:s', $dateCreated);
+
 
 		// We've got all the data -- post it:
-		$newpost = compact('ID','post_content','post_title','post_category','post_status','post_excerpt','comment_status','ping_status','post_date');
+		$newpost = compact('ID','post_content','post_title','post_category','post_status','post_excerpt','comment_status','ping_status','post_date','post_date_gmt');
 
 		$newpost_ID = wp_update_post($newpost);
 		
@@ -1372,14 +1408,11 @@ function mweditpost ($params) {	// ($postid, $user, $pass, $content, $publish)
 			sleep($sleep_after_edit);
 		}
 
-		pingWeblogs($blog_ID);
-		pingCafelog($cafelogID, $post_title, $post_ID);
-		pingBlogs($blog_ID);
 		pingback($content, $post_ID);
 		trackback_url_list($content_struct['mt_tb_ping_urls'],$post_ID);
 
 		logIO("O","(MW) Edited ! ID: $post_ID");
-		$myResp = new xmlrpcval($ID,"string");
+		$myResp = new xmlrpcval(true,"boolean");
 
 		return new xmlrpcresp($myResp);
 
@@ -1410,11 +1443,7 @@ function mwgetpost ($params) {	// ($postid, $user, $pass)
 
 		if ($postdata["Date"] != "") {
 
-			// why were we converting to GMT here? spec doesn't call for that.
-			//$post_date = mysql2date("U", $postdata["Date"]);
-			//$post_date = gmdate("Ymd", $post_date)."T".gmdate("H:i:s", $post_date);
-			$post_date = strtotime($postdata['Date']);
-			$post_date = date("Ymd", $post_date)."T".date("H:i:s", $post_date);
+			$post_date = mysql2date('Ymd\TH:i:s', $postdata['Date']);
 			
 			$catids = wp_get_post_cats($post_ID);
 			foreach($catids as $catid) {
@@ -1482,8 +1511,8 @@ function mwrecentposts ($params) {	// ($blogid, $user, $pass, $num)
 		
 		// Encode each entry of the array.
 		foreach($postlist as $entry) {
-			$mdate = strtotime($entry['post_date']);
-			$isoString = date('Ymd',$mdate).'T'.date('H:i:s',$mdate);
+
+			$isoString = mysql2date('Ymd\TH:i:s', $entry['post_date']);
 			$date = new xmlrpcval($isoString,"dateTime.iso8601");
 			$userid = new xmlrpcval($entry['post_author']);
 			$content = new xmlrpcval($entry['post_content']);
@@ -1498,7 +1527,7 @@ function mwrecentposts ($params) {	// ($blogid, $user, $pass, $num)
 			//$catstruct['categoryName'] = $pcat;
 			//$catstruct['isPrimary'] = TRUE;
 			
-			//$catstruct2 = xmlrpc_encode($catstruct);
+			//$catstruct2 = phpxmlrpc_encode($catstruct);
 			
 			$categories = new xmlrpcval(array(new xmlrpcval($pcat)),'array');
 
@@ -1550,10 +1579,11 @@ $mwgetcats_doc = 'Get a post, MetaWeblog API-style';
 function mwgetcats ($params) {	// ($blogid, $user, $pass) 
 	global $xmlrpcerruser,$wpdb,$tablecategories;
 	global $querystring_start, $querystring_equal, $querystring_separator;
-	global $siteurl,$blogfilename;
 	
-	$blog_URL = $siteurl . '/' . $blogfilename;
+	$blog_URL = get_settings('home') . '/' . get_settings('blogfilename');
 	
+	$arr = array();
+
 	if ($cats = $wpdb->get_results("SELECT cat_ID,cat_name FROM $tablecategories",ARRAY_A)) {
 		foreach ($cats as $cat) {
 			$struct['categoryId'] = $cat['cat_ID'];
@@ -1562,7 +1592,7 @@ function mwgetcats ($params) {	// ($blogid, $user, $pass)
 			$struct['htmlUrl'] = htmlspecialchars($blog_URL . $querystring_start . 'cat' . $querystring_equal . $cat['cat_ID']);
 			$struct['rssUrl'] = ''; // will probably hack alexking's stuff in here
 			
-			$arr[] = xmlrpc_encode($struct);
+			$arr[] = phpxmlrpc_encode($struct);
 		}
 	}
 	
@@ -1613,7 +1643,7 @@ function mwnewmedia($params) {	// ($blogid, $user, $pass, $struct)
  *  metaWeblog.newMediaObject	// ditto. For now.
  *
  **********************/
-
+ 
 $mt_supportedMethods_sig = array(array($xmlrpcArray));
 $mt_supportedMethods_doc = 'Retrieve information about the XML-RPC methods supported by the server.';
 
@@ -1658,7 +1688,7 @@ function mt_getPostCategories($params) {
 			$struct['categoryId'] = $catid;
 			$struct['categoryName'] = get_cat_name($catid);
 
-			$resp_struct[] = xmlrpc_encode($struct);
+			$resp_struct[] = phpxmlrpc_encode($struct);
 			$struct['isPrimary'] = false;
 		}
 		
@@ -1687,7 +1717,7 @@ function mt_setPostCategories($params) {
 	$post_ID = $xpostid->scalarval();
 	$username = $xuser->scalarval();
 	$password = $xpass->scalarval();
-	$cats = xmlrpc_decode($xcats);
+	$cats = phpxmlrpc_decode($xcats);
 	
 	foreach($cats as $cat) {
 		$catids[] = $cat['categoryId'];
@@ -1696,7 +1726,7 @@ function mt_setPostCategories($params) {
 	if (user_pass_ok($username,$password)) {
 		wp_set_post_cats('', $post_ID, $catids);
 		
-		return new xmlrpcresp(new xmlrpcval($result,'boolean'));
+		return new xmlrpcresp(new xmlrpcval(true,'boolean'));
 	} else {
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
 	   'Wrong username/password combination '.$username.' / '.starify($password));
@@ -1756,8 +1786,8 @@ function mt_getRecentPostTitles($params) {
 		$posts = $wpdb->get_results($sql,ARRAY_A);
 		
 		foreach($posts as $post) {
-			$post_date = strtotime($post['post_date']);
-			$post_date = date("Ymd", $post_date)."T".date("H:i:s", $post_date);
+
+			$post_date = mysql2date('Ymd\TH:i:s', $post['post_date']);
 
 			$struct['dateCreated'] = new xmlrpcval($post_date, 'dateTime.iso8601');
 			$struct['userid'] = new xmlrpcval($post['post_author'], 'string');
@@ -1796,7 +1826,7 @@ function mt_getTrackbackPings($params) {
 	$struct['pingURL'] = '';
 	$struct['pingIP'] = '';
 	
-	$xmlstruct = xmlrpc_encode($struct);
+	$xmlstruct = phpxmlrpc_encode($struct);
 	
 	return new xmlrpcresp(new xmlrpcval(array($xmlstruct),'array'));
 }
@@ -1814,12 +1844,12 @@ $pingback_ping_doc = 'Gets a pingback and registers it as a comment prefixed by 
 
 function pingback_ping($m) { // original code by Mort
 	// (http://mort.mine.nu:8080)
-	global $tableposts,$tablecomments, $comments_notify, $wpdb; 
-	global $siteurl, $blogfilename,$wp_version, $use_pingback; 
-	global $HTTP_SERVER_VARS, $wpdb;
+	global $tableposts, $tablecomments, $wpdb; 
+	global $wp_version; 
+	global $wpdb;
 
 	    
-	if (!$use_pingback) {
+	if (!get_settings('use_pingback')) {
 		return new xmlrpcresp(new xmlrpcval('Sorry, this weblog does not allow you to pingback its posts.'));
 	}
 
@@ -1853,7 +1883,7 @@ function pingback_ping($m) { // original code by Mort
 	$message = $messages[0];
 
 	// Check if the page linked to is in our site
-	$pos1 = strpos($pagelinkedto, str_replace('http://', '', str_replace('www.', '', $siteurl)));
+	$pos1 = strpos($pagelinkedto, str_replace('http://', '', str_replace('www.', '', get_settings('home'))));
 	if($pos1) {
 
 		// let's find which post is linked to
@@ -1963,16 +1993,23 @@ function pingback_ping($m) { // original code by Mort
 					$pagelinkedfrom = addslashes($pagelinkedfrom);
 					$original_title = $title;
 					$title = addslashes(strip_tags(trim($title)));
-					$now = current_time('mysql');
+					$user_ip = $_SERVER['REMOTE_ADDR'];
+					$now = gmdate('Y-m-d H:i:s');
+					if(check_comment($title, '', $pagelinkedfrom, $context, $user_ip)) {
+						$approved = 1;
+					} else {
+						$approved = 0;
+					}
 					$consulta = $wpdb->query("INSERT INTO $tablecomments 
-						(comment_post_ID, comment_author, comment_author_url, comment_date, comment_content) 
+						(comment_post_ID, comment_author, comment_author_url, comment_author_IP, comment_date, comment_content, comment_approved) 
 						VALUES 
-						($post_ID, '$title', '$pagelinkedfrom', '$now', '$context')
+						($post_ID, '$title', '$pagelinkedfrom', '$user_ip', '$now', '$context', '$approved')
 						");
 
 					$comment_ID = $wpdb->get_var('SELECT last_insert_id()');
-					if ($comments_notify)
+					if (get_settings('comments_notify'))
 						wp_notify_postauthor($comment_ID, 'pingback');
+					do_action('pingback_post', $comment_ID);
 				} else {
 					// URL pattern not found
 					$message = "Page linked to: $pagelinkedto\nPage linked from:"
@@ -1994,818 +2031,152 @@ function pingback_ping($m) { // original code by Mort
 
 /**** /PingBack functions ****/
 
-
-
-/**** Legacy functions ****/
-
-// a PHP version
-// of the state-number server
-// send me an integer and i'll sell you a state
-
-$stateNames=array(
-"Alabama", "Alaska", "Arizona", "Arkansas", "California",
-"Colorado", "Columbia", "Connecticut", "Delaware", "Florida",
-"Georgia", "Hawaii", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas",
-"Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan",
-"Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada",
-"New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina",
-"North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island",
-"South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont",
-"Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming");
-
-$findstate_sig=array(array($xmlrpcString, $xmlrpcInt));
-
-$findstate_doc='When passed an integer between 1 and 51 returns the
-name of a US state, where the integer is the index of that state name
-in an alphabetic order.';
-
-function findstate($m) {
-  global $xmlrpcerruser, $stateNames;
-  $err="";
-  // get the first param
-  $sno=$m->getParam(0);
-  // if it's there and the correct type
-
-  if (isset($sno) && ($sno->scalartyp()=="int")) {
-	// extract the value of the state number
-	$snv=$sno->scalarval();
-	// look it up in our array (zero-based)
-	if (isset($stateNames[$snv-1])) {
-	  $sname=$stateNames[$snv-1];
-	} else {
-	  // not, there so complain
-	  $err="I don't have a state for the index '" . $snv . "'";
-	}
-  } else {
-	// parameter mismatch, complain
-	$err="One integer parameter required";
-  }
-
-  // if we generated an error, create an error return response
-  if ($err) {
-		return new xmlrpcresp(0, $xmlrpcerruser, $err);
-  } else {
-		// otherwise, we create the right response
-		// with the state name
-		return new xmlrpcresp(new xmlrpcval($sname));
-  }
-}
-
-$addtwo_sig=array(array($xmlrpcInt, $xmlrpcInt, $xmlrpcInt));
-
-$addtwo_doc='Add two integers together and return the result';
-
-function addtwo($m) {
-  $s=$m->getParam(0);
-	$t=$m->getParam(1);
-  return new xmlrpcresp(new xmlrpcval($s->scalarval()+$t->scalarval(),
-																			"int"));
-}
-
-$addtwodouble_sig=array(array($xmlrpcDouble, $xmlrpcDouble, $xmlrpcDouble));
-
-$addtwodouble_doc='Add two doubles together and return the result';
-
-function addtwodouble($m) {
-  $s=$m->getParam(0);
-	$t=$m->getParam(1);
-  return new xmlrpcresp(new xmlrpcval($s->scalarval()+$t->scalarval(),
-																			"double"));
-}
-
-$stringecho_sig=array(array($xmlrpcString, $xmlrpcString));
-
-$stringecho_doc='Accepts a string parameter, returns the string.';
-
-function stringecho($m) {
-  // just sends back a string
-  $s=$m->getParam(0);
-  return new xmlrpcresp(new xmlrpcval($s->scalarval()));
-}
-
-$echoback_sig=array(array($xmlrpcString, $xmlrpcString));
-
-$echoback_doc='Accepts a string parameter, returns the entire incoming payload';
-
-function echoback($m) {
-  // just sends back a string with what i got
-  // send to me, just escaped, that's all
-  //
-  // $m is an incoming message
-  $s="I got the following message:\n" . $m->serialize();
-  return new xmlrpcresp(new xmlrpcval($s));
-}
-
-$echosixtyfour_sig=array(array($xmlrpcString, $xmlrpcBase64));
-
-$echosixtyfour_doc='Accepts a base64 parameter and returns it decoded as a string';
-
-function echosixtyfour($m) {
-	// accepts an encoded value, but sends it back
-	// as a normal string. this is to test base64 encoding
-	// is working as expected
-	$incoming=$m->getParam(0);
-	return new xmlrpcresp(new xmlrpcval($incoming->scalarval(), "string"));
-}
-
-$bitflipper_sig=array(array($xmlrpcArray, $xmlrpcArray));
-
-$bitflipper_doc='Accepts an array of booleans, and returns them inverted';
-
-function bitflipper($m) {
-	global $xmlrpcArray;
-
-	$v=$m->getParam(0);
-	$sz=$v->arraysize();
-	$rv=new xmlrpcval(array(), $xmlrpcArray);
-
-	for($j=0; $j<$sz; $j++) {
-		$b=$v->arraymem($j);
-		if ($b->scalarval()) {
-
-			$rv->addScalar(false, "boolean");
-		} else {
-
-			$rv->addScalar(true, "boolean");
-		}
-	}
-
-	return new xmlrpcresp($rv);
-}
-
-// Sorting demo
-//
-// send me an array of structs thus:
-//
-// Dave 35
-// Edd  45
-// Fred 23
-// Barney 37
-//
-// and I'll return it to you in sorted order
-
-function agesorter_compare($a, $b) {
-  global $agesorter_arr;
-
-
-  // don't even ask me _why_ these come padded with
-  // hyphens, I couldn't tell you :p
-  $a=ereg_replace("-", "", $a);
-  $b=ereg_replace("-", "", $b);
-
-  if ($agesorter_arr[$a]==$agesorter[$b]) return 0;
-  return ($agesorter_arr[$a] > $agesorter_arr[$b]) ? -1 : 1;
-}
-
-$agesorter_sig=array(array($xmlrpcArray, $xmlrpcArray));
-
-$agesorter_doc='Send this method an array of [string, int] structs, eg:
-<PRE>
- Dave   35
- Edd    45
- Fred   23
- Barney 37
-</PRE>
-And the array will be returned with the entries sorted by their numbers.
-';
-
-function agesorter($m) {
-  global $agesorter_arr, $xmlrpcerruser, $s;
-
-	xmlrpc_debugmsg("Entering 'agesorter'");
-  // get the parameter
-  $sno=$m->getParam(0);
-  // error string for [if|when] things go wrong
-  $err="";
-  // create the output value
-  $v=new xmlrpcval();
-  $agar=array();
-
-  if (isset($sno) && $sno->kindOf()=="array") {
-	$max=$sno->arraysize();
-	// TODO: create debug method to print can work once more
-	// print "<!-- found $max array elements -->\n";
-	for($i = 0; $i < $max; $i = $i + 1) {
-	  $rec=$sno->arraymem($i);
-	  if ($rec->kindOf()!="struct") {
-		$err="Found non-struct in array at element $i";
-		break;
-	  }
-	  // extract name and age from struct
-	  $n=$rec->structmem("name");
-	  $a=$rec->structmem("age");
-	  // $n and $a are xmlrpcvals,
-	  // so get the scalarval from them
-	  $agar[$n->scalarval()]=$a->scalarval();
-	}
-
-	$agesorter_arr=$agar;
-	// hack, must make global as uksort() won't
-	// allow us to pass any other auxilliary information
-	uksort($agesorter_arr, agesorter_compare);
-	$outAr=array();
-	while (list( $key, $val ) = each( $agesorter_arr ) ) {
-	  // recreate each struct element
-	  $outAr[]=new xmlrpcval(array("name" =>
-								   new xmlrpcval($key),
-								   "age" =>
-								   new xmlrpcval($val, "int")), "struct");
-	}
-	// add this array to the output value
-	$v->addArray($outAr);
-  } else {
-	  $err="Must be one parameter, an array of structs";
-  }
-
-  if ($err) {
-		return new xmlrpcresp(0, $xmlrpcerruser, $err);
-  } else {
-		return new xmlrpcresp($v);
-  }
-}
-
-
-// signature and instructions, place these in the dispatch
-// map
-
-$mail_send_sig=array(array($xmlrpcBoolean, $xmlrpcString, $xmlrpcString,
-													 $xmlrpcString, $xmlrpcString, $xmlrpcString,
-													 $xmlrpcString, $xmlrpcString));
-
-$mail_send_doc='mail.send(recipient, subject, text, sender, cc, bcc, mimetype)
-<BR>recipient, cc, and bcc are strings, comma-separated lists of email addresses, as described above.
-<BR>subject is a string, the subject of the message.
-<BR>sender is a string, it\'s the email address of the person sending the message. This string can not be
-a comma-separated list, it must contain a single email address only.
-text is a string, it contains the body of the message.
-<BR>mimetype, a string, is a standard MIME type, for example, text/plain.
-';
-
-// WARNING; this functionality depends on the sendmail -t option
-// it may not work with Windows machines properly; particularly
-// the Bcc option.  Sneak on your friends at your own risk!
-function mail_send($m) {
-  global $xmlrpcerruser, $xmlrpcBoolean;
-	$err="";
-
-  $mTo=$m->getParam(0);
-	$mSub=$m->getParam(1);
-	$mBody=$m->getParam(2);
-	$mFrom=$m->getParam(3);
-	$mCc=$m->getParam(4);
-	$mBcc=$m->getParam(5);
-	$mMime=$m->getParam(6);
-
-	if ($mTo->scalarval()=="")
-		$err="Error, no 'To' field specified";
-
-	if ($mFrom->scalarval()=="")
-		$err="Error, no 'From' field specified";
-
-	$msghdr="From: " . $mFrom->scalarval() . "\n";
-	$msghdr.="To: ". $mTo->scalarval() . "\n";
-
-	if ($mCc->scalarval()!="")
-		$msghdr.="Cc: " . $mCc->scalarval(). "\n";
-	if ($mBcc->scalarval()!="")
-		$msghdr.="Bcc: " . $mBcc->scalarval(). "\n";
-	if ($mMime->scalarval()!="")
-		$msghdr.="Content-type: " . $mMime->scalarval() . "\n";
-
-	$msghdr.="X-Mailer: XML-RPC for PHP mailer 1.0";
-
-	if ($err=="") {
-		/*
-		if (!mail("",
-							$mSub->scalarval(),
-							$mBody->scalarval(),
-							$msghdr)) {
-			$err="Error, could not send the mail.";
-		}
-		*/
-		$err = 'Just in case someone wants to use this for spam, this method is disabled';
-	}
-
-  if ($err) {
-		return new xmlrpcresp(0, $xmlrpcerruser, $err);
-  } else {
-		return new xmlrpcresp(new xmlrpcval("true", $xmlrpcBoolean));
-  }
-}
-
-$v1_arrayOfStructs_sig=array(array($xmlrpcInt, $xmlrpcArray));
-
-$v1_arrayOfStructs_doc='This handler takes a single parameter, an array of structs, each of which contains at least three elements named moe, larry and curly, all <i4>s. Your handler must add all the struct elements named curly and return the result.';
-
-function v1_arrayOfStructs($m) {
-  $sno=$m->getParam(0);
-	$numcurly=0;
-	for($i = 0; $i < $sno->arraysize(); $i = $i + 1) {
-		$str=$sno->arraymem($i);
-		$str->structreset();
-		while(list($key,$val)=$str->structeach())
-			if ($key=="curly")
-				$numcurly+=$val->scalarval();
-	}
-	return new xmlrpcresp(new xmlrpcval($numcurly, "int"));
-}
-
-$v1_easyStruct_sig=array(array($xmlrpcInt, $xmlrpcStruct));
-
-$v1_easyStruct_doc='This handler takes a single parameter, a struct, containing at least three elements named moe, larry and curly, all &lt;i4&gt;s. Your handler must add the three numbers and return the result.';
-
-function v1_easyStruct($m) {
-  $sno=$m->getParam(0);
-	$moe=$sno->structmem("moe");
-	$larry=$sno->structmem("larry");
-	$curly=$sno->structmem("curly");
-	$num=$moe->scalarval()+
-		$larry->scalarval()+
-		$curly->scalarval();
-	return new xmlrpcresp(new xmlrpcval($num, "int"));
-}
-
-$v1_echoStruct_sig=array(array($xmlrpcStruct, $xmlrpcStruct));
-
-$v1_echoStruct_doc='This handler takes a single parameter, a struct. Your handler must return the struct.';
-
-function v1_echoStruct($m) {
-  $sno=$m->getParam(0);
-	return new xmlrpcresp($sno);
-}
-
-$v1_manyTypes_sig=array(array($xmlrpcArray, $xmlrpcInt, $xmlrpcBoolean,
-															$xmlrpcString, $xmlrpcDouble, $xmlrpcDateTime,
-															$xmlrpcBase64));
-
-$v1_manyTypes_doc='This handler takes six parameters, and returns an array containing all the parameters.';
-
-function v1_manyTypes($m) {
-	return new xmlrpcresp(new xmlrpcval(array(
-																						$m->getParam(0),
-																						$m->getParam(1),
-																						$m->getParam(2),
-																						$m->getParam(3),
-																						$m->getParam(4),
-																						$m->getParam(5)),
-																			"array"));
-}
-
-$v1_moderateSizeArrayCheck_sig=array(array($xmlrpcString, $xmlrpcArray));
-
-$v1_moderateSizeArrayCheck_doc='This handler takes a single parameter, which is an array containing between 100 and 200 elements. Each of the items is a string, your handler must return a string containing the concatenated text of the first and last elements.';
-
-function v1_moderateSizeArrayCheck($m) {
-	$ar=$m->getParam(0);
-	$sz=$ar->arraysize();
-	$first=$ar->arraymem(0);
-	$last=$ar->arraymem($sz-1);
-	return new xmlrpcresp(new xmlrpcval($first->scalarval() .
-																			$last->scalarval(), "string"));
-}
-
-$v1_simpleStructReturn_sig=array(array($xmlrpcStruct, $xmlrpcInt));
-
-$v1_simpleStructReturn_doc='This handler takes one parameter, and returns a struct containing three elements, times10, times100 and times1000, the result of multiplying the number by 10, 100 and 1000.';
-
-function v1_simpleStructReturn($m) {
-  $sno=$m->getParam(0);
-	$v=$sno->scalarval();
-	return new xmlrpcresp(new xmlrpcval(array(
-																						"times10" =>
-																						new xmlrpcval($v*10, "int"),
-																						"times100" =>
-																						new xmlrpcval($v*100, "int"),
-																						"times1000" =>
-																						new xmlrpcval($v*1000, "int")),
-																			"struct"));
-}
-
-$v1_nestedStruct_sig=array(array($xmlrpcInt, $xmlrpcStruct));
-
-$v1_nestedStruct_doc='This handler takes a single parameter, a struct, that models a daily calendar. At the top level, there is one struct for each year. Each year is broken down into months, and months into days. Most of the days are empty in the struct you receive, but the entry for April 1, 2000 contains a least three elements named moe, larry and curly, all &lt;i4&gt;s. Your handler must add the three numbers and return the result.';
-
-function v1_nestedStruct($m) {
-  $sno=$m->getParam(0);
-
-	$twoK=$sno->structmem("2000");
-	$april=$twoK->structmem("04");
-	$fools=$april->structmem("01");
-	$curly=$fools->structmem("curly");
-	$larry=$fools->structmem("larry");
-	$moe=$fools->structmem("moe");
-	return new xmlrpcresp(new xmlrpcval($curly->scalarval()+
-																			$larry->scalarval()+
-																			$moe->scalarval(), "int"));
-
-}
-
-$v1_countTheEntities_sig=array(array($xmlrpcStruct, $xmlrpcString));
-
-$v1_countTheEntities_doc='This handler takes a single parameter, a string, that contains any number of predefined entities, namely &lt;, &gt;, &amp; \' and ".<BR>Your handler must return a struct that contains five fields, all numbers:  ctLeftAngleBrackets, ctRightAngleBrackets, ctAmpersands, ctApostrophes, ctQuotes.';
-
-function v1_countTheEntities($m) {
-  $sno=$m->getParam(0);
-	$str=$sno->scalarval();
-	$gt=0; $lt=0; $ap=0; $qu=0; $amp=0;
-	for($i = 0; $i < strlen($str); $i = $i + 1) {
-		$c=substr($str, $i, 1);
-		switch($c) {
-		case ">":
-			$gt++;
-			break;
-		case "<":
-			$lt++;
-			break;
-		case "\"":
-			$qu++;
-			break;
-		case "'":
-			$ap++;
-			break;
-		case "&":
-			$amp++;
-			break;
-		default:
-			break;
-		}
-	}
-	return new xmlrpcresp(new xmlrpcval(array("ctLeftAngleBrackets" =>
-														 new xmlrpcval($lt, "int"),
-														 "ctRightAngleBrackets" =>
-														 new xmlrpcval($gt, "int"),
-														 "ctAmpersands" =>
-														 new xmlrpcval($amp, "int"),
-														 "ctApostrophes" =>
-														 new xmlrpcval($ap, "int"),
-														 "ctQuotes" =>
-														 new xmlrpcval($qu, "int")),
-											 "struct"));
-}
-
-// trivial interop tests
-// http://www.xmlrpc.com/stories/storyReader$1636
-
-$i_echoString_sig=array(array($xmlrpcString, $xmlrpcString));
-$i_echoString_doc="Echoes string.";
-
-$i_echoStringArray_sig=array(array($xmlrpcArray, $xmlrpcArray));
-$i_echoStringArray_doc="Echoes string array.";
-
-$i_echoInteger_sig=array(array($xmlrpcInt, $xmlrpcInt));
-$i_echoInteger_doc="Echoes integer.";
-
-$i_echoIntegerArray_sig=array(array($xmlrpcArray, $xmlrpcArray));
-$i_echoIntegerArray_doc="Echoes integer array.";
-
-$i_echoFloat_sig=array(array($xmlrpcDouble, $xmlrpcDouble));
-$i_echoFloat_doc="Echoes float.";
-
-$i_echoFloatArray_sig=array(array($xmlrpcArray, $xmlrpcArray));
-$i_echoFloatArray_doc="Echoes float array.";
-
-$i_echoStruct_sig=array(array($xmlrpcStruct, $xmlrpcStruct));
-$i_echoStruct_doc="Echoes struct.";
-
-$i_echoStructArray_sig=array(array($xmlrpcArray, $xmlrpcArray));
-$i_echoStructArray_doc="Echoes struct array.";
-
-$i_echoValue_doc="Echoes any value back.";
-
-$i_echoBase64_sig=array(array($xmlrpcBase64, $xmlrpcBase64));
-$i_echoBase64_doc="Echoes base64.";
-
-$i_echoDate_sig=array(array($xmlrpcDateTime, $xmlrpcDateTime));
-$i_echoDate_doc="Echoes dateTime.";
-
-function i_echoParam($m) {
-	$s=$m->getParam(0);
-	return new xmlrpcresp($s);
-}
-
-function i_echoString($m) { return i_echoParam($m); }
-function i_echoInteger($m) { return i_echoParam($m); }
-function i_echoFloat($m) { return i_echoParam($m); }
-function i_echoStruct($m) { return i_echoParam($m); }
-function i_echoStringArray($m) { return i_echoParam($m); }
-function i_echoIntegerArray($m) { return i_echoParam($m); }
-function i_echoFloatArray($m) { return i_echoParam($m); }
-function i_echoStructArray($m) { return i_echoParam($m); }
-function i_echoValue($m) { return i_echoParam($m); }
-function i_echoBase64($m) { return i_echoParam($m); }
-function i_echoDate($m) { return i_echoParam($m); }
-
-$i_whichToolkit_doc="Returns a struct containing the following strings:  toolkitDocsUrl, toolkitName, toolkitVersion, toolkitOperatingSystem.";
-
-function i_whichToolkit($m) {
-	global $xmlrpcName, $xmlrpcVersion,$SERVER_SOFTWARE,
-		$xmlrpcStruct;
-	$ret=array(
-						 "toolkitDocsUrl" => "http://xmlrpc.usefulinc.com/php.html",
-						 "toolkitName" => $xmlrpcName,
-						 "toolkitVersion" => $xmlrpcVersion,
-						 "toolkitOperatingSystem" => $SERVER_SOFTWARE);
-	return new xmlrpcresp ( xmlrpc_encode($ret));
-}
-
-
-
 /**** SERVER FUNCTIONS ARRAY ****/
 
-$dispatch_map =  array( "blogger.newPost" =>
-							 array("function" => "bloggernewpost",
-										 "signature" => $bloggernewpost_sig,
-										 "docstring" => $bloggernewpost_doc),
+$dispatch_map =  
+array( "blogger.newPost" =>
+array("function" => "bloggernewpost",
+	 "signature" => $bloggernewpost_sig,
+	 "docstring" => $bloggernewpost_doc),
 
 
-							 "blogger.editPost" =>
-							 array("function" => "bloggereditpost",
-										 "signature" => $bloggereditpost_sig,
-										 "docstring" => $bloggereditpost_doc),
+"blogger.editPost" =>
+array("function" => "bloggereditpost",
+	 "signature" => $bloggereditpost_sig,
+	 "docstring" => $bloggereditpost_doc),
 
 
-							 "blogger.deletePost" =>
-							 array("function" => "bloggerdeletepost",
-										 "signature" => $bloggerdeletepost_sig,
-										 "docstring" => $bloggerdeletepost_doc),
+"blogger.deletePost" =>
+array("function" => "bloggerdeletepost",
+	 "signature" => $bloggerdeletepost_sig,
+	 "docstring" => $bloggerdeletepost_doc),
 
 
-							 "blogger.getUsersBlogs" =>
-							 array("function" => "bloggergetusersblogs",
-										 "signature" => $bloggergetusersblogs_sig,
-										 "docstring" => $bloggergetusersblogs_doc),
+"blogger.getUsersBlogs" =>
+array("function" => "bloggergetusersblogs",
+	 "signature" => $bloggergetusersblogs_sig,
+	 "docstring" => $bloggergetusersblogs_doc),
 
-							 "blogger.getUserInfo" =>
-							 array("function" => "bloggergetuserinfo",
-										 "signature" => $bloggergetuserinfo_sig,
-										 "docstring" => $bloggergetuserinfo_doc),
+"blogger.getUserInfo" =>
+array("function" => "bloggergetuserinfo",
+	 "signature" => $bloggergetuserinfo_sig,
+	 "docstring" => $bloggergetuserinfo_doc),
 
- 							 "blogger.getPost" =>
-							 array("function" => "bloggergetpost",
-										 "signature" => $bloggergetpost_sig,
-										 "docstring" => $bloggergetpost_doc),
+"blogger.getPost" =>
+array("function" => "bloggergetpost",
+	 "signature" => $bloggergetpost_sig,
+	 "docstring" => $bloggergetpost_doc),
 
-							 "blogger.getRecentPosts" =>
-							 array("function" => "bloggergetrecentposts",
-										 "signature" => $bloggergetrecentposts_sig,
-										 "docstring" => $bloggergetrecentposts_doc),
+"blogger.getRecentPosts" =>
+array("function" => "bloggergetrecentposts",
+	 "signature" => $bloggergetrecentposts_sig,
+	 "docstring" => $bloggergetrecentposts_doc),
 
-							 "blogger.getTemplate" =>
-							 array("function" => "bloggergettemplate",
-										 "signature" => $bloggergettemplate_sig,
-										 "docstring" => $bloggergettemplate_doc),
+"blogger.getTemplate" =>
+array("function" => "bloggergettemplate",
+	 "signature" => $bloggergettemplate_sig,
+	 "docstring" => $bloggergettemplate_doc),
 
-							 "blogger.setTemplate" =>
-							 array("function" => "bloggersettemplate",
-										 "signature" => $bloggersettemplate_sig,
-										 "docstring" => $bloggersettemplate_doc),
+"blogger.setTemplate" =>
+array("function" => "bloggersettemplate",
+	 "signature" => $bloggersettemplate_sig,
+	 "docstring" => $bloggersettemplate_doc),
 
-							 "metaWeblog.newPost" =>
-							 array("function" => "mwnewpost",
-										 "signature" => $mwnewpost_sig,
-										 "docstring" => $mwnewpost_doc),
+"metaWeblog.newPost" =>
+array("function" => "mwnewpost",
+	 "signature" => $mwnewpost_sig,
+	 "docstring" => $mwnewpost_doc),
 
-							 "metaWeblog.editPost" =>
-							 array("function" => "mweditpost",
-										 "signature" => $mweditpost_sig,
-										 "docstring" => $mweditpost_doc),
+"metaWeblog.editPost" =>
+array("function" => "mweditpost",
+	 "signature" => $mweditpost_sig,
+	 "docstring" => $mweditpost_doc),
 
-							 "metaWeblog.getPost" =>
-							 array("function" => "mwgetpost",
-										 "signature" => $mwgetpost_sig,
-										 "docstring" => $mwgetpost_doc),
+"metaWeblog.getPost" =>
+array("function" => "mwgetpost",
+	 "signature" => $mwgetpost_sig,
+	 "docstring" => $mwgetpost_doc),
 
-							 "metaWeblog.getRecentPosts" =>
-							 array("function" => "mwrecentposts",
-										 "signature" => $mwrecentposts_sig,
-										 "docstring" => $mwrecentposts_doc),
+"metaWeblog.getRecentPosts" =>
+array("function" => "mwrecentposts",
+	 "signature" => $mwrecentposts_sig,
+	 "docstring" => $mwrecentposts_doc),
 
-							 "metaWeblog.getCategories" =>
-							 array("function" => "mwgetcats",
-										 "signature" => $mwgetcats_sig,
-										 "docstring" => $mwgetcats_doc),
+"metaWeblog.getCategories" =>
+array("function" => "mwgetcats",
+	 "signature" => $mwgetcats_sig,
+	 "docstring" => $mwgetcats_doc),
 
-							 "metaWeblog.newMediaObject" =>
-							 array("function" => "mwnewmedia",
-										 "signature" => $mwnewmedia_sig,
-										 "docstring" => $mwnewmedia_doc),
+"metaWeblog.newMediaObject" =>
+array("function" => "mwnewmedia",
+	 "signature" => $mwnewmedia_sig,
+	 "docstring" => $mwnewmedia_doc),
 
-							 "mt.getCategoryList" =>
-							 array("function" => "mwgetcats",
-										 "signature" => $mwgetcats_sig,
-										 "docstring" => $mwgetcats_doc),
+"mt.getCategoryList" =>
+array("function" => "mwgetcats",
+	 "signature" => $mwgetcats_sig,
+	 "docstring" => $mwgetcats_doc),
 
-							 "mt.getPostCategories" =>
-							 array("function" => "mt_getPostCategories",
-										 "signature" => $mt_getPostCategories_sig,
-										 "docstring" => $mt_getPostCategories_doc),
+"mt.getPostCategories" =>
+array("function" => "mt_getPostCategories",
+	 "signature" => $mt_getPostCategories_sig,
+	 "docstring" => $mt_getPostCategories_doc),
 
-							 "mt.setPostCategories" =>
-							 array("function" => "mt_setPostCategories",
-										 "signature" => $mt_setPostCategories_sig,
-										 "docstring" => $mt_setPostCategories_doc),
+"mt.setPostCategories" =>
+array("function" => "mt_setPostCategories",
+	 "signature" => $mt_setPostCategories_sig,
+	 "docstring" => $mt_setPostCategories_doc),
 
-							 "mt.publishPost" =>
-							 array("function" => "mt_publishPost",
-										 "signature" => $mt_publishPost_sig,
-										 "docstring" => $mt_publishPost_doc),
+"mt.publishPost" =>
+array("function" => "mt_publishPost",
+	 "signature" => $mt_publishPost_sig,
+	 "docstring" => $mt_publishPost_doc),
 
-							 "mt.supportedMethods" =>
-							 array("function" => "mt_supportedMethods",
-										 "signature" => $mt_supportedMethods_sig,
-										 "docstring" => $mt_supportedMethods_doc),
+"mt.supportedMethods" =>
+array("function" => "mt_supportedMethods",
+	 "signature" => $mt_supportedMethods_sig,
+	 "docstring" => $mt_supportedMethods_doc),
 
-							 "mt.supportedTextFilters" =>
-							 array("function" => "mt_supportedTextFilters",
-										 "signature" => $mt_supportedTextFilters_sig,
-										 "docstring" => $mt_supportedTextFilters_doc),
+"mt.supportedTextFilters" =>
+array("function" => "mt_supportedTextFilters",
+	 "signature" => $mt_supportedTextFilters_sig,
+	 "docstring" => $mt_supportedTextFilters_doc),
 
-							 "mt.getRecentPostTitles" =>
-							 array("function" => "mt_getRecentPostTitles",
-										 "signature" => $mt_getRecentPostTitles_sig,
-										 "docstring" => $mt_getRecentPostTitles_doc),
+"mt.getRecentPostTitles" =>
+array("function" => "mt_getRecentPostTitles",
+	 "signature" => $mt_getRecentPostTitles_sig,
+	 "docstring" => $mt_getRecentPostTitles_doc),
 
-							 "mt.getTrackbackPings" =>
-							 array("function" => "mt_getTrackbackPings",
-										 "signature" => $mt_getTrackbackPings_sig,
-										 "docstring" => $mt_getTrackbackPings_doc),
+"mt.getTrackbackPings" =>
+array("function" => "mt_getTrackbackPings",
+	 "signature" => $mt_getTrackbackPings_sig,
+	 "docstring" => $mt_getTrackbackPings_doc),
 
-							 "b2.newPost" =>
-							 array("function" => "b2newpost",
-										 "signature" => $wpnewpost_sig,
-										 "docstring" => $wpnewpost_doc),
-							 "b2.getCategories" =>
-							 array("function" => "b2getcategories",
-										 "signature" => $wpgetcategories_sig,
-										 "docstring" => $wpgetcategories_doc),
+"b2.newPost" =>
+array("function" => "b2newpost",
+	 "signature" => $wpnewpost_sig,
+	 "docstring" => $wpnewpost_doc),
+"b2.getCategories" =>
+array("function" => "b2getcategories",
+	 "signature" => $wpgetcategories_sig,
+	 "docstring" => $wpgetcategories_doc),
 
-							 "b2.ping" =>
-							 array("function" => "b2ping",
-										 "signature" => $wpping_sig,
-										 "docstring" => $wpping_doc),
+"b2.ping" =>
+array("function" => "b2ping",
+	 "signature" => $wpping_sig,
+	 "docstring" => $wpping_doc),
 
-							 "pingback.ping" =>
-							 array("function" => "pingback_ping",
-										 "signature" => $pingback_ping_sig,
-										 "docstring" => $pingback_ping_doc),
+"pingback.ping" =>
+array("function" => "pingback_ping",
+	 "signature" => $pingback_ping_sig,
+	 "docstring" => $pingback_ping_doc),
 
-							 "b2.getPostURL" =>
-							 array("function" => "pingback_getPostURL",
-										 "signature" => $wp_getPostURL_sig,
-										 "docstring" => $wp_getPostURL_doc),
+"b2.getPostURL" =>
+array("function" => "pingback_getPostURL",
+	 "signature" => $wp_getPostURL_sig,
+	 "docstring" => $wp_getPostURL_doc),
+);
 
-
-							 "examples.getStateName" =>
-							 array("function" => "findstate",
-										 "signature" => $findstate_sig,
-										 "docstring" => $findstate_doc),
-
-							 "examples.sortByAge" =>
-							 array("function" => "agesorter",
-										 "signature" => $agesorter_sig,
-										 "docstring" => $agesorter_doc),
-
-							 "examples.addtwo" =>
-							 array("function" => "addtwo",
-										 "signature" => $addtwo_sig,
-										 "docstring" => $addtwo_doc),
-
-							 "examples.addtwodouble" =>
-							 array("function" => "addtwodouble",
-										 "signature" => $addtwodouble_sig,
-										 "docstring" => $addtwodouble_doc),
-
-							 "examples.stringecho" =>
-							 array("function" => "stringecho",
-										 "signature" => $stringecho_sig,
-										 "docstring" => $stringecho_doc),
-
-							 "examples.echo" =>
-							 array("function" => "echoback",
-										 "signature" => $echoback_sig,
-										 "docstring" => $echoback_doc),
-
-							 "examples.decode64" =>
-							 array("function" => "echosixtyfour",
-										 "signature" => $echosixtyfour_sig,
-										 "docstring" => $echosixtyfour_doc),
-
-							 "examples.invertBooleans" =>
-							 array("function" => "bitflipper",
-										 "signature" => $bitflipper_sig,
-										 "docstring" => $bitflipper_doc),
-
-							 "mail.send" =>
-							 array("function" => "mail_send",
-										 "signature" => $mail_send_sig,
-										 "docstring" => $mail_send_doc),
-
-							 "validator1.arrayOfStructsTest" =>
-							 array("function" => "v1_arrayOfStructs",
-										 "signature" => $v1_arrayOfStructs_sig,
-										 "docstring" => $v1_arrayOfStructs_doc),
-
-							 "validator1.easyStructTest" =>
-							 array("function" => "v1_easyStruct",
-										 "signature" => $v1_easyStruct_sig,
-										 "docstring" => $v1_easyStruct_doc),
-
-							  "validator1.echoStructTest" =>
-							 array("function" => "v1_echoStruct",
-										 "signature" => $v1_echoStruct_sig,
-										 "docstring" => $v1_echoStruct_doc),
-
-							  "validator1.manyTypesTest" =>
-							 array("function" => "v1_manyTypes",
-										 "signature" => $v1_manyTypes_sig,
-										 "docstring" => $v1_manyTypes_doc),
-
-							  "validator1.moderateSizeArrayCheck" =>
-							 array("function" => "v1_moderateSizeArrayCheck",
-										 "signature" => $v1_moderateSizeArrayCheck_sig,
-										 "docstring" => $v1_moderateSizeArrayCheck_doc),
-							  "validator1.simpleStructReturnTest" =>
-							 array("function" => "v1_simpleStructReturn",
-										 "signature" => $v1_simpleStructReturn_sig,
-										 "docstring" => $v1_simpleStructReturn_doc),
-
-							 "validator1.nestedStructTest" =>
-							 array("function" => "v1_nestedStruct",
-										 "signature" => $v1_nestedStruct_sig,
-										 "docstring" => $v1_nestedStruct_doc),
-
-							 "validator1.countTheEntities" =>
-							 array("function" => "v1_countTheEntities",
-										 "signature" => $v1_countTheEntities_sig,
-										 "docstring" => $v1_countTheEntities_doc),
-
-							 "interopEchoTests.echoString" =>
-							 array("function" => "i_echoString",
-										 "signature" => $i_echoString_sig,
-										 "docstring" => $i_echoString_doc),
-
-							 "interopEchoTests.echoStringArray" =>
-							 array("function" => "i_echoStringArray",
-										 "signature" => $i_echoStringArray_sig,
-										 "docstring" => $i_echoStringArray_doc),
-
-							 "interopEchoTests.echoInteger" =>
-							 array("function" => "i_echoInteger",
-										 "signature" => $i_echoInteger_sig,
-										 "docstring" => $i_echoInteger_doc),
-
-							 "interopEchoTests.echoIntegerArray" =>
-							 array("function" => "i_echoIntegerArray",
-										 "signature" => $i_echoIntegerArray_sig,
-										 "docstring" => $i_echoIntegerArray_doc),
-
-							 "interopEchoTests.echoFloat" =>
-							 array("function" => "i_echoFloat",
-										 "signature" => $i_echoFloat_sig,
-										 "docstring" => $i_echoFloat_doc),
-
-							 "interopEchoTests.echoFloatArray" =>
-							 array("function" => "i_echoFloatArray",
-										 "signature" => $i_echoFloatArray_sig,
-										 "docstring" => $i_echoFloatArray_doc),
-
-							 "interopEchoTests.echoStruct" =>
-							 array("function" => "i_echoStruct",
-										 "signature" => $i_echoStruct_sig,
-										 "docstring" => $i_echoStruct_doc),
-
-							 "interopEchoTests.echoStructArray" =>
-							 array("function" => "i_echoStructArray",
-										 "signature" => $i_echoStructArray_sig,
-										 "docstring" => $i_echoStructArray_doc),
-
-							  "interopEchoTests.echoValue" =>
-							 array("function" => "i_echoValue",
-										 // no sig as takes anytype
-										 "docstring" => $i_echoValue_doc),
-
-							  "interopEchoTests.echoBase64" =>
-							 array("function" => "i_echoBase64",
-										 "signature" => $i_echoBase64_sig,
-										 "docstring" => $i_echoBase64_doc),
-
-							  "interopEchoTests.echoDate" =>
-							 array("function" => "i_echoDate",
-										 "signature" => $i_echoDate_sig,
-										 "docstring" => $i_echoDate_doc),
-
-							 "interopEchoTests.whichToolkit" =>
-							 array("function" => "i_whichToolkit",
-										 // no sig as no parameters
-										 "docstring" => $i_whichToolkit_doc),
-
-
-						);
-
-
-
-$s=new xmlrpc_server($dispatch_map);
-						
-						
+$s = new xmlrpc_server($dispatch_map);
 
 ?>

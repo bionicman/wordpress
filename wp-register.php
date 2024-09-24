@@ -13,28 +13,28 @@ function add_magic_quotes($array) {
 } 
 
 if (!get_magic_quotes_gpc()) {
-	$HTTP_GET_VARS    = add_magic_quotes($HTTP_GET_VARS);
-	$HTTP_POST_VARS   = add_magic_quotes($HTTP_POST_VARS);
-	$HTTP_COOKIE_VARS = add_magic_quotes($HTTP_COOKIE_VARS);
+	$_GET    = add_magic_quotes($_GET);
+	$_POST   = add_magic_quotes($_POST);
+	$_COOKIE = add_magic_quotes($_COOKIE);
 }
 
 $wpvarstoreset = array('action');
 for ($i=0; $i<count($wpvarstoreset); $i += 1) {
 	$wpvar = $wpvarstoreset[$i];
 	if (!isset($$wpvar)) {
-		if (empty($HTTP_POST_VARS["$wpvar"])) {
-			if (empty($HTTP_GET_VARS["$wpvar"])) {
+		if (empty($_POST["$wpvar"])) {
+			if (empty($_GET["$wpvar"])) {
 				$$wpvar = '';
 			} else {
-				$$wpvar = $HTTP_GET_VARS["$wpvar"];
+				$$wpvar = $_GET["$wpvar"];
 			}
 		} else {
-			$$wpvar = $HTTP_POST_VARS["$wpvar"];
+			$$wpvar = $_POST["$wpvar"];
 		}
 	}
 }
 
-if (!$users_can_register) {
+if (!get_settings('users_can_register')) {
 	$action = 'disabled';
 }
 
@@ -46,56 +46,57 @@ case 'register':
 		return ereg('^[a-zA-Z0-9\_-\|]+$',$value);
 	}
 
-	$user_login = $HTTP_POST_VARS['user_login'];
-	$pass1 = $HTTP_POST_VARS['pass1'];
-	$pass2 = $HTTP_POST_VARS['pass2'];
-	$user_email = $HTTP_POST_VARS['user_email'];
+	$user_login = $_POST['user_login'];
+	$pass1 = $_POST['pass1'];
+	$pass2 = $_POST['pass2'];
+	$user_email = $_POST['user_email'];
 		
 	/* checking login has been typed */
 	if ($user_login == '') {
-		die ('<strong>ERROR</strong>: Please enter a login.');
+		die (__('<strong>ERROR</strong>: Please enter a login.'));
 	}
 
 	/* checking the password has been typed twice */
 	if ($pass1 == '' || $pass2 == '') {
-		die ('<strong>ERROR</strong>: Please enter your password twice.');
+		die (__('<strong>ERROR</strong>: Please enter your password twice.'));
 	}
 
 	/* checking the password has been typed twice the same */
 	if ($pass1 != $pass2)	{
-		die ('<strong>ERROR</strong>: Please type the same password in the two password fields.');
+		die (__('<strong>ERROR</strong>: Please type the same password in the two password fields.'));
 	}
 	$user_nickname = $user_login;
 
 	/* checking e-mail address */
 	if ($user_email == '') {
-		die ('<strong>ERROR</strong>: Please type your e-mail address.');
+		die (__('<strong>ERROR</strong>: Please type your e-mail address.'));
 	} else if (!is_email($user_email)) {
-		die ('<strong>ERROR</strong>: The email address isn&#8217;t correct.');
+		die (__('<strong>ERROR</strong>: The email address isn&#8217;t correct.'));
 	}
 
 	/* checking the login isn't already used by another user */
 	$result = $wpdb->get_results("SELECT user_login FROM $tableusers WHERE user_login = '$user_login'");
     if (count($result) >= 1) {
-		die ('<strong>ERROR</strong>: This login is already registered, please choose another one.');
+		die (__('<strong>ERROR</strong>: This login is already registered, please choose another one.'));
 	}
 
-	$user_ip = $HTTP_SERVER_VARS['REMOTE_ADDR'] ;
-	$user_domain = gethostbyaddr($HTTP_SERVER_VARS['REMOTE_ADDR'] );
-	$user_browser = $HTTP_SERVER_VARS['HTTP_USER_AGENT'];
+	$user_ip = $_SERVER['REMOTE_ADDR'] ;
+	$user_domain = gethostbyaddr($_SERVER['REMOTE_ADDR'] );
+	$user_browser = $_SERVER['HTTP_USER_AGENT'];
 
 	$user_login = addslashes($user_login);
 	$pass1 = addslashes($pass1);
 	$user_nickname = addslashes($user_nickname);
-	$now = current_time('mysql');
+	$now = gmdate('Y-m-d H:i:s');
+	$new_users_can_blog = get_settings('new_users_can_blog');
 
 	$result = $wpdb->query("INSERT INTO $tableusers 
 		(user_login, user_pass, user_nickname, user_email, user_ip, user_domain, user_browser, dateYMDhour, user_level, user_idmode)
 	VALUES 
-		('$user_login', '$pass1', '$user_nickname', '$user_email', '$user_ip', '$user_domain', '$user_browser', '$now', '$new_users_can_blog', 'nickname')");
+		('$user_login', MD5('$pass1'), '$user_nickname', '$user_email', '$user_ip', '$user_domain', '$user_browser', '$now', '$new_users_can_blog', 'nickname')");
 	
 	if ($result == false) {
-		die ('<strong>ERROR</strong>: Couldn&#8217;t register you... please contact the <a href="mailto:'.$admin_email.'">webmaster</a> !');
+		die (sprintf(__('<strong>ERROR</strong>: Couldn&#8217;t register you... please contact the <a href="mailto:%s">webmaster</a> !'), get_settings('admin_email')));
 	}
 
 	$stars = '';
@@ -103,29 +104,28 @@ case 'register':
 		$stars .= '*';
 	}
 
-	$message  = "New user registration on your blog $blogname:\r\n\r\n";
-	$message .= "Login: $user_login\r\n\r\nE-mail: $user_email";
+	$message  = sprintf(__("New user registration on your blog %1\$s:\n\nLogin: %2\$s \n\nE-mail: %3\$s"), get_settings('blogname'), $user_login, $user_email);
 
-	@mail($admin_email, "[$blogname] New User Registration", $message);
+	@mail(get_settings('admin_email'), sprintf(__('[%s] New User Registration'), get_settings('blogname')), $message);
 
 	?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-	<title>WordPress &raquo; Registration Complete</title>
-	<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />	
+        <title><?php _e('WordPress &raquo; Registration Complete') ?></title>
+	<meta http-equiv="Content-Type" content="text/html; charset=<?php echo get_settings('blog_charset'); ?>" />	
 	<link rel="stylesheet" href="wp-admin/wp-admin.css" type="text/css" />
 </head>
 <body>
 
 <div id="login"> 
-	<h2>Registration Complete</h2>
-	<p>Login: <strong><?php echo $user_login; ?></strong><br />
-	Password: <strong><?php echo $stars; ?></strong><br />
-	E-mail: <strong><?php echo $user_email; ?></strong></p>
+	<h2><?php _e('Registration Complete') ?></h2>
+	<p><?php _e('Login:') ?> <strong><?php echo $user_login; ?></strong><br />
+	<?php _e('Password:') ?> <strong><?php echo $stars; ?></strong><br />
+	<?php _e('E-mail:') ?> <strong><?php echo $user_email; ?></strong></p>
 	<form action="wp-login.php" method="post" name="login">
 		<input type="hidden" name="log" value="<?php echo $user_login; ?>" />
-		<input type="submit" value="Login" name="submit" />
+		<input type="submit" value="<?php _e('Login') ?>" name="submit" />
 	</form>
 </div>
 </body>
@@ -140,17 +140,17 @@ case 'disabled':
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-	<title>WordPress &raquo; Registration Currently Disabled</title>
-	<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+	<title><?php _e('WordPress &raquo; Registration Currently Disabled') ?></title>
+	<meta http-equiv="Content-Type" content="text/html; charset=<?php echo get_settings('blog_charset'); ?>">
 	<link rel="stylesheet" href="wp-admin/wp-admin.css" type="text/css">
 </head>
 
 <body>
 
 <div id="login">
-	<h2>Registration Disabled</h2>
-	<p>User registration is currently not allowed.<br />
-	<a href="<?php echo $siteurl.'/'.$blogfilename; ?>" title="Go back to the blog">Home</a>
+	<h2><?php _e('Registration Disabled') ?></h2>
+	<p><?php _e('User registration is currently not allowed.') ?><br />
+	<a href="<?php echo get_settings('siteurl') .'/'. get_settings('blogfilename'); ?>" title="<?php _e('Go back to the blog') ?>"><?php _e('Home') ?></a>
 	</p>
 </div>
 
@@ -166,23 +166,23 @@ default:
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-	<title>WordPress &raquo; Registration Form</title>
-	<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+	<title><?php _e('WordPress &raquo; Registration Form') ?></title>
+	<meta http-equiv="Content-Type" content="text/html; charset=<?php echo get_settings('blog_charset'); ?>" />
 	<link rel="stylesheet" href="wp-admin/wp-admin.css" type="text/css" />
 </head>
 
 <body>
 <div id="login">
-<h2>Registration</h2>
+<h2><?php _e('Registration') ?></h2>
 
 <form method="post" action="wp-register.php">
 	<input type="hidden" name="action" value="register" />
-	<label for="user_login">Login:</label> <input type="text" name="user_login" id="user_login" size="10" maxlength="20" /><br />
-	<label for="pass1">Password:</label> <input type="password" name="pass1" id="pass1" size="10" maxlength="100" /><br />
+	<label for="user_login"><?php _e('Login:') ?></label> <input type="text" name="user_login" id="user_login" size="10" maxlength="20" /><br />
+	<label for="pass1"><?php _e('Password:') ?></label> <input type="password" name="pass1" id="pass1" size="10" maxlength="100" /><br />
  
 	<input type="password" name="pass2" size="10" maxlength="100" /><br />
-	<label for="user_email">E-mail</label>: <input type="text" name="user_email" id="user_email" size="15" maxlength="100" /><br />
-	<input type="submit" value="OK" class="search" name="submit" />
+	<label for="user_email"><?php _e('E-mail') ?></label>: <input type="text" name="user_email" id="user_email" size="15" maxlength="100" /><br />
+	<input type="submit" value="<?php _e('OK') ?>" class="search" name="submit" />
 </form>
 </div>
 
@@ -192,3 +192,4 @@ default:
 
 break;
 }
+?>

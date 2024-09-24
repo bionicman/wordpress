@@ -1,7 +1,7 @@
 <?php					// -*-c++-*-
 // by Edd Dumbill (C) 1999-2001
 // <edd@usefulinc.com>
-// $Id: class-xmlrpc.php,v 1.1 2003/12/11 00:22:36 saxmatt Exp $
+// $Id: class-xmlrpc.php,v 1.2 2004/03/30 21:25:21 michelvaldrighi Exp $
 
 
 # additional fixes for case of missing xml extension file by Michel Valdrighi <m@tidakada.com>
@@ -1055,8 +1055,8 @@ function iso8601_decode($idate, $utc=0) {
 *                                                               *
 * author: Dan Libby (dan@libby.com)                             *
 ****************************************************************/
-if (!function_exists('xmlrpc_decode')) {
-	function xmlrpc_decode($xmlrpc_val) {
+if (!function_exists('phpxmlrpc_decode')) {
+	function phpxmlrpc_decode($xmlrpc_val) {
 	   $kind = $xmlrpc_val->kindOf();
 
 	   if($kind == "scalar") {
@@ -1067,7 +1067,7 @@ if (!function_exists('xmlrpc_decode')) {
 		  $arr = array();
 
 		  for($i = 0; $i < $size; $i++) {
-			 $arr[]=xmlrpc_decode($xmlrpc_val->arraymem($i));
+			 $arr[]=phpxmlrpc_decode($xmlrpc_val->arraymem($i));
 		  }
 		  return $arr; 
 	   }
@@ -1076,7 +1076,7 @@ if (!function_exists('xmlrpc_decode')) {
 		  $arr = array();
 
 		  while(list($key,$value)=$xmlrpc_val->structeach()) {
-			 $arr[$key] = xmlrpc_decode($value);
+			 $arr[$key] = phpxmlrpc_decode($value);
 		  }
 		  return $arr;
 	   }
@@ -1095,8 +1095,8 @@ if (!function_exists('xmlrpc_decode')) {
 *                                                               *
 * author: Dan Libby (dan@libby.com)                             *
 ****************************************************************/
-if (!function_exists('xmlrpc_encode')) {
-	function xmlrpc_encode($php_val) {
+if (!function_exists('phpxmlrpc_encode')) {
+	function phpxmlrpc_encode($php_val) {
 	   global $xmlrpcInt;
 	   global $xmlrpcDouble;
 	   global $xmlrpcString;
@@ -1112,7 +1112,7 @@ if (!function_exists('xmlrpc_encode')) {
 		  case "object":
 			 $arr = array();
 			 while (list($k,$v) = each($php_val)) {
-				$arr[$k] = xmlrpc_encode($v);
+				$arr[$k] = phpxmlrpc_encode($v);
 			 }
 			 $xmlrpc_val->addStruct($arr);
 			 break;

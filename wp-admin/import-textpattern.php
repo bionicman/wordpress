@@ -7,11 +7,11 @@ $tp_database_username = 'username';
 $tp_database_password = 'password';
 $tp_database_host = 'localhost';
 
-if (!file_exists('../wp-config.php')) die("There doesn't seem to be a wp-config.php file. Double check that you updated wp-config.sample.php with the proper database connection information and renamed it to wp-config.php.");
+if (!file_exists('../wp-config.php')) die("There doesn't seem to be a wp-config.php file. Double check that you updated wp-config-sample.php with the proper database connection information and renamed it to wp-config.php.");
 require('../wp-config.php');
 require('upgrade-functions.php');
 
-$step = $HTTP_GET_VARS['step'];
+$step = $_GET['step'];
 if (!$step) $step = 0;
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -60,7 +60,7 @@ if ($connection && $database) {
 <?php
 } else {
 ?>
-<p><em>It doesn't look like your database information is incorrect. Please re-edit this file and double-check all the settings.</em></p>
+<p><em>It looks like your database information is incorrect. Please re-edit this file and double-check all the settings.</em></p>
 <?php
 }
 	break;

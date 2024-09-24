@@ -1,10 +1,10 @@
 <?php
 $_wp_installing = 1;
-if (!file_exists('../wp-config.php')) die("There doesn't seem to be a wp-config.php file. You must <a href='install-config.php'>create one</a> before moving on.");
+if (!file_exists('../wp-config.php')) die("There doesn't seem to be a wp-config.php file. You must create one (<a href='install-config.php'>attempt automatically</a>) before moving on.");
 require_once('../wp-config.php');
 require('upgrade-functions.php');
 
-$step = $HTTP_GET_VARS['step'];
+$step = $_GET['step'];
 if (!$step) $step = 0;
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -14,6 +14,8 @@ if (!$step) $step = 0;
 	<style media="screen" type="text/css">
     <!--
 	body {
+		background-color: white;
+		color: black;
 		font-family: Georgia, "Times New Roman", Times, serif;
 		margin-left: 15%;
 		margin-right: 15%;
@@ -54,7 +56,7 @@ switch($step) {
 ?>
 <p>Welcome to WordPress. We&#8217;re now going to go through a few steps to get
   you up and running with the latest in personal publishing platforms. Before
-  we get started, remember that we require a PHP version of at least 4.0.6, you
+  we get started, remember that we require a PHP version of at least 4.1.0, you
   have <?php echo phpversion(); ?>. Look good? You also need to set up the database
   connection information in <code>wp-config.php</code>. Have you looked at the
   <a href="../readme.html">readme</a>? If you&#8217;re all ready, <a href="install.php?step=1">let's
@@ -104,7 +106,7 @@ if (!$got_cats) {
            " text_before_link varchar(128) not null default '<li>',  " .
            " text_after_link  varchar(128) not null default '<br />'," .
            " text_after_all  varchar(128) not null default '</li>',  " .
-           " list_limit int not null default -1,                     " .
+           " list_limit int not null default '-1',                     " .
            " PRIMARY KEY (cat_id) ".
            ") ";
     $result = mysql_query($sql) or print ("Can't create the table '$tablelinkcategories' in the database.<br />" . $sql . "<br />" . mysql_error());
@@ -195,6 +197,7 @@ $query = "CREATE TABLE $tableposts (
   ID int(10) unsigned NOT NULL auto_increment,
   post_author int(4) NOT NULL default '0',
   post_date datetime NOT NULL default '0000-00-00 00:00:00',
+  post_date_gmt datetime NOT NULL default '0000-00-00 00:00:00',
   post_content text NOT NULL,
   post_title text NOT NULL,
   post_category int(4) NOT NULL default '0',
@@ -205,7 +208,16 @@ $query = "CREATE TABLE $tableposts (
   comment_status enum('open','closed') NOT NULL default 'open',
   ping_status enum('open','closed') NOT NULL default 'open',
   post_password varchar(20) NOT NULL default '',
+  post_name varchar(200) NOT NULL default '',
+  to_ping text NOT NULL,
+  pinged text NOT NULL,
+  post_modified datetime NOT NULL default '0000-00-00 00:00:00',
+  post_modified_gmt datetime NOT NULL default '0000-00-00 00:00:00',
+  post_content_filtered text NOT NULL,
   PRIMARY KEY  (ID),
+  KEY post_date (post_date),
+  KEY post_date_gmt (post_date_gmt),
+  KEY post_name (post_name),
   KEY post_status (post_status)
 )
 ";
@@ -216,7 +228,8 @@ $q = $wpdb->query($query);
 
 <?php
 $now = date('Y-m-d H:i:s');
-$query = "INSERT INTO $tableposts (post_author, post_date, post_content, post_title, post_category) VALUES ('1', '$now', 'Welcome to WordPress. This is the first post. Edit or delete it, then start blogging!', 'Hello world!', '1')";
+$now_gmt = gmdate('Y-m-d H:i:s');
+$query = "INSERT INTO $tableposts (post_author, post_date, post_date_gmt, post_content, post_title, post_modified, post_modified_gmt) VALUES ('1', '$now', '$now_gmt', 'Welcome to WordPress. This is the first post. Edit or delete it, then start blogging!', 'Hello world!', '$now', '$now_gmt')";
 
 $q = $wpdb->query($query);
 ?>
@@ -259,6 +272,7 @@ CREATE TABLE $tablecomments (
   comment_author_url varchar(100) NOT NULL default '',
   comment_author_IP varchar(100) NOT NULL default '',
   comment_date datetime NOT NULL default '0000-00-00 00:00:00',
+  comment_date_gmt datetime NOT NULL default '0000-00-00 00:00:00',
   comment_content text NOT NULL,
   comment_karma int(11) NOT NULL default '0',
   PRIMARY KEY  (comment_ID)
@@ -267,11 +281,32 @@ CREATE TABLE $tablecomments (
 $q = $wpdb->query($query);
 
 $now = date('Y-m-d H:i:s');
-$query = "INSERT INTO $tablecomments (comment_post_ID, comment_author, comment_author_email, comment_author_url, comment_author_IP, comment_date, comment_content) VALUES ('1', 'Mr WordPress', 'mr@wordpress.org', 'http://wordpress.org', '127.0.0.1', '$now', 'Hi, this is a comment.<br />To delete a comment, just log in, and view the posts\' comments, there you will have the option to edit or delete them.')";
+$now_gmt = gmdate('Y-m-d H:i:s');
+$query = "INSERT INTO $tablecomments (comment_post_ID, comment_author, comment_author_email, comment_author_url, comment_author_IP, comment_date, comment_date_gmt, comment_content) VALUES ('1', 'Mr WordPress', 'mr@wordpress.org', 'http://wordpress.org', '127.0.0.1', '$now', '$now_gmt', 'Hi, this is a comment.<br />To delete a comment, just log in, and view the posts\' comments, there you will have the option to edit or delete them.')";
 $q = $wpdb->query($query);
 ?>
 
 <p>Comments are groovy...</p>
+
+<?php
+$query = "
+	CREATE TABLE $tablepostmeta (
+	  meta_id int(11) NOT NULL auto_increment,
+	  post_id int(11) NOT NULL default 0,
+	  meta_key varchar(255),
+	  meta_value text,
+	  PRIMARY KEY (meta_id),
+	  INDEX (post_id),
+	  INDEX (meta_key)
+	)
+	";
+
+$q = $wpdb->query($query);
+
+
+?>
+
+<p>Post metadata table ready to go...</p>
 
 <?php
 // $query = "DROP TABLE IF EXISTS $tableoptions";
@@ -378,16 +413,13 @@ $option_data = array(
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(7,'new_users_can_blog', 2, '0', 'whether you want new users to be able to post entries once they have registered', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(8,'users_can_register', 2, '1', 'whether you want to allow users to register on your blog', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(54,'admin_email', 3, 'you@example.com', 'Your email (obvious eh?)', 8, 20)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level) VALUES (93, 'blog_charset', 3, 'utf-8', 'Your blog&#8217;s charset (here&#8217;s a <a href=\'http://developer.apple.com/documentation/macos8/TextIntlSvcs/TextEncodingConversionManager/TEC1.5/TEC.b0.html\'>list of possible charsets</a>)', 8)",
 // general blog setup
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(9 ,'start_of_week', 5, '1', 'day at the start of the week', 8, 20)",
 //"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(10,'use_preview', 2, '1', 'Do you want to use the \'preview\' function', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(11,'use_bbcode', 2, '0', 'use BBCode, like [b]bold[/b]', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(12,'use_gmcode', 2, '0', 'use GreyMatter-styles: **bold** \\\\italic\\\\ __underline__', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(13,'use_quicktags', 2, '1', 'buttons for HTML tags (they won\'t work on IE Mac yet)', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(14,'use_htmltrans', 2, '1', 'IMPORTANT! set this to false if you are using Chinese, Japanese, Korean, or other double-bytes languages', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(15,'use_balanceTags', 2, '1', 'this could help balance your HTML code. if it gives bad results, set it to false', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(16,'use_smilies', 2, '1', 'set this to 1 to enable smiley conversion in posts (note: this makes smiley conversion in ALL posts)', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(17,'smilies_directory', 3, 'http://example.com/wp-images/smilies', 'the directory where your smilies are (no trailing slash)', 8, 40)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(18,'require_name_email', 2, '0', 'set this to true to require e-mail and name, or false to allow comments without e-mail/name', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(20,'comments_notify', 2, '1', 'set this to true to let every author be notified about comments on their posts', 8, 20)",
 //rss/rdf feeds
@@ -396,18 +428,15 @@ $option_data = array(
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(23,'rss_encoded_html', 2, '0', 'for b2rss.php: allow encoded HTML in &lt;description> tag?', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(24,'rss_excerpt_length', 1, '50', 'length (in words) of excerpts in the RSS feed? 0=unlimited note: in b2rss.php, this will be set to 0 if you use encoded HTML', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(25,'rss_use_excerpt', 2, '1', 'use the excerpt field for rss feed.', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(26,'use_weblogsping', 2, '0', 'set this to true if you want your site to be listed on http://weblogs.com when you add a new post', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(27,'use_blodotgsping', 2, '0', 'set this to true if you want your site to be listed on http://blo.gs when you add a new post', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(28,'blodotgsping_url', 3, 'http://example.com', 'You shouldn\'t need to change this.', 8, 30)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(29,'use_trackback', 2, '1', 'set this to 0 or 1, whether you want to allow your posts to be trackback\'able or not note: setting it to zero would also disable sending trackbacks', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(30,'use_pingback', 2, '1', 'set this to 0 or 1, whether you want to allow your posts to be pingback\'able or not note: setting it to zero would also disable sending pingbacks', 8, 20)",
 //file upload
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(31,'use_fileupload', 2, '0', 'set this to false to disable file upload, or true to enable it', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(32,'fileupload_realpath', 3, '/home/your/site/wordpress/images', 'enter the real path of the directory where you\'ll upload the pictures \nif you\'re unsure about what your real path is, please ask your host\'s support staff \nnote that the  directory must be writable by the webserver (chmod 766) \nnote for windows-servers users: use forwardslashes instead of backslashes', 8, 40)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(33,'fileupload_url', 3, 'http://example.com/images', 'enter the URL of that directory (it\'s used to generate the links to the uploded files)', 8, 40)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(34,'fileupload_allowedtypes', 3, 'jpg gif png', 'accepted file types, separated by spaces. example: \'jpg gif png\'', 8, 20)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(34,'fileupload_allowedtypes', 3, 'jpg jpeg gif png', 'accepted file types, separated by spaces. example: \'jpg gif png\'', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(35,'fileupload_maxk', 1, '96', 'by default, most servers limit the size of uploads to 2048 KB, if you want to set it to a lower value, here it is (you cannot set a higher value than your server limit)', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(36,'fileupload_minlevel', 1, '1', 'you may not want all users to upload pictures/files, so you can set a minimum level for this', 8, 20)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(36,'fileupload_minlevel', 1, '4', 'you may not want all users to upload pictures/files, so you can set a minimum level for this', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(37,'fileupload_allowedusers', 3, '', '...or you may authorize only some users. enter their logins here, separated by spaces. if you leave this variable blank, all users who have the minimum level are authorized to upload. example: \'barbara anne george\'', 8, 30)",
 // email settings
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(38,'mailserver_url', 3, 'mail.example.com', 'mailserver settings', 8, 20)",
@@ -415,11 +444,7 @@ $option_data = array(
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(40,'mailserver_pass', 3, 'password', 'mailserver settings', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(41,'mailserver_port', 1, '110', 'mailserver settings', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(42,'default_category', 1, '1', 'by default posts will have this category', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(43,'subjectprefix', 3, 'blog:', 'subject prefix', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(44,'bodyterminator', 3, '___', 'body terminator string (starting from this string, everything will be ignored, including this string)', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(45,'emailtestonly', 2, '0', 'set this to true to run in test mode', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(46,'use_phoneemail', 2, '0', 'some mobile phone email services will send identical subject & content on the same line if you use such a service, set use_phoneemail to true, and indicate a separator string', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(47,'phoneemail_separator', 3, ':::', 'when you compose your message, you\'ll type your subject then the separator string then you type your login:password, then the separator, then content', 8, 20)",
 // original options from options page
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(48,'posts_per_page', 1, '20','How many posts/days to show on the index page.', 4, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(49,'what_to_show', 5, 'posts','Posts, days, or posts paged', 4, 20)",
@@ -581,7 +606,6 @@ $links_option_data = array(
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(73,'links_rating_image7',  3, 'wp-links/links-images/rating-7.gif', 'Image for rating 7', 8, 40)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(74,'links_rating_image8',  3, 'wp-links/links-images/rating-8.gif', 'Image for rating 8', 8, 40)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(75,'links_rating_image9',  3, 'wp-links/links-images/rating-9.gif', 'Image for rating 9', 8, 40)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(76,'weblogs_cache_file',   3, 'weblogs.com.changes.cache', 'path/to/cachefile needs to be writable by web server', 8, 40)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(77,'weblogs_xml_url',      3, 'http://www.weblogs.com/changes.xml', 'Which file to grab from weblogs.com', 8, 40)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(78,'weblogs_cacheminutes', 1, '60', 'cache time in minutes (if it is older than this get a new copy)', 8, 10)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(79,'links_updated_date_format',  3, 'd/m/Y h:i', 'The date format for the updated tooltip', 8, 25)",
@@ -662,7 +686,7 @@ $guessurl = str_replace('/wp-admin/install.php?step=2', '', 'http://' . $HTTP_HO
 ?>
   <input name="url" type="text" size="60" value="<?php echo $guessurl; ?>" />
 </p>
-<p>On to
+<p>On to 
     <input type="submit" value="Step 3..." />
 </p>
 </form>
@@ -675,13 +699,9 @@ $guessurl = str_replace('/wp-admin/install.php?step=2', '', 'http://' . $HTTP_HO
 
 
 <?php
-$url = $HTTP_POST_VARS['url'];
+$url = $_REQUEST['url'];
 if (isset($url)) {
     $query= "UPDATE $tableoptions set option_value='$url' where option_id=1"; //siteurl
-    $q = $wpdb->query($query);
-    $query= "UPDATE $tableoptions set option_value='$url' where option_id=28"; //blodotgsping_url
-    $q = $wpdb->query($query);
-    $query= "UPDATE $tableoptions set option_value='$url/wp-images/smilies' where option_id=17"; //smilies_directory
     $q = $wpdb->query($query);
 }
 
@@ -692,7 +712,7 @@ $query = "
 CREATE TABLE $tableusers (
   ID int(10) unsigned NOT NULL auto_increment,
   user_login varchar(20) NOT NULL default '',
-  user_pass varchar(20) NOT NULL default '',
+  user_pass varchar(64) NOT NULL default '',
   user_firstname varchar(50) NOT NULL default '',
   user_lastname varchar(50) NOT NULL default '',
   user_nickname varchar(50) NOT NULL default '',
@@ -716,7 +736,7 @@ $q = $wpdb->query($query);
 
 $random_password = substr(md5(uniqid(microtime())),0,6);
 
-$query = "INSERT INTO $tableusers (ID, user_login, user_pass, user_firstname, user_lastname, user_nickname, user_icq, user_email, user_url, user_ip, user_domain, user_browser, dateYMDhour, user_level, user_aim, user_msn, user_yim, user_idmode) VALUES ( '1', 'admin', '$random_password', '', '', 'admin', '0', '$admin_email', '', '127.0.0.1', '127.0.0.1', '', '00-00-0000 00:00:01', '10', '', '', '', 'nickname')";
+$query = "INSERT INTO $tableusers (ID, user_login, user_pass, user_firstname, user_lastname, user_nickname, user_icq, user_email, user_url, user_ip, user_domain, user_browser, dateYMDhour, user_level, user_aim, user_msn, user_yim, user_idmode) VALUES ( '1', 'admin', MD5('$random_password'), '', '', 'site admin', '0', '$admin_email', '', '127.0.0.1', '127.0.0.1', '', '00-00-0000 00:00:01', '10', '', '', '', 'nickname')";
 $q = $wpdb->query($query);
 
 // Do final updates
@@ -726,7 +746,7 @@ upgrade_all();
 <p>User setup successful!</p>
 
 <p>Now you can <a href="../wp-login.php">log in</a> with the <strong>login</strong>
-  "admin" and <strong>password</strong> "<?php echo $random_password; ?>".</p>
+  "<code>admin</code>" and <strong>password</strong> "<code><?php echo $random_password; ?></code>".</p>
 <p><strong><em>Note that password</em></strong> carefully! It is a <em>random</em>
   password that was generated just for you. If you lose it, you
   will have to delete the tables from the database yourself, and re-install WordPress.

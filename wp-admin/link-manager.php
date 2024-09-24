@@ -4,7 +4,7 @@
 
 require_once('../wp-config.php');
 
-$title = 'Manage Links';
+$title = __('Manage Links');
 $this_file = 'link-manager.php';
 
 function xfn_check($class, $value = '', $type = 'check') {
@@ -47,9 +47,9 @@ function add_magic_quotes($array) {
     return $array;
 }
 if (!get_magic_quotes_gpc()) {
-    $HTTP_GET_VARS    = add_magic_quotes($HTTP_GET_VARS);
-    $HTTP_POST_VARS   = add_magic_quotes($HTTP_POST_VARS);
-    $HTTP_COOKIE_VARS = add_magic_quotes($HTTP_COOKIE_VARS);
+    $_GET    = add_magic_quotes($_GET);
+    $_POST   = add_magic_quotes($_POST);
+    $_COOKIE = add_magic_quotes($_COOKIE);
 }
 
 $wpvarstoreset = array('action','standalone','cat_id', 'linkurl', 'name', 'image',
@@ -60,34 +60,34 @@ $wpvarstoreset = array('action','standalone','cat_id', 'linkurl', 'name', 'image
 for ($i=0; $i<count($wpvarstoreset); $i += 1) {
     $wpvar = $wpvarstoreset[$i];
     if (!isset($$wpvar)) {
-        if (empty($HTTP_POST_VARS["$wpvar"])) {
-            if (empty($HTTP_GET_VARS["$wpvar"])) {
+        if (empty($_POST["$wpvar"])) {
+            if (empty($_GET["$wpvar"])) {
                 $$wpvar = '';
             } else {
-                $$wpvar = $HTTP_GET_VARS["$wpvar"];
+                $$wpvar = $_GET["$wpvar"];
             }
         } else {
-            $$wpvar = $HTTP_POST_VARS["$wpvar"];
+            $$wpvar = $_POST["$wpvar"];
         }
     }
 }
 
-$links_show_cat_id = $HTTP_COOKIE_VARS['links_show_cat_id_' . $cookiehash];
-$links_show_order = $HTTP_COOKIE_VARS['links_show_order_' . $cookiehash];
+$links_show_cat_id = $_COOKIE['links_show_cat_id_' . $cookiehash];
+$links_show_order = $_COOKIE['links_show_order_' . $cookiehash];
 
-if (!empty($action2)) {
-    $action = $action2;
-}
+if ('' != $_POST['assign']) $action = 'assign';
+if ('' != $_POST['visibility']) $action = 'visibility';
+if ('' != $_POST['move']) $action = 'move';
 
 switch ($action) {
-  case 'Assign':
+  case 'assign':
   {
     $standalone = 1;
     include_once('admin-header.php');
 
     // check the current user's level first.
     if ($user_level < get_settings('links_minadminlevel'))
-      die ("Cheatin' uh ?");
+      die (__("Cheatin' uh ?"));
 
     //for each link id (in $linkcheck[]): if the current user level >= the
     //userlevel of the owner of the link then we can proceed.
@@ -111,14 +111,14 @@ switch ($action) {
     header('Location: ' . $this_file);
     break;
   }
-  case 'Visibility':
+  case 'visibility':
   {
     $standalone = 1;
     include_once('admin-header.php');
 
     // check the current user's level first.
     if ($user_level < get_settings('links_minadminlevel'))
-      die ("Cheatin' uh ?");
+      die (__("Cheatin' uh ?"));
 
     //for each link id (in $linkcheck[]): toggle the visibility
     if (count($linkcheck) == 0) {
@@ -149,13 +149,13 @@ switch ($action) {
     header('Location: ' . $this_file);
     break;
   }
-  case 'Move':
+  case 'move':
   {
     $standalone = 1;
     include_once('admin-header.php');
     // check the current user's level first.
     if ($user_level < get_settings('links_minadminlevel'))
-      die ("Cheatin' uh ?");
+      die (__("Cheatin' uh ?"));
 
     //for each link id (in $linkcheck[]) change category to selected value
     if (count($linkcheck) == 0) {
@@ -175,21 +175,21 @@ switch ($action) {
     $standalone = 1;
     include_once('admin-header.php');
 
-    $link_url = $HTTP_POST_VARS['linkurl'];
-    $link_name = $HTTP_POST_VARS['name'];
-    $link_image = $HTTP_POST_VARS['image'];
-    $link_target = $HTTP_POST_VARS['target'];
-    $link_category = $HTTP_POST_VARS['category'];
-    $link_description = $HTTP_POST_VARS['description'];
-    $link_visible = $HTTP_POST_VARS['visible'];
-    $link_rating = $HTTP_POST_VARS['rating'];
-    $link_rel = $HTTP_POST_VARS['rel'];
-    $link_notes = $HTTP_POST_VARS['notes'];
-	$link_rss_uri =  $HTTP_POST_VARS['rss_uri'];
+    $link_url = $_POST['linkurl'];
+    $link_name = $_POST['name'];
+    $link_image = $_POST['image'];
+    $link_target = $_POST['target'];
+    $link_category = $_POST['category'];
+    $link_description = $_POST['description'];
+    $link_visible = $_POST['visible'];
+    $link_rating = $_POST['rating'];
+    $link_rel = $_POST['rel'];
+    $link_notes = $_POST['notes'];
+	$link_rss_uri =  $_POST['rss_uri'];
     $auto_toggle = get_autotoggle($link_category);
 
     if ($user_level < get_settings('links_minadminlevel'))
-      die ("Cheatin' uh ?");
+      die (__("Cheatin' uh ?"));
 
     // if we are in an auto toggle category and this one is visible then we
     // need to make the others invisible before we add this new one.
@@ -202,7 +202,7 @@ switch ($action) {
            . addslashes($link_image) . "', '$link_target', $link_category, '"
            . addslashes($link_description) . "', '$link_visible', $user_ID, $link_rating, '" . addslashes($link_rel) . "', '" . addslashes($link_notes) . "', '$link_rss_uri')");
 
-    header('Location: ' . $HTTP_SERVER_VARS['HTTP_REFERER']);
+    header('Location: ' . $_SERVER['HTTP_REFERER'] . '?added=true');
     break;
   } // end Add
 
@@ -222,22 +222,22 @@ switch ($action) {
       $standalone = 1;
       include_once('admin-header.php');
 
-      $link_id = $HTTP_POST_VARS['link_id'];
-      $link_url = $HTTP_POST_VARS['linkurl'];
-      $link_name = $HTTP_POST_VARS['name'];
-      $link_image = $HTTP_POST_VARS['image'];
-      $link_target = $HTTP_POST_VARS['target'];
-      $link_category = $HTTP_POST_VARS['category'];
-      $link_description = $HTTP_POST_VARS['description'];
-      $link_visible = $HTTP_POST_VARS['visible'];
-      $link_rating = $HTTP_POST_VARS['rating'];
-      $link_rel = $HTTP_POST_VARS['rel'];
-      $link_notes = $HTTP_POST_VARS['notes'];
-	  $link_rss_uri =  $HTTP_POST_VARS['rss_uri'];
+      $link_id = $_POST['link_id'];
+      $link_url = $_POST['linkurl'];
+      $link_name = $_POST['name'];
+      $link_image = $_POST['image'];
+      $link_target = $_POST['target'];
+      $link_category = $_POST['category'];
+      $link_description = $_POST['description'];
+      $link_visible = $_POST['visible'];
+      $link_rating = $_POST['rating'];
+      $link_rel = $_POST['rel'];
+      $link_notes = $_POST['notes'];
+	  $link_rss_uri =  $_POST['rss_uri'];
       $auto_toggle = get_autotoggle($link_category);
 
       if ($user_level < get_settings('links_minadminlevel'))
-        die ("Cheatin' uh ?");
+        die (__("Cheatin' uh ?"));
 
       // if we are in an auto toggle category and this one is visible then we
       // need to make the others invisible before we update this one.
@@ -265,10 +265,10 @@ switch ($action) {
     $standalone = 1;
     include_once('admin-header.php');
 
-    $link_id = $HTTP_GET_VARS["link_id"];
+    $link_id = $_GET["link_id"];
 
     if ($user_level < get_settings('links_minadminlevel'))
-      die ("Cheatin' uh ?");
+      die (__("Cheatin' uh ?"));
 
     $wpdb->query("DELETE FROM $tablelinks WHERE link_id = $link_id");
 
@@ -288,9 +288,10 @@ switch ($action) {
   case 'linkedit':
   {
     $standalone=0;
+	$xfn = true;
     include_once ('admin-header.php');
     if ($user_level < get_settings('links_minadminlevel')) {
-      die("You have no right to edit the links for this blog.<br />Ask for a promotion to your <a href='mailto:$admin_email'>blog admin</a>. :)");
+      die(__('You do not have sufficient permissions to edit the links for this blog.'));
     }
 
     $row = $wpdb->get_row("SELECT * 
@@ -313,88 +314,94 @@ switch ($action) {
 
 ?>
 <ul id="adminmenu2"> 
-  <li><a href="link-manager.php" class="current">Manage Links</a></li> 
-  <li><a href="link-add.php">Add Link</a></li> 
-  <li><a href="link-categories.php">Link Categories</a></li> 
-  <li class="last"><a href="link-import.php">Import Blogroll</a></li> 
+  <li><a href="link-manager.php" class="current"><?php _e('Manage Links') ?></a></li> 
+  <li><a href="link-add.php"><?php _e('Add Link') ?></a></li> 
+  <li><a href="link-categories.php"><?php _e('Link Categories') ?></a></li> 
+  <li class="last"><a href="link-import.php"><?php _e('Import Blogroll') ?></a></li> 
 </ul> 
 <style media="screen" type="text/css">
 th { text-align: right; }
 </style>
 <div class="wrap"> 
   <form action="" method="post" name="editlink" id="editlink"> 
-  <h3>Edit a link:</h3>
-    <table width="100%"  border="0" cellspacing="5" cellpadding="3">
-      <tr>
-        <th scope="row">URI:</th>
-        <td><input type="text" name="linkurl" size="80" value="<?php echo $link_url; ?>" /></td>
-      </tr>
-      <tr>
-        <th scope="row">Link Name: </th>
-        <td><input type="text" name="name" size="80" value="<?php echo $link_name; ?>" /></td>
-      </tr>
-      <tr>
-        <th scope="row">RSS URI: </th>
-        <td><input name="rss_uri" type="text" id="rss_uri" value="<?php echo $link_rss_uri; ?>" size="80"></td>
-      </tr>
-      <tr>
-        <th scope="row">Image:</th>
-        <td><input type="text" name="image" size="80" value="<?php echo $link_image; ?>" /></td>
-      </tr>
-      <tr>
-        <th scope="row">Description:</th>
-        <td><input type="text" name="description" size="80" value="<?php echo $link_description; ?>" /></td>
-      </tr>
-      <tr>
-        <th scope="row">rel:</th>
-        <td><input type="text" name="rel" id="rel" size="80" value="<?php echo $link_rel; ?>" /></td>
-      </tr>
-      <tr>
-        <th scope="row"><a href="http://gmpg.org/xfn/">XFN</a>:</th>
-        <td><table cellpadding="3" cellspacing="5">
+  <h2><?php _e('Edit a link:') ?></h2>
+<fieldset class="options">
+    <legend><?php _e('Basics') ?></legend>
+        <table class="editform" width="100%" cellspacing="2" cellpadding="5">
+         <tr>
+           <th width="33%" scope="row"><?php _e('URI:') ?></th>
+           <td width="67%"><input type="text" name="linkurl" value="<?php echo $link_url; ?>" style="width: 95%; /"></td>
+         </tr>
+         <tr>
+           <th scope="row"><?php _e('Link Name:') ?></th>
+           <td><input type="text" name="name" value="<?php echo $link_name; ?>" style="width: 95%" /></td>
+         </tr>
+         <tr>
+            <th scope="row"><?php _e('Short description:') ?></th>
+         	<td><input type="text" name="description" value="<?php echo $link_description; ?>" style="width: 95%" /></td>
+         	</tr>
+        <tr>
+           <th scope="row"><?php _e('Category:') ?></th>
+           <td><?php category_dropdown('category', $link_category); ?></td>
+         </tr>
+</table>
+</fieldset>
+       <p class="submit">
+       <input type="submit" name="submit" value="<?php _e('Save Changes &raquo;') ?>" />
+       </p>
+	<fieldset class="options">
+        <legend><?php _e('Link Relationship (XFN)') ?></legend>
+        <table class="editform" width="100%" cellspacing="2" cellpadding="5">
             <tr>
-              <th scope="row"> friendship </th>
+                <th width="33%" scope="row"><?php _e('rel:') ?></th>
+            	<td width="67%"><input type="text" name="rel" id="rel" size="50" value="<?php echo $link_rel; ?>"></td>
+           	</tr>
+            <tr>
+                <th scope="row"><?php _e('<a href="http://gmpg.org/xfn/">XFN</a> Creator:') ?></th>
+            	<td><table cellpadding="3" cellspacing="5">
+            <tr>
+              <th scope="row"> <?php _e('friendship') ?> </th>
               <td>
                 <label for="label">
-                <input class="valinp" type="radio" name="friendship" value="acquaintance" id="label" <?php xfn_check('friendship', 'acquaintance', 'radio'); ?> />  acquaintance</label>
+                <input class="valinp" type="radio" name="friendship" value="acquaintance" id="label" <?php xfn_check('friendship', 'acquaintance', 'radio'); ?> />  <?php _e('acquaintance') ?></label>
                 <label for="label2">
-                <input class="valinp" type="radio" name="friendship" value="friend" id="label2" <?php xfn_check('friendship', 'friend', 'radio'); ?> /> friend</label>
+                <input class="valinp" type="radio" name="friendship" value="friend" id="label2" <?php xfn_check('friendship', 'friend', 'radio'); ?> /> <?php _e('friend') ?></label>
                 <label for="label3">
                 <input name="friendship" type="radio" class="valinp" id="label3" value="" <?php xfn_check('friendship', '', 'radio'); ?> />
-          none</label>
+                <?php _e('none') ?></label>
               </td>
             </tr>
             <tr>
-              <th scope="row"> physical </th>
+              <th scope="row"> <?php _e('physical') ?> </th>
               <td>
                 <label for="label4">
                 <input class="valinp" type="checkbox" name="physical" value="met" id="label4" <?php xfn_check('physical', 'met'); ?> />
-          met</label>
+          <?php _e('met') ?></label>
               </td>
             </tr>
             <tr>
-              <th scope="row"> professional </th>
+              <th scope="row"> <?php _e('professional') ?> </th>
               <td>
                 <label for="label5">
                 <input class="valinp" type="checkbox" name="professional" value="co-worker" id="label5" <?php xfn_check('professional', 'co-worker'); ?> />
-          co-worker</label>
+          <?php _e('co-worker') ?></label>
                 <label for="label6">
                 <input class="valinp" type="checkbox" name="professional" value="colleague" id="label6" <?php xfn_check('professional', 'colleague'); ?> />
-          colleague</label>
+          <?php _e('colleague') ?></label>
               </td>
             </tr>
             <tr>
-              <th scope="row"> geographical </th>
+              <th scope="row"> <?php _e('geographical') ?> </th>
               <td>
                 <label for="label7">
                 <input class="valinp" type="radio" name="geographical" value="co-resident" id="label7" <?php xfn_check('geographical', 'co-resident', 'radio'); ?> />
-          co-resident</label>
+          <?php _e('co-resident') ?></label>
                 <label for="label8">
                 <input class="valinp" type="radio" name="geographical" value="neighbor" id="label8" <?php xfn_check('geographical', 'neighbor', 'radio'); ?> />
-          neighbor</label>
+          <?php _e('neighbor') ?></label>
                 <label for="label9">
                 <input class="valinp" type="radio" name="geographical" value="" id="label9" <?php xfn_check('geographical', '', 'radio'); ?> />
-          none</label>
+          <?php _e('none') ?></label>
               </td>
             </tr>
             <tr>
@@ -402,48 +409,64 @@ th { text-align: right; }
               <td>
                 <label for="label10">
                 <input class="valinp" type="radio" name="family" value="child" id="label10" <?php xfn_check('family', 'child', 'radio'); ?>  />
-          child</label>
+          <?php _e('child') ?></label>
                 <label for="label11">
                 <input class="valinp" type="radio" name="family" value="parent" id="label11" <?php xfn_check('family', 'parent', 'radio'); ?> />
-          parent</label>
+          <?php _e('parent') ?></label>
                 <label for="label12">
                 <input class="valinp" type="radio" name="family" value="sibling" id="label12" <?php xfn_check('family', 'sibling', 'radio'); ?> />
-          sibling</label>
+          <?php _e('sibling') ?></label>
                 <label for="label13">
                 <input class="valinp" type="radio" name="family" value="spouse" id="label13" <?php xfn_check('family', 'spouse', 'radio'); ?> />
-          spouse</label>
+          <?php _e('spouse') ?></label>
                 <label for="label14">
                 <input class="valinp" type="radio" name="family" value="" id="label14" <?php xfn_check('family', '', 'radio'); ?> />
-          none</label>
+          <?php _e('none') ?></label>
               </td>
             </tr>
             <tr>
-              <th scope="row"> romantic </th>
+              <th scope="row"> <?php _e('romantic') ?> </th>
               <td>
                 <label for="label15">
                 <input class="valinp" type="checkbox" name="romantic" value="muse" id="label15" <?php xfn_check('romantic', 'muse'); ?> />
-          muse</label>
+         <?php _e('muse') ?></label>
                 <label for="label16">
                 <input class="valinp" type="checkbox" name="romantic" value="crush" id="label16" <?php xfn_check('romantic', 'crush'); ?> />
-          crush</label>
+         <?php _e('crush') ?></label>
                 <label for="label17">
                 <input class="valinp" type="checkbox" name="romantic" value="date" id="label17" <?php xfn_check('romantic', 'date'); ?> />
-          date</label>
+         <?php _e('date') ?></label>
                 <label for="label18">
                 <input class="valinp" type="checkbox" name="romantic" value="sweetheart" id="label18" <?php xfn_check('romantic', 'sweetheart'); ?> />
-          sweetheart</label>
+         <?php _e('sweetheart') ?></label>
               </td>
             </tr>
         </table></td>
-      </tr>
-      <tr>
-        <th scope="row">Notes:</th>
-        <td><textarea name="notes" cols="80" rows="10"><?php echo $link_notes; ?></textarea></td>
-      </tr>
-      <tr>
-        <th scope="row">Rating:</th>
-        <td><select name="rating" size="1">
-          <?php
+           	</tr>
+</table>
+</fieldset>
+       <p class="submit">
+       <input type="submit" name="submit" value="<?php _e('Save Changes &raquo;') ?>" />
+       </p>
+<fieldset class="options">
+        <legend><?php _e('Advanced') ?></legend>
+        <table class="editform" width="100%" cellspacing="2" cellpadding="5">
+         <tr>
+           <th width="33%" scope="row"><?php _e('Image URI:') ?></th>
+           <td width="67%"><input type="text" name="image" size="50" value="<?php echo $link_image; ?>" style="width: 95%" /></td>
+         </tr>
+<tr>
+           <th scope="row"><?php _e('RSS URI:') ?> </th>
+           <td><input name="rss_uri" type="text" id="rss_uri" value="<?php echo $link_rss_uri; ?>" size="50" style="width: 95%" /></td>
+         </tr>
+         <tr>
+           <th scope="row"><?php _e('Notes:') ?></th>
+           <td><textarea name="notes" cols="50" rows="10" style="width: 95%"><?php echo $link_notes; ?></textarea></td>
+         </tr>
+         <tr>
+           <th scope="row"><?php _e('Rating:') ?></th>
+           <td><select name="rating" size="1">
+<?php
     for ($r = 0; $r < 10; $r++) {
       echo('            <option value="'.$r.'" ');
       if ($link_rating == $r)
@@ -451,51 +474,43 @@ th { text-align: right; }
       echo('>'.$r.'</option>');
     }
 ?>
-        </select> (Leave at 0 for no rating.) </td>
-      </tr>
-      <tr>
-        <th scope="row">Target:</th>
-        <td><label>
+           </select>
+         &nbsp;<?php _e('(Leave at 0 for no rating.)') ?> </td>
+         </tr>
+         <tr>
+           <th scope="row"><?php _e('Target') ?></th>
+           <td><label>
           <input type="radio" name="target" value="_blank"   <?php echo(($link_target == '_blank') ? 'checked="checked"' : ''); ?> />
-          <code>_blank</code></label>
-&nbsp;<label>
+          <code>_blank</code></label><br />
+<label>
 <input type="radio" name="target" value="_top" <?php echo(($link_target == '_top') ? 'checked="checked"' : ''); ?> />
-<code>_top</code></label>
-&nbsp;
+<code>_top</code></label><br />
 <label>
 <input type="radio" name="target" value=""     <?php echo(($link_target == '') ? 'checked="checked"' : ''); ?> />
-none (Note that the <code>target</code> attribute is illegal in XHTML 1.1 and 1.0 Strict.)</label></td>
-      </tr>
-      <tr>
-        <th scope="row">Visible:</th>
-        <td><label>
-          <input type="radio" name="visible" <?php if ($link_visible == 'Y') echo "checked"; ?> value="Y" />
-Yes</label>
-&nbsp;
-<label>
-<input type="radio" name="visible" <?php if ($link_visible == 'N') echo "checked"; ?> value="N" />
-No</label></td>
-      </tr>
-      <tr>
-        <th scope="row">Category:</th>
-        <td><?php category_dropdown('category', $link_category); ?></td>
-      </tr>
-      <tr>
-        <td colspan="2" align="center"><input type="submit" name="submit" value="Save Changes" class="search" />
-          &nbsp;
-          <input type="submit" name="submit" value="Cancel" class="search" />
+<?php _e('none') ?></label><br />
+<?php _e('(Note that the <code>target</code> attribute is illegal in XHTML 1.1 and 1.0 Strict.)') ?></td>
+         </tr>
+         <tr>
+           <th scope="row"><?php _e('Visible:') ?></th>
+           <td><label>
+             <input type="radio" name="visible" <?php if ($link_visible == 'Y') echo "checked='checked'"; ?> value="Y" />
+<?php _e('Yes') ?></label><br /><label>
+<input type="radio" name="visible" <?php if ($link_visible == 'N') echo "checked='checked'"; ?> value="N" />
+<?php _e('No') ?></label></td>
+         </tr>
+</table>
+</fieldset>
+<p class="submit"><input type="submit" name="submit" value="<?php _e('Save Changes &raquo;') ?>" />
           <input type="hidden" name="action" value="editlink" />
           <input type="hidden" name="link_id" value="<?php echo $link_id; ?>" />
           <input type="hidden" name="order_by" value="<?php echo $order_by ?>" />
-          <input type="hidden" name="cat_id" value="<?php echo $cat_id ?>" /></td>
-      </tr>
-    </table>
+          <input type="hidden" name="cat_id" value="<?php echo $cat_id ?>" /></p>
   </form> 
 </div>
 <?php
     break;
   } // end linkedit
-  case "Show":
+  case __("Show"):
   {
     if (!isset($cat_id) || ($cat_id == '')) {
         if (!isset($links_show_cat_id) || ($links_show_cat_id == ''))
@@ -511,8 +526,8 @@ No</label></td>
   } // end Show
   case "popup":
   {
-    $link_url = stripslashes($HTTP_GET_VARS["linkurl"]);
-    $link_name = stripslashes($HTTP_GET_VARS["name"]);
+    $link_url = stripslashes($_GET["linkurl"]);
+    $link_name = stripslashes($_GET["name"]);
     //break; fall through
   }
   default:
@@ -537,7 +552,7 @@ No</label></td>
     $standalone=0;
     include_once ("./admin-header.php");
     if ($user_level < get_settings('links_minadminlevel')) {
-      die("You have no right to edit the links for this blog.<br>Ask for a promotion to your <a href=\"mailto:$admin_email\">blog admin</a> :)");
+      die(__("You do not have sufficient permissions to edit the links for this blog."));
     }
 
     switch ($order_by)
@@ -569,10 +584,10 @@ function checkAll(form)
 //-->
 </script>
 <ul id="adminmenu2">
-	<li><a href="link-manager.php" class="current">Manage Links</a></li>
-	<li><a href="link-add.php">Add Link</a></li>
-	<li><a href="link-categories.php">Link Categories</a></li>
-	<li class="last"><a href="link-import.php">Import Blogroll</a></li>
+    <li><a href="link-manager.php" class="current"><?php _e('Manage Links') ?></a></li>
+    <li><a href="link-add.php"><?php _e('Add Link') ?></a></li>
+    <li><a href="link-categories.php"><?php _e('Link Categories') ?></a></li>
+    <li class="last"><a href="link-import.php"><?php _e('Import Blogroll') ?></a></li>
 </ul>
 <div class="wrap">
     <form name="cats" method="post" action="">
@@ -609,16 +624,17 @@ function checkAll(form)
         </td>
         <td>
           <select name="order_by">
-            <option value="order_id"     <?php if ($order_by == 'order_id')     echo " selected='selected'";?>>Link ID</option>
-            <option value="order_name"   <?php if ($order_by == 'order_name')   echo " selected='selected'";?>>Name</option>
-            <option value="order_url"    <?php if ($order_by == 'order_url')    echo " selected='selected'";?>>URI</option>
-            <option value="order_desc"   <?php if ($order_by == 'order_desc')   echo " selected='selected'";?>>Description</option>
-            <option value="order_owner"  <?php if ($order_by == 'order_owner')  echo " selected='selected'";?>>Owner</option>
-            <option value="order_rating" <?php if ($order_by == 'order_rating') echo " selected='selected'";?>>Rating</option>
+            <option value="order_id"     <?php if ($order_by == 'order_id')     echo " selected='selected'";?>><?php _e('Link ID') ?></option>
+            <option value="order_name"   <?php if ($order_by == 'order_name')   echo " selected='selected'";?>><?php _e('Name') ?></option>
+            <option value="order_url"    <?php if ($order_by == 'order_url')    echo " selected='selected'";?>><?php _e('URI') ?></option>
+            <option value="order_desc"   <?php if ($order_by == 'order_desc')   echo " selected='selected'";?>><?php _e('Description') ?></option>
+            <option value="order_owner"  <?php if ($order_by == 'order_owner')  echo " selected='selected'";?>><?php _e('Owner') ?></option>
+            <option value="order_rating" <?php if ($order_by == 'order_rating') echo " selected='selected'";?>><?php _e('Rating') ?></option>
           </select>
         </td>
         <td>
-          <input type="submit" name="action" value="Show" class="search" /><?php echo gethelp_link($this_file,'show');?>
+          <input type="submit" name="action" value="<?php _e('Show') ?>" />
+          <?php echo gethelp_link($this_file,'show');?>
         </td>
       </tr>
     </table>
@@ -635,13 +651,13 @@ function checkAll(form)
     <input type="hidden" name="cat_id" value="<?php echo $cat_id ?>" />
   <table width="100%" cellpadding="3" cellspacing="3">
     <tr>
-      <th width="15%"><?php echo gethelp_link($this_file,'list_o_links');?> Name</th>
-      <th>URI</th>
-      <th>Category</th>
-      <th>rel</th>
-      <th>Image</th>
-      <th>Visible</th>
-      <th colspan="2">Action</th>
+      <th width="15%"><?php echo gethelp_link($this_file,'list_o_links');?> <?php _e('Name') ?></th>
+      <th><?php _e('URI') ?></th>
+      <th><?php _e('Category') ?></th>
+      <th><?php _e('rel') ?></th>
+      <th><?php _e('Image') ?></th>
+      <th><?php _e('Visible') ?></th>
+      <th colspan="2"><?php _e('Action') ?></th>
       <th>&nbsp;</th>
   </tr>
 <?php
@@ -672,8 +688,8 @@ function checkAll(form)
             $link->category = stripslashes($link->category);
             $link->link_rel = stripslashes($link->link_rel);
             $link->link_description = stripslashes($link->link_description);
-            $image = ($link->link_image != null) ? 'Yes' : 'No';
-            $visible = ($link->link_visible == 'Y') ? 'Yes' : 'No';
+            $image = ($link->link_image != null) ? __('Yes') : __('No');
+            $visible = ($link->link_visible == 'Y') ? __('Yes') : __('No');
             ++$i;
             $style = ($i % 2) ? ' class="alternate"' : '';
             echo <<<LINKS
@@ -713,11 +729,11 @@ LINKS;
 
 <div class="wrap">
   <table width="100%" cellpadding="3" cellspacing="3">
-    <tr><th colspan="4">Manage Multiple Links:</th></tr>
-    <tr><td colspan="4">Use the checkboxes on the right to select multiple links and choose an action below:</td></tr>
+    <tr><th colspan="4"><?php _e('Manage Multiple Links:') ?></th></tr>
+    <tr><td colspan="4"><?php _e('Use the checkboxes on the right to select multiple links and choose an action below:') ?></td></tr>
     <tr>
         <td>
-          <input type="submit" name="action2" value="Assign" /> ownership <?php echo gethelp_link($this_file,'assign_ownership');?> to:
+          <?php _e('Assign ownership to:'); echo ' ' . gethelp_link($this_file,'assign_ownership'); ?>
 <?php
     $results = $wpdb->get_results("SELECT ID, user_login FROM $tableusers WHERE user_level > 0 ORDER BY ID");
     echo "          <select name=\"newowner\" size=\"1\">\n";
@@ -728,16 +744,16 @@ LINKS;
     }
     echo "          </select>\n";
 ?>
+        <input name="assign" type="submit" id="assign" value="<?php _e('Go') ?>" />
         </td>
         <td>
-          Toggle <input type="submit" name="action2" value="Visibility" /><?php echo gethelp_link($this_file,'toggle_visibility');?>
+          <input name="visibility" type="submit" id="visibility" value="<?php _e('Toggle Visibility') ?>" /><?php echo gethelp_link($this_file,'toggle_visibility');?>
         </td>
         <td>
-          <input type="submit" name="action2" value="Move" /><?php echo gethelp_link($this_file,'move_to_cat');?> to category
-<?php category_dropdown('category'); ?>
+          <?php _e('Move to category:'); echo ' ' . gethelp_link($this_file,'move_to_cat'); category_dropdown('category'); ?> <input name="move" type="submit" id="move" value="<?php _e('Go') ?>" />
         </td>
         <td align="right">
-          <a href="#" onclick="checkAll(document.getElementById('links')); return false; ">Toggle Checkboxes</a><?php echo gethelp_link($this_file,'toggle_checkboxes');?>
+          <a href="#" onClick="checkAll(document.getElementById('links')); return false; "><?php _e('Toggle Checkboxes') ?></a><?php echo gethelp_link($this_file,'toggle_checkboxes');?>
         </td>
     </tr>
 </table>

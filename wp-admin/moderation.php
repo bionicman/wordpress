@@ -1,5 +1,7 @@
 <?php
-$title = 'Moderate comments';
+require_once('../wp-includes/wp-l10n.php');
+
+$title = __('Moderate comments');
 $parent_file = 'edit.php';
 /* <Moderation> */
 
@@ -15,30 +17,30 @@ function add_magic_quotes($array) {
 } 
 
 if (!get_magic_quotes_gpc()) {
-	$HTTP_GET_VARS    = add_magic_quotes($HTTP_GET_VARS);
-	$HTTP_POST_VARS   = add_magic_quotes($HTTP_POST_VARS);
-	$HTTP_COOKIE_VARS = add_magic_quotes($HTTP_COOKIE_VARS);
+	$_GET    = add_magic_quotes($_GET);
+	$_POST   = add_magic_quotes($_POST);
+	$_COOKIE = add_magic_quotes($_COOKIE);
 }
 
 $wpvarstoreset = array('action','item_ignored','item_deleted','item_approved');
 for ($i=0; $i<count($wpvarstoreset); $i += 1) {
 	$wpvar = $wpvarstoreset[$i];
 	if (!isset($$wpvar)) {
-		if (empty($HTTP_POST_VARS["$wpvar"])) {
-			if (empty($HTTP_GET_VARS["$wpvar"])) {
+		if (empty($_POST["$wpvar"])) {
+			if (empty($_GET["$wpvar"])) {
 				$$wpvar = '';
 			} else {
-				$$wpvar = $HTTP_GET_VARS["$wpvar"];
+				$$wpvar = $_GET["$wpvar"];
 			}
 		} else {
-			$$wpvar = $HTTP_POST_VARS["$wpvar"];
+			$$wpvar = $_POST["$wpvar"];
 		}
 	}
 }
 
 $comment = array();
-if (isset($HTTP_POST_VARS["comment"])) {
-	foreach ($HTTP_POST_VARS["comment"] as $k => $v) {
+if (isset($_POST["comment"])) {
+	foreach ($_POST["comment"] as $k => $v) {
 		$comment[intval($k)] = $v;
 	}
 }
@@ -51,7 +53,7 @@ case 'update':
 	require_once('admin-header.php');
 
 	if ($user_level < 3) {
-		die('<p>Your level is not high enough to moderate comments. Ask for a promotion from your <a href="mailto:$admin_email">blog admin</a>. :)</p>');
+		die(__('<p>Your level is not high enough to moderate comments.</p>'));
 	}
 
 	$item_ignored = 0;
@@ -92,46 +94,46 @@ default:
 	require_once('admin-header.php');
 
 	if ($user_level <= 3) {
-		die('<p>Your level is not high enough to moderate comments. Ask for a promotion from your <a href="mailto:$admin_email">blog admin</a>. :)</p>');
+		die(__('<p>Your level is not high enough to moderate comments.</p>'));
 	}
 ?>
 <ul id="adminmenu2">
-	<li><a href="edit.php">Latest Posts</a></li>
-	<li><a href="edit-comments.php">Latest Comments</a></li>
-	<li class="last"><a href="moderation.php" class="current">Comments Awaiting Moderation</a></li>
+       <li><a href="edit.php"> <?php _e('Posts') ?></a></li>
+        <li><a href="edit-comments.php"> <?php _e('Comments') ?></a></li>
+	<li class="last"><a href="moderation.php" class="current"><?php _e('Awaiting Moderation') ?></a></li>
 </ul>
 <?php
+$ignored = $_GET['ignored'];
+$deleted = $_GET['deleted'];
+$approved = $_GET['approved'];
 
-	// if we come here after deleting/approving comments we give
-	// a short overview what has been done
-	if (($deleted) || ($approved) || ($ignored)) {
-	    echo "<div class=\"wrap\">\n";
-	    if ($approved) {
-		if ($approved == "1") {
-		    echo "1 comment approved <br />\n";
+if (($deleted) || ($approved) || ($ignored)) {
+	echo "<div class='updated'>\n<p>";
+	if ($approved) {
+		if ('1' == $approved) {
+		 echo __("1 comment approved <br />") . "\n";
 		} else {
-		    echo "$approved comments approved <br />\n";
+		 echo sprintf(__("%s comments approved <br />"), $approved) . "\n";
 		}
-	    }
-	    if ($deleted) {
-		if ($deleted == "1") {
-		    echo "1 comment deleted <br />\n";
-		} else {
-		    echo "$approved comments deleted <br />\n";
-		}
-	    }
-	    if ($ignored) {
-		if ($deleted == "1") {
-		    echo "1 comment unchanged <br />\n";
-		} else {
-		    echo "$approved comments unchanged <br />\n";
-		}
-	    
-	    }
-	    echo "</div>\n";
 	}
+	if ($deleted) {
+		if ('1' == $deleted) {
+		echo __("1 comment deleted <br />") . "\n";
+		} else {
+		echo sprintf(__("%s comments deleted <br />"), $deleted) . "\n";
+		}
+	}
+	if ($ignored) {
+		if ('1' == $ignored) {
+		echo __("1 comment unchanged <br />") . "\n";
+		} else {
+		echo sprintf(__("%s comments unchanged <br />"), $ignored) . "\n";
+		}
+	}
+	echo "</p></div>\n";
+}
 
-	?>
+?>
 	
 <div class="wrap">
 <?php
@@ -141,7 +143,7 @@ if ($comments) {
     // list all comments that are waiting for approval
     $file = basename(__FILE__);
 ?>
-    <p>The following comments wait for approval:</p>
+    <?php _e('<p>The following comments are in the moderation queue:</p>') ?>
     <form name="approval" action="moderation.php" method="post">
     <input type="hidden" name="action" value="update" />
     <ol id="comments">
@@ -152,53 +154,32 @@ if ($comments) {
 	
 	echo "\n\t<li id='comment-$comment->comment_ID'>"; 
 	?>
-			<p><strong>Name:</strong> <?php comment_author() ?> <?php if ($comment->comment_author_email) { ?>| <strong>Email:</strong> <?php comment_author_email_link() ?> <?php } if ($comment->comment_author_email) { ?> | <strong>URI:</strong> <?php comment_author_url_link() ?> <?php } ?>| <strong>IP:</strong> <a href="http://ws.arin.net/cgi-bin/whois.pl?queryinput=<?php comment_author_IP() ?>"><?php comment_author_IP() ?></a></p>
+			<p><strong><?php _e('Name:') ?></strong> <?php comment_author() ?> <?php if ($comment->comment_author_email) { ?>| <strong><?php _e('Email:') ?></strong> <?php comment_author_email_link() ?> <?php } if ($comment->comment_author_email) { ?> | <strong><?php _e('URI:') ?></strong> <?php comment_author_url_link() ?> <?php } ?>| <strong><?php _e('IP:') ?></strong> <a href="http://ws.arin.net/cgi-bin/whois.pl?queryinput=<?php comment_author_IP() ?>"><?php comment_author_IP() ?></a></p>
 <?php comment_text() ?>
 <p><?php
-echo "<a href=\"post.php?action=editcomment&amp;comment=".$comment->comment_ID."\">Edit</a>";
-				echo " | <a href=\"post.php?action=deletecomment&amp;p=".$comment->comment_post_ID."&amp;comment=".$comment->comment_ID."\" onclick=\"return confirm('You are about to delete this comment by \'".$comment->comment_author."\'\\n  \'Cancel\' to stop, \'OK\' to delete.')\">Delete just this comment</a> | "; ?>Bulk action:
-	<input type="radio" name="comment[<?php echo $comment->comment_ID; ?>]" id="comment[<?php echo $comment->comment_ID; ?>]-approve" value="approve" /> <label for="comment[<?php echo $comment->comment_ID; ?>]-approve">Approve</label>
-	<input type="radio" name="comment[<?php echo $comment->comment_ID; ?>]" id="comment[<?php echo $comment->comment_ID; ?>]-delete" value="delete" /> <label for="comment[<?php echo $comment->comment_ID; ?>]-delete">Delete</label>
-	<input type="radio" name="comment[<?php echo $comment->comment_ID; ?>]" id="comment[<?php echo $comment->comment_ID; ?>]-nothing" value="later" checked="checked" /> <label for="comment[<?php echo $comment->comment_ID; ?>]-nothing">Do nothing</label>
+echo "<a href=\"post.php?action=editcomment&amp;comment=".$comment->comment_ID."\">" . __('Edit') . "</a>";
+echo " | <a href=\"post.php?action=deletecomment&amp;p=".$comment->comment_post_ID."&amp;comment=".$comment->comment_ID."\" onclick=\"return confirm('" . sprintf(__("You are about to delete this comment by \'%s\'\\n  \'Cancel\' to stop, \'OK\' to delete."), $comment->comment_author) . "')\">" . __('Delete just this comment') . "</a> | "; ?><?php _e('Bulk action:') ?>
+	<input type="radio" name="comment[<?php echo $comment->comment_ID; ?>]" id="comment[<?php echo $comment->comment_ID; ?>]-approve" value="approve" /> <label for="comment[<?php echo $comment->comment_ID; ?>]-approve"><?php _e('Approve') ?></label>
+	<input type="radio" name="comment[<?php echo $comment->comment_ID; ?>]" id="comment[<?php echo $comment->comment_ID; ?>]-delete" value="delete" /> <label for="comment[<?php echo $comment->comment_ID; ?>]-delete"><?php _e('Delete') ?></label>
+	<input type="radio" name="comment[<?php echo $comment->comment_ID; ?>]" id="comment[<?php echo $comment->comment_ID; ?>]-nothing" value="later" checked="checked" /> <label for="comment[<?php echo $comment->comment_ID; ?>]-nothing"><?php _e('Do nothing') ?></label>
 
 	</li>
 <?php
     }
 ?>
     </ol>
-    <input type="submit" name="submit" value="Moderate Comments" class="search" />
+    <p class="submit"><input type="submit" name="submit" value="<?php _e('Moderate Comments &raquo;') ?>" /></p>
     </form>
 <?php
 } else {
     // nothing to approve
-    echo "Currently there are no comments to be approved.\n";
+    echo __("<p>Currently there are no comments to be approved.</p>") . "\n";
 }
 ?>
 
 </div>
 
 <?php
-if ($comments) { 
-    // show this help text only if there are comments waiting
-?>
-
-<div class="wrap"> 
-	<p>For each comment you have to choose either <em>approve</em>, <em>delete</em> or <em>later</em>:</p>
-	<p><em>approve</em>: approves comment, so that it will be publically visible
-	<?php 
-	    if ('1' == get_settings('comments_notify')) {
-		echo "; the author of the post will be notified about the new comment on his post.</p>\n";
-	    } else {
-		echo ".</p>\n";
-	    }
-	?>	    
-	<p><em>delete</em>: remove the content from your blog (note: you won't be asked again, so you should double-check
-	that you really want to delete the comment - once deleted you can&#8242;t bring them back!)</p>
-	<p><em>later</em>: don&#8242;t change the comment&#8242;s status at all now.</p>
-</div>
-
-<?php
-} // if comments
 
 break;
 }

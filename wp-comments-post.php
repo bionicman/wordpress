@@ -13,44 +13,44 @@ function add_magic_quotes($array) {
 } 
 
 if (!get_magic_quotes_gpc()) {
-	$HTTP_GET_VARS    = add_magic_quotes($HTTP_GET_VARS);
-	$HTTP_POST_VARS   = add_magic_quotes($HTTP_POST_VARS);
-	$HTTP_COOKIE_VARS = add_magic_quotes($HTTP_COOKIE_VARS);
+	$_GET    = add_magic_quotes($_GET);
+	$_POST   = add_magic_quotes($_POST);
+	$_COOKIE = add_magic_quotes($_COOKIE);
 }
 
-$author = trim(strip_tags($HTTP_POST_VARS['author']));
+$author = trim(strip_tags($_POST['author']));
 
-$email = trim(strip_tags($HTTP_POST_VARS['email']));
+$email = trim(strip_tags($_POST['email']));
 if (strlen($email) < 6)
 	$email = '';
 
-$url = trim(strip_tags($HTTP_POST_VARS['url']));
+$url = trim(strip_tags($_POST['url']));
 $url = ((!stristr($url, '://')) && ($url != '')) ? 'http://'.$url : $url;
 if (strlen($url) < 7)
 	$url = '';
 
-$comment = trim($HTTP_POST_VARS['comment']);
+$comment = trim($_POST['comment']);
 $original_comment = $comment;
-$comment_post_ID = intval($HTTP_POST_VARS['comment_post_ID']);
-$user_ip = $HTTP_SERVER_VARS['REMOTE_ADDR'];
+$comment_post_ID = intval($_POST['comment_post_ID']);
+$user_ip = $_SERVER['REMOTE_ADDR'];
 $user_domain = gethostbyaddr($user_ip);
 
 $commentstatus = $wpdb->get_var("SELECT comment_status FROM $tableposts WHERE ID = $comment_post_ID");
 if ('closed' == $commentstatus)
 	die('Sorry, comments are closed for this item.');
 
-if ($require_name_email && ($email == '' || $author == '')) { //original fix by Dodo, and then Drinyth
+if (get_settings('require_name_email') && ($email == '' || $author == '')) { //original fix by Dodo, and then Drinyth
 	die('Error: please fill the required fields (name, email).');
 }
 if ($comment == 'comment' || $comment == '') {
 	die('Error: please type a comment.');
 }
 
-
 $now = current_time('mysql');
+$now_gmt = current_time('mysql', 1);
+
 
 $comment = balanceTags($comment, 1);
-$comment = convert_chars($comment);
 $comment = format_to_post($comment);
 
 $comment_author = $author;
@@ -75,24 +75,19 @@ if (!empty($lasttime)) {
 
 
 if ($ok) { // if there was no comment from this IP in the last 10 seconds
-	$comment_moderation = get_settings('comment_moderation');
 	$moderation_notify = get_settings('moderation_notify');
 	$comments_notify = get_settings('comments_notify');
 
-	// o42: this place could be the hook for further comment spam checking
-	// $approved should be set according the final approval status
-	// of the new comment
-	if ('manual' == $comment_moderation) {
-		$approved = 0;
-	} else if ('auto' == $comment_moderation) {
-		$approved = 0;
-	} else { // none
+	if(check_comment($author, $email, $url, $comment, $user_ip)) {
 		$approved = 1;
+	} else {
+		$approved = 0;
 	}
+
 	$wpdb->query("INSERT INTO $tablecomments 
-	(comment_ID, comment_post_ID, comment_author, comment_author_email, comment_author_url, comment_author_IP, comment_date, comment_content, comment_approved) 
+	(comment_post_ID, comment_author, comment_author_email, comment_author_url, comment_author_IP, comment_date, comment_date_gmt, comment_content, comment_approved) 
 	VALUES 
-	('0', '$comment_post_ID', '$author', '$email', '$url', '$user_ip', '$now', '$comment', '$approved')
+	('$comment_post_ID', '$author', '$email', '$url', '$user_ip', '$now', '$now_gmt', '$comment', '$approved')
 	");
 
 	$comment_ID = $wpdb->get_var('SELECT last_insert_id()');
@@ -101,9 +96,11 @@ if ($ok) { // if there was no comment from this IP in the last 10 seconds
 	    wp_notify_moderator($comment_ID);
 	}
 	
-	if (($comments_notify) && ($approved)) {
+	if ((get_settings('comments_notify')) && ($approved)) {
 	    wp_notify_postauthor($comment_ID, 'comment');
 	}
+
+	do_action('comment_post', $comment_ID);
 
 	if ($email == '')
 		$email = ' '; // this to make sure a cookie is set for 'no email'
@@ -119,7 +116,7 @@ if ($ok) { // if there was no comment from this IP in the last 10 seconds
 	header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
 	header('Cache-Control: no-cache, must-revalidate');
 	header('Pragma: no-cache');
-	$location = (empty($HTTP_POST_VARS['redirect_to'])) ? $HTTP_SERVER_VARS["HTTP_REFERER"] : $HTTP_POST_VARS['redirect_to'];
+	$location = (empty($_POST['redirect_to'])) ? $_SERVER["HTTP_REFERER"] : $_POST['redirect_to'];
 	if ($is_IIS) {
 		header("Refresh: 0;url=$location");
 	} else {

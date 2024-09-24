@@ -1,9 +1,11 @@
 <?php
 define('MTEXPORT', '');
+
+
 if (!file_exists('../wp-config.php')) die("There doesn't seem to be a wp-config.php file. You must install WordPress before you import any entries.");
 require('../wp-config.php');
 
-$step = $HTTP_GET_VARS['step'];
+$step = $_GET['step'];
 if (!$step) $step = 0;
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
@@ -13,8 +15,8 @@ if (!$step) $step = 0;
 <style media="screen" type="text/css">
 	body {
 		font-family: Georgia, "Times New Roman", Times, serif;
-		margin-left: 15%;
-		margin-right: 15%;
+		margin-left: 20%;
+		margin-right: 20%;
 	}
 	#logo {
 		margin: 0;
@@ -34,24 +36,24 @@ if (!$step) $step = 0;
 		line-height: 140%;
 	}
 	</style>
-</head><body>
-<h1 id="logo"><a href="http://wordpress.org">WordPress</a></h1>
+</head><body> 
+<h1 id="logo"><a href="http://wordpress.org">WordPress</a></h1> 
 <?php
 switch($step) {
 
 	case 0:
-?>
-<p>Howdy! We're about to begin the process to import all of your Movable Type entries into WordPress. It's pretty easy, but it can possible take a little bit of time so be patient. Before we get started, you need to edit this file (<code>import-mt.php</code>) and change one line so we know where to find your MT export file. Look for the line that says:</p>
+?> 
+<p>Howdy! We&#8217;re about to begin the process to import all of your Movable Type entries into WordPress. Before we get started, you need to edit this file (<code>import-mt.php</code>) and change one line so we know where to find your MT export file. To make this easy put the import file into the <code>wp-admin</code> directory. Look for the line that says:</p>
 <p><code>define('MTEXPORT', '');</code></p>
 <p>and change it to</p>
-<p><code>define('MTEXPORT', '/path/to/your/import.txt');</code></p>
+<p><code>define('MTEXPORT', 'import.txt');</code></p>
 <p>You have to do this manually for security reasons.</p>
 <p>If you've done that and you&#8217;re all ready, <a href="import-mt.php?step=1">let's go</a>! Remember that the import process may take a minute or so if you have a large number of entries and comments. Think of all the rebuilding time you'll be saving once it's done. :)</p>
 <p>On our test system, importing a blog of 1189 entries and about a thousand comments took 18 seconds. </p>
-<p>The importer is smart enough not to import duplicates, so you can run this multiple times without worry if for whatever reason it doesn't finish. </p>
+<p>The importer is smart enough not to import duplicates, so you can run this multiple times without worry if&#8212;for whatever reason&#8212;it doesn't finish. </p>
 <?php
 	break;
-
+	
 	case 1:
 if ('' != MTEXPORT && !file_exists(MTEXPORT)) die("The file you specified does not seem to exist. Please check the path you've given.");
 if ('' == MTEXPORT) die("You must edit the MTEXPORT line as described on the <a href='import-mt.php'>previous page</a> to continue.");
@@ -69,15 +71,17 @@ function checkauthor($author) {
 }
 
 // Bring in the data
+set_magic_quotes_runtime(0);
 $datalines = file(MTEXPORT); // Read the file into an array
 $importdata = implode('', $datalines); // squish it
+$importdata = preg_replace("/(\r\n|\n|\r)/", "\n", $importdata);
+
 $posts = explode("--------", $importdata);
 $i = -1;
 echo "<ol>";
 foreach ($posts as $post) { if ('' != trim($post)) {
 	++$i;
 	unset($post_categories);
-	$post = preg_replace("/(\r\n|\n|\r)/", "\n", $post);
 	echo "<li>Importing post... ";
 
 	// Take the pings out first
@@ -87,27 +91,27 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 	// Then take the comments out
 	preg_match("|(-----\nCOMMENT:.*)|s", $post, $comments);
 	$post = preg_replace("|(-----\nCOMMENT:.*)|s", '', $post);
-
+	
 	// We ignore the keywords
 	$post = preg_replace("|(-----\nKEYWORDS:.*)|s", '', $post);
-
+	
 	// We want the excerpt
 	preg_match("|-----\nEXCERPT:(.*)|s", $post, $excerpt);
 	$excerpt = addslashes(trim($excerpt[1]));
 	$post = preg_replace("|(-----\nEXCERPT:.*)|s", '', $post);
-
+	
 	// We're going to put extended body into main body with a more tag
 	preg_match("|-----\nEXTENDED BODY:(.*)|s", $post, $extended);
 	$extended = trim($extended[1]);
 	if ('' != $extended) $extended = "\n<!--more-->\n$extended";
 	$post = preg_replace("|(-----\nEXTENDED BODY:.*)|s", '', $post);
-
+	
 	// Now for the main body
 	preg_match("|-----\nBODY:(.*)|s", $post, $body);
 	$body = trim($body[1]);
 	$post_content = addslashes($body . $extended);
 	$post = preg_replace("|(-----\nBODY:.*)|s", '', $post);
-
+	
 	// Grab the metadata from what's left
 	$metadata = explode("\n", $post);
 	foreach ($metadata as $line) {
@@ -153,7 +157,7 @@ foreach ($posts as $post) { if ('' != trim($post)) {
             case 'PRIMARY CATEGORY':
 				$post_categories[] = addslashes($value);
                 break;
-            case 'CATEGORY':
+            case 'CATEGORY':    
 				$post_categories[] = addslashes($value);
                 break;
 			case 'DATE':
@@ -172,7 +176,7 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 	} else {
 	    $wpdb->query("INSERT INTO $tableposts (
 			post_author, post_date, post_content, post_title, post_excerpt,  post_status, comment_status, ping_status, post_name)
-			VALUES
+			VALUES 
 			('$post_author', '$post_date', '$post_content', '$post_title', '$excerpt', '$post_status', '$comment_status', '$ping_status', '$post_name')");
 		$post_id = $wpdb->get_var("SELECT ID FROM $tableposts WHERE post_title = '$post_title' AND post_date = '$post_date'");
 		if (0 != count($post_categories)) {
@@ -188,7 +192,7 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 			// Double check it's not there already
 			$exists = $wpdb->get_row("SELECT * FROM $tablepost2cat WHERE post_id = $post_id AND category_id = $cat_id");
 
-			 if (!$exists) {
+			 if (!$exists) { 
 				$wpdb->query("
 				INSERT INTO $tablepost2cat
 				(post_id, category_id)
@@ -265,16 +269,16 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 			$comment_date = trim($comment_date[1]);
 			$comment_date = date('Y-m-d H:i:s', strtotime($comment_date));
 			$ping = preg_replace('|(\n?DATE:.*)|', '', $ping);
-
+      
  			preg_match("|TITLE:(.*)|", $ping, $ping_title);
 			$ping_title = addslashes(trim($ping_title[1]));
 			$ping = preg_replace('|(\n?TITLE:.*)|', '', $ping);
 
 			$comment_content = addslashes(trim($ping));
 			$comment_content = str_replace('-----', '', $comment_content);
-
+			
 			$comment_content = "<trackback /><strong>$ping_title</strong>\n$comment_content";
-
+      
 			// Check if it's already there
 			if (!$wpdb->get_row("SELECT * FROM $tablecomments WHERE comment_date = '$comment_date' AND comment_content = '$comment_content'")) {
 				$wpdb->query("INSERT INTO $tablecomments (comment_post_ID, comment_author, comment_author_email, comment_author_url, comment_author_IP, comment_date, comment_content, comment_approved)
@@ -297,6 +301,6 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 <?php
 	break;
 }
-?>
+?> 
 </body>
 </html>

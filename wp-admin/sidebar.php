@@ -1,8 +1,4 @@
 <?php
-function selected($selected, $current) {
-	if ($selected == $current) echo ' selected="selected"';
-}
-
 $mode = 'sidebar';
 
 $standalone = 1;
@@ -13,9 +9,7 @@ get_currentuserinfo();
 if ($user_level == 0)
 	die ("Cheatin' uh ?");
 
-$time_difference = get_settings('time_difference');
-
-if ('b' == $HTTP_GET_VARS['a']) {
+if ('b' == $_GET['a']) {
 
 ?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -34,8 +28,8 @@ if ('b' == $HTTP_GET_VARS['a']) {
 
 ?><html>
 <head>
-<title>WordPress > Sidebar</title>
-<meta http-equiv="Content-Type" content="text/html; charset=<?php echo $admin_area_charset ?>" />
+<title>WordPress &rsaquo; Sidebar</title>
+<meta http-equiv="Content-Type" content="text/html; charset=<?php echo $blog_charset ?>" />
 <link rel="stylesheet" href="wp-admin.css" type="text/css" />
 <link rel="shortcut icon" href="../wp-images/wp-favicon.png" />
 <style type="text/css" media="screen">

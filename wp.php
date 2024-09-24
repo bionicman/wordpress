@@ -7,7 +7,7 @@ require_once("wp-blog-header.php");
 <head>
   <title><?php bloginfo('name') ?><?php single_post_title(' :: ') ?><?php single_cat_title(' :: ') ?><?php single_month_title(' :: ') ?></title>
   <!-- Change charset if needed(?)  But please do not remove this metatag -->
-  <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+  <meta http-equiv="Content-Type" content="text/html; charset=<?php echo get_settings('blog_charset'); ?>" />
   <meta name="generator" content="WordPress <?php $wp_version ?>" /> <!-- leave this for stats -->
   <meta http-equiv="reply-to" content="you@somewhere.zzz" />
   <link rel="alternate" type="text/xml" title="RDF" href="<?php bloginfo('rdf_url'); ?>" />
@@ -15,7 +15,7 @@ require_once("wp-blog-header.php");
   <link rel="pingback" href="<?php bloginfo('pingback_url'); ?>" />
 </head>
 <body>
-<h1 id="header"><a href="<?php echo $siteurl; ?>" title="<?php bloginfo('name'); ?>"><?php bloginfo('name'); ?></a></h1>
+<h1 id="header"><a href="<?php echo get_settings('home'); ?>" title="<?php bloginfo('name'); ?>"><?php bloginfo('name'); ?></a></h1>
 
 <!-- // loop start -->
 <?php foreach ($posts as $post) { start_wp(); ?>

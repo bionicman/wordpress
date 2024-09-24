@@ -180,36 +180,41 @@ function get_links($category = -1, $before = '', $after = '<br />',
             $rel = " rel='$rel'";
         }
         $desc = htmlspecialchars(stripslashes($row->link_description), ENT_QUOTES);
+        $name = htmlspecialchars(stripslashes($row->link_name), ENT_QUOTES);
+
+        $title = $desc;
+
         if ($show_updated) {
            if (substr($row->link_updated_f,0,2) != '00') {
-                $desc .= ' (Last updated ' . date(get_settings('links_updated_date_format'), $row->link_updated_f + (get_settings('time_difference') * 3600)) .')';
+                $title .= ' (Last updated ' . date(get_settings('links_updated_date_format'), $row->link_updated_f + (get_settings('gmt_offset') * 3600)) .')';
             }
         }
-        if ('' != $desc) {
-            $desc = " title='$desc'";
+
+        if ('' != $title) {
+            $title = " title='$title'";
         }
 
+        $alt = " alt='$name'";
+            
         $target = $row->link_target;
         if ('' != $target) {
             $target = " target='$target'";
         }
         echo("<a href='$the_link'");
-        echo($rel . $desc . $target);
+        echo($rel . $title . $target);
         echo('>');
         if (($row->link_image != null) && $show_images) {
-            echo("<img src=\"$row->link_image\" border=\"0\" alt=\"" .
-                 stripslashes($row->link_name) . "\" title=\"" .
-                 stripslashes($row->link_description) . "\" />");
+            echo "<img src='" . get_settings('siteurl') . "$row->link_image' $alt $title />";
         } else {
-            echo(stripslashes($row->link_name));
+            echo($name);
         }
         echo('</a>');
         if ($show_updated && $row->recently_updated) {
             echo get_settings('links_recently_updated_append');
         }
 
-        if ($show_description && ($row->link_description != '')) {
-            echo($between.stripslashes($row->link_description));
+        if ($show_description && ($desc != '')) {
+            echo($between.$desc);
         }
 
         // now do the rating
@@ -530,10 +535,14 @@ function get_links_list($order = 'name', $hide_if_empty = 'obsolete') {
 
 
 	// Fetch the link category data as an array of hashes
-	$cats = $wpdb->get_results("SELECT DISTINCT link_category, cat_name, show_images,
-		show_description, show_rating, show_updated, sort_order, sort_desc, list_limit
-FROM `$tablelinks` LEFT JOIN `$tablelinkcategories` ON (link_category = cat_id)
-WHERE link_visible =  'Y'
+	$cats = $wpdb->get_results("
+		SELECT DISTINCT link_category, cat_name, show_images, 
+			show_description, show_rating, show_updated, sort_order, 
+			sort_desc, list_limit
+		FROM `$tablelinks` 
+		LEFT JOIN `$tablelinkcategories` ON (link_category = cat_id)
+		WHERE link_visible =  'Y'
+			AND list_limit <> 0
 		ORDER BY $cat_order $direction ", ARRAY_A);
 
 	// Display each category

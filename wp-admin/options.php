@@ -1,6 +1,7 @@
 <?php
 $title = 'Options';
 $this_file = 'options.php';
+$parent_file = 'options-general.php';
 
 function add_magic_quotes($array) {
 	foreach ($array as $k => $v) {
@@ -14,72 +15,82 @@ function add_magic_quotes($array) {
 }
 
 if (!get_magic_quotes_gpc()) {
-	$HTTP_GET_VARS    = add_magic_quotes($HTTP_GET_VARS);
-	$HTTP_POST_VARS   = add_magic_quotes($HTTP_POST_VARS);
-	$HTTP_COOKIE_VARS = add_magic_quotes($HTTP_COOKIE_VARS);
+	$_GET    = add_magic_quotes($_GET);
+	$_POST   = add_magic_quotes($_POST);
+	$_COOKIE = add_magic_quotes($_COOKIE);
 }
 
 $wpvarstoreset = array('action','standalone', 'option_group_id');
 for ($i=0; $i<count($wpvarstoreset); $i += 1) {
 	$wpvar = $wpvarstoreset[$i];
 	if (!isset($$wpvar)) {
-		if (empty($HTTP_POST_VARS["$wpvar"])) {
-			if (empty($HTTP_GET_VARS["$wpvar"])) {
+		if (empty($_POST["$wpvar"])) {
+			if (empty($_GET["$wpvar"])) {
 				$$wpvar = '';
 			} else {
-				$$wpvar = $HTTP_GET_VARS["$wpvar"];
+				$$wpvar = $_GET["$wpvar"];
 			}
 		} else {
-			$$wpvar = $HTTP_POST_VARS["$wpvar"];
+			$$wpvar = $_POST["$wpvar"];
 		}
 	}
 }
-
-require_once("optionhandler.php");
+if (isset($_GET['option_group_id'])) $option_group_id = (int) $_GET['option_group_id'];
+require_once('./optionhandler.php');
 $non_was_selected = 0;
-if ($option_group_id == '') {
+if ('' == $_GET['option_group_id']) {
     $option_group_id = 1;
     $non_was_selected = 1;
 }
 
 switch($action) {
 
-case "update":
-	$standalone = 0;
-	include_once("./admin-header.php");
+case 'update':
+	$standalone = 1;
+	include_once('./admin-header.php');
     $any_changed = 0;
     
     // iterate through the list of options in this group
     // pull the vars from the post
     // validate ranges etc.
     // update the values
-    $options = $wpdb->get_results("SELECT $tableoptions.option_id, option_name, option_type, option_value, option_admin_level "
-                                  . "FROM $tableoptions "
-                                  . "LEFT JOIN $tableoptiongroup_options ON $tableoptions.option_id = $tableoptiongroup_options.option_id "
-                                  . "WHERE group_id = $option_group_id "
-                                  . "ORDER BY seq");
+	if (!$_POST['page_options']) {
+		foreach ($_POST as $key => $value) {
+			$option_names[] = "'$key'";
+		}
+		$option_names = implode(',', $option_names);
+	} else {
+		$option_names = stripslashes($_POST['page_options']);
+	}
+
+    $options = $wpdb->get_results("SELECT $tableoptions.option_id, option_name, option_type, option_value, option_admin_level FROM $tableoptions WHERE option_name IN ($option_names)");
+//	die(var_dump($options));
+
+// HACK
+// Options that if not there have 0 value but need to be something like "closed"
+$nonbools = array('default_ping_status', 'default_comment_status');
     if ($options) {
         foreach ($options as $option) {
             // should we even bother checking?
             if ($user_level >= $option->option_admin_level) {
-                $this_name = $option->option_name;
                 $old_val = stripslashes($option->option_value);
-                $new_val = $HTTP_POST_VARS[$this_name];
-
-                if ($new_val != $old_val) {
-                    // get type and validate
-                    $msg = validate_option($option, $this_name, $new_val);
-                    if ($msg == '') {
-                        //no error message
-                        $result = $wpdb->query("UPDATE $tableoptions SET option_value = '$new_val' WHERE option_id = $option->option_id");
-                        if (!$result) {
-                            $db_errors .= " SQL error while saving $this_name. ";
-                        } else {
-                            ++$any_changed;
-                        }
-                    } else {
-                        $validation_message .= $msg;
-                    }
+                $new_val = $_POST[$option->option_name];
+				if (!$new_val) {
+					if (3 == $option->option_type)
+						$new_val = '';
+					else
+						$new_val = 0;
+				}
+				if( in_array($option->option_name, $nonbools) && $new_val == 0 ) $new_value = 'closed';
+                if ($new_val !== $old_val) {
+					$query = "UPDATE $tableoptions SET option_value = '$new_val' WHERE option_name = '$option->option_name'";
+					$result = $wpdb->query($query);
+					//if( in_array($option->option_name, $nonbools)) die('boo'.$query);
+					if (!$result) {
+						$db_errors .= sprintf(__(" SQL error while saving %s. "), $this_name);
+					} else {
+						++$any_changed;
+					}
                 }
             }
         } // end foreach
@@ -88,23 +99,26 @@ case "update":
     } // end if options
     
     if ($any_changed) {
-        $message = $any_changed . ' setting(s) saved... ';
+        $message = sprintf(__('%d setting(s) saved... '), $any_changed);
     }
     
     if (($dB_errors != '') || ($validation_message != '')) {
         if ($message != '') {
-            $message .= '<br />and ';
+            $message .= '<br />';
         }
         $message .= $dB_errors . '<br />' . $validation_message;
     }
-        
-    //break; //fall through
+
+	 if (strstr($_SERVER['HTTP_REFERER'], '?')) $goback = str_replace('&updated=true', '', $_SERVER['HTTP_REFERER']) . '&updated=true';
+	else $goback = str_replace('?updated=true', '', $_SERVER['HTTP_REFERER']) . '?updated=true';
+    header('Location: ' . $goback);
+    break;
 
 default:
 	$standalone = 0;
 	include_once("./admin-header.php");
-	if ($user_level <= 3) {
-		die("You have no right to edit the options for this blog.<br>Ask for a promotion from your <a href=\"mailto:$admin_email\">blog admin</a> :)");
+	if ($user_level <= 6) {
+		die(__("You have do not have sufficient permissions to edit the options for this blog."));
 	}
 ?>
 
@@ -120,37 +134,21 @@ if ($non_was_selected) { // no group pre-selected, display opening page
         echo("  <dt><a href=\"$this_file?option_group_id={$option_group->group_id}\" title=\"{$option_group->group_desc}\">{$option_group->group_name}</a></dt>\n");
         $current_long_desc = $option_group->group_longdesc;
         if ($current_long_desc == '') {
-            $current_long_desc = 'No help for this group of options.';
+            $current_long_desc = __('No help for this group of options.');
         }
         echo("  <dd>{$option_group->group_desc}: $current_long_desc</dd>\n");
     } // end for each group
 ?>
-  <dt><a href="options-permalink.php">Permalinks</a></dt>
-  <dd>Permanent link configuration</dd>
+  <dt><a href="options-permalink.php"><?php _e('Permalinks') ?></a></dt>
+  <dd><?php _e('Permanent link configuration') ?></dd>
 </dl>
 </div>
 <?php    
 
 } else { //there was a group selected.
+include('options-head.php');
+?>
 
-?>
-<ul id="adminmenu2">
-<?php
-    //Iterate through the available option groups.
-    $option_groups = $wpdb->get_results("SELECT group_id, group_name, group_desc, group_longdesc FROM $tableoptiongroups ORDER BY group_id");
-    foreach ($option_groups as $option_group) {
-        if ($option_group->group_id == $option_group_id) {
-            $current_desc=$option_group->group_desc;
-            $current_long_desc = $option_group->group_longdesc;
-            echo("  <li><a class=\"current\" href=\"$this_file?option_group_id={$option_group->group_id}\" title=\"{$option_group->group_desc}\">{$option_group->group_name}</a></li>\n");
-        } else {
-            echo("  <li><a href=\"$this_file?option_group_id={$option_group->group_id}\" title=\"{$option_group->group_desc}\">{$option_group->group_name}</a></li>\n");
-        }
-    } // end for each group
-?>
-  <li class="last"><a href="options-permalink.php">Permalinks</a></li>
-</ul>
-<br clear="all" />
 <div class="wrap">
   <h2><?php echo $current_desc; ?></h2>
   <form name="form" action="<?php echo $this_file; ?>" method="post">
@@ -158,35 +156,35 @@ if ($non_was_selected) { // no group pre-selected, display opening page
   <input type="hidden" name="option_group_id" value="<?php echo $option_group_id; ?>" />
   <table width="90%" cellpadding="2" cellspacing="2" border="0">
 <?php
-    //Now display all the options for the selected group.
-    $options = $wpdb->get_results("SELECT $tableoptions.option_id, option_name, option_type, option_value, option_width, option_height, option_description, option_admin_level "
-                                  . "FROM $tableoptions "
-                                  . "LEFT JOIN $tableoptiongroup_options ON $tableoptions.option_id = $tableoptiongroup_options.option_id "
-                                  . "WHERE group_id = $option_group_id "
-                                  . "ORDER BY seq");
-    if ($options) {
-        foreach ($options as $option) {
-            echo('    <tr><td width="10%" valign="top">'. get_option_widget($option, ($user_level >= $option->option_admin_level), '</td><td width="15%" valign="top" style="border: 1px solid #ccc">'));
-            echo("    </td><td  valign='top' class='helptext'>$option->option_description</td></tr>\n");
-        }
-    }
+//Now display all the options for the selected group.
+if ('all' == $_GET['option_group_id']) :
+$options = $wpdb->get_results("SELECT * FROM $tableoptions LEFT JOIN $tableoptiongroup_options ON $tableoptions.option_id = $tableoptiongroup_options.option_id ORDER BY option_name");
+else :
+$options = $wpdb->get_results("
+SELECT 
+$tableoptions.option_id, option_name, option_type, option_value, option_width, option_height, option_description, option_admin_level 
+FROM $tableoptions  LEFT JOIN $tableoptiongroup_options ON $tableoptions.option_id = $tableoptiongroup_options.option_id
+WHERE group_id = $option_group_id
+ORDER BY seq
+");
+endif;
+
+foreach ($options as $option) :
+	if ('all' == $_GET['option_group_id']) $option->option_type = 3;
+	echo "\t<tr><td width='10%' valign='top'>" . get_option_widget($option, ($user_level >= $option->option_admin_level), '</td><td width="15%" valign="top" style="border: 1px solid #ccc">');
+	echo "\t</td><td  valign='top' class='helptext'>$option->option_description</td></tr>\n";
+endforeach;
 ?>
-    <tr><td colspan="3">&nbsp;</td></tr>
-    <tr><td align="center" colspan="3"><input type="submit" name="Update" value="Update Settings" /></td></tr>
-    <tr><td colspan="3"><?php echo $message; ?></td></tr>
   </table>
+<p class="submit"><input type="submit" name="Update" value="<?php _e('Update Settings &raquo;') ?>" /></p>
   </form>
 </div>
 
 <div class="wrap">
 <?php
-    if ($current_long_desc != '') {
-        echo($current_long_desc);
-    } else {
-?>
-  <p> No help for this group of options.</p>
-<?php
-    }
+if ($current_long_desc != '') {
+	echo $current_long_desc;
+}
 ?>
 </div>
 <?php
@@ -194,4 +192,5 @@ if ($non_was_selected) { // no group pre-selected, display opening page
 break;
 } // end switch
 
-include("admin-footer.php") ?>
+include('admin-footer.php');
+?>

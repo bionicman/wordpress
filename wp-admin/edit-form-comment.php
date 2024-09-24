@@ -1,27 +1,13 @@
-
-<div class="wrap">
 <?php
 
-$allowed_users = explode(" ", trim($fileupload_allowedusers));
+$allowed_users = explode(" ", trim(get_settings('fileupload_allowedusers')));
 
-function selected($selected, $current) {
-	if ($selected == $current) echo ' selected="selected"';
-}
-
-function checked($checked, $current) {
-	if ($checked == $current) echo ' checked="checked"';
-}
-
-
-		$submitbutton_text = 'Edit this!';
-		$toprow_title = 'Editing Comment # '.$commentdata['comment_ID'];
-		$form_action = 'editedcomment';
-		$form_extra = "' />\n<input type='hidden' name='comment_ID' value='$comment' />\n<input type='hidden' name='comment_post_ID' value='".$commentdata["comment_post_ID"];
-
-
-
-
+$submitbutton_text = __('Edit Comment &raquo;');
+$toprow_title = sprintf(__('Editing Comment # %s'), $commentdata['comment_ID']);
+$form_action = 'editedcomment';
+$form_extra = "' />\n<input type='hidden' name='comment_ID' value='$comment' />\n<input type='hidden' name='comment_post_ID' value='".$commentdata["comment_post_ID"];
 ?>
+<div class="wrap">
 
 <form name="post" action="post.php" method="post" id="post">
 <input type="hidden" name="user_ID" value="<?php echo $user_ID ?>" />
@@ -35,32 +21,30 @@ function focusit() {
 window.onload = focusit;
 </script>
 <fieldset id="namediv">
-<legend>Name:</legend>
+    <legend><?php _e('Name:') ?></legend>
 	<div>
 	  <input type="text" name="newcomment_author" size="22" value="<?php echo format_to_edit($commentdata['comment_author']) ?>" tabindex="1" id="name" />
     </div>
 </fieldset>
 <fieldset id="emaildiv">
-		<legend>E-mail:</legend>
+        <legend><?php _e('E-mail:') ?></legend>
 		<div>
 		  <input type="text" name="newcomment_author_email" size="30" value="<?php echo format_to_edit($commentdata['comment_author_email']) ?>" tabindex="2" id="email" />
     </div>
 </fieldset>
 <fieldset id="uridiv">
-		<legend>URI:</legend>
+        <legend><?php _e('URI:') ?></legend>
 		<div>
 		  <input type="text" name="newcomment_author_url" size="35" value="<?php echo format_to_edit($commentdata['comment_author_url']) ?>" tabindex="3" id="URL" />
     </div>
 </fieldset>
 
 <fieldset style="clear: both;">
-<legend>Comment</legend>
+        <legend><?php _e('Comment') ?></legend>
 		<div id="quicktags">
 <?php
-if ($use_quicktags) {
-	echo '<a href="http://wordpress.org/docs/reference/post/#quicktags" title="Help with quicktags">Quicktags</a>: ';
+	echo '<a href="http://wordpress.org/docs/reference/post/#quicktags" title="' . __('Help with quicktags') . '">' . __('Quicktags') . '</a>: ';
 	include('quicktags.php');
-}
 ?>
 </div>
 <?php
@@ -72,20 +56,14 @@ if ($use_quicktags) {
 <div><textarea rows="<?php echo $rows; ?>" cols="40" name="content" tabindex="4" id="content" style="width: 99%"><?php echo $content ?></textarea></div>
 </fieldset>
 
-<?php
-if ($use_quicktags) {
-?>
 <script type="text/javascript" language="JavaScript">
 <!--
 edCanvas = document.getElementById('content');
 //-->
 </script>
-<?php
-}
-?>
 
-<p><?php echo $saveasdraft; ?> <input type="submit" name="submit" value="<?php echo $submitbutton_text ?>" style="font-weight: bold;" tabindex="6" />
-  <input name="referredby" type="hidden" id="referredby" value="<?php echo $HTTP_SERVER_VARS['HTTP_REFERER']; ?>" />
+<p class="submit"><input type="submit" name="submit" value="<?php echo $submitbutton_text ?>" style="font-weight: bold;" tabindex="6" />
+  <input name="referredby" type="hidden" id="referredby" value="<?php echo $_SERVER['HTTP_REFERER']; ?>" />
 </p>
 
 
@@ -100,5 +78,5 @@ if ($user_level > 4) {
 ?>
 
 </form>
-<p><a href="post.php?action=deletecomment&amp;noredir=true&amp;comment=<?php echo $commentdata['comment_ID']; ?>&amp;p=<?php echo $commentdata['comment_post_ID']; ?>">Delete this comment</a>.</p>
+<p><a class="delete" href="post.php?action=deletecomment&amp;noredir=true&amp;comment=<?php echo $commentdata['comment_ID']; ?>&amp;p=<?php echo $commentdata['comment_post_ID']; ?>"><?php _e('Delete comment') ?></a></p>
 </div>
