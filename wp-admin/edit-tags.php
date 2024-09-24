@@ -27,7 +27,7 @@ if ( isset( $_GET['action'] ) && isset($_GET['delete_tags']) && ( 'delete' == $_
 
 switch($action) {
 
-case 'addtag':
+case 'add-tag':
 
 	check_admin_referer('add-tag');
 

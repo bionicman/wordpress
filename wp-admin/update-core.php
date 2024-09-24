@@ -95,12 +95,20 @@ function dismissed_updates() {
  * @return null
  */
 function core_upgrade_preamble() {
+	global $upgrade_error;
+
 	$updates = get_core_updates();
 ?>
 	<div class="wrap">
 	<?php screen_icon(); ?>
 	<h2><?php _e('Upgrade WordPress'); ?></h2>
 <?php
+	if ( $upgrade_error ) {
+		echo '<div class="error"><p>';
+		_e('Please select one or more plugins to upgrade.');
+		echo '</p></div>';
+	}
+
 	if ( !isset($updates[0]->response) || 'latest' == $updates[0]->response ) {
 		echo '<h3>';
 		_e('You have the latest version of WordPress. You do not need to upgrade');
@@ -175,12 +183,12 @@ function list_plugin_updates() {
 		$info = plugins_api('plugin_information', array('slug' => $plugin_data->update->slug ));
 		// Get plugin compat for running version of WordPress.
 		if ( isset($info->tested) && version_compare($info->tested, $cur_wp_version, '>=') ) {
-			$compat = '<br />' . sprintf(__('Compatibility with WordPress %1$s: 100% (according to its author)'), $cur_wp_version);
+			$compat = '<br />' . sprintf(__('Compatibility with WordPress %1$s: 100%% (according to its author)'), $cur_wp_version);
 		} elseif ( isset($info->compatibility[$cur_wp_version][$plugin_data->update->new_version]) ) {
 			$compat = $info->compatibility[$cur_wp_version][$plugin_data->update->new_version];
 			$compat = '<br />' . sprintf(__('Compatibility with WordPress %1$s: %2$d%% (%3$d "works" votes out of %4$d total)'), $cur_wp_version, $compat[0], $compat[2], $compat[1]);
 		} else {
-			$compat = '<br />' . sprintf(__('Compatibility with WordPress %1$s: Unknown)'), $cur_wp_version);
+			$compat = '<br />' . sprintf(__('Compatibility with WordPress %1$s: Unknown'), $cur_wp_version);
 		}
 		// Get plugin compat for updated version of WordPress.
 		if ( $core_update_version ) {
@@ -331,8 +339,11 @@ function do_plugin_upgrade() {
 
 	if ( isset($_GET['plugins']) ) {
 		$plugins = explode(',', $_GET['plugins']);
-	} else {
+	} elseif ( isset($_POST['checked']) ) {
 		$plugins = (array) $_POST['checked'];
+	} else {
+		// Nothing to do.
+		return;
 	}
 	$url = 'update-core.php?action=do-plugin-upgrade&amp;plugins=' . urlencode(join(',', $plugins));
 	$title = __('Upgrade Plugins');
@@ -342,6 +353,12 @@ function do_plugin_upgrade() {
 }
 
 $action = isset($_GET['action']) ? $_GET['action'] : 'upgrade-core';
+
+$upgrade_error = false;
+if ( 'do-plugin-upgrade' == $action && !isset($_GET['plugins']) && !isset($_POST['checked']) ) {
+	$upgrade_error = true;
+	$action = 'upgrade-core';
+}
 
 $title = __('Upgrade WordPress');
 $parent_file = 'tools.php';

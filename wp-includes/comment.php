@@ -371,13 +371,11 @@ function get_comment_count( $post_id = 0 ) {
 /**
  * Add meta data field to a comment.
  *
- * Post meta data is called "Custom Fields" on the Administration Panels.
- *
  * @since 2.9
  * @uses add_metadata
  * @link http://codex.wordpress.org/Function_Reference/add_comment_meta
  *
- * @param int $comment_id Post ID.
+ * @param int $comment_id Comment ID.
  * @param string $key Metadata name.
  * @param mixed $value Metadata value.
  * @param bool $unique Optional, default is false. Whether the same key should not be added.
@@ -414,7 +412,7 @@ function delete_comment_meta($comment_id, $meta_key, $meta_value = '') {
  * @uses get_metadata
  * @link http://codex.wordpress.org/Function_Reference/get_comment_meta
  *
- * @param int $comment_id Post ID.
+ * @param int $comment_id Comment ID.
  * @param string $key The meta key to retrieve.
  * @param bool $single Whether to return a single value.
  * @return mixed Will be an array if $single is false. Will be value of meta data field if $single
@@ -436,7 +434,7 @@ function get_comment_meta($comment_id, $key, $single = false) {
  * @uses update_metadata
  * @link http://codex.wordpress.org/Function_Reference/update_comment_meta
  *
- * @param int $comment_id Post ID.
+ * @param int $comment_id Comment ID.
  * @param string $key Metadata key.
  * @param mixed $value Metadata value.
  * @param mixed $prev_value Optional. Previous value to check before removing.
@@ -808,6 +806,7 @@ function wp_count_comments( $post_id = 0 ) {
  * @since 2.0.0
  * @uses $wpdb
  * @uses do_action() Calls 'delete_comment' hook on comment ID
+ * @uses do_action() Calls 'deleted_comment' hook on comment ID after deletion, on success
  * @uses do_action() Calls 'wp_set_comment_status' hook on comment ID with 'delete' set for the second parameter
  * @uses wp_transition_comment_status() Passes new and old comment status along with $comment object
  *
@@ -824,18 +823,25 @@ function wp_delete_comment($comment_id) {
 
 	do_action('delete_comment', $comment_id);
 
-	delete_comment_meta($comment_id,'_wp_trash_meta_status');
-	delete_comment_meta($comment_id,'_wp_trash_meta_time');
-
-	if ( ! $wpdb->query( $wpdb->prepare("DELETE FROM $wpdb->comments WHERE comment_ID = %d LIMIT 1", $comment_id) ) )
-		return false;
-
 	// Move children up a level.
 	$children = $wpdb->get_col( $wpdb->prepare("SELECT comment_ID FROM $wpdb->comments WHERE comment_parent = %d", $comment_id) );
 	if ( !empty($children) ) {
 		$wpdb->update($wpdb->comments, array('comment_parent' => $comment->comment_parent), array('comment_parent' => $comment_id));
 		clean_comment_cache($children);
 	}
+
+	// Delete metadata
+	$meta_ids = $wpdb->get_col( $wpdb->prepare( "SELECT meta_id FROM $wpdb->commentmeta WHERE comment_id = %d ", $comment_id ) );
+	if ( !empty($meta_ids) ) {
+		do_action( 'delete_commentmeta', $meta_ids );
+		$in_meta_ids = "'" . implode("', '", $meta_ids) . "'";
+		$wpdb->query( "DELETE FROM $wpdb->commentmeta WHERE meta_id IN ($in_meta_ids)" );
+		do_action( 'deleted_commentmeta', $meta_ids );
+	}
+
+	if ( ! $wpdb->query( $wpdb->prepare("DELETE FROM $wpdb->comments WHERE comment_ID = %d LIMIT 1", $comment_id) ) )
+		return false;
+	do_action('deleted_comment', $comment_id);
 
 	$post_id = $comment->comment_post_ID;
 	if ( $post_id && $comment->comment_approved == 1 )
