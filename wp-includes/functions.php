@@ -171,6 +171,7 @@ function user_pass_ok($user_login,$user_pass) {
 
 function get_usernumposts($userid) {
 	global $wpdb;
+	$userid = (int) $userid;
 	return $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->posts WHERE post_author = '$userid' AND post_status = 'publish'");
 }
 
@@ -606,6 +607,7 @@ function &get_post(&$post, $output = OBJECT) {
 			$post_cache[$post->ID] = &$post;
 		$_post = & $post_cache[$post->ID];
 	} else {
+		$post = (int) $post;
 		if ( $_post = wp_cache_get($post, 'pages') )
 			return get_page($_post, $output);
 		elseif ( isset($post_cache[$post]) )
@@ -709,6 +711,7 @@ function &get_page(&$page, $output = OBJECT) {
 		wp_cache_add($page->ID, $page, 'pages');
 		$_page = $page;
 	} else {
+		$page = (int) $page;
 		if ( isset($GLOBALS['page']) && ($page == $GLOBALS['page']->ID) ) {
 			$_page = & $GLOBALS['page'];
 			wp_cache_add($_page->ID, $_page, 'pages');
@@ -2369,9 +2372,11 @@ function wp_nonce_url($actionurl, $action = -1) {
 	return wp_specialchars(add_query_arg('_wpnonce', wp_create_nonce($action), $actionurl));
 }
 
-function wp_nonce_field($action = -1) {
-	echo '<input type="hidden" name="_wpnonce" value="' . wp_create_nonce($action) . '" />';
-	wp_referer_field();
+function wp_nonce_field($action = -1, $name = "_wpnonce", $referer = true) {
+	$name = attribute_escape($name);
+	echo '<input type="hidden" name="' . $name . '" value="' . wp_create_nonce($action) . '" />';
+	if ( $referer )
+		wp_referer_field();
 }
 
 function wp_referer_field() {
