@@ -46,8 +46,7 @@ if ( isset($_GET['action']) && isset($_GET['delete']) ) {
 
 $title = __('Link Categories');
 
-wp_enqueue_script( 'admin-categories' );
-wp_enqueue_script('admin-forms');
+wp_enqueue_script('admin-categories');
 if ( current_user_can('manage_categories') )
 	wp_enqueue_script('inline-edit-tax');
 
@@ -59,8 +58,6 @@ $messages[3] = __('Category updated.');
 $messages[4] = __('Category not added.');
 $messages[5] = __('Category not updated.');
 $messages[6] = __('Categories deleted.'); ?>
-
-<?php screen_meta('link-category') ?>
 
 <div class="wrap nosubsub">
 <h2><?php echo wp_specialchars( $title ); ?></h2> 
@@ -74,7 +71,7 @@ endif; ?>
 <p class="search-box">
 	<label class="hidden" for="category-search-input"><?php _e( 'Search Categories' ); ?>:</label>
 	<input type="text" class="search-input" id="category-search-input" name="s" value="<?php _admin_search_query(); ?>" />
-	<input type="submit" value="<?php _e( 'Search Categories' ); ?>" class="button-primary" />
+	<input type="submit" value="<?php _e( 'Search Categories' ); ?>" class="button" />
 </p>
 </form>
 <br class="clear" />
@@ -222,8 +219,21 @@ if ( $page_links )
 
 </div><!-- /col-container -->
 </div><!-- /wrap -->
-</div>
 
+<script type="text/javascript">
+/* <![CDATA[ */
+(function($){
+	$(document).ready(function(){
+		$('#doaction, #doaction2').click(function(){
+			if ( $('select[name^="action"]').val() == 'delete' ) {
+				var m = '<?php echo js_escape(__("You are about to delete the selected link categories.\n  'Cancel' to stop, 'OK' to delete.")); ?>';
+				return showNotice.warn(m);
+			}
+		});
+	});
+})(jQuery);
+/* ]]> */
+</script>
 
 <?php inline_edit_term_row('link-category'); ?>
 <?php include('admin-footer.php'); ?>

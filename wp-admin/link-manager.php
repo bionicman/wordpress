@@ -34,9 +34,6 @@ if ( isset($_GET['action']) && isset($_GET['linkcheck']) ) {
 	 exit;
 }
 
-wp_enqueue_script('admin-forms');
-wp_enqueue_script('links');
-
 wp_reset_vars(array('action', 'cat_id', 'linkurl', 'name', 'image', 'description', 'visible', 'target', 'category', 'link_id', 'submit', 'order_by', 'links_show_cat_id', 'rating', 'rel', 'notes', 'linkcheck[]'));
 
 if ( empty($cat_id) )
@@ -74,8 +71,6 @@ switch ($order_by) {
 		break;
 } ?>
 
-<?php screen_meta('link') ?>
-
 <div class="wrap nosubsub">
 <h2><?php echo wp_specialchars( $title ); ?></h2> 
 
@@ -93,7 +88,7 @@ if ( isset($_GET['deleted']) ) {
 <p class="search-box">
 	<label class="hidden" for="link-search-input"><?php _e( 'Search Links' ); ?>:</label>
 	<input type="text" class="search-input" id="link-search-input" name="s" value="<?php _admin_search_query(); ?>" />
-	<input type="submit" value="<?php _e( 'Search Links' ); ?>" class="button-primary" />
+	<input type="submit" value="<?php _e( 'Search Links' ); ?>" class="button" />
 </p>
 </form>
 <br class="clear" />
@@ -270,5 +265,21 @@ if ( $links ) {
 <div id="ajax-response"></div>
 
 </div>
+
+<script type="text/javascript">
+/* <![CDATA[ */
+(function($){
+	$(document).ready(function(){
+		$('#doaction, #doaction2').click(function(){
+			if ( $('select[name^="action"]').val() == 'delete' ) {
+				var m = '<?php echo js_escape(__("You are about to delete the selected links.\n  'Cancel' to stop, 'OK' to delete.")); ?>';
+				return showNotice.warn(m);
+			}
+		});
+	});
+})(jQuery);
+columns.init('link');
+/* ]]> */
+</script>
 
 <?php include('admin-footer.php'); ?>

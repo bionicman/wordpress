@@ -2761,7 +2761,7 @@ class wp_xmlrpc_server extends IXR_Server {
 				$struct['description'] = $cat->name;
 				$struct['categoryName'] = $cat->name;
 				$struct['htmlUrl'] = wp_specialchars(get_category_link($cat->term_id));
-				$struct['rssUrl'] = wp_specialchars(get_category_rss_link(false, $cat->term_id, $cat->name));
+				$struct['rssUrl'] = wp_specialchars(get_category_feed_link($cat->term_id, 'rss2'));
 
 				$categories_struct[] = $struct;
 			}
@@ -3236,7 +3236,7 @@ class wp_xmlrpc_server extends IXR_Server {
 			return new IXR_Error(0, __('The source URL and the target URL cannot both point to the same resource.'));
 
 		// Check if pings are on
-		if ( 'closed' == $post->ping_status )
+		if ( !pings_open($post) )
 	  		return new IXR_Error(33, __('The specified target URL cannot be used as a target. It either doesn\'t exist, or it is not a pingback-enabled resource.'));
 
 		// Let's check that the remote site didn't already pingback this entry

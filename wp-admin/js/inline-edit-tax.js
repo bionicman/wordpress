@@ -12,14 +12,13 @@ inlineEditTax = {
 		t.rows = $('tr.iedit');
 
 		// prepare the edit row
-//		.dblclick(function() { inlineEditTax.toggle(this); })
 		row.keyup(function(e) { if(e.which == 27) return inlineEditTax.revert(); });
 
 		$('a.cancel', row).click(function() { return inlineEditTax.revert(); });
 		$('a.save', row).click(function() { return inlineEditTax.save(this); });
+		$('input, select', row).keydown(function(e) { if(e.which == 13) return inlineEditTax.save(this); });
 
 		// add events
-//		t.rows.dblclick(function() { inlineEditTax.toggle(this); });
 		t.addEvents(t.rows);
 
 		$('#posts-filter input[type="submit"]').click(function(e){
@@ -36,8 +35,8 @@ inlineEditTax = {
 
 	addEvents : function(r) {
 		r.each(function() {
-			var row = $(this);
-			$('a.editinline', row).click(function() { inlineEditTax.edit(this); return false; });
+			$(this).find('a.editinline').click(function() { inlineEditTax.edit(this); return false; });
+			$(this).find('.hide-if-no-js').removeClass('hide-if-no-js');
 		});
 	},
 
@@ -68,7 +67,9 @@ inlineEditTax = {
 		if ( pageOpt.length > 0 ) {
 			var pageLevel = pageOpt[0].className.split('-')[1], nextPage = pageOpt, pageLoop = true;
 			while ( pageLoop ) {
-				var nextPage = nextPage.next('option'), nextLevel = nextPage[0].className.split('-')[1];
+				var nextPage = nextPage.next('option');
+				if (nextPage.length == 0) break;
+				var nextLevel = nextPage[0].className.split('-')[1];
 				if ( nextLevel <= pageLevel ) {
 					pageLoop = false;
 				} else {
@@ -89,7 +90,7 @@ inlineEditTax = {
 		if( typeof(id) == 'object' )
 			id = this.getId(id);
 
-		$('table.widefat .quick-edit-save .waiting').show();
+		$('table.widefat .inline-edit-save .waiting').show();
 
 		var params = {
 			action: 'inline-save-tax',
@@ -108,14 +109,13 @@ inlineEditTax = {
 				if (r) {
 					if ( -1 != r.indexOf('<tr') ) {
 						$('#edit-'+id).remove();
-						row.html($(r).html()).show()
-							.animate( { backgroundColor: '#CCEEBB' }, 500)
-							.animate( { backgroundColor: '#eefee7' }, 500);
+						r = r.replace(/hide-if-no-js/, '');
+						row.html($(r).html()).fadeIn();
 						inlineEditTax.addEvents(row);
 					} else
-						$('#edit-'+id+' .quick-edit-save .error').html(r).show();
+						$('#edit-'+id+' .inline-edit-save .error').html(r).show();
 				} else
-					$('#edit-'+id+' .quick-edit-save .error').html(inlineEditL10n.error).show();
+					$('#edit-'+id+' .inline-edit-save .error').html(inlineEditL10n.error).show();
 			}
 		);
 		return false;
@@ -125,7 +125,7 @@ inlineEditTax = {
 		var id = $('table.widefat tr.inline-editor').attr('id');
 
 		if ( id ) {
-			$('table.widefat .quick-edit-save .waiting').hide();
+			$('table.widefat .inline-edit-save .waiting').hide();
 			$('#'+id).remove();
 			id = id.substr( id.lastIndexOf('-') + 1 );
 			$(this.what+id).show();

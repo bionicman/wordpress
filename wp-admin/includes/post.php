@@ -25,8 +25,8 @@ function _wp_translate_postdata( $update = false, $post_data = null ) {
 
 	if ( $update )
 		$post_data['ID'] = (int) $post_data['post_ID'];
-	$post_data['post_content'] = $post_data['content'];
-	$post_data['post_excerpt'] = $post_data['excerpt'];
+	$post_data['post_content'] = isset($post_data['content']) ? $post_data['content'] : '';
+	$post_data['post_excerpt'] = isset($post_data['excerpt']) ? $post_data['excerpt'] : '';
 	$post_data['post_parent'] = isset($post_data['parent_id'])? $post_data['parent_id'] : '';
 	if ( isset($post_data['trackback_url']) )
 		$post_data['to_ping'] = $post_data['trackback_url'];
@@ -71,12 +71,19 @@ function _wp_translate_postdata( $update = false, $post_data = null ) {
 	if ( isset($post_data['pending']) && '' != $post_data['pending'] )
 		$post_data['post_status'] = 'pending';
 
-	$previous_status = get_post_field('post_status',  $post_data['ID']);
+	$previous_status = get_post_field('post_status',  isset($post_data['ID']) ? $post_data['ID'] : $post_data['temp_ID']);
 
 	// Posts 'submitted for approval' present are submitted to $_POST the same as if they were being published.
 	// Change status from 'publish' to 'pending' if user lacks permissions to publish or to resave published posts.
-	if ( isset($post_data['post_status']) && ('publish' == $post_data['post_status'] && !current_user_can( 'publish_posts' )) )
-		if ( $previous_status != 'publish' OR !current_user_can( 'edit_published_pages') )
+	if ( 'page' == $post_data['post_type'] ) {
+		$publish_cap = 'publish_pages';
+		$edit_cap = 'edit_published_pages';
+	} else {
+		$publish_cap = 'publish_posts';
+		$edit_cap = 'edit_published_posts';
+	}
+	if ( isset($post_data['post_status']) && ('publish' == $post_data['post_status'] && !current_user_can( $publish_cap )) )
+		if ( $previous_status != 'publish' || !current_user_can( $edit_cap ) )
 			$post_data['post_status'] = 'pending';
 
 	if ( ! isset($post_data['post_status']) )
@@ -153,6 +160,22 @@ function edit_post( $post_data = null ) {
 	if ( is_wp_error($post_data) )
 		wp_die( $post_data->get_error_message() );
 
+	if ( isset($post_data['visibility']) ) {
+		switch ( $post_data['visibility'] ) {
+			case 'public' :
+				unset( $post_data['post_password'] );
+				break;
+			case 'password' :
+				unset( $post_data['sticky'] );
+				break;
+			case 'private' :
+				$post_data['post_status'] = 'private';
+				$post_data['post_password'] = '';
+				unset( $post_data['sticky'] );
+				break;
+		}
+	}
+
 	// Meta Stuff
 	if ( isset($post_data['meta']) && $post_data['meta'] ) {
 		foreach ( $post_data['meta'] as $key => $value )
@@ -215,7 +238,7 @@ function bulk_edit_posts( $post_data = null ) {
 
 	$post_IDs = array_map( intval, (array) $post_data['post'] );
 
-	$reset = array( 'post_author', 'post_status', 'post_password', 'post_parent', 'page_template', 'comment_status', 'ping_status', 'keep_private', 'tags_input', 'post_category' );
+	$reset = array( 'post_author', 'post_status', 'post_password', 'post_parent', 'page_template', 'comment_status', 'ping_status', 'keep_private', 'tags_input', 'post_category', 'sticky' );
 	foreach ( $reset as $field ) {
 		if ( isset($post_data[$field]) && ( '' == $post_data[$field] || -1 == $post_data[$field] ) )
 			unset($post_data[$field]);
@@ -274,6 +297,14 @@ function bulk_edit_posts( $post_data = null ) {
 
 		$post_data['ID'] = $post_ID;
 		$updated[] = wp_update_post( $post_data );
+
+		if ( current_user_can( 'edit_others_posts' ) && isset( $post_data['sticky'] ) ) {
+			if ( 'sticky' == $post_data['sticky'] )
+				stick_post( $post_ID );
+			else
+				unstick_post( $post_ID );
+		}
+
 	}
 
 	return array( 'updated' => $updated, 'skipped' => $skipped, 'locked' => $locked );
@@ -315,6 +346,7 @@ function get_default_post_to_edit() {
 	$post->post_name = '';
 	$post->post_author = '';
 	$post->post_date = '';
+	$post->post_password = '';
 	$post->post_status = 'draft';
 	$post->post_type = 'post';
 	$post->to_ping = '';
@@ -434,6 +466,22 @@ function wp_write_post() {
 	if ( is_wp_error($translated) )
 		return $translated;
 
+	if ( isset($_POST['visibility']) ) {
+		switch ( $_POST['visibility'] ) {
+			case 'public' :
+				$_POST['post_password'] = '';
+				break;
+			case 'password' :
+				unset( $_POST['sticky'] );
+				break;
+			case 'private' :
+				$_POST['post_status'] = 'private';
+				$_POST['post_password'] = '';
+				unset( $_POST['sticky'] );
+				break;
+		}
+	}
+
 	// Create the post.
 	$post_ID = wp_insert_post( $_POST );
 	if ( is_wp_error( $post_ID ) )
@@ -499,9 +547,9 @@ function add_meta( $post_ID ) {
 
 	$protected = array( '_wp_attached_file', '_wp_attachment_metadata', '_wp_old_slug', '_wp_page_template' );
 
-	$metakeyselect = stripslashes( trim( $_POST['metakeyselect'] ) );
-	$metakeyinput = stripslashes( trim( $_POST['metakeyinput'] ) );
-	$metavalue = maybe_serialize( stripslashes( trim( $_POST['metavalue'] ) ) );
+	$metakeyselect = isset($_POST['metakeyselect']) ? stripslashes( trim( $_POST['metakeyselect'] ) ) : '';
+	$metakeyinput = isset($_POST['metakeyinput']) ? stripslashes( trim( $_POST['metakeyinput'] ) ) : '';
+	$metavalue = isset($_POST['metavalue']) ? maybe_serialize( stripslashes( trim( $_POST['metavalue'] ) ) ) : '';
 
 	if ( ('0' === $metavalue || !empty ( $metavalue ) ) && ((('#NONE#' != $metakeyselect) && !empty ( $metakeyselect) ) || !empty ( $metakeyinput) ) ) {
 		// We have a key/value pair. If both the select and the
@@ -721,17 +769,16 @@ function get_available_post_statuses($type = 'post') {
  * @return unknown
  */
 function wp_edit_posts_query( $q = false ) {
-	global $wpdb;
 	if ( false === $q )
 		$q = $_GET;
 	$q['m']   = isset($q['m']) ? (int) $q['m'] : 0;
 	$q['cat'] = isset($q['cat']) ? (int) $q['cat'] : 0;
 	$post_stati  = array(	//	array( adj, noun )
-				'publish' => array(__('Published'), __('Published posts'), __ngettext_noop('Published (%s)', 'Published (%s)')),
-				'future' => array(__('Scheduled'), __('Scheduled posts'), __ngettext_noop('Scheduled (%s)', 'Scheduled (%s)')),
-				'pending' => array(__('Pending Review'), __('Pending posts'), __ngettext_noop('Pending Review (%s)', 'Pending Review (%s)')),
-				'draft' => array(__('Draft'), _c('Drafts|manage posts header'), __ngettext_noop('Draft (%s)', 'Drafts (%s)')),
-				'private' => array(__('Private'), __('Private posts'), __ngettext_noop('Private (%s)', 'Private (%s)')),
+				'publish' => array(__('Published'), __('Published posts'), __ngettext_noop('Published <span class="count">(%s)</span>', 'Published <span class="count">(%s)</span>')),
+				'future' => array(__('Scheduled'), __('Scheduled posts'), __ngettext_noop('Scheduled <span class="count">(%s)</span>', 'Scheduled <span class="count">(%s)</span>')),
+				'pending' => array(__('Pending Review'), __('Pending posts'), __ngettext_noop('Pending Review <span class="count">(%s)</span>', 'Pending Review <span class="count">(%s)</span>')),
+				'draft' => array(__('Draft'), _c('Drafts|manage posts header'), __ngettext_noop('Draft <span class="count">(%s)</span>', 'Drafts <span class="count">(%s)</span>')),
+				'private' => array(__('Private'), __('Private posts'), __ngettext_noop('Private <span class="count">(%s)</span>', 'Private <span class="count">(%s)</span>')),
 			);
 
 	$post_stati = apply_filters('post_stati', $post_stati);
@@ -784,7 +831,6 @@ function get_available_post_mime_types($type = 'attachment') {
  * @return unknown
  */
 function wp_edit_attachments_query( $q = false ) {
-	global $wpdb;
 	if ( false === $q )
 		$q = $_GET;
 
@@ -794,9 +840,9 @@ function wp_edit_attachments_query( $q = false ) {
 	$q['post_status'] = 'any';
 	$q['posts_per_page'] = 15;
 	$post_mime_types = array(	//	array( adj, noun )
-				'image' => array(__('Images'), __('Manage Images'), __ngettext_noop('Image (%s)', 'Images (%s)')),
-				'audio' => array(__('Audio'), __('Manage Audio'), __ngettext_noop('Audio (%s)', 'Audio (%s)')),
-				'video' => array(__('Video'), __('Manage Video'), __ngettext_noop('Video (%s)', 'Video (%s)')),
+				'image' => array(__('Images'), __('Manage Images'), __ngettext_noop('Image <span class="count">(%s)</span>', 'Images <span class="count">(%s)</span>')),
+				'audio' => array(__('Audio'), __('Manage Audio'), __ngettext_noop('Audio <span class="count">(%s)</span>', 'Audio <span class="count">(%s)</span>')),
+				'video' => array(__('Video'), __('Manage Video'), __ngettext_noop('Video <span class="count">(%s)</span>', 'Video <span class="count">(%s)</span>')),
 			);
 	$post_mime_types = apply_filters('post_mime_types', $post_mime_types);
 
@@ -909,7 +955,7 @@ function get_sample_permalink_html($id, $new_title=null, $new_slug=null) {
 	$post_name_html = '<span id="editable-post-name" title="'.$title.'">'.$post_name_abridged.'</span><span id="editable-post-name-full">'.$post_name.'</span>';
 	$display_link = str_replace(array('%pagename%','%postname%'), $post_name_html, $permalink);
 	$return = '<strong>' . __('Permalink:') . "</strong>\n" . '<span id="sample-permalink">' . $display_link . "</span>\n";
-	$return .= '<span id="edit-slug-buttons"><a href="#post_name" class="edit-slug" onclick="edit_permalink(' . $id . '); return false;">' . __('Edit') . "</a></span>\n";
+	$return .= '<span id="edit-slug-buttons"><a href="#post_name" class="edit-slug button" onclick="edit_permalink(' . $id . '); return false;">' . __('Edit') . "</a></span>\n";
 	return $return;
 }
 
@@ -1004,7 +1050,7 @@ function post_preview() {
 
 	$post_ID = (int) $_POST['post_ID'];
 	if ( $post_ID < 1 )
-		wp_die( __('Preview not available. Please save as draft first.') );
+		wp_die( __('Preview not available. Please save as a draft first.') );
 	
 	if ( isset($_POST['catslist']) )
 		$_POST['post_category'] = explode(",", $_POST['catslist']);
