@@ -73,7 +73,7 @@ function image_downsize($id, $size = 'medium') {
 	}
 	elseif ( $size == 'thumbnail' ) {
 		// fall back to the old thumbnail
-		if ( $thumb_file = wp_get_attachment_thumb_file() && $info = getimagesize($thumb_file) ) {
+		if ( ($thumb_file = wp_get_attachment_thumb_file($id)) && $info = getimagesize($thumb_file) ) {
 			$img_url = str_replace(basename($img_url), basename($thumb_file), $img_url);
 			$width = $info[0];
 			$height = $info[1];
@@ -274,7 +274,7 @@ function image_make_intermediate_size($file, $width, $height, $crop=false) {
 }
 
 function image_get_intermediate_size($post_id, $size='thumbnail') {
-	if ( !$imagedata = wp_get_attachment_metadata( $post_id ) )
+	if ( !is_array( $imagedata = wp_get_attachment_metadata( $post_id ) ) )
 		return false;
 
 	// get the best one for a specified set of dimensions
@@ -348,6 +348,31 @@ function wp_get_attachment_image($attachment_id, $size='thumbnail', $icon = fals
 	}
 	
 	return $html;
+}
+
+add_shortcode('wp_caption', 'img_caption_shortcode');
+
+function img_caption_shortcode($attr, $content = null) {
+	
+	// Allow plugins/themes to override the default caption template.
+	$output = apply_filters('img_caption_shortcode', '', $attr, $content);
+	if ( $output != '' )
+		return $output;
+
+	extract(shortcode_atts(array(
+		'id'	=> '',
+		'align'	=> 'alignnone',
+		'width'	=> '',
+		'caption' => ''
+	), $attr));
+	
+	if ( 1 > (int) $width || empty($caption) )
+		return $content;
+	
+	if ( $id ) $id = 'id="' . $id . '" ';
+	
+	return '<div ' . $id . 'class="wp-caption ' . $align . '" style="width: ' . (10 + (int) $width) . 'px">'
+	. $content . '<p class="wp-caption-text">' . $caption . '</p></div>';
 }
 
 add_shortcode('gallery', 'gallery_shortcode');
