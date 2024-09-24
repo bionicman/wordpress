@@ -2804,7 +2804,15 @@ function validate_file( $file, $allowed_files = '' ) {
  * @return bool True if SSL, false if not used.
  */
 function is_ssl() {
-	return ( isset($_SERVER['HTTPS']) && 'on' == strtolower($_SERVER['HTTPS']) ) ? true : false;
+	if ( isset($_SERVER['HTTPS']) ) {
+		if ( 'on' == strtolower($_SERVER['HTTPS']) )
+			return true;
+		if ( '1' == $_SERVER['HTTPS'] )
+			return true;
+	} elseif ( isset($_SERVER['SERVER_PORT']) && ( '443' == $_SERVER['SERVER_PORT'] ) ) {
+		return true;
+	}
+	return false;
 }
 
 /**
@@ -2897,8 +2905,12 @@ function wp_suspend_cache_invalidation($suspend = true) {
  * @param object $object The object to clone
  * @return object The cloned object
  */
-function wp_clone($object) {
-	return version_compare(phpversion(), '5.0') < 0 ? $object : clone($object);
+function wp_clone( $object ) {
+	static $can_clone;
+	if ( !isset( $can_clone ) ) {
+		$can_clone = version_compare( phpversion(), '5.0', '>=' );
+	}
+	return $can_clone ? clone( $object ) : $object;
 }
 
 
