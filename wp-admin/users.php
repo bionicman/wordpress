@@ -24,9 +24,6 @@ switch ($action) {
 case 'adduser':
 	$standalone = 1;
 	require_once('admin-header.php');
-
-	check_admin_referer();
-
 	function filter($value)	{
 		return ereg('^[a-zA-Z0-9\_-\|]+$',$value);
 	}
@@ -60,14 +57,6 @@ case 'adduser':
 		die (__('<strong>ERROR</strong>: This login is already registered, please choose another one.'));
 	}
 
-	/* checking e-mail address */
-	if (empty($_POST["email"])) {
-		die (__("<strong>ERROR</strong>: please type an e-mail address"));
-		return false;
-	} else if (!is_email($_POST["email"])) {
-		die (__("<strong>ERROR</strong>: the email address isn't correct"));
-		return false;
-	}
 
 	$user_login = addslashes(stripslashes($user_login));
 	$pass1 = addslashes(stripslashes($pass1));
@@ -104,8 +93,6 @@ case 'promote':
 	$standalone = 1;
 	require_once('admin-header.php');
 
-	check_admin_referer();
-
 	if (empty($_GET['prom'])) {
 		header('Location: users.php');
 	}
@@ -137,8 +124,6 @@ case 'delete':
 
 	$standalone = 1;
 	require_once('admin-header.php');
-
-	check_admin_referer();
 
 	$id = intval($_GET['id']);
 

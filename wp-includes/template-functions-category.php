@@ -297,9 +297,9 @@ function list_cats($optionall = 1, $all = 'All', $sort_column = 'ID', $sort_orde
         $cat_counts = $wpdb->get_results("    SELECT cat_ID,
         COUNT($tablepost2cat.post_id) AS cat_count
         FROM $tablecategories 
-	INNER JOIN $tablepost2cat ON (cat_ID = category_id)
-        INNER JOIN $tableposts ON (ID = post_id)
-	WHERE post_status = 'publish' $exclusions
+	LEFT JOIN $tablepost2cat ON (cat_ID = category_id)
+        LEFT JOIN $tableposts ON (ID = post_id)
+	WHERE 1 = 1 $exclusions
         GROUP BY category_id");
         foreach ($cat_counts as $cat_count) {
             $category_posts["$cat_count->cat_ID"] = $cat_count->cat_count;
@@ -312,7 +312,7 @@ function list_cats($optionall = 1, $all = 'All', $sort_column = 'ID', $sort_orde
         FROM $tablecategories 
 	LEFT JOIN $tablepost2cat ON (cat_ID = category_id)
         LEFT JOIN $tableposts ON (ID = post_id)
-	WHERE post_status = 'publish' $exclusions
+	WHERE 1 = 1 $exclusions
         GROUP BY category_id");
         foreach ($cat_dates as $cat_date) {
             $category_lastday["$cat_date->cat_ID"] = $cat_date->lastday;
@@ -411,18 +411,5 @@ function list_cats($optionall = 1, $all = 'All', $sort_column = 'ID', $sort_orde
         return $thelist;
     }
     echo apply_filters('list_cats', $thelist);
-}
-
-function in_category($category) { // Check if the current post is in the given category
-	global $post, $category_cache;
-	$cats = '';
-	foreach ($category_cache[$post->ID] as $cat) :
-		$cats[] = $cat->category_id;
-	endforeach;
-
-	if ( in_array($category, $cats) )
-		return true;
-	else
-		return false;
 }
 ?>

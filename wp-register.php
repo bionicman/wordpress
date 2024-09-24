@@ -1,5 +1,5 @@
 <?php
-require('./wp-config.php');
+require(dirname(__FILE__) . '/wp-config.php');
 
 function add_magic_quotes($array) {
 	foreach ($array as $k => $v) {
@@ -42,6 +42,10 @@ switch($action) {
 
 case 'register':
 
+	function filter($value)	{
+		return ereg('^[a-zA-Z0-9\_-\|]+$',$value);
+	}
+
 	$user_login = $_POST['user_login'];
 	$pass1 = $_POST['pass1'];
 	$pass2 = $_POST['pass2'];
@@ -77,19 +81,19 @@ case 'register':
 	}
 
 	$user_ip = $_SERVER['REMOTE_ADDR'] ;
+	$user_domain = gethostbyaddr($_SERVER['REMOTE_ADDR'] );
+	$user_browser = $_SERVER['HTTP_USER_AGENT'];
 
-	$user_browser = $wpdb->escape($_SERVER['HTTP_USER_AGENT']);
-
-	$user_login = $wpdb->escape($user_login);
-	$pass1 = $wpdb->escape($pass1);
-	$user_nickname = $wpdb->escape($user_nickname);
+	$user_login = addslashes($user_login);
+	$pass1 = addslashes($pass1);
+	$user_nickname = addslashes($user_nickname);
 	$now = gmdate('Y-m-d H:i:s');
 	$new_users_can_blog = get_settings('new_users_can_blog');
 
 	$result = $wpdb->query("INSERT INTO $tableusers 
-		(user_login, user_pass, user_nickname, user_email, user_ip, user_browser, dateYMDhour, user_level, user_idmode)
+		(user_login, user_pass, user_nickname, user_email, user_ip, user_domain, user_browser, dateYMDhour, user_level, user_idmode)
 	VALUES 
-		('$user_login', MD5('$pass1'), '$user_nickname', '$user_email', '$user_ip', '$user_browser', '$now', '$new_users_can_blog', 'nickname')");
+		('$user_login', MD5('$pass1'), '$user_nickname', '$user_email', '$user_ip', '$user_domain', '$user_browser', '$now', '$new_users_can_blog', 'nickname')");
 	
 	if ($result == false) {
 		die (sprintf(__('<strong>ERROR</strong>: Couldn&#8217;t register you... please contact the <a href="mailto:%s">webmaster</a> !'), get_settings('admin_email')));
@@ -108,7 +112,7 @@ case 'register':
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-        <title>WordPress &raquo; <?php _e('Registration Complete') ?></title>
+        <title><?php _e('WordPress &raquo; Registration Complete') ?></title>
 	<meta http-equiv="Content-Type" content="text/html; charset=<?php echo get_settings('blog_charset'); ?>" />	
 	<link rel="stylesheet" href="wp-admin/wp-admin.css" type="text/css" />
 </head>
@@ -136,7 +140,7 @@ case 'disabled':
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-	<title>WordPress &raquo; <?php _e('Registration Currently Disabled') ?></title>
+	<title><?php _e('WordPress &raquo; Registration Currently Disabled') ?></title>
 	<meta http-equiv="Content-Type" content="text/html; charset=<?php echo get_settings('blog_charset'); ?>">
 	<link rel="stylesheet" href="wp-admin/wp-admin.css" type="text/css">
 </head>
@@ -162,7 +166,7 @@ default:
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-	<title>WordPress &raquo; <?php _e('Registration Form') ?></title>
+	<title><?php _e('WordPress &raquo; Registration Form') ?></title>
 	<meta http-equiv="Content-Type" content="text/html; charset=<?php echo get_settings('blog_charset'); ?>" />
 	<link rel="stylesheet" href="wp-admin/wp-admin.css" type="text/css" />
 </head>

@@ -87,8 +87,7 @@ if( isset( $_GET['m'] ) )
     <th scope="col"><?php _e('Edit') ?></th> 
     <th scope="col"><?php _e('Delete') ?></th> 
   </tr> 
-<?php
-if (empty($m)) $showposts = 15;
+  <?php
 include(ABSPATH.'wp-blog-header.php');
 
 if ($posts) {

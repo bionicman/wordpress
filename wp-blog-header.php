@@ -1,11 +1,11 @@
 <?php
 
-if (!file_exists(dirname(__FILE__).'/' . 'wp-config.php'))
-    die("There doesn't seem to be a <code>wp-config.php</code> file. I need this before we can get started. Need more help? <a href='http://wordpress.org/docs/faq/#wp-config'>We got it</a>. You can <a href='wp-admin/setup-config.php'>create a <code>wp-config.php</code> file through a web interface</a>, but this doesn't work for all server setups. The safest way is to manually create the file.");
+$curpath = dirname(__FILE__).'/';
 
-require_once(dirname(__FILE__).'/' . '/wp-config.php');
+if (!file_exists($curpath . '/wp-config.php'))
+    die(__("There doesn't seem to be a <code>wp-config.php</code> file. I need this before we can get started. Need more help? <a href='http://wordpress.org/docs/faq/#wp-config'>We got it</a>. You can <a href='wp-admin/install-config.php'>create a <code>wp-config.php</code> file through a web interface</a>, but this doesn't work for all server setups. The safest way is to manually create the file."));
 
-require_once(dirname(__FILE__).'/' . 'wp-includes/wp-l10n.php');
+require_once($curpath . '/wp-config.php');
 
 // Process PATH_INFO, if set.
 $path_info = array();
@@ -109,8 +109,7 @@ if (isset($doing_rss) && $doing_rss == 1)
     $posts_per_page=get_settings('posts_per_rss');
 if (!isset($posts_per_page) || $posts_per_page == 0)
     $posts_per_page = get_settings('posts_per_page');
-if (!isset($what_to_show))
-    $what_to_show = get_settings('what_to_show');
+$what_to_show = get_settings('what_to_show');
 $archive_mode = get_settings('archive_mode');
 $use_gzipcompression = get_settings('gzipcompression');
 
@@ -181,7 +180,7 @@ if ('' != $day) {
 }
 
 if ('' != $name) {
-    $name = preg_replace('/[^a-z0-9-_]/', '', $name);
+    $name = preg_replace('/[^a-z0-9-]/', '', $name);
     $where .= " AND post_name = '$name'";
 }
 
@@ -276,7 +275,7 @@ if ('' != $category_name) {
         $category_name = $category_name[count($category_name)-2]; // there was a trailling slash
         }
     }
-    $category_name = preg_replace('|[^a-z0-9-_]|i', '', $category_name);
+    $category_name = preg_replace('|[^a-z0-9-]|i', '', $category_name);
     $tables = ", $tablepost2cat, $tablecategories";
     $join = " LEFT JOIN $tablepost2cat ON ($tableposts.ID = $tablepost2cat.post_id) LEFT JOIN $tablecategories ON ($tablepost2cat.category_id = $tablecategories.cat_ID) ";
     $whichcat = " AND (category_nicename = '$category_name'";
@@ -324,7 +323,7 @@ if ('' != $author_name) {
         $author_name = $author_name[count($author_name)-2];#there was a trailling slash
         }
     }
-    $author_name = preg_replace('|[^a-z0-9-_]|', '', strtolower($author_name));
+    $author_name = preg_replace('|[^a-z0-9-]|', '', strtolower($author_name));
     $author = $wpdb->get_var("SELECT ID FROM $tableusers WHERE user_nicename='".$author_name."'");
     $whichauthor .= ' AND (post_author = '.intval($author).')';
 }

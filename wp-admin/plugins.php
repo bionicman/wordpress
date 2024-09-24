@@ -3,9 +3,6 @@
 if (isset($_GET['action'])) {
 	$standalone = 1;
 	require_once('admin-header.php');
-
-	check_admin_referer();
-
 	if ('activate' == $_GET['action']) {
 		$current = "\n" . get_settings('active_plugins') . "\n";
 		$current = preg_replace("|(\n)+\s*|", "\n", $current);
