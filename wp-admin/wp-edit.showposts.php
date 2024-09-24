@@ -1,4 +1,3 @@
-<div class="wrap">
 <?php
 
 require_once('../wp-config.php');
@@ -35,8 +34,11 @@ if ($previousXstart < 0) {
 	$previousXend=$showposts;
 }
 
+ob_start();
 ?>
 
+<h2 id="posts">Posts</h2>
+<div class="wrap">
 <table width="100%">
   <tr>
     <td valign="top" width="200">
@@ -118,8 +120,15 @@ if ($i == "ASC")
 </table>
 </div>
 
+<?php
+$posts_nav_bar = ob_get_contents();
+ob_end_clean();
+echo $posts_nav_bar;
+?>
+
 <div class="wrap">
 <table width="100%">
+  <tr>
 	<td valign="top" width="33%">
 		<form name="searchform" action="b2edit.php" method="get">
 			<input type="hidden" name="a" value="s" />
@@ -127,8 +136,8 @@ if ($i == "ASC")
 			<input type="submit" name="submit" value="search" class="search" />
 		</form>
 	</td>
-<td valign="top" width="33%" align="center">
-	<form name="viewcat" action="b2edit.php" method="get">
+    <td valign="top" width="33%" align="center">
+	  <form name="viewcat" action="b2edit.php" method="get">
 		<select name="cat" style="width:140px;">
 		<option value="all">All Categories</option>
 		<?php
@@ -144,10 +153,10 @@ if ($i == "ASC")
 		?>
 		</select>
 		<input type="submit" name="submit" value="View" class="search" />
-	</form>
-</td>
-<td valign="top" width="33%" align="right">
-<form name="viewarc" action="b2edit.php" method="get">
+	  </form>
+    </td>
+    <td valign="top" width="33%" align="right">
+    <form name="viewarc" action="b2edit.php" method="get">
 	<?php
 
 	if ($archive_mode == "monthly") {
@@ -219,10 +228,10 @@ if ($i == "ASC")
 
 	echo "</select>";
 	?>
-	<input type="submit" name="submit" value="View" class="search" />
-</form>
-</td>
-
+	    <input type="submit" name="submit" value="View" class="search" />
+      </form>
+    </td>
+  </tr>
 </table>
 
 	<?php
@@ -241,7 +250,7 @@ if ($i == "ASC")
 				if ($m)
 				echo "&m=$m";
 				echo "'>Edit</a>";
-				echo " - <a href='b2edit.php?action=delete&amp;post=$id' onclick=\"return confirm('You are about to delete this post \'".$row->post_title."\'\\n  \'Cancel\' to stop, \'OK\' to delete.')\">Delete</a> ";
+				echo " - <a href='b2edit.php?action=delete&amp;post=$id' onclick=\"return confirm('You are about to delete this post \'".the_title('','',0)."\'\\n  \'Cancel\' to stop, \'OK\' to delete.')\">Delete</a> ";
 				}
 				if ('private' == $post->post_status) echo ' - <strong>Private</strong>';
 				?>
@@ -263,30 +272,30 @@ if ($i == "ASC")
 					?>
 
 					<h3>Comments</h3>
-				<ol id="comments">
-					<?php
-					foreach ($comments as $comment) {
-						$commentdata = $comment;
-					?>
+					<ol id="comments">
+						<?php
+						foreach ($comments as $comment) {
+						?>
 				
 					<!-- comment -->
 					<li>
-					<b><?php comment_author() ?> ( <?php comment_author_email_link() ?> / <?php comment_author_url_link() ?> )</b> (IP: <?php comment_author_IP() ?>)
-					<?php comment_text() ?>
-					<?php comment_date('Y/m/d') ?> @ <?php comment_time() ?> 
-					<?php 
-					if (($user_level > $authordata->user_level) or ($user_login == $authordata->user_login)) {
-						echo "[ <a href=\"b2edit.php?action=editcomment&amp;comment=".$commentdata->comment_ID."\">Edit</a>";
-						echo " - <a href=\"b2edit.php?action=deletecomment&amp;p=".$post->ID."&amp;comment=".$commentdata->comment_ID."\">Delete</a> ]";
-					}
-					?>
+							<?php comment_date('Y/m/d') ?> @ <?php comment_time() ?> 
+							<?php 
+							if (($user_level > $authordata->user_level) or ($user_login == $authordata->user_login)) {
+								echo "[ <a href=\"b2edit.php?action=editcomment&amp;comment=".$comment->comment_ID."\">Edit</a>";
+								echo " - <a href=\"b2edit.php?action=deletecomment&amp;p=".$post->ID."&amp;comment=".$comment->comment_ID."\" onclick=\"return confirm('You are about to delete this comment by \'".$comment->comment_author."\'\\n  \'Cancel\' to stop, \'OK\' to delete.')\">Delete</a> ]";
+							} // end if any comments to show
+							?>
+						<br />
+						<strong><?php comment_author() ?> ( <?php comment_author_email_link() ?> / <?php comment_author_url_link() ?> )</strong> (IP: <?php comment_author_IP() ?>)
+							<?php comment_text() ?>
 					</li>
 					<!-- /comment -->
 
-
-					<?php //end of the loop, don't delete
-					}
+						<?php //end of the loop, don't delete
+						} // end foreach
 					echo '</ol>';
+					}//end if comments
 					if ($comment_error)
 						echo "<p>Error: please fill the required fields (name & comment)</p>";
 					?>
@@ -304,15 +313,10 @@ if ($i == "ASC")
 						<input type="text" name="url" class="textarea" value="<?php echo $user_url ?>" size="20" tabindex="3" /><br />
 						<textarea cols="40" rows="4" name="comment" tabindex="4" class="textarea">comment</textarea><br />
 						<input type="submit" name="submit" class="buttonarea" value="ok" tabindex="5" />
-
 					</form>
-
-
 					<!-- /form -->
 
-
 					<?php // if you delete this the sky will fall on your head
-					}
 				}
 				?>
 			<br />
@@ -333,70 +337,11 @@ if ($i == "ASC")
 
 	?>
 
+<p>Go to: <a href="b2edit.php#top">Post/Edit</a> | <a href="b2edit.php#posts">Posts</a> | <a href="b2edit.php#comments">Comments</a></p>
+
 </div>
 
-<div class="wrap">
-<table width="100%">
-  <tr>
-    <td valign="top" width="200">Show posts:</td>
-    <td>
-      <table cellpadding="0" cellspacing="0" border="0">
-        <tr>
-          <td colspan="2" align="center"><!-- show next/previous X posts -->
-            <form name="previousXposts" method="get"><?php
-if ($previousXstart > -1) {
+<?php 
+// uncomment this to show the nav bar at the bottom as well
+// echo $posts_nav_bar; 
 ?>
-              <input type="hidden" name="showposts" value="<?php echo $showposts; ?>" />
-              <input type="hidden" name="poststart" value="<?php echo $previousXstart; ?>" />
-              <input type="hidden" name="postend" value="<?php echo $previousXend; ?>" />
-              <input type="submit" name="submitprevious" class="search" value="< Previous <?php echo $showposts ?>" /><?php
-}
-?>
-            </form>
-          </td>
-          <td>
-            <form name="nextXposts" method="get">
-              <input type="hidden" name="showposts" value="<?php echo $showposts; ?>" />
-              <input type="hidden" name="poststart" value="<?php echo $nextXstart; ?>" />
-              <input type="hidden" name="postend" value="<?php echo $nextXend; ?>" />
-              <input type="submit" name="submitnext" class="search" value="Next <?php echo $showposts ?> >" />
-            </form>
-          </td>
-        </tr>
-      </table>
-    </td>
-  </tr>
-  <tr>
-    <td valign="top" width="200"><!-- show X first/last posts -->
-      <form name="showXfirstlastposts" method="get">
-        <input type="text" name="showposts" value="<?php echo $showposts ?>" style="width:40px;" /?>
-        <select name="order">&nbsp;<option value="DESC" <?php
-$i = $order;
-if ($i == "DESC")
-echo " selected";
-?>>last posts</option>
-<option value="ASC" <?php
-if ($i == "ASC")
-echo " selected";
-?>>first posts</option>
-        </select>&nbsp;<input type="submit" name="submitfirstlast" class="search" value="OK" />
-      </form>
-    </td>
-    <td valign="top"><!-- show post X to post X -->
-      <form name="showXfirstlastposts" method="get">
-        <input type="text" name="poststart" value="<?php echo $poststart ?>" style="width:40px;" /?>&nbsp;to&nbsp;<input type="text" name="postend" value="<?php echo $postend ?>" style="width:40px;" /?>&nbsp;<select name="order">
-          <option value="DESC" <?php
-$i = $order;
-if ($i == "DESC")
-echo " selected";
-?>>from the end</option>
-<option value="ASC" <?php
-if ($i == "ASC")
-echo " selected";
-?>>from the start</option>
-          </select>&nbsp;<input type="submit" name="submitXtoX" class="search" value="OK" />
-        </form>
-      </td>
-    </tr>
-  </table>
-</div>

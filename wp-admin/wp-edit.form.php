@@ -194,7 +194,7 @@ if (get_settings('use_geo_positions')) {
 <label for="post_latf">Latitude:</label><input size="8" type="text" value="<?php echo $edited_lat; ?>" name="post_latf">&nbsp;
 <label for="post_lonf">Longitude:</label><input size="8" type="text" value="<?php echo $edited_lon; ?>" name="post_lonf">&nbsp; <a href="http://www.geourl.org/resources.html" rel="external" >click for Geo Info</a>
 <br>
-<?
+<?php
 }
 ?>
 
@@ -218,5 +218,8 @@ if ($user_level > 4) {
 if ('edit' == $action) echo "
 <p><a href='b2edit.php?action=delete&amp;post=$post' onclick=\"return confirm('You are about to delete this post \'".$edited_post_title."\'\\n  \'Cancel\' to stop, \'OK\' to delete.')\">Delete this post</a></p>";
 ?>
+
+<p>Go to: <a href="b2edit.php#top">Post/Edit</a> | <a href="b2edit.php#posts">Posts</a> | <a href="b2edit.php#comments">Comments</a></p>
+
 </form>
 </div>

@@ -87,13 +87,17 @@ function wp_get_recent_posts($num = 10) {
 
 function wp_update_post($postarr = array()) {
 	global $wpdb, $tableposts;
-	
-	// export array as variables
+
+	// First get all of the original fields
+	extract(wp_get_single_post($postarr['ID']));	
+
+	// Now overwrite any changed values being passed in
 	extract($postarr);
 	
 	// Do some escapes for safety
 	$post_content = $wpdb->escape($post_content);
 	$post_title = $wpdb->escape($post_title);
+	$post_excerpt = $wpdb->escape($post_excerpt);
 	
 	$sql = "UPDATE $tableposts 
 		SET post_content = '$post_content',
@@ -101,7 +105,9 @@ function wp_update_post($postarr = array()) {
 		post_category = $post_category,
 		post_status = '$post_status',
 		post_date = '$post_date',
-		post_excerpt = '$post_excerpt'
+		post_excerpt = '$post_excerpt',
+		ping_status = '$ping_status',
+		comment_status = '$comment_status'
 		WHERE ID = $ID";
 		
 	$result = $wpdb->query($sql);
@@ -627,7 +633,7 @@ function bloggereditpost($m) {
 	$newcontent = $newcontent->scalarval();
 	$post_status = $publish->scalarval()?'publish':'draft';
 
-	$result = wp_get_single_post($ID);
+	$result = wp_get_single_post($ID,ARRAY_A);
 
 	if (!$result)
 		return new xmlrpcresp(0, $xmlrpcerruser+2, // user error 2
@@ -652,6 +658,8 @@ function bloggereditpost($m) {
 			return new xmlrpcresp(0, $xmlrpcerruser+1, // user error 1
 	   "Sorry, level 0 users can not edit posts");
 		}
+		
+		extract($result);
 
 		$content = $newcontent;
 
@@ -661,7 +669,7 @@ function bloggereditpost($m) {
 		$content = xmlrpc_removepostdata($content);
 		$post_content = format_to_post($content);
 		
-		$postdata = compact('ID','post_content','post_title','post_category','post_status');
+		$postdata = compact('ID','post_content','post_title','post_category','post_status','post_date','post_excerpt');
 
 		$result = wp_update_post($postdata);
 
@@ -1276,7 +1284,7 @@ function mweditpost ($params) {	// ($postid, $user, $pass, $content, $publish)
 		if ($post_more) {
 			$post_content = $post_content . "\n<!--more-->\n" . $post_more;
 		}
-		$comment_status = $contentstruct['mt_allow_comments']?'open':'closed';
+		$comment_status = (1 == $contentstruct['mt_allow_comments'])?'open':'closed';
 		$ping_status = $contentstruct['mt_allow_pings']?'open':'closed';
 
 		
@@ -1341,7 +1349,7 @@ function mwgetpost ($params) {	// ($postid, $user, $pass)
 			// why were we converting to GMT here? spec doesn't call for that.
 			//$post_date = mysql2date("U", $postdata["Date"]);
 			//$post_date = gmdate("Ymd", $post_date)."T".gmdate("H:i:s", $post_date);
-			$post_date = strtodate($postdata['Date']);
+			$post_date = strtotime($postdata['Date']);
 			$post_date = date("Ymd", $post_date)."T".date("H:i:s", $post_date);
 			
 			$catid = $postdata['Category'];
@@ -1350,13 +1358,13 @@ function mwgetpost ($params) {	// ($postid, $user, $pass)
 			$catlist = array($catnameenc);
 			
 			$post = get_extended($postdata['Content']);
-			$allow_comments = 'open' == $postdata['comment_status']?1:0;
-			$allow_pings = 'open' == $postdata['ping_status']?1:0;
+			$allow_comments = ('open' == $postdata['comment_status'])?1:0;
+			$allow_pings = ('open' == $postdata['ping_status'])?1:0;
 
 			$resp = array(
 				'link' => new xmlrpcval(post_permalink($post_ID)),
 				'title' => new xmlrpcval($postdata["Title"]),
-				'description' => new xmlrpcval(stripslashes($post['main'])),
+				'description' => new xmlrpcval($post['main']),
 				'dateCreated' => new xmlrpcval($post_date,'dateTime.iso8601'),
 				'userid' => new xmlrpcval($postdata["Author_ID"]),
 				'postid' => new xmlrpcval($postdata["ID"]),
@@ -1409,20 +1417,17 @@ function mwrecentposts ($params) {	// ($blogid, $user, $pass, $num)
 		
 		// Encode each entry of the array.
 		foreach($postlist as $entry) {
-			// convert the date
-			//$mdate = mysql2date('U',$entry['post_date']);
 			$mdate = strtotime($entry['post_date']);
-			// spec doesn't call for GMT conversion
-			//$isoString = gmdate('Ymd',$mdate).'T'.gmdate('H:i:s',$mdate);
 			$isoString = date('Ymd',$mdate).'T'.date('H:i:s',$mdate);
 			$date = new xmlrpcval($isoString,"dateTime.iso8601");
 			$userid = new xmlrpcval($entry['post_author']);
 			$content = new xmlrpcval($entry['post_content']);
 			$excerpt = new xmlrpcval($entry['post_excerpt']);
 			
-			// Something still isn't right with categories....
-			$pcat = get_cat_name($entry['post_category']);
+			$pcat = stripslashes(get_cat_name($entry['post_category']));
 			
+			// For multipile cats, we might do something like
+			// this in the future:
 			//$catstruct['description'] = $pcat;
 			//$catstruct['categoryId'] = $entry['post_category'];
 			//$catstruct['categoryName'] = $pcat;
@@ -1435,15 +1440,15 @@ function mwrecentposts ($params) {	// ($blogid, $user, $pass, $num)
 			$post = get_extended($entry['post_content']);
 
 			$postid = new xmlrpcval($entry['ID']);
-			$title = new xmlrpcval($entry['post_title']);
-			$description = new xmlrpcval($post['main']);
+			$title = new xmlrpcval(stripslashes($entry['post_title']));
+			$description = new xmlrpcval(stripslashes($post['main']));
 			$link = new xmlrpcval(post_permalink($entry['ID']));
 			$permalink = $link;
 
-			$extended = new xmlrpcval($post['extended']);
+			$extended = new xmlrpcval(stripslashes($post['extended']));
 
-			$allow_comments = (('open' == $entry['comment_status'])?1:0);
-			$allow_pings = (('open' == $entry['ping_status'])?1:0);
+			$allow_comments = new xmlrpcval((('open' == $entry['comment_status'])?1:0),'int');
+			$allow_pings = new xmlrpcval((('open' == $entry['ping_status'])?1:0),'int');
 
 			$encode_arr = array(
 				'dateCreated' => $date,
@@ -1683,12 +1688,14 @@ $pingback_ping_sig = array(array($xmlrpcString, $xmlrpcString, $xmlrpcString));
 
 $pingback_ping_doc = 'gets a pingback and registers it as a comment prefixed by &lt;pingback /&gt;';
 
+$debug = 1; 
 function pingback_ping($m) {
 	// original code by Mort (http://mort.mine.nu:8080) 
 	global $tableposts,$tablecomments, $comments_notify, $wpdb; 
 	global $siteurl, $blogfilename,$b2_version, $use_pingback; 
 	global $HTTP_SERVER_VARS, $wpdb;
-    
+
+	    
 	if (!$use_pingback) {
 		return new xmlrpcresp(new xmlrpcval('Sorry, this weblog does not allow you to pingback its posts.'));
 	}
@@ -1712,9 +1719,12 @@ function pingback_ping($m) {
 	debug_fwrite($log, 'Page linked to: '.$pagelinkedto."\n");
 
 	$messages = array(
-		htmlentities("Pingback from ".$pagelinkedfrom." to ".$pagelinkedto." registered. Keep the web talking! :-)"),
-		htmlentities("We can't find the URL to the post you are trying to link to in your entry. Please check how you wrote the post's permalink in your entry."),
-		htmlentities("We can't find the post you are trying to link to. Please check the post's permalink.")
+		htmlentities("Pingback from ".$pagelinkedfrom." to "
+			. $pagelinkedto . " registered. Keep the web talking! :-)"),
+		htmlentities("We can't find the URL to the post you are trying to "
+			. "link to in your entry. Please check how you wrote the post's permalink in your entry."),
+		htmlentities("We can't find the post you are trying to link to."
+			. " Please check the post's permalink.")
 	);
 
 	$message = $messages[0];
@@ -1741,6 +1751,10 @@ function pingback_ping($m) {
 				// ...an integer #XXXX (simpliest case)
 				$post_ID = $urltest['fragment'];
 				$way = 'from the fragment (numeric)';
+			} elseif (preg_match('/post-[0-9]+/',$urltest['fragment'])) {
+				// ...a post id in the form 'post-###'
+				$post_ID = preg_replace('/[^0-9]+/', '', $urltest['fragment']);
+				$way = 'from the fragment (post-###)';
 			} elseif (is_string($urltest['fragment'])) {
 				// ...or a string #title, a little more complicated
 				$title = preg_replace('/[^a-zA-Z0-9]/', '.', $urltest['fragment']);
@@ -1762,7 +1776,10 @@ function pingback_ping($m) {
 			debug_fwrite($log, 'Post exists'."\n");
 
 			// Let's check that the remote site didn't already pingback this entry
-			$sql = 'SELECT * FROM '.$tablecomments.' WHERE comment_post_ID = '.$post_ID.' AND comment_author_url = \''.$pagelinkedfrom.'\' AND comment_content LIKE \'%<pingback />%\'';
+			$sql = 'SELECT * FROM '.$tablecomments.' 
+				WHERE comment_post_ID = '.$post_ID.' 
+					AND comment_author_url = \''.$pagelinkedfrom.'\' 
+					AND comment_content LIKE \'%<pingback />%\'';
 			$result = $wpdb->get_results($sql);
 	    
 			if ($wpdb->num_rows || (1==1)) {
@@ -1774,7 +1791,11 @@ function pingback_ping($m) {
 				$fp = @fopen($pagelinkedfrom, 'r');
 
 				$puntero = 4096;
-				while($linea = fread($fp, $puntero)) {
+				while($remote_read = fread($fp, $puntero)) {
+					$linea .= $remote_read;
+				}
+					// Work around bug in strip_tags():
+					$linea = str_replace('<!DOCTYPE','<DOCTYPE',$linea);
 					$linea = strip_tags($linea, '<title><a>');
 					$linea = strip_all_but_one_link($linea, $pagelinkedto);
 					$linea = preg_replace('#&([^amp\;])#is', '&amp;$1', $linea);
@@ -1793,7 +1814,7 @@ function pingback_ping($m) {
 					} else {
 						debug_fwrite($log, 'The page doesn\'t link to us, here\'s an excerpt :'."\n\n".$linea."\n\n");
 					}
-				}
+				//}
 				debug_fwrite($log, '*****'."\n\n");
 				fclose($fp);
 
@@ -1812,33 +1833,39 @@ function pingback_ping($m) {
 					$pagelinkedfrom = addslashes($pagelinkedfrom);
 					$original_title = $title;
 					$title = addslashes(strip_tags(trim($title)));
-					$sql = "INSERT INTO $tablecomments (comment_post_ID, comment_author, comment_author_url, comment_date, comment_content) VALUES ($post_ID, '$title', '$pagelinkedfrom', NOW(), '$context')";
+					$sql = "INSERT INTO $tablecomments 
+						(comment_post_ID, comment_author, comment_author_url, comment_date, comment_content) 
+						VALUES ($post_ID, '$title', '$pagelinkedfrom', NOW(), '$context')";
 					$consulta = $wpdb->query($sql);
 
-					if ($comments_notify) {
-
-						$notify_message  = "New pingback on your post #$post_ID.\r\n\r\n";
-						$notify_message .= "website: $original_title\r\n";
-						$notify_message .= "url    : $original_pagelinkedfrom\r\n";
-						$notify_message .= "excerpt: \n[...] $original_context [...]\r\n\r\n";
-						$notify_message .= "You can see all pingbacks on this post there: \r\n";
-						$notify_message .= "$siteurl/$blogfilename?p=$post_ID&pb=1\r\n\r\n";
-
+					$authordata = get_userdata($postdata['Author_ID']);
+					if ($comments_notify && '' != $authordata->user_email) {
 						$postdata = get_postdata($post_ID);
-						$authordata = get_userdata($postdata['Author_ID']);
-						$recipient = $authordata['user_email'];
-						$subject = "pingback on post #$post_ID \"".$postdata['Title'].'"';
 
-						@mail($recipient, $subject, $notify_message, "From: b2@".$HTTP_SERVER_VARS['SERVER_NAME']."\r\n"."X-Mailer: b2 $b2_version - PHP/" . phpversion());
+						$notify_message  = "New pingback on your post #$comment_post_ID \"".stripslashes($postdata['Title'])."\"\r\n\r\n";
+						$notify_message .= "Website: $original_title\r\n";
+						$notify_message .= "URI    : $original_pagelinkedfrom\r\n";
+						$notify_message .= "Excerpt: \n[...] $original_context [...]\r\n\r\n";
+						$notify_message .= "You can see all pingbacks on this post here: \r\n";
+						$notify_message .= "$siteurl/$blogfilename?p=$post_ID&c=1\r\n\r\n";
+
+						$subject = '[' . stripslashes($blogname) . '] Pingback: "' .stripslashes($postdata['Title']).'"';
+			
+						$from = "From: wordpress@".$HTTP_SERVER_VARS['SERVER_NAME'];
+						$from .= "X-Mailer: WordPress $b2_version with PHP/" . phpversion();
+			
+						@mail($authordata->user_email, $subject, $notify_message, $from);
 
 					}
 				} else {
 					// URL pattern not found
-					$message = "Page linked to: $pagelinkedto\nPage linked from: $pagelinkedfrom\nTitle: $title\nContext: $context\n\n".$messages[1];
+					$message = "Page linked to: $pagelinkedto\nPage linked from:"
+						. " $pagelinkedfrom\nTitle: $title\nContext: $context\n\n".$messages[1];
 				}
 			} else {
 				// We already have a Pingback from this URL
-				$message = "Sorry, you already did a pingback to $pagelinkedto from $pagelinkedfrom.";
+				$message = "Sorry, you already did a pingback to $pagelinkedto"
+				. " from $pagelinkedfrom.";
 			}
 		} else {
 			// Post_ID not found

@@ -109,19 +109,21 @@ function single_month_title($prefix = '', $display = true ) {
 }
 
 /* link navigation hack by Orien http://icecode.com/ */
-function get_archives_link($url, $text, $format) {
+function get_archives_link($url, $text, $format = "html", $before = "", $after = "") {
 	if ('link' == $format) {
 		return "\t".'<link rel="archives" title="'.$text.'" href="'.$url.'" />'."\n";
 	} else if ('option' == $format) {
 		return '<option value="'.$url.'">'.$text.'</option>'."\n";
-	} else { // 'html'
+	} else if ('html' == $format) {
 		return "\t".'<li><a href="'.$url.'" title="'.$text.'">'.$text.'</a></li>'."\n";
+	} else { // custom 
+		return "\t".$before.'<a href="'.$url.'" title="'.$text.'">'.$text.'</a>'.$after."\n";
 	}
 }
 
-function get_archives($type='', $limit='', $format='html') {
+function get_archives($type='', $limit='', $format='html', $before = "", $after = "", $show_post_count = false) {
 	global $tableposts, $dateformat, $time_difference, $siteurl, $blogfilename;
-    global $querystring_start, $querystring_equal, $querystring_separator, $month, $wpdb, $start_of_week;
+    global $querystring_start, $querystring_equal, $querystring_separator, $month, $wpdb, $start_of_week, $querycount;
 
     if ('' == $type) {
         $type = get_settings('archive_mode');
@@ -159,12 +161,15 @@ function get_archives($type='', $limit='', $format='html') {
 
 	if ('monthly' == $type) {
 		++$querycount;
-		$arcresults = $wpdb->get_results("SELECT DISTINCT YEAR(post_date) AS `year`, MONTH(post_date) AS `month` FROM $tableposts WHERE post_date < '$now' AND post_category > 0 AND post_status = 'publish' ORDER BY post_date DESC" . $limit);
+		$arcresults = $wpdb->get_results("SELECT DISTINCT YEAR(post_date) AS `year`, MONTH(post_date) AS `month`, count(ID) as posts FROM $tableposts WHERE post_date < '$now' AND post_category > 0 AND post_status = 'publish' GROUP BY YEAR(post_date), MONTH(post_date) ORDER BY post_date DESC" . $limit);
         if ($arcresults) {
             foreach ($arcresults as $arcresult) {
                 $url  = sprintf("%s%d%02d", $archive_link_m,  $arcresult->year,   $arcresult->month);
-                $text = sprintf("%s %d",    $month[zeroise($arcresult->month,2)], $arcresult->year);
-                echo get_archives_link($url, $text, $format);
+                if ($show_post_count)
+                    $text = sprintf("%s %d (%d)", $month[zeroise($arcresult->month,2)], $arcresult->year, $arcresult->posts);
+                else
+                    $text = sprintf("%s %d", $month[zeroise($arcresult->month,2)], $arcresult->year);
+                echo get_archives_link($url, $text, $format, $before, $after);
             }
         }
 	} elseif ('daily' == $type) {
@@ -175,7 +180,7 @@ function get_archives($type='', $limit='', $format='html') {
                 $url  = sprintf("%s%d%02d%02d", $archive_link_m, $arcresult->year, $arcresult->month, $arcresult->dayofmonth);
                 $date = sprintf("%d-%02d-%02d 00:00:00", $arcresult->year, $arcresult->month, $arcresult->dayofmonth);
                 $text = mysql2date($archive_day_date_format, $date);
-                echo get_archives_link($url, $text, $format);
+                echo get_archives_link($url, $text, $format, $before, $after);
             }
         }
 	} elseif ('weekly' == $type) {
@@ -197,7 +202,7 @@ function get_archives($type='', $limit='', $format='html') {
                                     $querystring_equal, $arc_year, $querystring_separator, 
                                     $querystring_equal, $arcresult->week);
                     $text = $arc_week_start . $archive_week_separator . $arc_week_end;
-                    echo get_archives_link($url, $text, $format);
+                    echo get_archives_link($url, $text, $format, $before, $after);
                 }
             }
         }
@@ -214,7 +219,7 @@ function get_archives($type='', $limit='', $format='html') {
                     } else {
                         $text = $arcresult->ID;
                     }
-                    echo get_archives_link($url, $text, $format);
+                    echo get_archives_link($url, $text, $format, $before, $after);
                 }
             }
         }
@@ -482,12 +487,21 @@ function the_author_posts() {
 
 /***** Post tags *****/
 
+function get_the_password_form() {
+	$output = "<form action='" . get_settings('siteurl') . "/wp-pass.php' method='post'>
+	<p>This post is password protected. To view it please enter your password below:</p>
+	<p><label>Password: <input name='post_password' type='text' size='20' /></label> <input type='submit' name='Submit' value='Submit' /></p>
+	</form>
+	";
+	return $output;
+}
+
 function the_ID() {
 	global $id;
 	echo $id;
 }
 
-function the_title($before='', $after='') {
+function the_title($before='', $after='', $echo=true) {
 	$title = get_the_title();
 	$title = convert_bbcode($title);
 	$title = convert_gmcode($title);
@@ -495,7 +509,10 @@ function the_title($before='', $after='') {
 	if ($title) {
 		$title = convert_chars($before.$title.$after);
 		$title = apply_filters('the_title', $title);
-		echo $title;
+        if ($echo)
+            echo $title;
+        else
+            return $title;
 	}
 }
 function the_title_rss() {
@@ -588,11 +605,7 @@ function get_the_content($more_link_text='(more...)', $stripteaser=0, $more_file
 	
 	if (!empty($post->post_password)) { // if there's a password
 		if ($HTTP_COOKIE_VARS['wp-postpass'] != $post->post_password) {  // and it doesn't match the cookie
-			$output = "<form action='" . get_settings('siteurl') . "/wp-pass.php' method='post'>
-			<p>This post is password protected. To view it please enter your password below:</p>
-			<p><label>Password: <input name='post_password' type='text' size='20' /></label> <input type='submit' name='Submit' value='Submit' /></p>
-			</form>
-			";
+			$output = get_the_password_form();
 			return $output;
 		}
 	}
@@ -681,7 +694,7 @@ function get_the_excerpt($fakeit = false) {
 	global $id, $post;
 	global $HTTP_SERVER_VARS, $HTTP_COOKIE_VARS, $preview;
 	$output = '';
-	$output = $post->post_excerpt;
+	$output = stripslashes($post->post_excerpt);
 	if (!empty($post->post_password)) { // if there's a password
 		if ($HTTP_COOKIE_VARS['wp-postpass'] != $post->post_password) {  // and it doesn't match the cookie
 			$output = "There is no excerpt because this is a protected post.";
@@ -840,10 +853,6 @@ function next_post($format='%', $next='next post: ', $title='yes', $in_same_cat=
 	}
 }
 
-
-
-
-
 function next_posts($max_page = 0) { // original by cfactor at cooltux.org
 	global $HTTP_SERVER_VARS, $siteurl, $blogfilename, $p, $paged, $what_to_show, $pagenow;
 	global $querystring_start, $querystring_equal, $querystring_separator;
@@ -995,9 +1004,12 @@ function get_the_category_by_ID($cat_ID) {
 	return(stripslashes($cat_name));
 }
 
-function the_category_ID() {
+function the_category_ID($echo=true) {
 	global $post;
-	echo $post->post_category;
+    if ($echo)
+        echo $post->post_category;
+    else
+        return $post->post_category;
 }
 
 function the_category_head($before='', $after='') {
@@ -1144,34 +1156,41 @@ function comments_popup_script($width=400, $height=400, $file='b2commentspopup.p
 	global $b2commentspopupfile, $b2trackbackpopupfile, $b2pingbackpopupfile, $b2commentsjavascript;
 	$b2commentspopupfile = $file;
 	$b2commentsjavascript = 1;
-	$javascript = "<script language='javascript' type='text/javascript'>\nfunction b2open (macagna) {\n    window.open(macagna, '_blank', 'width=$width,height=$height,scrollbars=yes,status=yes');\n}\n</script>\n";
+	$javascript = "<script type='text/javascript'>\nfunction b2open (macagna) {\n    window.open(macagna, '_blank', 'width=$width,height=$height,scrollbars=yes,status=yes');\n}\n</script>\n";
 	echo $javascript;
 }
 
 function comments_popup_link($zero='No Comments', $one='1 Comment', $more='% Comments', $CSSclass='', $none='Comments Off') {
-	global $id, $b2commentspopupfile, $b2commentsjavascript, $post, $wpdb, $tablecomments;
+	global $id, $b2commentspopupfile, $b2commentsjavascript, $post, $wpdb, $tablecomments, $HTTP_COOKIE_VARS;
 	global $querystring_start, $querystring_equal, $querystring_separator, $siteurl;
 	$number = $wpdb->get_var("SELECT COUNT(*) FROM $tablecomments WHERE comment_post_ID = $id");
 	if (0 == $number && 'closed' == $post->comment_status) {
 		echo $none;
 		return;
 	} else {
-		echo "<a href=\"$siteurl/";
-		if ($b2commentsjavascript) {
-			echo $b2commentspopupfile.$querystring_start.'p'.$querystring_equal.$id.$querystring_separator.'c'.$querystring_equal.'1';
-			echo '" onclick="b2open(this.href); return false"';
-		} else {
-			// if comments_popup_script() is not in the template, display simple comment link
-			comments_link();
-			echo '"';
-		}
-		if (!empty($CSSclass)) {
-			echo ' class="'.$CSSclass.'"';
-		}
-		echo '>';
-		comments_number($zero, $one, $more);
-		echo '</a>';
-	}
+        if (!empty($post->post_password)) { // if there's a password
+            if ($HTTP_COOKIE_VARS['wp-postpass'] != $post->post_password) {  // and it doesn't match the cookie
+                echo("Enter your password to view comments");
+                return;
+            }
+        }
+        echo "<a href=\"$siteurl/";
+        if ($b2commentsjavascript) {
+            echo $b2commentspopupfile.$querystring_start.'p'.$querystring_equal.$id.$querystring_separator.'c'.$querystring_equal.'1';
+            echo '" onclick="b2open(this.href); return false"';
+        } else {
+            // if comments_popup_script() is not in the template, display simple comment link
+            comments_link();
+            echo '"';
+        }
+        if (!empty($CSSclass)) {
+            echo ' class="'.$CSSclass.'"';
+        }
+        echo '>';
+        comments_number($zero, $one, $more);
+        echo '</a>';
+    }
+	
 }
 
 function comment_ID() {
@@ -1293,6 +1312,46 @@ function comment_time($d='') {
 	}
 }
 
+function comments_rss_link($link_text='Comments RSS', $commentsrssfilename = 'wp-commentsrss2.php') {
+	global $id;
+	global $querystring_start, $querystring_equal, $querystring_separator;
+	$url = $commentsrssfilename.$querystring_start.'p'.$querystring_equal.$id;
+	$url = '<a href="'.$url.'">'.$link_text.'</a>';
+	echo $url;
+}
+
+function comment_author_rss() {
+	global $comment;
+	echo strip_tags(stripslashes($comment->comment_author));
+}
+
+function comment_text_rss() {
+	global $comment;
+	$comment_text = stripslashes($comment->comment_content);
+	$comment_text = str_replace('<trackback />', '', $comment_text);
+	$comment_text = str_replace('<pingback />', '', $comment_text);
+	$comment_text = convert_chars($comment_text);
+	$comment_text = convert_bbcode($comment_text);
+	$comment_text = convert_gmcode($comment_text);
+	$comment_text = convert_smilies($comment_text);
+	$comment_text = apply_filters('comment_text', $comment_text);
+	$comment_text = strip_tags($comment_text);
+	$comment_text = htmlspecialchars($comment_text);
+	echo $comment_text;
+}
+
+function comment_link_rss() {
+	global $comment,$postdata,$pagenow,$siteurl,$blogfilename;
+	global $querystring_start, $querystring_equal, $querystring_separator;
+	echo $siteurl.'/'.$blogfilename.$querystring_start.'p'.$querystring_equal.$comment->comment_post_ID.$querystring_separator.'c'.$querystring_equal.'1#comments';
+}
+
+function permalink_comments_rss() {
+	global $comment,$postdata,$pagenow,$siteurl,$blogfilename;
+	global $querystring_start, $querystring_equal, $querystring_separator;
+	echo $siteurl.'/'.$blogfilename.$querystring_start.'p'.$querystring_equal.$comment->comment_post_ID.$querystring_separator.'c'.$querystring_equal.'1';
+}
+
 /***** // Comment tags *****/
 
 
@@ -1323,7 +1382,7 @@ function trackback_rdf($timezone = 0) {
 		echo '    dc:identifier="';
 		permalink_single();
 		echo '"'."\n";
-		echo '    dc:title="'.addslashes(strip_tags(get_the_title())).'"'."\n";
+		echo '    dc:title="'.str_replace('--', '&#x2d;&#x2d;', addslashes(strip_tags(get_the_title()))).'"'."\n";
 		echo '    trackback:ping="'.trackback_url(0).'"'." />\n";
 		echo '</rdf:RDF>';
 	}

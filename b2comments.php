@@ -3,20 +3,28 @@
 		die ('Please do not load this page directly. Thanks!');
 	if (($withcomments) or ($c)) {
 
-		$comment_author = (empty($HTTP_COOKIE_VARS["comment_author"])) ? "name" : $HTTP_COOKIE_VARS["comment_author"];
-		$comment_author_email = (empty($HTTP_COOKIE_VARS["comment_author"])) ? "email" : trim($HTTP_COOKIE_VARS["comment_author_email"]);
-		$comment_author_url = (empty($HTTP_COOKIE_VARS["comment_author"])) ? "url" : trim($HTTP_COOKIE_VARS["comment_author_url"]);
+        if (!empty($post->post_password)) { // if there's a password
+            if ($HTTP_COOKIE_VARS['wp-postpass'] != $post->post_password) {  // and it doesn't match the cookie
+                echo("<p>Enter your password to view comments.<p>");
+                return;
+            }
+        }
+
+		$comment_author = trim($HTTP_COOKIE_VARS["comment_author"]);
+		$comment_author_email = trim($HTTP_COOKIE_VARS["comment_author_email"]);
+		$comment_author_url = trim($HTTP_COOKIE_VARS["comment_author_url"]);
 
 	$comments = $wpdb->get_results("SELECT * FROM $tablecomments WHERE comment_post_ID = $id ORDER BY comment_date");
 ?>
 
-<!-- you can start editing here -->
+<!-- You can start editing here. -->
 
 <h2>Comments</h2>
 
+<p><a href="<?php echo $siteurl; ?>/wp-commentsrss2.php?p=<?php echo $id; ?>">RSS feed for comments on this post.</a></p>
+
 <?php if ('open' == $post->ping_status) { ?>
-<p>The URL to TrackBack this entry is:</p>
-<p><em><?php trackback_url() ?></em></p>
+<p>The <acronym title="Uniform Resource Identifier">URI</acronym> to TrackBack this entry is: <em><?php trackback_url() ?></em></p>
 <?php } ?>
 
 <ol id="comments">
@@ -39,13 +47,13 @@ if ($comments) {
 </ol>
 <h2>Leave a Comment</h2>
 <?php if ('open' == $post->comment_status) { ?>
-<p>Line and paragraph breaks automatic, website trumps email, <acronym title="Hypertext Markup Language">HTML</acronym> allowed: <?php echo htmlentities($comment_allowed_tags); ?></p>
+<p>Line and paragraph breaks automatic, website trumps email, <acronym title="Hypertext Markup Language">HTML</acronym> allowed: <code><?php echo htmlentities(str_replace('<', ' <', $comment_allowed_tags)); ?></code></p>
 
 
 <form action="<?php echo $siteurl; ?>/b2comments.post.php" method="post" id="commentform">
 	<p>
 	  <input type="text" name="author" id="author" class="textarea" value="<?php echo $comment_author; ?>" size="28" tabindex="1" />
-	   <label for="author">name</label>
+	   <label for="author">Name</label>
 	<input type="hidden" name="comment_post_ID" value="<?php echo $id; ?>" />
 	<input type="hidden" name="redirect_to" value="<?php echo htmlspecialchars($_SERVER["REQUEST_URI"]); ?>" />
 	</p>
@@ -57,7 +65,7 @@ if ($comments) {
 
 	<p>
 	  <input type="text" name="url" id="url" value="<?php echo $comment_author_url; ?>" size="28" tabindex="3" />
-	   <label for="url"><acronym title="Uniform Resource Locator">URL</acronym></label>
+	   <label for="url"><acronym title="Uniform Resource Identifier">URI</acronym></label>
 	</p>
 
 	<p>

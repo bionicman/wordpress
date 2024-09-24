@@ -13,9 +13,6 @@ require_once($abspath.'wp-links/links.php');
 	<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
 	<meta name="generator" content="WordPress .72" /> <!-- leave this for stats -->
 
-	<?php if(get_settings('use_geo_positions')) {
-		doGeoUrlHeader($posts);
-	} ?>
 	<style type="text/css" media="screen">
 		@import url( <?php echo $siteurl; ?>/wp-layout.css );
 	</style>
@@ -91,6 +88,13 @@ require_once($abspath.'wp-links/links.php');
 	 <?php get_archives('monthly'); ?>
  	</ul>
  </li>
+ <li>Calendar:
+   <ul>
+     <li>
+		<?php include_once('b2calendar.php')?>
+     </li>
+   </ul>
+ </li>
  <li>Other:
 	<ul>
 		<li><a href="b2login.php">login</a></li>
@@ -102,6 +106,7 @@ require_once($abspath.'wp-links/links.php');
 		<li><a href="b2rss.php">RSS .92</a></li>
 		<li><a href="b2rdf.php">RDF 1.0</a></li>
 		<li><a href="b2rss2.php">RSS 2.0</a></li>
+		<li><a href="wp-commentsrss2.php">Comments RSS 2.0</a></li>
 		<li><a href="http://validator.w3.org/check/referer" title="This page validates as XHTML 1.0 Transitional">Valid <abbr title="eXtensible HyperText Markup Language">XHTML</abbr></a></li>
 		<li><a href="http://wordpress.org" title="Powered by WordPress, personal publishing platform">WP</a></li>
 	</ul>

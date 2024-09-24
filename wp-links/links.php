@@ -1,5 +1,5 @@
 <?php
-// $Id: links.php,v 1.17 2003/08/15 19:27:31 saxmatt Exp $
+// $Id: links.php,v 1.28 2003/09/21 23:46:54 mikelittle Exp $
 //
 // Links
 // Copyright (C) 2002 Mike Little -- mike@zed1.com
@@ -84,7 +84,7 @@ function wp_get_linksbyname($category) {
          . " text_after_all, list_limit FROM $tablelinkcategories WHERE cat_name='$category'");
     if ($cat) {
         if ($cat->sort_desc == 'Y') {
-            $row->sort_order = '_'.$row->sort_order;
+            $cat->sort_order = '_'.$cat->sort_order;
         }
         get_links($cat->cat_id, $cat->text_before_link, $cat->text_after_all,
                   $cat->text_after_link, bool_from_yn($cat->show_images), $cat->sort_order,
@@ -106,7 +106,7 @@ function wp_get_links($category) {
          . " text_after_all, list_limit FROM $tablelinkcategories WHERE cat_id=$category");
     if ($cat) {
         if ($cat->sort_desc == 'Y') {
-            $row->sort_order = '_'.$row->sort_order;
+            $cat->sort_order = '_'.$cat->sort_order;
         }
         get_links($cat->cat_id, $cat->text_before_link, $cat->text_after_all,
                   $cat->text_after_link, bool_from_yn($cat->show_images), $cat->sort_order,
@@ -114,7 +114,7 @@ function wp_get_links($category) {
                    $cat->list_limit, bool_from_yn($cat->show_updated));
     }
 } // end wp_get_links
-    
+
 /** function get_links()
  ** Gets the links associated with category n.
  ** Parameters:
@@ -138,9 +138,9 @@ function wp_get_links($category) {
  **   show_updated (default 0) - whether to show last updated timestamp
  */
 function get_links($category = -1, $before = '', $after = '<br />',
-                   $between = " ", $show_images = true, $orderby = 'name',
+                   $between = ' ', $show_images = true, $orderby = 'name',
                    $show_description = true, $show_rating = false,
-                   $limit = -1, $show_updated = 1) {
+                   $limit = -1, $show_updated = 1, $echo = true) {
 
     global $tablelinks, $wpdb;
 
@@ -155,22 +155,35 @@ function get_links($category = -1, $before = '', $after = '<br />',
     if ($show_updated) {
         $get_updated = ", UNIX_TIMESTAMP(link_updated) AS link_updated_f ";
     }
-    $sql = "SELECT link_url, link_name, link_image, link_target,
-            link_description, link_rating, link_rel $recently_updated_test $get_updated
-            FROM $tablelinks
-            WHERE link_visible = 'Y' " .
-           $category_query;
+
+    $orderby=strtolower($orderby);
     if ($orderby == '')
         $orderby = 'id';
     if (substr($orderby,0,1) == '_') {
         $direction = ' DESC';
         $orderby = substr($orderby,1);
     }
-    if (strcasecmp('rand',$orderby) == 0) {
-        $orderby = 'rand()';
-    } else {
-        $orderby = " link_" . $orderby;
+
+    switch($orderby) {
+        case 'length':
+        $length = ",CHAR_LENGTH(link_name) AS length";
+        break;
+        case 'rand':
+            $orderby = 'rand()';
+            break;
+        default:
+            $orderby = " link_" . $orderby;
     }
+	
+    if (!isset($length)) {
+		$length = "";
+	}
+
+    $sql = "SELECT link_url, link_name, link_image, link_target,
+            link_description, link_rating, link_rel $length $recently_updated_test $get_updated
+            FROM $tablelinks
+            WHERE link_visible = 'Y' " .
+           $category_query;
     $sql .= ' ORDER BY ' . $orderby;
     $sql .= $direction;
     /* The next 2 lines implement LIMIT TO processing */
@@ -183,7 +196,7 @@ function get_links($category = -1, $before = '', $after = '<br />',
     }
     foreach ($results as $row) {
         echo($before);
-        if ($row->recently_updated) {
+        if ($show_updated && $row->recently_updated) {
             echo get_settings('links_recently_updated_prepend');
         }
         $the_link = '#';
@@ -196,9 +209,9 @@ function get_links($category = -1, $before = '', $after = '<br />',
         }
         $desc = htmlspecialchars(stripslashes($row->link_description), ENT_QUOTES);
         if ($show_updated) {
-           //if (substr($row->link_updated_f,0,2) != '00') {
-                $desc .= ' Last updated ' . date(get_settings('links_updated_date_format'), $row->link_updated_f);
-           // }
+           if (substr($row->link_updated_f,0,2) != '00') {
+                $desc .= ' (Last updated ' . date(get_settings('links_updated_date_format'), $row->link_updated_f) .')';
+            }
         }
         if ('' != $desc) {
             $desc = " title='$desc'";
@@ -219,7 +232,7 @@ function get_links($category = -1, $before = '', $after = '<br />',
             echo(stripslashes($row->link_name));
         }
         echo('</a>');
-        if ($row->recently_updated) {
+        if ($show_updated && $row->recently_updated) {
             echo get_settings('links_recently_updated_append');
         }
 
@@ -393,7 +406,7 @@ function get_linkrating($link) {
     } // end if image
     return $s;
 }
-    
+
 
 /** function get_linksbyname_withrating()
  ** Gets the links associated with category 'cat_name' and display rating stars/chars.
@@ -462,8 +475,10 @@ function get_links_withrating($category = -1, $before = '', $after = '<br />',
  */
 function get_linkcatname($id = 0) {
     global $tablelinkcategories, $wpdb;
-    $cat_name = 'noname';
-    $cat_name = $wpdb->get_var("SELECT cat_name FROM $tablelinkcategories WHERE cat_id=$id");
+    $cat_name = '';
+    if ('' != $id) {
+        $cat_name = $wpdb->get_var("SELECT cat_name FROM $tablelinkcategories WHERE cat_id=$id");
+    }
     return stripslashes($cat_name);
 }
 
@@ -509,6 +524,80 @@ function links_popup_script($text = 'Links', $width=400, $height=400,
 
    $javascript .="</a>\n\n";
    echo $javascript;
+}
+
+
+/*
+ * function get_links_list()
+ *
+ * added by Dougal
+ *
+ * Output a list of all links, listed by category, using the
+ * settings in $tablelinkcategories and output it as a nested
+ * HTML unordered list.
+ *
+ * Parameters:
+ *   order (default 'name')  - Sort link categories by 'name' or 'id'
+ *   hide_if_empty (default true)  - Supress listing empty link categories
+ */
+function get_links_list($order = 'name', $hide_if_empty = true) {
+	global $tablelinkcategories, $tablelinks, $wpdb;
+
+	$order = strtolower($order);
+
+	// Handle link category sorting
+	if (substr($order,0,1) == '_') {
+		$direction = ' DESC';
+		$order = substr($order,1);
+	}
+
+	// if 'name' wasn't specified, assume 'id':
+	$cat_order = ('name' == $order)?'cat_name':'cat_id';
+
+	if ($hide_if_empty) {
+		$extra_join = "LEFT JOIN $tablelinks ON link_category = cat_id";
+		$group_by_having = 'GROUP BY cat_id HAVING count(link_id) > 0';
+	}
+
+	// Fetch the link category data as an array of hashes
+	$cats = $wpdb->get_results("SELECT cat_id, cat_name, show_images,
+		show_description, show_rating, show_updated, sort_order, sort_desc, list_limit
+		FROM $tablelinkcategories $extra_join
+		$group_by_having
+		ORDER BY $cat_order $direction ",ARRAY_A);
+
+	// Display each category
+	if ($cats) {
+		// Start the unordered list
+		echo "<ul>\n";
+
+		foreach ($cats as $cat) {
+			// Handle each category.
+
+			// First, fix the sort_order info
+			$orderby = $cat['sort_order'];
+			$orderby = (bool_from_yn($cat['sort_desc'])?'_':'') . $orderby;
+
+			// Display the category name
+			echo '<li>' . stripslashes($cat['cat_name']) . "\n<ul>\n";
+
+			// Call get_links() with all the appropriate params
+			get_links($cat['cat_id'],
+				'<li>',"</li>","\n",
+				bool_from_yn($cat['show_images']),
+				$orderby,
+				bool_from_yn($cat['show_description']),
+				bool_from_yn($cat['show_rating']),
+				$cat['list_limit'],
+				bool_from_yn($cat['show_updated']));
+
+			// Close the last category
+			echo "</ul>\n</li>\n";
+
+		}
+		// Close out our category list.
+		echo "</ul>\n";
+	}
 }
 
 ?>

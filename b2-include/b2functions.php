@@ -16,6 +16,7 @@ if (!function_exists('floatval')) {
 
 /***** Formatting functions *****/
 function wptexturize($text) {
+	$output = "";
 	$textarr = preg_split("/(<.*>)/U", $text, -1, PREG_SPLIT_DELIM_CAPTURE); // capture the tags as well as in between
 	$stop = count($textarr); $next = true; // loop stuff
 	for ($i = 0; $i < $stop; $i++) {
@@ -24,7 +25,7 @@ function wptexturize($text) {
 			$curl = str_replace('<q>', '&#8220;', $curl);
 			$curl = str_replace('</q>', '&#8221;', $curl);
 		}
-		if ('<' != $curl{0} && $next) { // If it's not a tag
+		if (isset($curl{0}) && '<' != $curl{0} && $next) { // If it's not a tag
 			$curl = str_replace('---', '&#8212;', $curl);
 			$curl = str_replace('--', '&#8211;', $curl);
 			$curl = str_replace("...", '&#8230;', $curl);
@@ -35,7 +36,6 @@ function wptexturize($text) {
 			$cockneyreplace = array("&#8217;tain&#8217;t","&#8217;twere","&#8217;twas","&#8217;tis","&#8217;twill","&#8217;til","&#8217;bout","&#8217;nuff","&#8217;round");
 			$curl = str_replace($cockney, $cockneyreplace, $curl);
 
-		
 			$curl = preg_replace("/'s/", "&#8217;s", $curl);
 			$curl = preg_replace("/'(\d\d(?:&#8217;|')?s)/", "&#8217;$1", $curl);
 			$curl = preg_replace('/(\s|\A|")\'/', '$1&#8216;', $curl);
@@ -64,21 +64,23 @@ function wptexturize($text) {
 	return $output;
 	}
 
-function wpautop($pee, $br=1) { 
+function wpautop($pee, $br=1) {
+	$pee = $pee . "\n"; // just to make things a little easier, pad the end
 	$pee = preg_replace('|<br />\s*<br />|', "\n\n", $pee);
-	$pee = preg_replace('!(<(?:table|ul|ol|li|pre|select|form|blockquote)[^>]*>)!', "\n$1", $pee); // Space things out a little
-	$pee = preg_replace("/(\r\n|\n|\r)/", "\n", $pee); // cross-platform newlines 
+	$pee = preg_replace('!(<(?:table|ul|ol|li|pre|form|blockquote|h[1-6])[^>]*>)!', "\n$1", $pee); // Space things out a little
+	$pee = preg_replace('!(</(?:table|ul|ol|li|pre|form|blockquote|h[1-6])>)!', "$1\n", $pee); // Space things out a little
+	$pee = preg_replace("/(\r\n|\r)/", "\n", $pee); // cross-platform newlines 
 	$pee = preg_replace("/\n\n+/", "\n\n", $pee); // take care of duplicates
-	$pee = preg_replace('/\n?(.+?)(\n\n|\z)/s', "<p>$1</p>\n", $pee); // make paragraphs, including one at the end 
-	$pee = preg_replace('|<br />\s*</p>|', '</p>', $pee);
-	$pee = preg_replace('|<p>\s*<p>|', '<p>', $pee);
-	$pee = preg_replace('|</p>\s*</p>|', '</p>', $pee);
+	$pee = preg_replace('/\n?(.+?)(?:\n\s*\n|\z)/s', "\t<p>$1</p>\n", $pee); // make paragraphs, including one at the end 
+	$pee = preg_replace('|<p>\s*?</p>|', '', $pee); // under certain strange conditions it could create a P of entirely whitespace 
+	$pee = preg_replace("|<p>(<li.+?)</p>|", "$1", $pee); // problem with nested lists
 	$pee = preg_replace('|<p><blockquote([^>]*)>|i', "<blockquote$1><p>", $pee);
 	$pee = str_replace('</blockquote></p>', '</p></blockquote>', $pee);
-	$pee = preg_replace('!<p>\s*(</?(?:table|ul|ol|li|pre|select|form|blockquote)[^>]*>)!', "$1", $pee);
-	$pee = preg_replace('!(</?(?:table|ul|ol|li|pre|select|form|blockquote)>)\s*</p>!', "$1", $pee); 
+	$pee = preg_replace('!<p>\s*(</?(?:table|tr|td|ul|ol|li|pre|select|form|blockquote|p|h[1-6])[^>]*>)!', "$1", $pee);
+	$pee = preg_replace('!(</?(?:table|tr|td|ul|ol|li|pre|select|form|blockquote|p|h[1-6])>)\s*</p>!', "$1", $pee); 
 	if ($br) $pee = preg_replace('|(?<!<br />)\s*\n|', "<br />\n", $pee); // optionally make line breaks
-	$pee = preg_replace('!(</?(?:table|ul|ol|li|pre|select|form|blockquote|p)[^>]*>)<br />!', "$1", $pee);
+	$pee = preg_replace('!(</?(?:table|tr|td|dl|dd|dt|ul|ol|li|pre|select|form|blockquote|p|h[1-6])[^>]*>)\s*<br />!', "$1", $pee);
+	$pee = preg_replace('!<br />(\s*</?(?:p|li|pre|td|ul|ol)>)!', '$1', $pee);
 	$pee = preg_replace('/&([^#])(?![a-z]{1,8};)/', '&#038;$1', $pee);
 	
 	return $pee; 
@@ -216,7 +218,7 @@ function convert_chars($content,$flag='obsolete attribute left there for backwar
 		$content = preg_replace('/&[^#](?![a-z]*;)/ie', '"&#38;".substr("\0",1)', $content);
 
 		// converts HTML-entities to their display values in order to convert them again later
-		$content = preg_replace('/['.chr(127).'-'.chr(255).']/e', '"&#".ord(\0).";"', $content );
+		$content = preg_replace('/['.chr(127).'-'.chr(255).']/e', '"&#".ord(\'\0\').";"', $content );
 		$content = strtr($content, $b2_htmltrans);
 
 		// now converting: Windows CP1252 => Unicode (valid HTML)
@@ -266,13 +268,26 @@ function convert_gmcode($content) {
 	return $content;
 }
 
-function convert_smilies($content) {
+function convert_smilies($text) {
 	global $smilies_directory, $use_smilies;
 	global $b2_smiliessearch, $b2_smiliesreplace;
+
 	if ($use_smilies) {
-		$content = str_replace($b2_smiliessearch, $b2_smiliesreplace, $content);
+		// HTML loop taken from texturize function, could possible be consolidated
+		$textarr = preg_split("/(<.*>)/U", $text, -1, PREG_SPLIT_DELIM_CAPTURE); // capture the tags as well as in between
+		$stop = count($textarr);// loop stuff
+		for ($i = 0; $i < $stop; $i++) {
+			$content = $textarr[$i];
+			if ('<' != $content{0}) { // If it's not a tag
+				$content = str_replace($b2_smiliessearch, $b2_smiliesreplace, $content);
+			}
+			$output .= $content;
+		}
+	} else {
+		// return default text.
+		$output = $text;
 	}
-	return $content;
+	return $output;
 }
 
 function antispambot($emailaddy, $mailto=0) {
@@ -553,7 +568,7 @@ function profile($user_login) {
 
 function dropdown_categories($blog_ID=1, $default=1) {
 	global $postdata,$tablecategories,$mode,$querycount, $wpdb;
-	$query="SELECT * FROM $tablecategories";
+	$query="SELECT * FROM $tablecategories ORDER BY cat_name";
 	$results = $wpdb->get_results($query);
 	++$querycount;
 	$width = ($mode=="sidebar") ? "100%" : "170px";
@@ -1268,6 +1283,5 @@ function pingGeoURL($blog_ID) {
     $path="/ping/?p=".$ourUrl;
     getRemoteFile($host,$path); 
 }
-
 
 ?>

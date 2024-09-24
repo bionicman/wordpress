@@ -1,4 +1,31 @@
 <?php
+// $Id: links.weblogs.com.php,v 1.17 2003/09/09 19:06:09 emc3 Exp $
+//
+// Links weblogs.com grabber
+// Copyright (C) 2003 Mike Little -- mike@zed1.com
+//
+// This is an add-on to b2/WordPress weblog / news publishing tool
+// b2 is copyright (c)2001, 2002 by Michel Valdrighi - m@tidakada.com
+//
+// **********************************************************************
+// Copyright (C) 2003 Mike Little
+//
+// This program is free software; you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation; either version 2 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful, but
+// WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+// General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program; if not, write to the Free Software
+// Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+//
+// Mike Little (mike@zed1.com)
+// *****************************************************************
 require_once('wp-config.php');
 require_once($abspath.$b2inc.'/b2functions.php');
 
@@ -63,15 +90,20 @@ function get_weblogs_updatedfile() {
 
 	if ($update) {
 		// get a new copy
-		$contents = implode('', file(get_settings('weblogs_xml_url'))); // file_get_contents not available < 4.3
+		$a = @file(get_settings('weblogs_xml_url'));
+		if ($a != false && count($a) && $a[0]) {
+			$contents = implode('', $a);
 
-		// Clean up the input, because weblogs.com doesn't output clean XML	
-		$contents = preg_replace("/'/",'&#39;',$contents);
-		$contents = preg_replace('|[^[:space:][:punct:][:alpha:][:digit:]]|','',$contents);
+			// Clean up the input, because weblogs.com doesn't output clean XML	
+			$contents = preg_replace("/'/",'&#39;',$contents);
+			$contents = preg_replace('|[^[:space:][:punct:][:alpha:][:digit:]]|','',$contents);
 
-		$cachefp = fopen($abspath.get_settings('weblogs_cache_file'), "w");
-		fwrite($cachefp, $contents);
-		fclose($cachefp);
+			$cachefp = fopen(get_settings('weblogs_cache_file'), "w");
+			fwrite($cachefp, $contents);
+			fclose($cachefp);
+		} else {
+			return false; //don't try to process
+		}
 	}
 	return $update;
 }

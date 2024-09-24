@@ -21,13 +21,22 @@ if (!get_magic_quotes_gpc()) {
 	$HTTP_COOKIE_VARS = add_magic_quotes($HTTP_COOKIE_VARS);
 }
 
-$author = trim($HTTP_POST_VARS["author"]);
-$email = trim($HTTP_POST_VARS["email"]);
-$url = trim($HTTP_POST_VARS["url"]);
-$comment = trim($HTTP_POST_VARS["comment"]);
+$author = trim(strip_tags($HTTP_POST_VARS['author']));
+
+$email = trim(strip_tags($HTTP_POST_VARS['email']));
+if (strlen($email) < 6)
+	$email = '';
+
+$url = trim(strip_tags($HTTP_POST_VARS['url']));
+$url = ((!stristr($url, '://')) && ($url != '')) ? 'http://'.$url : $url;
+if (strlen($url) < 7)
+	$url = '';
+
+$comment = trim($HTTP_POST_VARS['comment']);
 $original_comment = $comment;
-$comment_autobr = $HTTP_POST_VARS["comment_autobr"];
-$comment_post_ID = $HTTP_POST_VARS["comment_post_ID"];
+$comment_post_ID = intval($HTTP_POST_VARS['comment_post_ID']);
+$user_ip = $HTTP_SERVER_VARS['REMOTE_ADDR'];
+$user_domain = gethostbyaddr($user_ip);
 
 $commentstatus = $wpdb->get_var("SELECT comment_status FROM $tableposts WHERE ID = $comment_post_ID");
 
@@ -43,21 +52,9 @@ if ($comment == 'comment' || $comment == '') {
 	exit;
 }
 
-$user_ip = $HTTP_SERVER_VARS['REMOTE_ADDR'];
-$user_domain = gethostbyaddr($user_ip);
-$time_difference = get_settings("time_difference");
-$now = date("Y-m-d H:i:s",(time() + ($time_difference * 3600)));
+$time_difference = get_settings('time_difference');
+$now = date('Y-m-d H:i:s',(time() + ($time_difference * 3600)));
 
-$author = strip_tags($author);
-$email = strip_tags($email);
-if (strlen($email) < 6) {
-	$email = '';
-}
-$url = trim(strip_tags($url));
-$url = ((!stristr($url, '://')) && ($url != '')) ? 'http://'.$url : $url;
-if (strlen($url) < 7) {
-	$url = '';
-}
 $comment = strip_tags($comment, $comment_allowed_tags);
 $comment = balanceTags($comment, 1);
 $comment = convert_chars($comment);
@@ -73,46 +70,54 @@ $url = addslashes($url);
 
 /* flood-protection */
 $lasttime = $wpdb->get_var("SELECT comment_date FROM $tablecomments WHERE comment_author_IP = '$user_ip' ORDER BY comment_date DESC LIMIT 1");
-$ok=1;
+$ok = true;
 if (!empty($lasttime)) {
 	$time_lastcomment= mysql2date('U', $lasttime);
 	$time_newcomment= mysql2date('U', "$now");
 	if (($time_newcomment - $time_lastcomment) < 10)
-		$ok = 0;
+		$ok = false;
 }
 /* end flood-protection */
 
 
 
-if ($ok) {
+if ($ok) { // if there was no comment from this IP in the last 10 seconds
 
-	$wpdb->query("INSERT INTO $tablecomments VALUES ('0','$comment_post_ID','$author','$email','$url','$user_ip','$now','$comment','0')");
+	$wpdb->query("INSERT INTO $tablecomments VALUES ('0', '$comment_post_ID', '$author', '$email', '$url', '$user_ip', '$now', '$comment', '0')");
 
-	if ($comments_notify && '' != $comment_author_email) {
-
-		$notify_message  = "New comment on your post #$comment_post_ID ".stripslashes($postdata['Title'])."\r\n\r\n";
-		$notify_message .= "Author : $comment_author (IP: $user_ip , $user_domain)\r\n";
-		$notify_message .= "E-mail : $comment_author_email\r\n";
-		$notify_message .= "URL    : $comment_author_url\r\n";
-		$notify_message .= "Whois  : http://ws.arin.net/cgi-bin/whois.pl?queryinput=$user_ip\r\n";
-		$notify_message .= "Comment: \n".stripslashes($original_comment)."\r\n\r\n";
-		$notify_message .= "You can see all comments on this post here: \r\n";
-		$notify_message .= $siteurl.'/'.$blogfilename.$querystring_start.'p'.$querystring_equal.$id.$querystring_separator.'c'.$querystring_equal.'1#comments';
- 
+	if ($comments_notify) {
 		$postdata = get_postdata($comment_post_ID);
 		$authordata = get_userdata($postdata['Author_ID']);
-		$subject = "[$blogname] Comment: \"".stripslashes($postdata['Title']).'"';
 
-		@mail($authordata->user_email, $subject, $notify_message, "From: \"$comment_author\" <$comment_author_email>\r\n"."X-Mailer: WordPress $b2_version with PHP/".phpversion());
-		
+		if('' != $authordata->user_email) {
+			$notify_message  = "New comment on your post #$comment_post_ID \"".stripslashes($postdata['Title'])."\"\r\n\r\n";
+			$notify_message .= "Author : $comment_author (IP: $user_ip , $user_domain)\r\n";
+			$notify_message .= "E-mail : $comment_author_email\r\n";
+			$notify_message .= "URL    : $comment_author_url\r\n";
+			$notify_message .= "Whois  : http://ws.arin.net/cgi-bin/whois.pl?queryinput=$user_ip\r\n";
+			$notify_message .= "Comment:\r\n".stripslashes($original_comment)."\r\n\r\n";
+			$notify_message .= "You can see all comments on this post here: \r\n";
+			$notify_message .= $siteurl.'/'.$blogfilename.$querystring_start.'p'.$querystring_equal.$comment_post_ID.$querystring_separator.'c'.$querystring_equal.'1#comments';
+
+			$subject = '[' . stripslashes($blogname) . '] Comment: "' .stripslashes($postdata['Title']).'"';
+
+			if ('' != $comment_author_email) {
+				$from = "From: \"$comment_author\" <$comment_author_email>\r\n";
+				} else {
+				$from = 'From: "' . stripslashes($comment_author) . "\" <$authordata->user_email>\r\n";
+				}
+			$from .= "X-Mailer: WordPress $b2_version with PHP/" . phpversion();
+
+			@mail($authordata->user_email, $subject, $notify_message, $from);
+		}
 	}
 
-	if ($email == '') {
+	if ($email == '')
 		$email = ' '; // this to make sure a cookie is set for 'no email'
-	}
-	if ($url == '') {
+
+	if ($url == '')
 		$url = ' '; // this to make sure a cookie is set for 'no url'
-	}
+
 	setcookie('comment_author', $author, time()+30000000);
 	setcookie('comment_author_email', $email, time()+30000000);
 	setcookie('comment_author_url', $url, time()+30000000);
@@ -128,7 +133,7 @@ if ($ok) {
 		header("Location: $location");
 	}
 } else {
-	die('Sorry, you can only post a new comment once every 10 seconds.');
+	die('Sorry, you can only post a new comment once every 10 seconds. Slow down cowboy.');
 }
 
 ?>

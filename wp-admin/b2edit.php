@@ -19,7 +19,25 @@ if (!get_magic_quotes_gpc()) {
     $HTTP_COOKIE_VARS = add_magic_quotes($HTTP_COOKIE_VARS);
 }
 
-$b2varstoreset = array('action','safe_mode','withcomments','c','posts','poststart','postend','content','edited_post_title','comment_error','profile', 'trackback_url', 'excerpt');
+$b2varstoreset = array('action'
+                      ,'safe_mode'
+                      ,'withcomments'
+                      ,'c'
+                      ,'posts'
+                      ,'poststart'
+                      ,'postend'
+                      ,'content'
+                      ,'edited_post_title'
+                      ,'comment_error'
+                      ,'profile'
+                      ,'trackback_url'
+                      ,'excerpt'
+                      ,'showcomments'
+                      ,'commentstart'
+                      ,'commentend'
+                      ,'commentorder'
+                      );
+
 for ($i=0; $i<count($b2varstoreset); $i += 1) {
     $b2var = $b2varstoreset[$i];
     if (!isset($$b2var)) {
@@ -116,7 +134,11 @@ switch($action) {
             }
 
             if (!empty($HTTP_POST_VARS['trackback_url'])) {
-                $excerpt = (strlen(strip_tags($content)) > 255) ? substr(strip_tags($content), 0, 252) . '...' : strip_tags($content);
+				if (strlen($excerpt) > 0) {
+					$the_excerpt = (strlen(strip_tags($excerpt)) > 255) ? substr(strip_tags($excerpt), 0, 252) . '...' : strip_tags($excerpt)	;
+				} else {
+					$the_excerpt = (strlen(strip_tags($content)) > 255) ? substr(strip_tags($content), 0, 252) . '...' : strip_tags($content);
+				}
                 $excerpt = stripslashes($excerpt);
                 $trackback_urls = explode(',', $HTTP_POST_VARS['trackback_url']);
                 foreach($trackback_urls as $tb_url) {
@@ -169,7 +191,7 @@ switch($action) {
 			$ping_status = $postdata['ping_status'];
 			$post_password = $postdata['post_password'];
 
-            include('b2edit.form.php');
+            include('wp-edit.form.php');
         } else {
 ?>
             <p>Since you&#8217;re a newcomer, you&#8217;ll have to wait for an admin to raise your level to 1,
@@ -332,7 +354,7 @@ switch($action) {
         $content = $commentdata['comment_content'];
         $content = format_to_edit($content);
 
-        include('b2edit.form.php');
+        include('wp-edit.form.php');
 
         break;
 
@@ -436,7 +458,7 @@ switch($action) {
                 $ping_status = get_settings('default_ping_status');
                 $post_pingback = get_settings('default_pingback_flag');
                 $default_post_cat = get_settings('default_post_category');
-                include('b2edit.form.php');
+                include('wp-edit.form.php');
                 echo '<br /><br />';
             }
 
@@ -453,7 +475,12 @@ switch($action) {
 
         }
 
-        include('b2edit.showposts.php');
+        include('wp-edit.showposts.php');
+        echo '<br /><br />';
+        if (empty($_REQUEST["p"])) {
+	        include('wp-edit.showcomments.php');
+		}
+		
         break;
 } // end switch
 /* </Edit> */
