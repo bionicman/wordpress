@@ -264,7 +264,7 @@ function wp_default_scripts( &$scripts ) {
 			'l10n_print_after' => 'try{convertEntities(slugL10n);}catch(e){};'
 		) );
 
-		$scripts->add( 'post', "/wp-admin/js/post$suffix.js", array('suggest', 'wp-lists', 'postbox', 'slug'), '20090526' );
+		$scripts->add( 'post', "/wp-admin/js/post$suffix.js", array('suggest', 'wp-lists', 'postbox', 'slug'), '20090624' );
 		$scripts->add_data( 'post', 'group', 1 );
 		$scripts->localize( 'post', 'postL10n', array(
 			'tagsUsed' =>  __('Tags used on this post:'),
@@ -421,9 +421,9 @@ function wp_default_styles( &$styles ) {
 	$rtl_styles = array( 'global', 'colors', 'dashboard', 'ie', 'install', 'login', 'media', 'theme-editor', 'upload', 'widgets', 'press-this', 'plugin-install', 'farbtastic' );
 
 	// all colors stylesheets need to have the same query strings (cache manifest compat)
-	$colors_version = '20090610';
+	$colors_version = '20090625';
 
-	$styles->add( 'wp-admin', '/wp-admin/wp-admin.css', array(), '20090610' );
+	$styles->add( 'wp-admin', '/wp-admin/wp-admin.css', array(), '20090625' );
 	$styles->add_data( 'wp-admin', 'rtl', '/wp-admin/rtl.css' );
 
 	$styles->add( 'ie', '/wp-admin/css/ie.css', array(), '20090514' );
@@ -443,7 +443,7 @@ function wp_default_styles( &$styles ) {
 	$styles->add( 'widgets', '/wp-admin/css/widgets.css', array(), '20090603' );
 	$styles->add( 'dashboard', '/wp-admin/css/dashboard.css', array(), '20090514' );
 	$styles->add( 'install', '/wp-admin/css/install.css', array(), '20090514' );
-	$styles->add( 'theme-editor', '/wp-admin/css/theme-editor.css', array(), '20090514' );
+	$styles->add( 'theme-editor', '/wp-admin/css/theme-editor.css', array(), '20090625' );
 	$styles->add( 'press-this', '/wp-admin/css/press-this.css', array(), '20090514' );
 	$styles->add( 'thickbox', '/wp-includes/js/thickbox/thickbox.css', array(), '20090514' );
 	$styles->add( 'login', '/wp-admin/css/login.css', array(), '20090514' );
