@@ -69,13 +69,13 @@ function retrieve_widgets() {
 				$_sidebars_widgets['wp_inactive_widgets'] = array_merge( (array) $_sidebars_widgets['wp_inactive_widgets'], $val );
 		}
 	}
-	
+
 	// discard invalid, theme-specific widgets from sidebars
 	$shown_widgets = array();
 	foreach ( $_sidebars_widgets as $sidebar => $widgets ) {
 		if ( !is_array($widgets) )
 			continue;
-		
+
 		$_widgets = array();
 		foreach ( $widgets as $widget ) {
 			if ( isset($wp_registered_widgets[$widget]) )
@@ -220,7 +220,7 @@ if ( isset($_GET['editwidget']) && $_GET['editwidget'] ) {
 
 	if ( !isset($name) )
 		$name = esc_html( strip_tags($control['name']) );
-	
+
 	if ( !isset($sidebar) )
 		$sidebar = isset($_GET['sidebar']) ? $_GET['sidebar'] : 'wp_inactive_widgets';
 
@@ -242,7 +242,7 @@ if ( isset($_GET['editwidget']) && $_GET['editwidget'] ) {
 
 	<form action="widgets.php" method="post">
 	<div class="widget-inside">
-<?php	
+<?php
 	if ( is_callable( $control_callback ) )
 		call_user_func_array( $control_callback, $control['params'] );
 	else
@@ -300,6 +300,15 @@ if ( isset($_GET['editwidget']) && $_GET['editwidget'] ) {
 	exit;
 }
 
+$widgets_access = get_user_setting( 'widgets_access' );
+if ( isset($_GET['widgets-access']) ) {
+	$widgets_access = 'on' == $_GET['widgets-access'] ? 'on' : 'off';
+	set_user_setting( 'widgets_access', $widgets_access );
+}
+
+if ( 'on' == $widgets_access )
+	add_filter( 'admin_body_class', create_function('', '{return " widgets_access ";}') );
+
 $messages = array(
 	__('Changes saved.')
 );
@@ -327,8 +336,14 @@ require_once( 'admin-header.php' ); ?>
 	<div id="available-widgets" class="widgets-holder-wrap">
 		<div class="sidebar-name">
 		<div class="sidebar-name-arrow"><br /></div>
-		<h3><?php _e('Available Widgets'); ?></h3></div>
+		<h3><?php _e('Available Widgets'); ?> <span id="removing-widget"><?php _e('Deactivate'); ?> <span></span></span></h3></div>
+		<div class="widget-holder">
+		<p class="description"><?php _e('Drag widgets from here to a sidebar on the right to activate them. Drag widgets back here to deactivate them and delete their settings.'); ?></p>
+		<div id="widget-list">
 		<?php wp_list_widgets(); ?>
+		</div>
+		<br class='clear' />
+		</div>
 		<br class="clear" />
 	</div>
 

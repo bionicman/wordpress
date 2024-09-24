@@ -1908,14 +1908,17 @@ class WP_Query {
 		foreach ($intersections as $item => $taxonomy) {
 			if ( empty($q[$item]) ) continue;
 			if ( in_array($item, $tagin) && empty($q['cat']) ) continue; // We should already have what we need if categories aren't being used
-			
+
 			if ( $item != 'category__and' ) {
 				$reqtag = is_term( $q[$item][0], 'post_tag' );
 				if ( !empty($reqtag) )
 					$q['tag_id'] = $reqtag['term_id'];
 			}
 
-			$taxonomy_field = $item == ('tag_slug__and' || 'tag_slug__in') ? 'slug' : 'term_id';
+			if ( in_array( $item, array('tag_slug__and', 'tag_slug__in' ) ) )
+				$taxonomy_field = 'slug';
+			else
+				$taxonomy_field = 'term_id';
 
 			$q[$item] = array_unique($q[$item]);
 			$tsql = "SELECT p.ID FROM $wpdb->posts p INNER JOIN $wpdb->term_relationships tr ON (p.ID = tr.object_id) INNER JOIN $wpdb->term_taxonomy tt ON (tr.term_taxonomy_id = tt.term_taxonomy_id) INNER JOIN $wpdb->terms t ON (tt.term_id = t.term_id)";
@@ -2114,7 +2117,7 @@ class WP_Query {
 					$statuswheres[] = "(" . join( ' OR ', $p_status ) . ")";
 			}
 			if ( $post_status_join ) {
-				$join .= " JOIN $wpdb->posts AS p2 ON ($wpdb->posts.post_parent = p2.ID) ";
+				$join .= " LEFT JOIN $wpdb->posts AS p2 ON ($wpdb->posts.post_parent = p2.ID) ";
 				foreach ( $statuswheres as $index => $statuswhere )
 					$statuswheres[$index] = "($statuswhere OR ($wpdb->posts.post_status = 'inherit' AND " . str_replace($wpdb->posts, 'p2', $statuswhere) . "))";
 			}
@@ -2385,11 +2388,12 @@ class WP_Query {
 	function the_post() {
 		global $post;
 		$this->in_the_loop = true;
+
+		if ( $this->current_post == -1 ) // loop has just started
+			do_action_ref_array('loop_start', array(&$this));
+
 		$post = $this->next_post();
 		setup_postdata($post);
-
-		if ( $this->current_post == 0 ) // loop has just started
-			do_action_ref_array('loop_start', array(&$this));
 	}
 
 	/**
@@ -2661,8 +2665,6 @@ function wp_old_slug_redirect () {
 function setup_postdata($post) {
 	global $id, $authordata, $day, $currentmonth, $page, $pages, $multipage, $more, $numpages;
 
-	do_action_ref_array('the_post', array(&$post));
-	
 	$id = (int) $post->ID;
 
 	$authordata = get_userdata($post->post_author);
@@ -2689,6 +2691,9 @@ function setup_postdata($post) {
 		$pages[0] = $post->post_content;
 		$multipage = 0;
 	}
+
+	do_action_ref_array('the_post', array(&$post));
+	
 	return true;
 }
 

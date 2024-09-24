@@ -44,9 +44,13 @@ require_once('admin-header.php');
 
 <?php if ( ! validate_current_theme() ) : ?>
 <div id="message1" class="updated fade"><p><?php _e('The active theme is broken.  Reverting to the default theme.'); ?></p></div>
-<?php elseif ( isset($_GET['activated']) ) : ?>
-<div id="message2" class="updated fade"><p><?php printf(__('New theme activated. <a href="%s">Visit site</a>'), get_bloginfo('url') . '/'); ?></p></div>
-<?php elseif ( isset($_GET['deleted']) ) : ?>
+<?php elseif ( isset($_GET['activated']) ) :
+		if ( isset($wp_registered_sidebars) && count( (array) $wp_registered_sidebars ) ) { ?>
+<div id="message2" class="updated fade"><p><?php printf(__('New theme activated. This theme supports widgets, please visit the <a href="%s">widgets settings page</a> to configure them.'), admin_url('widgets.php') ); ?></p></div><?php
+		} else { ?>
+<div id="message2" class="updated fade"><p><?php printf(__('New theme activated. <a href="%s">Visit site</a>'), get_bloginfo('url') . '/'); ?></p></div><?php
+		}
+	elseif ( isset($_GET['deleted']) ) : ?>
 <div id="message3" class="updated fade"><p><?php _e('Theme deleted.') ?></p></div>
 <?php endif; ?>
 
@@ -105,13 +109,14 @@ function theme_update_available( $theme ) {
 		$theme_name = is_object($theme) ? $theme->name : (is_array($theme) ? $theme['Name'] : '');
 		$details_url = add_query_arg(array('TB_iframe' => 'true', 'width' => 1024, 'height' => 800), $update['url']); //Theme browser inside WP? replace this, Also, theme preview JS will override this on the available list.
 		$update_url = wp_nonce_url('update.php?action=upgrade-theme&amp;theme=' . urlencode($stylesheet), 'upgrade-theme_' . $stylesheet);
+		$update_onclick = 'onclick="if ( confirm(\'' . esc_js( __("Upgrading this theme will lose any customizations you have made.  'Cancel' to stop, 'OK' to upgrade.") ) . '\') ) {return true;}return false;"';
 
 		if ( ! current_user_can('update_themes') )
-			printf( __('<p>There is a new version of %1$s available. <a href="%2$s" class="thickbox" title="%1$s">View version %3$s Details</a>.</p>'), $theme_name, $details_url, $update['new_version']);
+			printf( '<p><strong>' . __('There is a new version of %1$s available. <a href="%2$s" class="thickbox" title="%1$s">View version %3$s Details</a>.') . '</strong></p>', $theme_name, $details_url, $update['new_version']);
 		else if ( empty($update->package) )
-			printf( __('<p>There is a new version of %1$s available. <a href="%2$s" class="thickbox" title="%1$s">View version %3$s Details</a> <em>automatic upgrade unavailable for this theme</em>.</p>'), $theme_name, $details_url, $update['new_version']);
+			printf( '<p><strong>' . __('There is a new version of %1$s available. <a href="%2$s" class="thickbox" title="%1$s">View version %3$s Details</a> <em>automatic upgrade unavailable for this theme</em>.') . '</strong></p>', $theme_name, $details_url, $update['new_version']);
 		else
-			printf( __('<p>There is a new version of %1$s available. <a href="%2$s" class="thickbox" title="%1$s">View version %3$s Details</a> or <a href="%4$s">upgrade automatically</a>.</p>'), $theme_name, $details_url, $update['new_version'], $update_url );
+			printf( '<p><strong>' . __('There is a new version of %1$s available. <a href="%2$s" class="thickbox" title="%1$s">View version %3$s Details</a> or <a href="%4$s" %5$s >upgrade automatically</a>.') . '</strong></p>', $theme_name, $details_url, $update['new_version'], $update_url, $update_onclick );
 	}
 }
 
@@ -166,6 +171,7 @@ $style = '';
 $theme_names = array_keys($themes);
 natcasesort($theme_names);
 
+$table = array();
 $rows = ceil(count($theme_names) / 3);
 for ( $row = 1; $row <= $rows; $row++ )
 	for ( $col = 1; $col <= 3; $col++ )
@@ -220,7 +226,8 @@ foreach ( $cols as $col => $theme_name ) {
 	printf(__('%1$s %2$s by %3$s'), $title, $version, $author) ; ?></h3>
 <p class="description"><?php echo $description; ?></p>
 <span class='action-links'><?php echo $actions ?></span>
-	<?php if ($parent_theme) { ?>
+	<?php if ($parent_theme) {
+	/* translators: 1: theme title, 2:  template dir, 3: stylesheet_dir, 4: theme title, 5: parent_theme */ ?>
 	<p><?php printf(__('The template files are located in <code>%2$s</code>.  The stylesheet files are located in <code>%3$s</code>.  <strong>%4$s</strong> uses templates from <strong>%5$s</strong>.  Changes made to the templates will affect both themes.'), $title, $template_dir, $stylesheet_dir, $title, $parent_theme); ?></p>
 <?php } else { ?>
 	<p><?php printf(__('All of this theme&#8217;s files are located in <code>%2$s</code>.'), $title, $template_dir, $stylesheet_dir); ?></p>

@@ -18,8 +18,8 @@ wp_admin_css( 'theme-editor' );
 
 $plugins = get_plugins();
 
-if ( isset($_REQUEST['plugin']) )
-	$plugin = $_REQUEST['plugin'];
+if ( isset($_REQUEST['file']) )
+	$plugin = $_REQUEST['file'];
 
 if ( empty($plugin) ) {
 	$plugin = array_keys($plugins);
@@ -83,9 +83,9 @@ default:
 		exit;
 	}
 
-	wp_enqueue_script( 'codepress' );
-	add_action( 'admin_print_footer_scripts', 'codepress_footer_js' );	
-	
+	if ( use_codepress() )
+		wp_enqueue_script( 'codepress' );
+
 	// List of allowable extensions
 	$editable_extensions = array('php', 'txt', 'text', 'js', 'css', 'html', 'htm', 'xml', 'inc', 'include');
 	$editable_extensions = (array) apply_filters('editable_extensions', $editable_extensions);
@@ -101,9 +101,9 @@ default:
 				wp_die(sprintf('<p>%s</p>', __('Files of this type are not editable.')));
 		}
 	}
-	
+
 	require_once('admin-header.php');
-	
+
 	update_recently_edited(WP_PLUGIN_DIR . '/' . $file);
 
 	$content = file_get_contents( $real_file );

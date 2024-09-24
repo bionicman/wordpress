@@ -21,25 +21,25 @@
  * @param unknown_type $per_page
  */
 function cat_rows( $parent = 0, $level = 0, $categories = 0, $page = 1, $per_page = 20 ) {
-	
+
 	$count = 0;
-	
+
 	if ( empty($categories) ) {
-		
+
 		$args = array('hide_empty' => 0);
 		if ( !empty($_GET['s']) )
 			$args['search'] = $_GET['s'];
-			
-		$categories = get_categories( $args ); 
-		
+
+		$categories = get_categories( $args );
+
 		if ( empty($categories) )
 			return false;
 	}
 
-	$children = _get_term_hierarchy('category'); 
-	
-	_cat_rows( $parent, $level, $categories, $children, $page, $per_page, $count ); 
-	
+	$children = _get_term_hierarchy('category');
+
+	_cat_rows( $parent, $level, $categories, $children, $page, $per_page, $count );
+
 }
 
 /**
@@ -55,22 +55,22 @@ function cat_rows( $parent = 0, $level = 0, $categories = 0, $page = 1, $per_pag
  * @param unknown_type $per_page
  * @return unknown
  */
-function _cat_rows( $parent = 0, $level = 0, $categories, &$children, $page = 1, $per_page = 20, &$count ) { 
-	
+function _cat_rows( $parent = 0, $level = 0, $categories, &$children, $page = 1, $per_page = 20, &$count ) {
+
 	$start = ($page - 1) * $per_page;
 	$end = $start + $per_page;
 	ob_start();
-	
+
 	foreach ( $categories as $key => $category ) {
 		if ( $count >= $end )
 			break;
-			
+
 		if ( $category->parent != $parent && empty($_GET['s']) )
 			continue;
 
 		// If the page starts in a subtree, print the parents.
 		if ( $count == $start && $category->parent > 0 ) {
-			
+
 			$my_parents = array();
 			$p = $category->parent;
 			while ( $p ) {
@@ -80,7 +80,7 @@ function _cat_rows( $parent = 0, $level = 0, $categories, &$children, $page = 1,
 					break;
 				$p = $my_parent->parent;
 			}
-			
+
 			$num_parents = count($my_parents);
 			while( $my_parent = array_pop($my_parents) ) {
 				echo "\t" . _cat_row( $my_parent, $level - $num_parents );
@@ -91,12 +91,12 @@ function _cat_rows( $parent = 0, $level = 0, $categories, &$children, $page = 1,
 		if ( $count >= $start )
 			echo "\t" . _cat_row( $category, $level );
 
-		unset( $categories[ $key ] ); 
-		
+		unset( $categories[ $key ] );
+
 		$count++;
 
 		if ( isset($children[$category->term_id]) )
-			_cat_rows( $category->term_id, $level + 1, $categories, $children, $page, $per_page, $count ); 
+			_cat_rows( $category->term_id, $level + 1, $categories, $children, $page, $per_page, $count );
 	}
 
 	$output = ob_get_contents();
@@ -121,7 +121,7 @@ function _cat_row( $category, $level, $name_override = false ) {
 	$category = get_category( $category, OBJECT, 'display' );
 
 	$default_cat_id = (int) get_option( 'default_category' );
-	$pad = str_repeat( '&#8212; ', $level );
+	$pad = str_repeat( '&#8212; ', max(0, $level) );
 	$name = ( $name_override ? $name_override : $pad . ' ' . $category->name );
 	$edit_link = "categories.php?action=edit&amp;cat_ID=$category->term_id";
 	if ( current_user_can( 'manage_categories' ) ) {
@@ -517,13 +517,13 @@ function wp_category_checklist( $post_id = 0, $descendants_and_self = 0, $select
 
 	// Post process $categories rather than adding an exclude to the get_terms() query to keep the query the same across all posts (for any query cache)
 	$checked_categories = array();
-	$keys = array_keys( $categories ); 
-	
+	$keys = array_keys( $categories );
+
 	foreach( $keys as $k ) {
 		if ( in_array( $categories[$k]->term_id, $args['selected_cats'] ) ) {
 			$checked_categories[] = $categories[$k];
 			unset( $categories[$k] );
-		}	
+		}
 	}
 
 	// Put checked cats on top
@@ -635,7 +635,8 @@ function wp_link_category_checklist( $link_id = 0 ) {
  */
 function _tag_row( $tag, $class = '', $taxonomy = 'post_tag' ) {
 		$count = number_format_i18n( $tag->count );
-		$count = ( $count > 0 ) ? "<a href='edit.php?tag=$tag->slug'>$count</a>" : $count;
+		$tagsel = ($taxonomy == 'post_tag' ? 'tag' : $taxonomy);
+		$count = ( $count > 0 ) ? "<a href='edit.php?$tagsel=$tag->slug'>$count</a>" : $count;
 
 		$name = apply_filters( 'term_name', $tag->name );
 		$qe_data = get_term($tag->term_id, $taxonomy, object, 'edit');
@@ -3430,6 +3431,8 @@ function screen_meta($screen) {
 	if ( !isset($_wp_contextual_help) )
 		$_wp_contextual_help = array();
 
+	$settings = '';
+
 	switch ( $screen ) {
 		case 'post':
 			if ( !isset($_wp_contextual_help['post']) ) {
@@ -3468,11 +3471,18 @@ function screen_meta($screen) {
 				$_wp_contextual_help[$screen] = $help;
 			}
 			break;
+		case 'theme-editor':
+		case 'plugin-editor':
+			$settings = '<p><a id="codepress-on" href="' . $screen . '.php?codepress=on">' . __('Enable syntax highlighting') . '</a><a id="codepress-off" href="' . $screen . '.php?codepress=off">' . __('Disable syntax highlighting') . "</a></p>\n";
+			$show_screen = true;
+			break;
 		case 'widgets':
 			if ( !isset($_wp_contextual_help['widgets']) ) {
 				$help = widgets_help();
 				$_wp_contextual_help['widgets'] = $help;
 			}
+			$settings = '<p><a id="access-on" href="widgets.php?widgets-access=on">' . __('Enable accessibility mode') . '</a><a id="access-off" href="widgets.php?widgets-access=off">' . __('Disable accessibility mode') . "</a></p>\n";
+			$show_screen = true;
 			break;
 	}
 ?>
@@ -3495,6 +3505,7 @@ function screen_meta($screen) {
 <?php endif; ?>
 <?php echo screen_layout($screen); ?>
 <?php echo $screen_options; ?>
+<?php echo $settings; ?>
 <div><?php wp_nonce_field( 'screen-options-nonce', 'screenoptionnonce', false ); ?></div>
 </form>
 </div>
@@ -3582,7 +3593,7 @@ function plugins_search_help() {
 function widgets_help() {
 	return '
 	<p>' . __('Widgets are added and arranged by simple drag &#8217;n&#8217; drop. If you hover your mouse over the titlebar of a widget, you&#8217;ll see a 4-arrow cursor which indicates that the widget is movable.  Click on the titlebar, hold down the mouse button and drag the widget to a sidebar. As you drag, you&#8217;ll see a dotted box that also moves. This box shows where the widget will go once you drop it.') . '</p>
-	<p>' . __('To remove a widget from a sidebar, click on the arrow on its titlebar to reveal its settings, and then click Remove.') . '</p>
+	<p>' . __('To remove a widget from a sidebar, drag it back to Available Widgets or click on the arrow on its titlebar to reveal its settings, and then click Remove.') . '</p>
 	<p>' . __('To remove a widget from a sidebar <em>and keep its configuration</em>, drag it to Inactive Widgets.') . '</p>
 	<p>' . __('The Inactive Widgets area stores widgets that are configured but not curently used. If you change themes and the new theme has fewer sidebars than the old, all extra widgets will be stored to Inactive Widgets automatically.') . '</p>
 ';
@@ -3598,7 +3609,7 @@ function screen_layout($screen) {
 		$screen_layout_columns = 0;
 		return '';
  	}
-	
+
 	$screen_layout_columns = get_user_option("screen_layout_$screen");
 	$num = $columns[$screen];
 

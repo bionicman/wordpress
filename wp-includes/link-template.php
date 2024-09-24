@@ -1038,7 +1038,7 @@ function get_boundary_post($in_same_cat = false, $excluded_categories = '', $sta
 
 	$order = $start ? 'ASC' : 'DESC';
 
-	return get_posts("numberposts=1&order=$order&orderby=ID&category=$categories");
+	return get_posts( array('numberposts' => 1, 'order' => $order, 'orderby' => 'ID', 'category' => $categories) );
 }
 
 /**
@@ -1433,17 +1433,17 @@ function previous_posts_link( $label = '&laquo; Previous Page' ) {
  * @since 2.8
  *
  * @param string|array $args Optional args.
- * @return string The posts link navigation. 
+ * @return string The posts link navigation.
  */
 function get_posts_nav_link( $args = array() ) {
 	global $wp_query;
-	
+
 	$return = '';
 
 	if ( !is_singular() ) {
 		$defaults = array(
-			'sep' => ' &#8212; ', 
-			'prelabel' => __('&laquo; Previous Page'), 
+			'sep' => ' &#8212; ',
+			'prelabel' => __('&laquo; Previous Page'),
 			'nxtlabel' => __('Next Page &raquo;'),
 		);
 		$args = wp_parse_args( $args, $defaults );
