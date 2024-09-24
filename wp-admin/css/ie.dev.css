@@ -49,6 +49,14 @@
 	line-height: 14px;
 }
 
+#dashboard_browser_nag {
+	color: #fff;
+}
+
+#dashboard_browser_nag .browser-icon {
+	position: relative;
+}
+
 .tablenav-pages .current-page {
 	vertical-align: middle;
 }
@@ -223,10 +231,6 @@ ul#adminmenu {
 
 * html .row-actions {
 	visibility: visible;
-}
-
-#wphead-info {
-	float: right;
 }
 
 #titlediv #title {
@@ -408,7 +412,7 @@ table.ie-fixed {
 	width: 99%;
 }
 
-#wp_inactive_widgets {
+.inactive-sidebar .widgets-sortables {
 	padding-bottom: 8px;
 }
 
@@ -437,7 +441,7 @@ table.ie-fixed {
 }
 
 .widget-liquid-right .widget,
-#wp_inactive_widgets .widget {
+.inactive-sidebar .widget {
 	position: relative;
 }
 

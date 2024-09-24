@@ -266,7 +266,7 @@ function is_taxonomy_hierarchical($taxonomy) {
  * query_var - false to prevent queries, or string to customize query var
  * (?$query_var=$term); default will use $taxonomy as query var.
  *
- * public - If the taxonomy should be publically queryable; //@TODO not implemented.
+ * public - If the taxonomy should be publicly queryable; //@TODO not implemented.
  * defaults to true.
  *
  * show_ui - If the WordPress UI admin tags UI should apply to this taxonomy;
@@ -276,7 +276,7 @@ function is_taxonomy_hierarchical($taxonomy) {
  * Defaults to public.
  *
  * show_tagcloud - false to prevent the taxonomy being listed in the Tag Cloud Widget;
- * defaults to show_ui which defalts to public.
+ * defaults to show_ui which defaults to public.
  *
  * labels - An array of labels for this taxonomy. You can see accepted values in {@link get_taxonomy_labels()}. By default tag labels are used for non-hierarchical types and category labels for hierarchical ones.
  *
@@ -363,14 +363,16 @@ function register_taxonomy( $taxonomy, $object_type, $args = array() ) {
 
 	// register callback handling for metabox
  	add_filter('wp_ajax_add-' . $taxonomy, '_wp_ajax_add_hierarchical_term');
+
+	do_action( 'registered_taxonomy', $taxonomy, $object_type, $args );
 }
 
 /**
  * Builds an object with all taxonomy labels out of a taxonomy object
  *
  * Accepted keys of the label array in the taxonomy object:
- * - name - general name for the taxonomy, usually plural. The same as and overriden by $tax->label. Default is Post Tags/Categories
- * - singular_name - name for one object of this taxonomy. Default is Post Tag/Category
+ * - name - general name for the taxonomy, usually plural. The same as and overridden by $tax->label. Default is Tags/Categories
+ * - singular_name - name for one object of this taxonomy. Default is Tag/Category
  * - search_items - Default is Search Tags/Search Categories
  * - popular_items - This string isn't used on hierarchical taxonomies. Default is Popular Tags
  * - all_items - Default is All Tags/All Categories
@@ -396,8 +398,8 @@ function get_taxonomy_labels( $tax ) {
 		$tax->labels['separate_items_with_commas'] = $tax->helps;
 
 	$nohier_vs_hier_defaults = array(
-		'name' => array( _x( 'Post Tags', 'taxonomy general name' ), _x( 'Categories', 'taxonomy general name' ) ),
-		'singular_name' => array( _x( 'Post Tag', 'taxonomy singular name' ), _x( 'Category', 'taxonomy singular name' ) ),
+		'name' => array( _x( 'Tags', 'taxonomy general name' ), _x( 'Categories', 'taxonomy general name' ) ),
+		'singular_name' => array( _x( 'Tag', 'taxonomy singular name' ), _x( 'Category', 'taxonomy singular name' ) ),
 		'search_items' => array( __( 'Search Tags' ), __( 'Search Categories' ) ),
 		'popular_items' => array( __( 'Popular Tags' ), null ),
 		'all_items' => array( __( 'All Tags' ), __( 'All Categories' ) ),
@@ -850,9 +852,10 @@ function &get_term($term, $taxonomy, $output = OBJECT, $filter = 'raw') {
 	} else {
 		if ( is_object($term) )
 			$term = $term->term_id;
-		$term = (int) $term;
+		if ( !$term = (int) $term )
+			return $null;
 		if ( ! $_term = wp_cache_get($term, $taxonomy) ) {
-			$_term = $wpdb->get_row( $wpdb->prepare( "SELECT t.*, tt.* FROM $wpdb->terms AS t INNER JOIN $wpdb->term_taxonomy AS tt ON t.term_id = tt.term_id WHERE tt.taxonomy = %s AND t.term_id = %s LIMIT 1", $taxonomy, $term) );
+			$_term = $wpdb->get_row( $wpdb->prepare( "SELECT t.*, tt.* FROM $wpdb->terms AS t INNER JOIN $wpdb->term_taxonomy AS tt ON t.term_id = tt.term_id WHERE tt.taxonomy = %s AND t.term_id = %d LIMIT 1", $taxonomy, $term) );
 			if ( ! $_term )
 				return $null;
 			wp_cache_add($term, $_term, $taxonomy);
@@ -1495,7 +1498,7 @@ function term_exists($term, $taxonomy = '', $parent = 0) {
 /**
  * Sanitize Term all fields.
  *
- * Relys on sanitize_term_field() to sanitize the term. The difference is that
+ * Relies on sanitize_term_field() to sanitize the term. The difference is that
  * this function will sanitize <strong>all</strong> fields. The context is based
  * on sanitize_term_field().
  *
@@ -1784,7 +1787,7 @@ function wp_delete_term( $term, $taxonomy, $args = array() ) {
  * @uses wp_delete_term()
  *
  * @param int $cat_ID
- * @return mixed Returns true if completes delete action; false if term doesnt exist;
+ * @return mixed Returns true if completes delete action; false if term doesn't exist;
  * 	Zero on attempted deletion of default Category; WP_Error object is also a possibility.
  */
 function wp_delete_category( $cat_ID ) {
@@ -1809,7 +1812,7 @@ function wp_delete_category( $cat_ID ) {
  * 'all_with_object_id'.
  *
  * The fields argument also decides what will be returned. If 'all' or
- * 'all_with_object_id' is choosen or the default kept intact, then all matching
+ * 'all_with_object_id' is chosen or the default kept intact, then all matching
  * terms objects will be returned. If either 'ids' or 'names' is used, then an
  * array of all matching term ids or term names will be returned respectively.
  *
@@ -1892,6 +1895,8 @@ function wp_get_object_terms($object_ids, $taxonomies, $args = array()) {
 		$select_this = 't.term_id';
 	else if ( 'names' == $fields )
 		$select_this = 't.name';
+	else if ( 'slugs' == $fields )
+		$select_this = 't.slug';
 	else if ( 'all_with_object_id' == $fields )
 		$select_this = 't.*, tt.*, tr.object_id';
 
@@ -1900,7 +1905,7 @@ function wp_get_object_terms($object_ids, $taxonomies, $args = array()) {
 	if ( 'all' == $fields || 'all_with_object_id' == $fields ) {
 		$terms = array_merge($terms, $wpdb->get_results($query));
 		update_term_cache($terms);
-	} else if ( 'ids' == $fields || 'names' == $fields ) {
+	} else if ( 'ids' == $fields || 'names' == $fields || 'slugs' == $fields ) {
 		$terms = array_merge($terms, $wpdb->get_col($query));
 	} else if ( 'tt_ids' == $fields ) {
 		$terms = $wpdb->get_col("SELECT tr.term_taxonomy_id FROM $wpdb->term_relationships AS tr INNER JOIN $wpdb->term_taxonomy AS tt ON tr.term_taxonomy_id = tt.term_taxonomy_id WHERE tr.object_id IN ($object_ids) AND tt.taxonomy IN ($taxonomies) $orderby $order");
@@ -1915,7 +1920,7 @@ function wp_get_object_terms($object_ids, $taxonomies, $args = array()) {
 /**
  * Adds a new term to the database. Optionally marks it as an alias of an existing term.
  *
- * Error handling is assigned for the nonexistance of the $taxonomy and $term
+ * Error handling is assigned for the nonexistence of the $taxonomy and $term
  * parameters before inserting. If both the term id and taxonomy exist
  * previously, then an array will be returned that contains the term id and the
  * contents of what is returned. The keys of the array are 'term_id' and
@@ -2176,7 +2181,7 @@ function wp_set_object_terms($object_id, $terms, $taxonomy, $append = false) {
  * hierarchical and has a parent, it will append that parent to the $slug.
  *
  * If that still doesn't return an unique slug, then it try to append a number
- * until it finds a number that is truely unique.
+ * until it finds a number that is truly unique.
  *
  * The only purpose for $term is for appending a parent, if one exists.
  *
@@ -2382,7 +2387,7 @@ function wp_defer_term_counting($defer=null) {
 /**
  * Updates the amount of terms in taxonomy.
  *
- * If there is a taxonomy callback applyed, then it will be called for updating
+ * If there is a taxonomy callback applied, then it will be called for updating
  * the count.
  *
  * The default action is to count what the amount of terms have the relationship
@@ -2442,13 +2447,7 @@ function wp_update_term_count_now( $terms, $taxonomy ) {
 		call_user_func($taxonomy->update_count_callback, $terms, $taxonomy);
 	} else {
 		// Default count updater
-		foreach ( (array) $terms as $term) {
-			$count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $wpdb->term_relationships WHERE term_taxonomy_id = %d", $term) );
-			do_action( 'edit_term_taxonomy', $term, $taxonomy );
-			$wpdb->update( $wpdb->term_taxonomy, compact( 'count' ), array( 'term_taxonomy_id' => $term ) );
-			do_action( 'edited_term_taxonomy', $term, $taxonomy );
-		}
-
+		_update_post_term_count( $terms, $taxonomy );
 	}
 
 	clean_term_cache($terms, '', false);
@@ -2841,10 +2840,21 @@ function _update_post_term_count( $terms, $taxonomy ) {
 	global $wpdb;
 
 	$object_types = is_array($taxonomy->object_type) ? $taxonomy->object_type : array($taxonomy->object_type);
+	
+	foreach ( $object_types as &$object_type )
+		list( $object_type ) = explode( ':', $object_type );
+	
+	$object_types = array_unique( $object_types );
 	$object_types = esc_sql($object_types);
 
 	foreach ( (array) $terms as $term ) {
-		$count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $wpdb->term_relationships, $wpdb->posts WHERE $wpdb->posts.ID = $wpdb->term_relationships.object_id AND post_status = 'publish' AND post_type IN ('" . implode("', '", $object_types) . "') AND term_taxonomy_id = %d", $term ) );
+
+		// Attachments can be 'inherit' status, we need to base count off the parent's staus if so
+		if ( in_array( 'attachment', $object_types ) )
+			$count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $wpdb->term_relationships, $wpdb->posts p1 WHERE p1.ID = $wpdb->term_relationships.object_id AND ( post_status = 'publish' OR ( post_status = 'inherit' AND post_parent > 0 AND ( SELECT post_status FROM $wpdb->posts WHERE ID = p1.post_parent ) = 'publish' ) ) AND post_type IN ('" . implode("', '", $object_types) . "') AND term_taxonomy_id = %d", $term ) );
+		else
+			$count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM $wpdb->term_relationships, $wpdb->posts WHERE $wpdb->posts.ID = $wpdb->term_relationships.object_id AND post_status = 'publish' AND post_type IN ('" . implode("', '", $object_types) . "') AND term_taxonomy_id = %d", $term ) );
+
 		do_action( 'edit_term_taxonomy', $term, $taxonomy );
 		$wpdb->update( $wpdb->term_taxonomy, compact( 'count' ), array( 'term_taxonomy_id' => $term ) );
 		do_action( 'edited_term_taxonomy', $term, $taxonomy );

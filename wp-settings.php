@@ -29,8 +29,8 @@ wp_initial_constants( );
 wp_check_php_mysql_versions();
 
 // Disable magic quotes at runtime. Magic quotes are added using wpdb later in wp-settings.php.
-set_magic_quotes_runtime( 0 );
-@ini_set( 'magic_quotes_sybase', 0 );
+@ini_set( 'magic_quotes_runtime', 0 );
+@ini_set( 'magic_quotes_sybase',  0 );
 
 // Set default timezone in PHP 5.
 if ( function_exists( 'date_default_timezone_set' ) )
@@ -92,6 +92,8 @@ if ( is_multisite() ) {
 	define( 'MULTISITE', false );
 }
 
+register_shutdown_function( 'shutdown_action_hook' );
+
 // Stop most of WordPress from being loaded if we just want the basics.
 if ( SHORTINIT )
 	return false;
@@ -101,6 +103,7 @@ require( ABSPATH . WPINC . '/l10n.php' );
 
 // Run the installer if WordPress is not installed.
 wp_not_installed();
+
 
 // Load most of WordPress.
 require( ABSPATH . WPINC . '/class-wp-walker.php' );
@@ -247,7 +250,7 @@ $wp = new WP();
  * @global object $wp_widget_factory
  * @since 2.8.0
  */
-$wp_widget_factory = new WP_Widget_Factory();
+$GLOBALS['wp_widget_factory'] = new WP_Widget_Factory();
 
 do_action( 'setup_theme' );
 
@@ -272,7 +275,7 @@ require( ABSPATH . WPINC . '/locale.php' );
  * @global object $wp_locale
  * @since 2.1.0
  */
-$wp_locale = new WP_Locale();
+$GLOBALS['wp_locale'] = new WP_Locale();
 
 // Load the functions for the active theme, for both parent and child theme if applicable.
 if ( ! defined( 'WP_INSTALLING' ) || 'wp-activate.php' === $pagenow ) {
@@ -286,8 +289,6 @@ do_action( 'after_setup_theme' );
 
 // Load any template functions the theme supports.
 require_if_theme_supports( 'post-thumbnails', ABSPATH . WPINC . '/post-thumbnail-template.php' );
-
-register_shutdown_function( 'shutdown_action_hook' );
 
 // Set up current user.
 $wp->init();
