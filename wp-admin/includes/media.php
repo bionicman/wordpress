@@ -103,7 +103,7 @@ function media_handle_upload($file_id, $post_id, $post_data = array()) {
 	$file = wp_handle_upload($_FILES[$file_id], $overrides);
 
 	if ( isset($file['error']) )
-		return new wp_error( 'upload_error', $file['error'] );
+		return new WP_Error( 'upload_error', $file['error'] );
 
 	$url = $file['url'];
 	$type = $file['type'];
@@ -143,7 +143,7 @@ function media_handle_sideload($file_array, $post_id, $desc = null, $post_data =
 	$file = wp_handle_sideload($file_array, $overrides);
 
 	if ( isset($file['error']) )
-		return new wp_error( 'upload_error', $file['error'] );
+		return new WP_Error( 'upload_error', $file['error'] );
 
 	$url = $file['url'];
 	$type = $file['type'];
@@ -884,7 +884,6 @@ function media_upload_form( $errors = null ) {
 	$post_id = intval($_REQUEST['post_id']);
 
 ?>
-<input type='hidden' name='post_id' value='<?php echo (int) $post_id; ?>' />
 <div id="media-upload-notice">
 <?php if (isset($errors['upload_notice']) ) { ?>
 	<?php echo $errors['upload_notice']; ?>
@@ -947,9 +946,8 @@ jQuery(function($){
 <div id="html-upload-ui">
 <?php do_action('pre-html-upload-ui'); ?>
 	<p>
-	<input type="file" name="async-upload" id="async-upload" /> <input type="submit" class="button" name="html-upload" value="<?php echo attribute_escape(__('Upload')); ?>" /> <a href="#" onClick="return top.tb_remove();"><?php _e('Cancel'); ?></a>
+	<input type="file" name="async-upload" id="async-upload" /> <input type="submit" class="button" name="html-upload" value="<?php echo attribute_escape(__('Upload')); ?>" /> <a href="#" onclick="return top.tb_remove();"><?php _e('Cancel'); ?></a>
 	</p>
-	<input type="hidden" name="post_id" id="post_id" value="<?php echo (int) $post_id; ?>" />
 	<br class="clear" />
 	<?php if ( is_lighttpd_before_150() ): ?>
 	<p><?php _e('If you want to use all capabilities of the uploader, like uploading multiple files at once, please upgrade to lighttpd 1.5.'); ?></p>
@@ -1082,6 +1080,7 @@ var addExtImage = {
 </div>
 </div>
 <input type="submit" class="button savebutton" name="save" value="<?php echo attribute_escape( __( 'Save all changes' ) ); ?>" />
+</form>
 <?php
 	endif;
 }
@@ -1285,7 +1284,7 @@ function type_form_image() {
 				<span class="alignleft"><label for="src">' . __('Source') . '</label></span>
 				<span class="alignright"><img id="status_img" src="images/required.gif" title="required" alt="required" /></span>
 			</th>
-			<td class="field"><input id="src" name="src" value="" type="text" aria-required="true" onblur="addExtImage.getImageData()"></td>
+			<td class="field"><input id="src" name="src" value="" type="text" aria-required="true" onblur="addExtImage.getImageData()" /></td>
 		</tr>
 
 		<tr>
