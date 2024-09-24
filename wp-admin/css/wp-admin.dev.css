@@ -1476,6 +1476,10 @@ th.asc:hover span.sorting-indicator {
 	font-size: 11px;
 }
 
+.tablenav .one-page {
+	display: none;
+}
+
 .tablenav .tablenav-pages a,
 .tablenav-pages span.current  {
 	text-decoration: none;
@@ -1487,6 +1491,14 @@ th.asc:hover span.sorting-indicator {
 	-khtml-border-radius: 5px;
 	-webkit-border-radius: 5px;
 	border-radius: 5px;
+}
+
+.tablenav .tablenav-pages a.disabled:hover {
+	cursor: default;
+}
+
+.tablenav .tablenav-pages a.disabled:active {
+	cursor: default;
 }
 
 .tablenav .displaying-num {
@@ -1536,9 +1548,8 @@ th.asc:hover span.sorting-indicator {
 	padding: 0 0 .2em 1px;
 }
 
-span.post-state span {
+span.post-state-format {
 	font-weight: normal;
-	color: #555;
 }
 
 
@@ -3813,12 +3824,6 @@ input.button-highlighted,
 
 .plugins td, .plugins th {
 	border-bottom: 0 none;
-}
-
-#install-plugins .plugins td,
-#install-plugins .plugins th {
-	border-bottom-style: solid;
-	border-bottom-width: 1px;
 }
 
 .plugins .inactive td,

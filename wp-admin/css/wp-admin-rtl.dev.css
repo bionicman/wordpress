@@ -13,7 +13,17 @@ td.available-theme {
 }
 /* 200 - 500
 =================================== */
+#doaction,
+#doaction2,
+#post-query-submit {
+	margin-right: 0;
+	margin-left: 8px;
+}
 #save-post {
+	float: right;
+}
+#minor-publishing .ajax-loading {
+	padding: 3px 4px 0 0;
 	float: right;
 }
 .preview {
@@ -68,6 +78,13 @@ td.available-theme {
 * html #template div {
 	margin-left: 0;
 }
+
+.list-ajax-loading {
+	float: left;
+	margin-right: 0;
+	margin-left: 9px;
+}
+
 #your-profile legend {
 	font-family: Tahoma, Arial, sans-serif;
 }
@@ -85,20 +102,16 @@ td.available-theme {
 	margin-left: 10px;
 }
 .tablenav a.button-secondary {
-	margin: 8px 0 0 8px;
+	margin: 3px 0 0 8px;
 }
 .tablenav .tablenav-pages {
 	float: left;
-	direction: ltr;
-}
-.tablenav .tablenav-pages .paging-input {
-	direction: rtl;
 }
 .tablenav .displaying-num {
 	margin-right: 0;
-	float: right;
 	margin-left: 10px;
 	font-family: Tahoma, Arial, sans-serif;
+	font-style: normal;
 }
 #postcustomstuff table input,
 #postcustomstuff table select,
@@ -250,6 +263,18 @@ td.available-theme {
 .description, .form-wrap p {
 	font-family: Tahoma, Arial, sans-serif;
 }
+.sorting-indicator {
+	margin-left: 0;
+	margin-right: 7px;
+}
+th.sortable a span,
+th.sorted a span {
+	float: right;
+}
+.fixed .column-comments a {
+	float: right;
+}
+
 /* 1500 - 1800
 =================================== */
 .autosave-info {
@@ -654,12 +679,13 @@ button.dismiss {
 }
 
 /* Custom Header */
-table#available-headers td {
-	padding: 0 0 10px 20px;
+.appearance_page_custom-header #available-headers .default-header {
+	float: right;
+	margin: 0 0 20px 20px;
 }
-table#available-headers label input {
+.appearance_page_custom-header #available-headers label input {
 	margin-right: 0;
-	margin-left: 8px;
+	margin-left: 10px;
 }
 
 /* ltr

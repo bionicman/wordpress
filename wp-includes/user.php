@@ -465,11 +465,19 @@ class WP_User_Query {
 
 		$search = trim( $qv['search'] );
 		if ( $search ) {
-			$wild = false;
-			if ( false !== strpos($search, '*') ) {
-				$wild = true;
+			$leading_wild = ( ltrim($search, '*') != $search );
+			$trailing_wild = ( rtrim($search, '*') != $search );
+			if ( $leading_wild && $trailing_wild )
+				$wild = 'both';
+			elseif ( $leading_wild )
+				$wild = 'leading';
+			elseif ( $trailing_wild )
+				$wild = 'trailing';
+			else
+				$wild = false;
+			if ( $wild )
 				$search = trim($search, '*');
-			}
+
 			if ( false !== strpos( $search, '@') )
 				$search_columns = array('user_email');
 			elseif ( is_numeric($search) )
@@ -508,7 +516,7 @@ class WP_User_Query {
 		}
 
 		if ( !empty( $qv['meta_query'] ) ) {
-			$clauses = call_user_func_array( 'get_meta_sql', array( $qv['meta_query'], 'user', $wpdb->users, 'ID', &$this ) );
+			$clauses = call_user_func_array( '_get_meta_sql', array( $qv['meta_query'], 'user', $wpdb->users, 'ID', &$this ) );
 			$this->query_from .= $clauses['join'];
 			$this->query_where .= $clauses['where'];
 		}
@@ -564,19 +572,21 @@ class WP_User_Query {
 	 *
 	 * @param string $string
 	 * @param array $cols
-	 * @param bool $wild Whether to allow trailing wildcard searches. Default is false.
+	 * @param bool $wild Whether to allow wildcard searches. Default is false for Network Admin, true for
+	 *  single site. Single site allows leading and trailing wildcards, Network Admin only trailing.
 	 * @return string
 	 */
 	function get_search_sql( $string, $cols, $wild = false ) {
 		$string = esc_sql( $string );
 
 		$searches = array();
-		$wild_char = ( $wild ) ? '%' : '';
+		$leading_wild = ( 'leading' == $wild || 'both' == $wild ) ? '%' : '';
+		$trailing_wild = ( 'trailing' == $wild || 'both' == $wild ) ? '%' : '';
 		foreach ( $cols as $col ) {
 			if ( 'ID' == $col )
 				$searches[] = "$col = '$string'";
 			else
-				$searches[] = "$col LIKE '" . like_escape($string) . "$wild_char'";
+				$searches[] = "$col LIKE '$leading_wild" . like_escape($string) . "$trailing_wild'";
 		}
 
 		return ' AND (' . implode(' OR ', $searches) . ')';
@@ -947,6 +957,7 @@ function setup_userdata($for_user_id = '') {
  * <li>show - Default is 'display_name'. User table column to display. If the selected item is empty then the user_login will be displayed in parentheses</li>
  * <li>echo - Default is '1'. Whether to display or retrieve content.</li>
  * <li>selected - Which User ID is selected.</li>
+ * <li>include_selected - Always include the selected user ID in the dropdown. Default is false.</li>
  * <li>name - Default is 'user'. Name attribute of select element.</li>
  * <li>id - Default is the value of the 'name' parameter. ID attribute of select element.</li>
  * <li>class - Class attribute of select element.</li>
@@ -967,7 +978,7 @@ function wp_dropdown_users( $args = '' ) {
 		'include' => '', 'exclude' => '', 'multi' => 0,
 		'show' => 'display_name', 'echo' => 1,
 		'selected' => 0, 'name' => 'user', 'class' => '', 'id' => '',
-		'blog_id' => $GLOBALS['blog_id'], 'who' => ''
+		'blog_id' => $GLOBALS['blog_id'], 'who' => '', 'include_selected' => false
 	);
 
 	$defaults['selected'] = is_author() ? get_query_var( 'author' ) : 0;
@@ -997,8 +1008,18 @@ function wp_dropdown_users( $args = '' ) {
 			$output .= "\t<option value='-1'$_selected>$show_option_none</option>\n";
 		}
 
+		$found_selected = false;
 		foreach ( (array) $users as $user ) {
 			$user->ID = (int) $user->ID;
+			$_selected = selected( $user->ID, $selected, false );
+			if ( $_selected )
+				$found_selected = true;
+			$display = !empty($user->$show) ? $user->$show : '('. $user->user_login . ')';
+			$output .= "\t<option value='$user->ID'$_selected>" . esc_html($display) . "</option>\n";
+		}
+
+		if ( $include_selected && ! $found_selected && ( $selected > 0 ) ) {
+			$user = get_userdata( $selected );
 			$_selected = selected( $user->ID, $selected, false );
 			$display = !empty($user->$show) ? $user->$show : '('. $user->user_login . ')';
 			$output .= "\t<option value='$user->ID'$_selected>" . esc_html($display) . "</option>\n";

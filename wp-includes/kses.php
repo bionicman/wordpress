@@ -1,26 +1,34 @@
 <?php
 /**
- * HTML/XHTML filter that only allows some elements and attributes
+ * kses 0.2.2 - HTML/XHTML filter that only allows some elements and attributes
+ * Copyright (C) 2002, 2003, 2005  Ulf Harnhammar
+ *
+ * This program is free software and open source software; you can redistribute
+ * it and/or modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of the License,
+ * or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA  or visit
+ * http://www.gnu.org/licenses/gpl.html
+ * 
+ * [kses strips evil scripts!]
  *
  * Added wp_ prefix to avoid conflicts with existing kses users
  *
  * @version 0.2.2
  * @copyright (C) 2002, 2003, 2005
- * @author Ulf Harnhammar <metaur@users.sourceforge.net>
+ * @author Ulf Harnhammar <http://advogato.org/person/metaur/>
  *
  * @package External
  * @subpackage KSES
  *
- * @internal
- * *** CONTACT INFORMATION ***
- * E-mail:      metaur at users dot sourceforge dot net
- * Web page:    http://sourceforge.net/projects/kses
- * Paper mail:  Ulf Harnhammar
- *              Ymergatan 17 C
- *              753 25  Uppsala
- *              SWEDEN
- *
- * [kses strips evil scripts!]
  */
 
 /**
@@ -1027,14 +1035,9 @@ function wp_kses_html_error($string) {
  * @return string Sanitized content
  */
 function wp_kses_bad_protocol_once($string, $allowed_protocols) {
-	global $_kses_allowed_protocols;
-	$_kses_allowed_protocols = $allowed_protocols;
-
-	$string2 = preg_split('/:|&#58;|&#x3a;/i', $string, 2);
-	if ( isset($string2[1]) && !preg_match('%/\?%', $string2[0]) )
-		$string = wp_kses_bad_protocol_once2($string2[0]) . trim($string2[1]);
-	else
-		$string = preg_replace_callback('/^((&[^;]*;|[\sA-Za-z0-9])*)'.'(:|&#58;|&#[Xx]3[Aa];)\s*/', 'wp_kses_bad_protocol_once2', $string);
+	$string2 = preg_split( '/:|&#0*58;|&#x0*3a;/i', $string, 2 );
+	if ( isset($string2[1]) && ! preg_match('%/\?%', $string2[0]) )
+		$string = wp_kses_bad_protocol_once2( $string2[0], $allowed_protocols ) . trim( $string2[1] );
 
 	return $string;
 }
@@ -1048,29 +1051,19 @@ function wp_kses_bad_protocol_once($string, $allowed_protocols) {
  * @access private
  * @since 1.0.0
  *
- * @param mixed $matches string or preg_replace_callback() matches array to check for bad protocols
+ * @param string $string URI scheme to check against the whitelist
+ * @param string $allowed_protocols Allowed protocols
  * @return string Sanitized content
  */
-function wp_kses_bad_protocol_once2($matches) {
-	global $_kses_allowed_protocols;
-
-	if ( is_array($matches) ) {
-		if ( empty($matches[1]) )
-			return '';
-
-		$string = $matches[1];
-	} else {
-		$string = $matches;
-	}
-
+function wp_kses_bad_protocol_once2( $string, $allowed_protocols ) {
 	$string2 = wp_kses_decode_entities($string);
 	$string2 = preg_replace('/\s/', '', $string2);
 	$string2 = wp_kses_no_null($string2);
 	$string2 = strtolower($string2);
 
 	$allowed = false;
-	foreach ( (array) $_kses_allowed_protocols as $one_protocol)
-		if (strtolower($one_protocol) == $string2) {
+	foreach ( (array) $allowed_protocols as $one_protocol )
+		if ( strtolower($one_protocol) == $string2 ) {
 			$allowed = true;
 			break;
 		}
@@ -1098,9 +1091,10 @@ function wp_kses_normalize_entities($string) {
 	$string = str_replace('&', '&amp;', $string);
 
 	# Change back the allowed entities in our entity whitelist
+
 	$string = preg_replace_callback('/&amp;([A-Za-z]{2,8});/', 'wp_kses_named_entities', $string);
-	$string = preg_replace_callback('/&amp;#0*([0-9]{1,5});/', 'wp_kses_normalize_entities2', $string);
-	$string = preg_replace_callback('/&amp;#[Xx]0*(([0-9A-Fa-f]{2}){1,2});/', 'wp_kses_normalize_entities3', $string);
+	$string = preg_replace_callback('/&amp;#(0*[0-9]{1,7});/', 'wp_kses_normalize_entities2', $string);
+	$string = preg_replace_callback('/&amp;#[Xx](0*[0-9A-Fa-f]{1,6});/', 'wp_kses_normalize_entities3', $string);
 
 	return $string;
 }
@@ -1143,7 +1137,14 @@ function wp_kses_normalize_entities2($matches) {
 		return '';
 
 	$i = $matches[1];
-	return ( ($i > 65535 || ! valid_unicode($i)) ? "&amp;#$i;" : "&#$i;" );
+	if (valid_unicode($i)) {
+		$i = str_pad(ltrim($i,'0'), 3, '0', STR_PAD_LEFT);
+		$i = "&#$i;";
+	} else {
+		$i = "&amp;#$i;";
+	}
+
+	return $i;
 }
 
 /**
@@ -1162,7 +1163,7 @@ function wp_kses_normalize_entities3($matches) {
 		return '';
 
 	$hexchars = $matches[1];
-	return ( ( ! valid_unicode(hexdec($hexchars)) ) ? "&amp;#x$hexchars;" : "&#x$hexchars;" );
+	return ( ( ! valid_unicode(hexdec($hexchars)) ) ? "&amp;#x$hexchars;" : '&#x'.ltrim($hexchars,'0').';' );
 }
 
 /**

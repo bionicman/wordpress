@@ -1559,6 +1559,9 @@ class WP_Query {
 		// Correct is_* for page_on_front and page_for_posts
 		if ( $this->is_home && 'page' == get_option('show_on_front') && get_option('page_on_front') ) {
 			$_query = wp_parse_args($query);
+			// pagename can be set and empty depending on matched rewrite rules. Ignore an empty pagename.
+			if ( isset($_query['pagename']) && '' == $_query['pagename'] )
+				unset($_query['pagename']);
 			if ( empty($_query) || !array_diff( array_keys($_query), array('preview', 'page', 'paged', 'cpage') ) ) {
 				$this->is_page = true;
 				$this->is_home = false;
@@ -2344,7 +2347,7 @@ class WP_Query {
 		}
 
 		if ( !empty( $q['meta_query'] ) ) {
-			$clauses = call_user_func_array( 'get_meta_sql', array( $q['meta_query'], 'post', $wpdb->posts, 'ID', &$this) );
+			$clauses = call_user_func_array( '_get_meta_sql', array( $q['meta_query'], 'post', $wpdb->posts, 'ID', &$this) );
 			$join .= $clauses['join'];
 			$where .= $clauses['where'];
 		}

@@ -202,11 +202,11 @@ class WP_Posts_List_Table extends WP_List_Table {
 
 	function extra_tablenav( $which ) {
 		global $post_type, $post_type_object, $cat;
-
-		if ( 'top' == $which && !is_singular() ) {
 ?>
 		<div class="alignleft actions">
 <?php
+		if ( 'top' == $which && !is_singular() ) {
+
 			$this->months_dropdown( $post_type );
 
 			if ( is_object_in_taxonomy( $post_type, 'category' ) ) {
@@ -222,14 +222,14 @@ class WP_Posts_List_Table extends WP_List_Table {
 			}
 			do_action( 'restrict_manage_posts' );
 			submit_button( __( 'Filter' ), 'secondary', 'post-query-submit', false );
-?>
-		</div>
-<?php
 		}
 
 		if ( $this->is_trash && current_user_can( $post_type_object->cap->edit_others_posts ) ) {
 			submit_button( __( 'Empty Trash' ), 'button-secondary apply', 'delete_all', false );
 		}
+?>
+		</div>
+<?php
 	}
 
 	function current_action() {
@@ -666,7 +666,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 			default:
 			?>
 			<td <?php echo $attributes ?>><?php
-				if ( 'page' == $post->post_type )
+				if ( is_post_type_hierarchical( $post->post_type ) )
 					do_action( 'manage_pages_custom_column', $column_name, $post->ID );
 				else
 					do_action( 'manage_posts_custom_column', $column_name, $post->ID );
