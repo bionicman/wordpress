@@ -195,6 +195,8 @@ function wp_title($sep = '&raquo;', $display = true) {
 
 	if ( !empty($tag) ) {
 		$tag = get_term($tag, 'post_tag', OBJECT, 'display');
+		if ( is_wp_error( $tag ) ) 
+			return $tag;
 		if ( ! empty($tag->name) )
 			$title = apply_filters('single_tag_title', $tag->name);
 	}
@@ -275,20 +277,26 @@ function single_cat_title($prefix = '', $display = true ) {
 			else
 				return strip_tags($my_cat_name);
 		}
+	} else if ( is_tag() ) {
+		return single_tag_title($prefix, $display);
 	}
 }
 
 
 function single_tag_title($prefix = '', $display = true ) {
+	if ( !is_tag() )
+		return;
+
 	$tag_id = intval( get_query_var('tag_id') );
+
 	if ( !empty($tag_id) ) {
-		$my_tag = &get_term($tag_id, 'post_tag');
+		$my_tag = &get_term($tag_id, 'post_tag', OBJECT, 'display');
 		$my_tag_name = apply_filters('single_tag_title', $my_tag->name);
 		if ( !empty($my_tag_name) ) {
 			if ( $display )
-				echo $prefix.strip_tags($my_tag_name);
+				echo $prefix . $my_tag_name;
 			else
-				return strip_tags($my_tag_name);
+				return $my_tag_name;
 		}
 	}
 }
@@ -660,7 +668,7 @@ function get_calendar($initial = true) {
 	ob_end_clean();
 	echo $output;
 	$cache[ $key ] = $output;
-	wp_cache_add( 'get_calendar', $cache, 'calendar' );
+	wp_cache_set( 'get_calendar', $cache, 'calendar' );
 }
 
 function delete_get_calendar_cache() {

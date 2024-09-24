@@ -12,6 +12,8 @@ function get_category_children($id, $before = '/', $after = '') {
 			continue;
 
 		$category = get_category($cat_id);
+		if ( is_wp_error( $category ) )
+			return $category;
 		if ( $category->parent == $id ) {
 			$chain .= $before.$category->term_id.$after;
 			$chain .= get_category_children($category->term_id, $before, $after);
@@ -29,6 +31,8 @@ function get_category_link($category_id) {
 		$catlink = $file . '?cat=' . $category_id;
 	} else {
 		$category = &get_category($category_id);
+		if ( is_wp_error( $category ) )
+			return $category;
 		$category_nicename = $category->slug;
 
 		if ( $parent = $category->parent )
@@ -43,6 +47,8 @@ function get_category_link($category_id) {
 function get_category_parents($id, $link = FALSE, $separator = '/', $nicename = FALSE){
 	$chain = '';
 	$parent = &get_category($id);
+	if ( is_wp_error( $parent ) )
+		return $parent;
 
 	if ( $nicename )
 		$name = $parent->slug;
@@ -98,6 +104,8 @@ function _usort_terms_by_ID($a, $b) {
 function get_the_category_by_ID($cat_ID) {
 	$cat_ID = (int) $cat_ID;
 	$category = &get_category($cat_ID);
+	if ( is_wp_error( $category ) )
+		return $category;
 	return $category->name;
 }
 
@@ -241,7 +249,8 @@ function wp_list_categories($args = '') {
 		'hide_empty' => 1, 'use_desc_for_title' => 1,
 		'child_of' => 0, 'feed' => '',
 		'feed_image' => '', 'exclude' => '',
-		'hierarchical' => true, 'title_li' => __('Categories')
+		'hierarchical' => true, 'title_li' => __('Categories'),
+		'echo' => 1
 	);
 
 	$r = wp_parse_args( $args, $defaults );
@@ -290,7 +299,12 @@ function wp_list_categories($args = '') {
 	if ( $title_li && 'list' == $style )
 		$output .= '</ul></li>';
 
-	echo apply_filters('wp_list_categories', $output);
+	$output = apply_filters('wp_list_categories', $output);
+
+	if ( $echo )
+		echo $output;
+	else
+		return $output;
 }
 
 function wp_tag_cloud( $args = '' ) {
@@ -307,7 +321,10 @@ function wp_tag_cloud( $args = '' ) {
 		return;
 
 	$return = wp_generate_tag_cloud( $tags, $args ); // Here's where those top tags get sorted according to $args
-	echo apply_filters( 'wp_tag_cloud', $return, $args );
+	if ( is_wp_error( $return ) )
+		return false;
+	else 
+		echo apply_filters( 'wp_tag_cloud', $return, $args );
 }
 
 // $tags = prefetched tag array ( get_tags() )
@@ -328,6 +345,8 @@ function wp_generate_tag_cloud( $tags, $args = '' ) {
 	foreach ( (array) $tags as $tag ) {
 		$counts[$tag->name] = $tag->count;
 		$tag_links[$tag->name] = get_tag_link( $tag->term_id );
+		if ( is_wp_error( $tag_links[$tag->name] ) )
+			return $tag_links[$tag->name];
 		$tag_ids[$tag->name] = $tag->term_id;
 	}
 
@@ -404,6 +423,8 @@ function get_tag_link( $tag_id ) {
 	$taglink = $wp_rewrite->get_tag_permastruct();
 
 	$tag = &get_term($tag_id, 'post_tag');
+	if ( is_wp_error( $tag ) )
+		return $tag;
 	$slug = $tag->slug;
 
 	if ( empty($taglink) ) {
@@ -444,8 +465,12 @@ function get_the_tag_list( $before = '', $sep = '', $after = '' ) {
 		return false;
 
 	$tag_list = $before;
-	foreach ( $tags as $tag )
-		$tag_links[] = '<a href="' . get_tag_link($tag->term_id) . '" rel="tag">' . $tag->name . '</a>';
+	foreach ( $tags as $tag ) {
+		$link = get_tag_link($tag->term_id);
+		if ( is_wp_error( $link ) )
+			return $link;
+		$tag_links[] = '<a href="' . $link . '" rel="tag">' . $tag->name . '</a>';
+	}
 
 	$tag_links = join( $sep, $tag_links );
 	$tag_links = apply_filters( 'the_tags', $tag_links );
@@ -457,7 +482,11 @@ function get_the_tag_list( $before = '', $sep = '', $after = '' ) {
 }
 
 function the_tags( $before = 'Tags: ', $sep = ', ', $after = '' ) {
-	echo get_the_tag_list($before, $sep, $after);
+	$return = get_the_tag_list($before, $sep, $after);
+	if ( is_wp_error( $return ) )
+		return false;
+	else
+		echo $return;
 }
 
 ?>

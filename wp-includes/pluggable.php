@@ -123,41 +123,19 @@ function get_userdatabylogin($user_login) {
 
 	$user_login = $wpdb->escape($user_login);
 
-	if ( !$user = $wpdb->get_row("SELECT * FROM $wpdb->users WHERE user_login = '$user_login'") )
+	if ( !$user_ID = $wpdb->get_var("SELECT ID FROM $wpdb->users WHERE user_login = '$user_login'") )
 		return false;
 
-	$wpdb->hide_errors();
-	$metavalues = $wpdb->get_results("SELECT meta_key, meta_value FROM $wpdb->usermeta WHERE user_id = '$user->ID'");
-	$wpdb->show_errors();
-
-	if ($metavalues) {
-		foreach ( $metavalues as $meta ) {
-			$value = maybe_unserialize($meta->meta_value);
-			$user->{$meta->meta_key} = $value;
-
-			// We need to set user_level from meta, not row
-			if ( $wpdb->prefix . 'user_level' == $meta->meta_key )
-				$user->user_level = $meta->meta_value;
-		}
-	}
-
-	// For backwards compat.
-	if ( isset($user->first_name) )
-		$user->user_firstname = $user->first_name;
-	if ( isset($user->last_name) )
-		$user->user_lastname = $user->last_name;
-	if ( isset($user->description) )
-		$user->user_description = $user->description;
-
-	wp_cache_add($user->ID, $user, 'users');
-	wp_cache_add($user->user_login, $user->ID, 'userlogins');
+	$user = get_userdata($user_ID);
 	return $user;
-
 }
 endif;
 
 if ( !function_exists( 'wp_mail' ) ) :
 function wp_mail( $to, $subject, $message, $headers = '' ) {
+	// Compact the input, apply the filters, and extract them back out
+	extract( apply_filters( 'wp_mail', compact( 'to', 'subject', 'message', 'headers' ) ) );
+
 	global $phpmailer;
 
 	// (Re)create it, if it's gone missing
@@ -166,9 +144,6 @@ function wp_mail( $to, $subject, $message, $headers = '' ) {
 		require_once ABSPATH . WPINC . '/class-smtp.php';
 		$phpmailer = new PHPMailer();
 	}
-
-	// Compact the input, apply the filters, and extract them back out
-	extract( apply_filters( 'wp_mail', compact( 'to', 'subject', 'message', 'headers' ) ), EXTR_SKIP );
 
 	// Headers
 	if ( empty( $headers ) ) {
@@ -398,6 +373,24 @@ function wp_redirect($location, $status = 302) {
 	if ( !$location ) // allows the wp_redirect filter to cancel a redirect
 		return false;
 
+	$location = wp_sanitize_redirect($location);
+
+	if ( $is_IIS ) {
+		header("Refresh: 0;url=$location");
+	} else {
+		if ( php_sapi_name() != 'cgi-fcgi' )
+			status_header($status); // This causes problems on IIS and some FastCGI setups
+		header("Location: $location");
+	}
+}
+endif;
+
+if ( !function_exists('wp_sanitize_redirect') ) :
+/**
+ * sanitizes a URL for use in a redirect
+ * @return string redirect-sanitized URL
+ **/
+function wp_sanitize_redirect($location) {
 	$location = preg_replace('|[^a-z0-9-~+_.?#=&;,/:%]|i', '', $location);
 	$location = wp_kses_no_null($location);
 
@@ -413,14 +406,33 @@ function wp_redirect($location, $status = 302) {
 			}
 		}
 	}
+	return $location;
+}
+endif;
 
-	if ( $is_IIS ) {
-		header("Refresh: 0;url=$location");
-	} else {
-		if ( php_sapi_name() != 'cgi-fcgi' )
-			status_header($status); // This causes problems on IIS and some FastCGI setups
-		header("Location: $location");
-	}
+if ( !function_exists('wp_safe_redirect') ) :
+/**
+ * performs a safe (local) redirect, using wp_redirect()
+ * @return void
+ **/
+function wp_safe_redirect($location, $status = 302) {
+
+	// Need to look at the URL the way it will end up in wp_redirect()
+	$location = wp_sanitize_redirect($location);
+
+	// browsers will assume 'http' is your protocol, and will obey a redirect to a URL starting with '//'
+	if ( substr($location, 0, 2) == '//' )
+		$location = 'http:' . $location;
+
+	$lp  = parse_url($location);
+	$wpp = parse_url(get_option('home'));
+
+	$allowed_hosts = (array) apply_filters('allowed_redirect_hosts', array($wpp['host']));
+
+	if ( isset($lp['host']) && !in_array($lp['host'], $allowed_hosts) )
+		$location = get_option('siteurl') . '/wp-admin/';
+
+	wp_redirect($location, $status);
 }
 endif;
 

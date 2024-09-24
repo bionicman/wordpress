@@ -19,7 +19,7 @@ function get_the_ID() {
 function the_title($before = '', $after = '', $echo = true) {
 	$title = get_the_title();
 
-	if ( strlen($title) <= 0 )
+	if ( strlen($title) == 0 )
 		return;
 
 	$title = $before . $title . $after;
@@ -30,6 +30,25 @@ function the_title($before = '', $after = '', $echo = true) {
 		return $title;
 }
 
+function the_title_attribute( $args = '' ) {
+	$title = get_the_title();
+
+	if ( strlen($title) == 0 )
+		return;
+
+	$defaults = array('before' => '', 'after' =>  '', 'echo' => true);
+	$r = wp_parse_args($args, $defaults);
+	extract( $r, EXTR_SKIP );
+
+
+	$title = $before . $title . $after;
+	$title = attribute_escape(strip_tags($title));
+
+	if ( $echo )
+		echo $title;
+	else
+		return $title;
+}
 
 function get_the_title( $id = 0 ) {
 	$post = &get_post($id);
@@ -102,7 +121,7 @@ function get_the_content($more_link_text = '(more...)', $stripteaser = 0, $more_
 		} else {
 			$output = balanceTags($output);
 			if ( ! empty($more_link_text) )
-				$output .= ' <a href="' . get_permalink() . '#more-' . $id . '" class="morelink">' . $more_link_text . '</a>';
+				$output .= ' <a href="'. get_permalink() . "#more-$id\" class=\"more-link\">$more_link_text</a>";
 		}
 
 	}
@@ -118,7 +137,7 @@ function the_excerpt() {
 }
 
 
-function get_the_excerpt($fakeit = true) {
+function get_the_excerpt($deprecated = true) {
 	global $id, $post;
 	$output = '';
 	$output = $post->post_excerpt;

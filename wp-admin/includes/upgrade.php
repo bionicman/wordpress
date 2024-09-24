@@ -195,6 +195,9 @@ function upgrade_all() {
 	if ( $wp_current_db_version < 5539 )
 		upgrade_230();
 
+	if ( $wp_current_db_version < 6124 )
+		upgrade_230_old_tables();
+
 	maybe_disable_automattic_widgets();
 
 	$wp_rewrite->flush_rules();
@@ -693,6 +696,13 @@ function upgrade_230_options_table() {
 	$wpdb->show_errors();
 }
 
+function upgrade_230_old_tables() {
+	global $wpdb;
+	$wpdb->query('DROP TABLE IF EXISTS ' . $wpdb->prefix . 'categories');
+	$wpdb->query('DROP TABLE IF EXISTS ' . $wpdb->prefix . 'link2cat');
+	$wpdb->query('DROP TABLE IF EXISTS ' . $wpdb->prefix . 'post2cat');
+}
+
 function upgrade_old_slugs() {
 	// upgrade people who were using the Redirect Old Slugs plugin
 	global $wpdb;
@@ -992,7 +1002,7 @@ function dbDelta($queries, $execute = true) {
 						}
 						// Add the column list to the index create string
 						$index_string .= ' ('.$index_columns.')';
-
+						error_log("Index string: $index_string", 0);
 						if(!(($aindex = array_search($index_string, $indices)) === false)) {
 							unset($indices[$aindex]);
 							//echo "<pre style=\"border:1px solid #ccc;margin-top:5px;\">{$table}:<br />Found index:".$index_string."</pre>\n";

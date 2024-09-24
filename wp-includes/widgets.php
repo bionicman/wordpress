@@ -210,7 +210,14 @@ function dynamic_sidebar($index = 1) {
 		$params = array_merge(array($sidebar), (array) $wp_registered_widgets[$id]['params']);
 
 		// Substitute HTML id and class attributes into before_widget
-		$classname_ = ( is_array($wp_registered_widgets[$id]['classname']) ) ? implode('_', $wp_registered_widgets[$id]['classname']) : $wp_registered_widgets[$id]['classname'];
+		$classname_ = '';
+		foreach ( (array) $wp_registered_widgets[$id]['classname'] as $cn ) {
+			if ( is_string($cn) )
+				$classname_ .= '_' . $cn;
+			elseif ( is_object($cn) )
+				$classname_ .= '_' . get_class($cn);
+		}
+		$classname_ = ltrim($classname_, '_');
 		$params[0]['before_widget'] = sprintf($params[0]['before_widget'], $id, $classname_);
 
 		if ( is_callable($callback) ) {
@@ -423,7 +430,7 @@ function wp_widget_archives($args) {
 
 	if($d) {
 ?>
-		<select name="archive-dropdown" onChange='document.location.href=this.options[this.selectedIndex].value;'> <option value=""><?php echo attribute_escape(__('Select Month')); ?></option> <?php wp_get_archives("type=monthly&format=option&show_post_count=$c"); ?> </select>
+		<select name="archive-dropdown" onchange='document.location.href=this.options[this.selectedIndex].value;'> <option value=""><?php echo attribute_escape(__('Select Month')); ?></option> <?php wp_get_archives("type=monthly&format=option&show_post_count=$c"); ?> </select>
 <?php
 	} else {
 ?>

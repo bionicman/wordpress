@@ -12,6 +12,8 @@ function bloginfo_rss($show = '') {
 
 function get_wp_title_rss($sep = '&#187;') {
 	$title = wp_title($sep, false);
+	if ( is_wp_error( $title ) )
+		return $title->get_error_message();
 	$title = apply_filters('get_wp_title_rss', $title);
 	return $title;
 }
@@ -65,7 +67,7 @@ function the_content_rss($more_link_text='(more...)', $stripteaser=0, $more_file
 
 
 function the_excerpt_rss() {
-	$output = get_the_excerpt(true);
+	$output = get_the_excerpt();
 	echo apply_filters('the_excerpt_rss', $output);
 }
 
@@ -115,7 +117,7 @@ function get_author_rss_link($echo = false, $author_id, $author_nicename) {
 		$link = get_option('home') . '?feed=rss2&amp;author=' . $author_id;
 	} else {
 		$link = get_author_posts_url($author_id, $author_nicename);
-		$link = $link . user_trailingslashit('feed', 'feed');
+		$link = trailingslashit($link) . user_trailingslashit('feed', 'feed');
 	}
 
 	$link = apply_filters('author_feed_link', $link);
@@ -133,7 +135,7 @@ function get_category_rss_link($echo = false, $cat_ID, $category_nicename) {
 		$link = get_option('home') . '?feed=rss2&amp;cat=' . $cat_ID;
 	} else {
 		$link = get_category_link($cat_ID);
-		$link = $link . user_trailingslashit('feed', 'feed');
+		$link = trailingslashit($link) . user_trailingslashit('feed', 'feed');
 	}
 
 	$link = apply_filters('category_feed_link', $link);

@@ -1,16 +1,18 @@
 <?php
 // Based on "Permalink Redirect" from Scott Yang and "Enforce www. Preference" by Mark Jaquith
 
-function redirect_canonical() {
+function redirect_canonical($requested_url=NULL, $do_redirect=true) {
 	global $wp_rewrite, $posts, $is_IIS;
 
 	if ( is_feed() || is_trackback() || is_search() || is_comments_popup() || is_admin() || $is_IIS || ( isset($_POST) && count($_POST) ) )
 		return;
 
-	// build the URL in the address bar
-	$requested_url  = ( isset($_SERVER['HTTPS'] ) && strtolower($_SERVER['HTTPS']) == 'on' ) ? 'https://' : 'http://';
-	$requested_url .= $_SERVER['HTTP_HOST'];
-	$requested_url .= $_SERVER['REQUEST_URI'];
+	if ( !$requested_url ) {
+		// build the URL in the address bar
+		$requested_url  = ( isset($_SERVER['HTTPS'] ) && strtolower($_SERVER['HTTPS']) == 'on' ) ? 'https://' : 'http://';
+		$requested_url .= $_SERVER['HTTP_HOST'];
+		$requested_url .= $_SERVER['REQUEST_URI'];
+	}
 
 	$original = @parse_url($requested_url);
 	if ( false === $original )
@@ -70,14 +72,14 @@ function redirect_canonical() {
 				if ( !$redirect_url )
 					$redirect_url = $requested_url;
 				$paged_redirect = @parse_url($redirect_url);
-				$paged_redirect['path'] = preg_replace('|/page/[0-9]+?/?$|', '/', $paged_redirect['path']); // strip off any existing paging
+				$paged_redirect['path'] = preg_replace('|/page/[0-9]+?(/+)?$|', '/', $paged_redirect['path']); // strip off any existing paging
 				$paged_redirect['path'] = preg_replace('|/index.php/?$|', '/', $paged_redirect['path']); // strip off trailing /index.php/
-				if ( $paged > 1 && !is_singular() ) {
+				if ( $paged > 1 && !is_single() ) {
 					$paged_redirect['path'] = trailingslashit($paged_redirect['path']);
 					if ( $wp_rewrite->using_index_permalinks() && strpos($paged_redirect['path'], '/index.php/') === false )
 						$paged_redirect['path'] .= 'index.php/';
 					$paged_redirect['path'] .= user_trailingslashit("page/$paged", 'paged');
-				} elseif ( !is_home() && !is_singular() ){
+				} elseif ( !is_home() && !is_single() ){
 					$paged_redirect['path'] = user_trailingslashit($paged_redirect['path'], 'paged');
 				}
 				$redirect_url = $paged_redirect['scheme'] . '://' . $paged_redirect['host'] . $paged_redirect['path'];
@@ -87,21 +89,27 @@ function redirect_canonical() {
 		}
 	}
 
-// tack on any additional query vars
-if ( $redirect_url && $redirect['query'] ) {
-	if ( strpos($redirect_url, '?') !== false )
-		$redirect_url .= '&';
-	else
-		$redirect_url .= '?';
-	$redirect_url .= $redirect['query'];
-}
+	// tack on any additional query vars
+	if ( $redirect_url && $redirect['query'] ) {
+		if ( strpos($redirect_url, '?') !== false )
+			$redirect_url .= '&';
+		else
+			$redirect_url .= '?';
+		$redirect_url .= $redirect['query'];
+	}
 
-if ( $redirect_url )
-	$redirect = @parse_url($redirect_url);
+	if ( $redirect_url )
+		$redirect = @parse_url($redirect_url);
 
 	// www.example.com vs example.com
 	$user_home = @parse_url(get_option('home'));
 	$redirect['host'] = $user_home['host'];
+
+	// Handle ports
+	if ( isset($user_home['port']) )
+		$redirect['port'] = $user_home['port'];
+	else
+		unset($redirect['port']);
 
 	// trailing /index.php or /index.php/
 	$redirect['path'] = preg_replace('|/index.php/?$|', '/', $redirect['path']);
@@ -124,10 +132,23 @@ if ( $redirect_url )
 				}
 			}
 		$redirect['path'] = user_trailingslashit($redirect['path'], $user_ts_type);
+	} elseif ( is_home() ) {
+		$redirect['path'] = trailingslashit($redirect['path']);
 	}
 
-	if ( array($original['host'], $original['path'], $original['query']) !== array($redirect['host'], $redirect['path'], $redirect['query']) ) {
-		$redirect_url = $redirect['scheme'] . '://' . $redirect['host'] . $redirect['path'];
+	// Always trailing slash the 'home' URL
+	if ( $redirect['path'] == $user_home['path'] )
+		$redirect['path'] = trailingslashit($redirect['path']);
+
+	// Ignore differences in host capitalization, as this can lead to infinite redirects
+	if ( strtolower($original['host']) == strtolower($redirect['host']) )
+		$redirect['host'] = $original['host'];
+
+	if ( array($original['host'], $original['port'], $original['path'], $original['query']) !== array($redirect['host'], $redirect['port'], $redirect['path'], $redirect['query']) ) {
+		$redirect_url = $redirect['scheme'] . '://' . $redirect['host'];
+		if ( isset($redirect['port']) )
+		 	$redirect_url .= ':' . $redirect['port'];
+		$redirect_url .= $redirect['path'];
 		if ( $redirect['query'] )
 			$redirect_url .= '?' . $redirect['query'];
 	}
@@ -135,8 +156,19 @@ if ( $redirect_url )
 	if ( $redirect_url && $redirect_url != $requested_url ) {
 		// var_dump($redirect_url); die();
 		$redirect_url = apply_filters('redirect_canonical', $redirect_url, $requested_url);
-		wp_redirect($redirect_url, 301);
-		exit();
+		if ( $do_redirect) {
+			// protect against chained redirects
+			if ( !redirect_canonical($redirect_url, false) ) {
+				wp_redirect($redirect_url, 301);
+				exit();
+			} else {
+				return false;
+			}
+		} else {
+			return $redirect_url;
+		}
+	} else {
+		return false;
 	}
 }
 

@@ -16,7 +16,11 @@ class WP_Categories_to_Tags {
 	function populate_all_categories() {
 		global $wpdb;
 
-		$this->all_categories = get_categories('get=all');
+		$categories = get_categories('get=all');
+		foreach ( $categories as $category ) {
+			if ( !tag_exists($wpdb->escape($category->name)) )
+				$this->all_categories[] = $category;	
+		}
 	}
 
 	function welcome() {
@@ -126,12 +130,22 @@ class WP_Categories_to_Tags {
 					continue;
 				}
 
-				// Set the category itself to $type from above
-				$wpdb->query("UPDATE $wpdb->term_taxonomy SET taxonomy = 'post_tag' WHERE term_id = '{$category->term_id}' AND taxonomy = 'category'");
+				// If the category is the default, leave category in place and create tag.
+				if ( get_option('default_category') == $category->term_id ) {
+					$id = wp_insert_term($category->name, 'post_tag', array('slug' => $category->slug));
+					$id = $id['term_taxonomy_id'];
+					$posts = get_objects_in_term($category->term_id, 'category');
+					foreach ( $posts as $post ) {
+						if ( !$wpdb->get_var("SELECT object_id FROM $wpdb->term_relationships WHERE object_id = '$post' AND term_taxonomy_id = '$id'") )						
+							$wpdb->query("INSERT INTO $wpdb->term_relationships (object_id, term_taxonomy_id) VALUES ('$post', '$id')");
+					}
+				} else {
+					// Change the category to a tag.
+					$wpdb->query("UPDATE $wpdb->term_taxonomy SET taxonomy = 'post_tag' WHERE term_id = '{$category->term_id}' AND taxonomy = 'category'");
 
-				// Set all parents to 0 (root-level) if their parent was the converted tag
-				$wpdb->query("UPDATE $wpdb->term_taxonomy SET parent = 0 WHERE parent = '{$category->term_id}' AND taxonomy = 'category'");
-
+					// Set all parents to 0 (root-level) if their parent was the converted tag
+					$wpdb->query("UPDATE $wpdb->term_taxonomy SET parent = 0 WHERE parent = '{$category->term_id}' AND taxonomy = 'category'");
+				}
 				// Clean the cache
 				clean_category_cache($category->term_id);
 
@@ -162,7 +176,9 @@ class WP_Categories_to_Tags {
 	function convert_all() {
 		global $wpdb;
 
-		$this->categories_to_convert = get_categories('fields=ids&get=all');
+		$this->populate_all_categories();
+		foreach ( $this->all_categories as $category )
+			$this->categories_to_convert[] = $category->term_id;
 		$this->convert_them();
 	}
 

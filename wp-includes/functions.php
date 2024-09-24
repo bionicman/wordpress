@@ -1,7 +1,5 @@
 <?php
 
-require_once(dirname(__FILE__).'/compat.php');
-
 function mysql2date($dateformatstring, $mysqlstring, $translate = true) {
 	global $wp_locale;
 	$m = $mysqlstring;
@@ -738,6 +736,54 @@ function get_status_header_desc( $code ) {
 
 	$code = (int) $code;
 
+	if ( !isset($wp_header_to_desc) ) {
+		$wp_header_to_desc = array(
+			100 => 'Continue',
+			101 => 'Switching Protocols',
+
+			200 => 'OK',
+			201 => 'Created',
+			202 => 'Accepted',
+			203 => 'Non-Authoritative Information',
+			204 => 'No Content',
+			205 => 'Reset Content',
+			206 => 'Partial Content',
+
+			300 => 'Multiple Choices',
+			301 => 'Moved Permanently',
+			302 => 'Found',
+			303 => 'See Other',
+			304 => 'Not Modified',
+			305 => 'Use Proxy',
+			307 => 'Temporary Redirect',
+
+			400 => 'Bad Request',
+			401 => 'Unauthorized',
+			403 => 'Forbidden',
+			404 => 'Not Found',
+			405 => 'Method Not Allowed',
+			406 => 'Not Acceptable',
+			407 => 'Proxy Authentication Required',
+			408 => 'Request Timeout',
+			409 => 'Conflict',
+			410 => 'Gone',
+			411 => 'Length Required',
+			412 => 'Precondition Failed',
+			413 => 'Request Entity Too Large',
+			414 => 'Request-URI Too Long',
+			415 => 'Unsupported Media Type',
+			416 => 'Requested Range Not Satisfiable',
+			417 => 'Expectation Failed',
+
+			500 => 'Internal Server Error',
+			501 => 'Not Implemented',
+			502 => 'Bad Gateway',
+			503 => 'Service Unavailable',
+			504 => 'Gateway Timeout',
+			505 => 'HTTP Version Not Supported'
+		);
+	}
+
 	if ( isset( $wp_header_to_desc[$code] ) ) {
 		return $wp_header_to_desc[$code];
 	} else {
@@ -755,7 +801,8 @@ function status_header( $header ) {
 	if ( ('HTTP/1.1' != $protocol) && ('HTTP/1.0' != $protocol) )
 		$protocol = 'HTTP/1.0';
 	$status_header = "$protocol $header $text";
-	$status_header = apply_filters('status_header', $status_header, $header, $text, $protocol);
+	if ( function_exists('apply_filters') )
+		$status_header = apply_filters('status_header', $status_header, $header, $text, $protocol);
 
 	if ( version_compare( phpversion(), '4.3.0', '>=' ) ) {
 		return @header( $status_header, true, $header );
@@ -1193,13 +1240,19 @@ function wp_die( $message, $title = '' ) {
 	else
 		$admin_dir = 'wp-admin/';
 
-	if ( !did_action('admin_head') ) :
-	header('Content-Type: text/html; charset=utf-8');
+	if ( !function_exists('did_action') || !did_action('admin_head') ) :
+	if( !headers_sent() ){
+		status_header(500);
+		nocache_headers();
+		header('Content-Type: text/html; charset=utf-8');
+	}
 
-	if ( empty($title) )
-		$title = __('WordPress &rsaquo; Error');
-
-
+	if ( empty($title) ){
+		if( function_exists('__') )
+			$title = __('WordPress &rsaquo; Error');
+		else
+			$title = 'WordPress &rsaquo; Error';
+	}
 
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">

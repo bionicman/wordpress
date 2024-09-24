@@ -167,7 +167,7 @@ function get_attachment_link($id = false) {
 		else
 			$parentlink = get_permalink( $object->post_parent );
 		if (strpos($parentlink, '?') === false)
-			$link = trim($parentlink, '/') . '/' . $object->post_name . '/';
+			$link = trailingslashit($parentlink) . $object->post_name . '/';
 	}
 
 	if (! $link ) {
@@ -432,7 +432,12 @@ function previous_post_link($format='&laquo; %link', $link='%title', $in_same_ca
 	if ( !$post )
 		return;
 
-	$title = apply_filters('the_title', $post->post_title, $post);
+	$title = $post->post_title;
+
+	if ( empty($post->post_title) )
+		$title = __('Previous Post');
+
+	$title = apply_filters('the_title', $title, $post);
 	$string = '<a href="'.get_permalink($post->ID).'">';
 	$link = str_replace('%title', $title, $link);
 	$link = $pre . $string . $link . '</a>';
@@ -448,7 +453,12 @@ function next_post_link($format='%link &raquo;', $link='%title', $in_same_cat = 
 	if ( !$post )
 		return;
 
-	$title = apply_filters('the_title', $post->post_title, $post);
+	$title = $post->post_title;
+
+	if ( empty($post->post_title) )
+		$title = __('Next Post');
+
+	$title = apply_filters('the_title', $title, $post);
 	$string = '<a href="'.get_permalink($post->ID).'">';
 	$link = str_replace('%title', $title, $link);
 	$link = $string . $link . '</a>';

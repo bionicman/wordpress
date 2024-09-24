@@ -215,6 +215,8 @@ class MT_Import {
 
 			$post->post_author = $this->checkauthor($post->post_author); //just so that if a post already exists, new users are not created by checkauthor
 			$post_id = wp_insert_post($post);
+			if ( is_wp_error( $post_id ) ) 
+				return $post_id;
 
 			// Add categories.
 			if ( 0 != count($post->categories) ) {
@@ -291,7 +293,9 @@ class MT_Import {
 			} else if ( '--------' == $line ) {
 				// Finishing a post.
 				$context = '';
-				$this->save_post($post, $comments, $pings);
+				$result = $this->save_post($post, $comments, $pings);
+				if ( is_wp_error( $result ) ) 
+					return $result;
 				$post = new StdClass;
 				$comment = new StdClass();
 				$ping = new StdClass();
@@ -366,7 +370,7 @@ class MT_Import {
 				if ( 'comment' == $context )
 					$comment->comment_author_email = $email;
 				else
-					$ping->comment_author_email = $email;
+					$ping->comment_author_email = '';
 			} else if ( 0 === strpos($line, "IP:") ) {
 				$ip = trim( substr($line, strlen("IP:")) );
 				if ( 'comment' == $context )
@@ -415,7 +419,9 @@ class MT_Import {
 		else
 			$this->file = get_attached_file($this->id);
 		$this->get_authors_from_post();
-		$this->process_posts();
+		$result = $this->process_posts();
+		if ( is_wp_error( $result ) ) 
+			return $result;
 	}
 
 	function dispatch() {
@@ -434,7 +440,9 @@ class MT_Import {
 				break;
 			case 2:
 				check_admin_referer('import-mt');
-				$this->import();
+				$result = $this->import();
+				if ( is_wp_error( $result ) )
+					echo $result->get_error_message();
 				break;
 		}
 	}
