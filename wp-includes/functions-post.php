@@ -24,6 +24,7 @@ function wp_insert_post($postarr = array()) {
 
 	// Get the basics.
 	$post_content    = apply_filters('content_save_pre',   $post_content);
+	$post_content_filtered = apply_filters('content_filtered_save_pre',   $post_content_filtered);
 	$post_excerpt    = apply_filters('excerpt_save_pre',   $post_excerpt);
 	$post_title      = apply_filters('title_save_pre',     $post_title);
 	$post_category   = apply_filters('category_save_pre',  $post_category);
@@ -221,6 +222,7 @@ function wp_insert_attachment($object, $file = false, $post_parent = 0) {
 
 	// Get the basics.
 	$post_content    = apply_filters('content_save_pre',   $post_content);
+	$post_content_filtered = apply_filters('content_filtered_save_pre',   $post_content_filtered);
 	$post_excerpt    = apply_filters('excerpt_save_pre',   $post_excerpt);
 	$post_title      = apply_filters('title_save_pre',     $post_title);
 	$post_category   = apply_filters('category_save_pre',  $post_category);
@@ -302,6 +304,7 @@ function wp_insert_attachment($object, $file = false, $post_parent = 0) {
 			post_date = '$post_date',
 			post_date_gmt = '$post_date_gmt',
 			post_content = '$post_content',
+			post_content_filtered = '$post_content_filtered',
 			post_title = '$post_title',
 			post_excerpt = '$post_excerpt',
 			post_status = '$post_status',
@@ -321,9 +324,9 @@ function wp_insert_attachment($object, $file = false, $post_parent = 0) {
 	} else {
 		$wpdb->query(
 			"INSERT INTO $wpdb->posts
-			(post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt,  post_status, comment_status, ping_status, post_password, post_name, to_ping, pinged, post_modified, post_modified_gmt, post_parent, menu_order, post_mime_type, guid)
+			(post_author, post_date, post_date_gmt, post_content, post_content_filtered, post_title, post_excerpt,  post_status, comment_status, ping_status, post_password, post_name, to_ping, pinged, post_modified, post_modified_gmt, post_parent, menu_order, post_mime_type, guid)
 			VALUES
-			('$post_author', '$post_date', '$post_date_gmt', '$post_content', '$post_title', '$post_excerpt', '$post_status', '$comment_status', '$ping_status', '$post_password', '$post_name', '$to_ping', '$pinged', '$post_date', '$post_date_gmt', '$post_parent', '$menu_order', '$post_mime_type', '$guid')");
+			('$post_author', '$post_date', '$post_date_gmt', '$post_content', '$post_content_filtered', '$post_title', '$post_excerpt', '$post_status', '$comment_status', '$ping_status', '$post_password', '$post_name', '$to_ping', '$pinged', '$post_date', '$post_date_gmt', '$post_parent', '$menu_order', '$post_mime_type', '$guid')");
 			$post_ID = $wpdb->insert_id;			
 	}
 	
@@ -548,6 +551,8 @@ function wp_delete_post($postid = 0) {
 
 	if ( 'static' == $post->post_status )
 		$wpdb->query("UPDATE $wpdb->posts SET post_parent = $post->post_parent WHERE post_parent = $postid AND post_status = 'static'");
+
+	$wpdb->query("UPDATE $wpdb->posts SET post_parent = $post->post_parent WHERE post_parent = $postid AND post_status = 'attachment'");
 
 	$wpdb->query("DELETE FROM $wpdb->posts WHERE ID = $postid");
 	

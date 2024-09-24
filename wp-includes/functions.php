@@ -2163,13 +2163,13 @@ function remove_query_arg($key, $query) {
 	return add_query_arg($key, '', $query);
 }
 
-function load_template($file) {
+function load_template($_template_file) {
 	global $posts, $post, $wp_did_header, $wp_did_template_redirect, $wp_query,
 		$wp_rewrite, $wpdb;
 
-	extract($wp_query->query_vars);
+	extract($wp_query->query_vars, EXTR_SKIP);
 
-	require_once($file);
+	require_once($_template_file);
 }
 
 function add_magic_quotes($array) {
@@ -2187,7 +2187,7 @@ function add_magic_quotes($array) {
 
 function wp_remote_fopen( $uri ) {
 	if ( ini_get('allow_url_fopen') ) {
-		$fp = fopen( $uri, 'r' );
+		$fp = @fopen( $uri, 'r' );
 		if ( !$fp )
 			return false;
 		$linea = '';
@@ -2228,8 +2228,10 @@ function status_header( $header ) {
 	elseif ( 410 == $header )
 		$text = 'Gone';
 
-	@header("HTTP/1.1 $header $text");
-	@header("Status: $header $text");
+		if ( substr(php_sapi_name(), 0, 3) == 'cgi' )
+			@header("HTTP/1.1 $header $text");
+		else
+			@header("Status: $header $text");
 }
 
 function nocache_headers() {
@@ -2244,7 +2246,7 @@ function get_usermeta( $user_id, $meta_key = '') {
 	$user_id = (int) $user_id;
 
 	if ( !empty($meta_key) ) {
-		$meta_key = preg_replace('|a-z0-9_|i', '', $meta_key);
+		$meta_key = preg_replace('|[^a-z0-9_]|i', '', $meta_key);
 		$metas = $wpdb->get_results("SELECT meta_key, meta_value FROM $wpdb->usermeta WHERE user_id = '$user_id' AND meta_key = '$meta_key'");
 	} else {
 		$metas = $wpdb->get_results("SELECT meta_key, meta_value FROM $wpdb->usermeta WHERE user_id = '$user_id'");
