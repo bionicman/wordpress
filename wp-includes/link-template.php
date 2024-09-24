@@ -358,7 +358,7 @@ function edit_comment_link( $link = 'Edit This', $before = '', $after = '' ) {
 function get_previous_post($in_same_cat = false, $excluded_categories = '') {
 	global $post, $wpdb;
 
-	if( !is_single() || is_attachment() )
+	if( empty($post) || !is_single() || is_attachment() )
 		return null;
 
 	$current_post_date = $post->post_date;
@@ -391,7 +391,7 @@ function get_previous_post($in_same_cat = false, $excluded_categories = '') {
 function get_next_post($in_same_cat = false, $excluded_categories = '') {
 	global $post, $wpdb;
 
-	if( !is_single() || is_attachment() )
+	if( empty($post) || !is_single() || is_attachment() )
 		return null;
 
 	$current_post_date = $post->post_date;
@@ -501,13 +501,13 @@ function get_pagenum_link($pagenum = 1) {
 		}
 
 		$request = preg_replace( '|page/(.+)/?$|', '', $request);
-		$request = preg_replace( '|^index\.php/|', '', $request);
+		$request = preg_replace( '|^index\.php|', '', $request);
+		$request = ltrim($request, '/');
 
 		$base = trailingslashit( get_bloginfo( 'url' ) );
 
-		if ( $wp_rewrite->using_index_permalinks() && ( $pagenum > 1 || ( 'page' == get_option('show_on_front') && get_option('page_on_front') )) ) {
+		if ( $wp_rewrite->using_index_permalinks() && ( $pagenum > 1 || '' != $request ) )
 			$base .= 'index.php/';
-		}
 
 		if ( $pagenum > 1 ) {
 			$request = ( ( !empty( $request ) ) ? trailingslashit( $request ) : $request ) . user_trailingslashit( 'page/' . $pagenum, 'paged' );
