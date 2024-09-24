@@ -1,0 +1,27 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+
+<head>
+	<title>{bloginfo show='name'}{single_post_title prefix=' :: '}{single_cat_title prefix=' :: '}{single_month_title prefix=' :: '}</title>
+	
+	<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+	<meta name="generator" content="WordPress .72" /> <!-- leave this for stats -->
+
+	<style type="text/css" media="screen">
+		@import url( {$siteurl}/wp-layout.css );
+	</style>
+	
+	<link rel="stylesheet" type="text/css" media="print" href="{$siteurl}/print.css" />
+	<link rel="alternate" type="text/xml" title="RDF" href="{bloginfo show='rdf_url'}" />
+	<link rel="alternate" type="text/xml" title="RSS" href="{bloginfo show='rss2_url'}" />
+	<link rel="pingback" href="{bloginfo show='pingback_url'}" />
+	{get_archives type='monthly' limit='' format='link'}
+	{comments_popup_script}
+</head>
+
+<body>
+<div id="rap">
+<h1 id="header"><a href="{$siteurl}" title="{bloginfo show='name'}">{bloginfo show='name'}</a></h1>
+
+<div id="content">
+{$content}

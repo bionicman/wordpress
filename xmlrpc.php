@@ -5,11 +5,11 @@ $HTTP_RAW_POST_DATA = trim($HTTP_RAW_POST_DATA);
 
 include('wp-config.php');
 
-require_once($abspath.$b2inc."/xmlrpc.inc");
-require_once($abspath.$b2inc."/xmlrpcs.inc");
-require_once($abspath.$b2inc."/b2template.functions.php");
-require_once($abspath.$b2inc."/b2functions.php");
-require_once($abspath.$b2inc."/b2vars.php");
+require_once(ABSPATH.WPINC."/class-xmlrpc.php");
+require_once(ABSPATH.WPINC."/class-xmlrpcs.php");
+require_once(ABSPATH.WPINC."/template-functions.php");
+require_once(ABSPATH.WPINC."/functions.php");
+require_once(ABSPATH.WPINC."/vars.php");
 
 $use_cache = 1;
 $post_autobr = 0;
@@ -40,6 +40,11 @@ logIO("I",$HTTP_RAW_POST_DATA);
 /**** DB Functions ****/
 
 /*
+ * These really should be moved into wp-includes/functions.php,
+ * and re-used throughout the code, where possible. -- emc3
+ */
+
+/*
  * generic function for inserting data into the posts table.
  */
 function wp_insert_post($postarr = array()) {
@@ -52,14 +57,19 @@ function wp_insert_post($postarr = array()) {
 	$post_content = $wpdb->escape($post_content);
 	$post_title = $wpdb->escape($post_title);
 	
+	$post_cat = $post_category[0];
+	
 	$sql = "INSERT INTO $tableposts 
 		(post_author, post_date, post_content, post_title, post_excerpt, post_category, post_status) 
-		VALUES ('$post_author','$post_date','$post_content','$post_title', '$post_excerpt','$post_category', '$post_status')";
+		VALUES ('$post_author','$post_date','$post_content','$post_title', '$post_excerpt','$post_cat', '$post_status')";
 
 	$result = $wpdb->query($sql);
+	$post_ID = $wpdb->insert_id;
+	
+	wp_set_post_cats('',$post_ID,$post_category);
 
 	// Return insert_id if we got a good result, otherwise return zero.
-	return $result?$wpdb->insert_id:0;
+	return $result?$post_ID:0;
 }
 
 function wp_get_single_post($postid = 0, $mode = OBJECT) {
@@ -102,7 +112,7 @@ function wp_update_post($postarr = array()) {
 	$sql = "UPDATE $tableposts 
 		SET post_content = '$post_content',
 		post_title = '$post_title',
-		post_category = $post_category,
+		post_category = $post_category[0],
 		post_status = '$post_status',
 		post_date = '$post_date',
 		post_excerpt = '$post_excerpt',
@@ -112,12 +122,52 @@ function wp_update_post($postarr = array()) {
 		
 	$result = $wpdb->query($sql);
 
+	wp_set_post_cats('',$ID,$post_category);
+	
 	return $wpdb->rows_affected;
 }
 
-function wp_delete_post($postid = 0) {
-	global $wpdb, $tableposts;
+function wp_get_post_cats($blogid = '1', $post_ID = 0) {
+	global $wpdb, $tablepost2cat;
 	
+	$sql = "SELECT category_id FROM $tablepost2cat WHERE post_id = $post_ID ORDER BY category_id";
+
+	$result = $wpdb->get_col($sql);
+
+	return $result;
+}
+
+function wp_set_post_cats($blogid = '1', $post_ID = 0, $post_categories = array()) {
+	global $wpdb, $tablepost2cat;
+	// If $post_categories isn't already an array, make it one:
+	if (!is_array($post_categories)) {
+		$post_categories = array($post_categories);
+	}
+
+	// First the old categories
+	$old_categories = $wpdb->get_col("SELECT category_id FROM $tablepost2cat WHERE post_id = $post_ID");
+
+	// Delete any?
+	foreach ($old_categories as $old_cat) {
+		if (!in_array($old_cat, $post_categories)) // If a category was there before but isn't now
+			$wpdb->query("DELETE FROM $tablepost2cat WHERE category_id = $old_cat AND post_id = $post_ID LIMIT 1");
+logio("O","deleting post/cat: $post_ID, $old_cat");
+	}
+
+	// Add any?
+	foreach ($post_categories as $new_cat) {
+		if (!in_array($new_cat, $old_categories))
+			$wpdb->query("INSERT INTO $tablepost2cat (post_id, category_id) VALUES ($post_ID, $new_cat)");
+logio("O","adding post/cat: $post_ID, $new_cat");
+	}
+}
+
+function wp_delete_post($postid = 0) {
+	global $wpdb, $tableposts, $tablepost2cat;
+	
+	$sql = "DELETE FROM $tablepost2cat WHERE post_id = $postid";
+	$wpdb->query($sql);
+		
 	$sql = "DELETE FROM $tableposts WHERE ID = $postid";
 	
 	$wpdb->query($sql);
@@ -131,7 +181,7 @@ function wp_delete_post($postid = 0) {
 
 /**** Misc ****/
 
-// get peramalink from post ID
+// get permalink from post ID
 function post_permalink($post_ID=0, $mode = 'id') {
     global $wpdb;
 	global $tableposts;
@@ -249,7 +299,7 @@ function get_extended($post) {
 }
 
 // do trackbacks for a list of urls
-// borrowed from b2edit.php
+// borrowed from edit.php
 // accepts a comma-separated list of trackback urls and a post id
 function trackback_url_list($tb_list, $post_id) {
 	if (!empty($tb_list)) {
@@ -289,9 +339,9 @@ function trackback_url_list($tb_list, $post_id) {
 
 ### b2.newPost ###
 
-$b2newpost_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcBoolean, $xmlrpcString, $xmlrpcString, $xmlrpcString));
+$wpnewpost_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcBoolean, $xmlrpcString, $xmlrpcString, $xmlrpcString));
 
-$b2newpost_doc='Adds a post, blogger-api like, +title +category +postdate';
+$wpnewpost_doc='Adds a post, blogger-api like, +title +category +postdate';
 
 function b2newpost($m) {
     global $wpdb;
@@ -349,10 +399,10 @@ function b2newpost($m) {
 	   "For some strange yet very annoying reason, your entry couldn't be posted.");
 
 
-		$post_ID = $wpdb->insert_id;
+		$post_ID = $result;
 
 		if (!isset($blog_ID)) { $blog_ID = 1; }
-
+		
 		if (isset($sleep_after_edit) && $sleep_after_edit > 0) {
 			sleep($sleep_after_edit);
 		}
@@ -378,9 +428,9 @@ function b2newpost($m) {
 
 ### b2.getCategories ###
 
-$b2getcategories_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString));
+$wpgetcategories_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString));
 
-$b2getcategories_doc='given a blogID, gives a struct that list categories in that blog, using categoryID and categoryName. categoryName is there so the user would choose a category name from the client, rather than just a number. however, when using b2.newPost, only the category ID number should be sent.';
+$wpgetcategories_doc='given a blogID, gives a struct that list categories in that blog, using categoryID and categoryName. categoryName is there so the user would choose a category name from the client, rather than just a number. however, when using b2.newPost, only the category ID number should be sent.';
 
 function b2getcategories($m) {
     global $wpdb;
@@ -433,9 +483,9 @@ function b2getcategories($m) {
 
 ### b2.getPostURL ###
 
-$b2_getPostURL_sig = array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString));
+$wp_getPostURL_sig = array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString));
 
-$b2_getPostURL_doc = 'Given a blog ID, username, password, and a post ID, returns the URL to that post.';
+$wp_getPostURL_doc = 'Given a blog ID, username, password, and a post ID, returns the URL to that post.';
 
 function b2_getPostURL($m) {
     global $wpdb;
@@ -583,7 +633,7 @@ function bloggernewpost($m) {
 	   "For some strange yet very annoying reason, your entry couldn't be posted.");
 
 		if (!isset($blog_ID)) { $blog_ID = 1; }
-
+		
 		if (isset($sleep_after_edit) && $sleep_after_edit > 0) {
 			sleep($sleep_after_edit);
 		}
@@ -678,7 +728,7 @@ function bloggereditpost($m) {
 	   "For some strange yet very annoying reason, the entry couldn't be edited.");
 
 		if (!isset($blog_ID)) { $blog_ID = 1; }
-
+		
 		if (isset($sleep_after_edit) && $sleep_after_edit > 0) {
 			sleep($sleep_after_edit);
 		}
@@ -754,7 +804,7 @@ function bloggerdeletepost($m) {
 	   "For some strange yet very annoying reason, the entry couldn't be deleted.");
 
 		if (!isset($blog_ID)) { $blog_ID = 1; }
-
+		
 		if (isset($sleep_after_edit) && $sleep_after_edit > 0) {
 			sleep($sleep_after_edit);
 		}
@@ -928,7 +978,7 @@ function bloggergetrecentposts($m) {
 
 	if (user_pass_ok($username,$password)) {
 
-		$sql = "SELECT * FROM $tableposts WHERE post_category > 0 ORDER BY post_date DESC".$limit;
+		$sql = "SELECT * FROM $tableposts ORDER BY post_date DESC".$limit;
 		$result = $wpdb->get_results($sql);
 		if (!$result)
 			return new xmlrpcresp(0, $xmlrpcerruser+2, // user error 2
@@ -1051,10 +1101,10 @@ function bloggergettemplate($m) {
 		if ($blogfilename != "") {
 			$file = $blogfilename;
 		} else {
-			$file = "b2.php";
+			$file = "wp.php";
 		}
 	} elseif ($templateType == "archiveIndex") {
-		$file = "b2archives.php";
+		$file = "wp.php";
 	}
 
 	$f = fopen($file,"r");
@@ -1114,10 +1164,10 @@ function bloggersettemplate($m) {
 		if ($blogfilename != "") {
 			$file = $blogfilename;
 		} else {
-			$file = "b2.php";
+			$file = "wp.php";
 		}
 	} elseif ($templateType == "archiveIndex") {
-		$file = "b2archives.php";
+		$file = "wp.php";
 	}
 
 	$f = fopen($file,"w+");
@@ -1197,7 +1247,10 @@ function mwnewpost($params) {
 		$dateCreated = $dateCreated?iso8601_decode($dateCreated):(time()+($time_difference * 3600));
 		$post_date = date("Y-m-d H:i:s", $dateCreated);
 		
-		$post_category = get_cat_ID($contentstruct['categories'][0]);
+		$catnames = $contentstruct['categories'];
+		foreach ($catnames as $cat) {
+			$post_category[] = get_cat_ID($cat);
+		}
 		
 		// We've got all the data -- post it:
 		$postarr = compact('post_author','post_date','post_content','post_title','post_category','post_status','post_excerpt','comment_status','ping_status');
@@ -1277,7 +1330,11 @@ function mweditpost ($params) {	// ($postid, $user, $pass, $content, $publish)
 
 		$post_title = $contentstruct['title'];
 		$post_content = format_to_post($contentstruct['description']);
-		$post_category = get_cat_ID($contentstruct['categories'][0]);
+		$catnames = $contentstruct['categories'];
+		foreach ($catnames as $cat) {
+			$post_category[] = get_cat_ID($cat);
+		}
+
 		$post_excerpt = $contentstruct['mt_excerpt'];
 		$post_more = $contentstruct['mt_text_more'];
 		$post_status = $xpublish->scalarval()?'publish':'draft';
@@ -1352,11 +1409,12 @@ function mwgetpost ($params) {	// ($postid, $user, $pass)
 			$post_date = strtotime($postdata['Date']);
 			$post_date = date("Ymd", $post_date)."T".date("H:i:s", $post_date);
 			
-			$catid = $postdata['Category'];
-			$catname = get_cat_name($catid);
-			$catnameenc = new xmlrpcval($catname);
-			$catlist = array($catnameenc);
-			
+			$catids = wp_get_post_cats($post_ID);
+			foreach($catids as $catid) {
+				$catname = get_cat_name($catid);
+				$catnameenc = new xmlrpcval($catname);
+				$catlist[] = $catnameenc;
+			}			
 			$post = get_extended($postdata['Content']);
 			$allow_comments = ('open' == $postdata['comment_status'])?1:0;
 			$allow_pings = ('open' == $postdata['ping_status'])?1:0;
@@ -1426,7 +1484,7 @@ function mwrecentposts ($params) {	// ($blogid, $user, $pass, $num)
 			
 			$pcat = stripslashes(get_cat_name($entry['post_category']));
 			
-			// For multipile cats, we might do something like
+			// For multiple cats, we might do something like
 			// this in the future:
 			//$catstruct['description'] = $pcat;
 			//$catstruct['categoryId'] = $entry['post_category'];
@@ -1536,18 +1594,16 @@ function mwnewmedia($params) {	// ($blogid, $user, $pass, $struct)
  *  mt.supportedMethods
  *  mt.getPostCategories
  *  mt.publishPost
- *
- * PARTIALLY DONE:
- *  mt.supportedTextFilters	      // empty stub
+ *  mt.getRecentPostTitles
  *  extend metaWeblog.newPost
  *  extend metaWeblog.editPost
  *  extend metaWeblog.getPost
  *  extend metaWeblog.getRecentPosts
  *
- * NOT DONE:
- *  mt.getRecentPostTitles
- *  mt.getTrackbackPings
- *
+ * PARTIALLY DONE:
+ *  mt.supportedTextFilters		// empty stub, because WP doesn't support per-post text filters at this time
+ *  mt.getTrackbackPings		// another stub.
+ *  metaWeblog.newMediaObject	// ditto. For now.
  *
  **********************/
 
@@ -1587,15 +1643,20 @@ function mt_getPostCategories($params) {
 	$password = $xpass->scalarval();
 
 	if (user_pass_ok($username,$password)) {
-		$postdata = wp_get_single_post($post_ID,ARRAY_A);
-	
-		$struct['categoryId'] = $postdata['post_category'];
-		$struct['categoryName'] = get_cat_name($struct['categoryId']);
-		$struct['isPrimary'] = TRUE;
+		$catids = wp_get_post_cats('1', $post_ID);
+
+		// The first category listed will be set as primary
+		$struct['isPrimary'] = true;
+		foreach($catids as $catid) {	
+			$struct['categoryId'] = $catid;
+			$struct['categoryName'] = get_cat_name($catid);
+
+			$resp_struct[] = xmlrpc_encode($struct);
+			$struct['isPrimary'] = false;
+		}
 		
 		// Return an array of structs	
-		$resp_struct = xmlrpc_encode($struct);
-		$resp_array = new xmlrpcval(array($resp_struct),'array');
+		$resp_array = new xmlrpcval($resp_struct,'array');
 		
 		return new xmlrpcresp($resp_array);
 
@@ -1620,18 +1681,14 @@ function mt_setPostCategories($params) {
 	$username = $xuser->scalarval();
 	$password = $xpass->scalarval();
 	$cats = xmlrpc_decode($xcats);
-
-	// WP currently only supports single cats. Grab the first one:
-	$primarycat = $cats[0];
-	$cat_ID = $primarycat['categoryId'];
+	
+	foreach($cats as $cat) {
+		$catids[] = $cat['categoryId'];
+	}
 	
 	if (user_pass_ok($username,$password)) {
-		$postdata = wp_get_single_post($post_ID,ARRAY_A);
-	
-		$postdata['post_category'] = $cat_ID;
-			
-		$result = wp_update_post($postdata);
-
+		wp_set_post_cats('', $post_ID, $catids);
+		
 		return new xmlrpcresp(new xmlrpcval($result,'boolean'));
 	} else {
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
@@ -1657,6 +1714,10 @@ function mt_publishPost($params) {
 		$postdata = wp_get_single_post($post_ID,ARRAY_A);
 		
 		$postdata['post_status'] = 'publish';
+		
+		// retain old cats
+		$cats = wp_get_post_cats('',$post_ID);
+		$postdata['post_category'] = $cats;
 	
 		$result = wp_update_post($postdata);
 
@@ -1667,14 +1728,70 @@ function mt_publishPost($params) {
 	}
 }
 
+$mt_getRecentPostTitles_sig = array(array($xmlrpcArray,$xmlrpcString,$xmlrpcString,$xmlrpcString,$xmlrpcInt));
+$mt_getRecentPostTitles_doc = "Returns a bandwidth-friendly list of the most recent posts in the system.";
+
+function mt_getRecentPostTitles($params) {
+	global $xmlrpcusererr, $wpdb, $tableposts;
+
+	$xblogid = $params->getParam(0);
+	$xuser = $params->getParam(1);
+	$xpass = $params->getParam(2);
+	$xnumposts = $params->getParam(3);
+
+	$blogid = $xblogid->scalarval();
+	$username = $xuser->scalarval();
+	$password = $xpass->scalarval();
+	$numposts = intval($xnumposts->scalarval());
+
+	if (user_pass_ok($username,$password)) {
+		$sql = "SELECT post_date, post_author, ID, post_title FROM $tableposts ORDER BY post_date DESC LIMIT $numposts";
+		$posts = $wpdb->get_results($sql,ARRAY_A);
+		
+		foreach($posts as $post) {
+			$post_date = strtotime($post['post_date']);
+			$post_date = date("Ymd", $post_date)."T".date("H:i:s", $post_date);
+
+			$struct['dateCreated'] = new xmlrpcval($post_date, 'dateTime.iso8601');
+			$struct['userid'] = new xmlrpcval($post['post_author'], 'string');
+			$struct['postid'] = new xmlrpcval($post['ID'], 'string');
+			$struct['title'] = new xmlrpcval($post['post_title'], 'string');
+			
+			$result[] = $struct;
+		}
+		
+		return new xmlrpcresp(new xmlrpcval($results,'array'));
+
+	} else {
+		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
+	   'Wrong username/password combination '.$username.' / '.starify($password));
+	}
+}
+
+
 $mt_supportedTextFilters_sig = array(array($xmlrpcArray));
-$mt_supportedTextFilters_doc = "Retrieve information about the text formatting plugins supported by the server.";
+$mt_supportedTextFilters_doc = "Retrieve information about the text formatting plugins supported by the server. (not implemented)";
 
 function mt_supportedTextFilters($params) {
 	// This should probably check the status of the 'use_bbcode' 
 	// and 'use_gmcode' config options.
 	
 	return new xmlrpcresp(new xmlrpcval(array(),'array'));
+}
+
+
+
+$mt_getTrackbackPings_sig = array(array($xmlrpcArray,$xmlrpcString));
+$mt_getTrackbackPings_doc = "Retrieve the list of Trackback pings posted to a particular entry. (not implemented)";
+
+function mt_getTrackbackPings($params) {
+	$struct['pingTitle'] = '';
+	$struct['pingURL'] = '';
+	$struct['pingIP'] = '';
+	
+	$xmlstruct = xmlrpc_encode($struct);
+	
+	return new xmlrpcresp(new xmlrpcval(array($xmlstruct),'array'));
 }
 
 
@@ -1686,13 +1803,13 @@ function mt_supportedTextFilters($params) {
 
 $pingback_ping_sig = array(array($xmlrpcString, $xmlrpcString, $xmlrpcString));
 
-$pingback_ping_doc = 'gets a pingback and registers it as a comment prefixed by &lt;pingback /&gt;';
+$pingback_ping_doc = 'Gets a pingback and registers it as a comment prefixed by &lt;pingback /&gt;';
 
 $debug = 1; 
 function pingback_ping($m) {
 	// original code by Mort (http://mort.mine.nu:8080) 
 	global $tableposts,$tablecomments, $comments_notify, $wpdb; 
-	global $siteurl, $blogfilename,$b2_version, $use_pingback; 
+	global $siteurl, $blogfilename,$wp_version, $use_pingback; 
 	global $HTTP_SERVER_VARS, $wpdb;
 
 	    
@@ -1701,7 +1818,7 @@ function pingback_ping($m) {
 	}
 
 
-	$log = debug_fopen('./xmlrpc.log', 'w');
+	//$log = debug_fopen('./xmlrpc.log', 'w');
 
 	$title='';
 
@@ -1714,9 +1831,9 @@ function pingback_ping($m) {
 	$pagelinkedfrom = str_replace('&amp;', '&', $pagelinkedfrom);
 	$pagelinkedto = preg_replace('#&([^amp\;])#is', '&amp;$1', $pagelinkedto);
 
-	debug_fwrite($log, 'BEGIN '.time().' - '.date('Y-m-d H:i:s')."\n\n");
-	debug_fwrite($log, 'Page linked from: '.$pagelinkedfrom."\n");
-	debug_fwrite($log, 'Page linked to: '.$pagelinkedto."\n");
+	//debug_fwrite($log, 'BEGIN '.time().' - '.date('Y-m-d H:i:s')."\n\n");
+	//debug_fwrite($log, 'Page linked from: '.$pagelinkedfrom."\n");
+	//debug_fwrite($log, 'Page linked to: '.$pagelinkedto."\n");
 
 	$messages = array(
 		htmlentities("Pingback from ".$pagelinkedfrom." to "
@@ -1735,7 +1852,10 @@ function pingback_ping($m) {
 
 		// let's find which post is linked to
 		$urltest = parse_url($pagelinkedto);
-		if (preg_match('#p/[0-9]{1,}#', $urltest['path'], $match)) {
+		if ($post_ID = url_to_postid($pagelinkedto)) {
+			$way = 'url_to_postid()';
+		}
+		elseif (preg_match('#p/[0-9]{1,}#', $urltest['path'], $match)) {
 			// the path defines the post_ID (archives/p/XXXX)
 			$blah = explode('/', $match[0]);
 			$post_ID = $blah[1];
@@ -1763,17 +1883,21 @@ function pingback_ping($m) {
 				$way = 'from the fragment (title)';
 			}
 		} else {
+			// TODO: Attempt to extract a post ID from the given URL
 			$post_ID = -1;
+			$way = 'no match';
 		}
 
-		debug_fwrite($log, "Found post ID $way: $post_ID\n");
+		logIO("O","(PB) URI='$pagelinkedto' ID='$post_ID' Found='$way'");
+
+		//debug_fwrite($log, "Found post ID $way: $post_ID\n");
 
 		$sql = 'SELECT post_author FROM '.$tableposts.' WHERE ID = '.$post_ID;
 		$result = $wpdb->get_results($sql);
 
 		if ($wpdb->num_rows) {
 
-			debug_fwrite($log, 'Post exists'."\n");
+			//debug_fwrite($log, 'Post exists'."\n");
 
 			// Let's check that the remote site didn't already pingback this entry
 			$sql = 'SELECT * FROM '.$tablecomments.' 
@@ -1798,28 +1922,28 @@ function pingback_ping($m) {
 					$linea = str_replace('<!DOCTYPE','<DOCTYPE',$linea);
 					$linea = strip_tags($linea, '<title><a>');
 					$linea = strip_all_but_one_link($linea, $pagelinkedto);
-					$linea = preg_replace('#&([^amp\;])#is', '&amp;$1', $linea);
+					// I don't think we need this? -- emc3
+					//$linea = preg_replace('#&([^amp\;])#is', '&amp;$1', $linea);
 					if (empty($matchtitle)) {
 						preg_match('|<title>([^<]*?)</title>|is', $linea, $matchtitle);
 					}
 					$pos2 = strpos($linea, $pagelinkedto);
 					$pos3 = strpos($linea, str_replace('http://www.', 'http://', $pagelinkedto));
 					if (is_integer($pos2) || is_integer($pos3)) {
-						debug_fwrite($log, 'The page really links to us :)'."\n");
+						//debug_fwrite($log, 'The page really links to us :)'."\n");
 						$pos4 = (is_integer($pos2)) ? $pos2 : $pos3;
 						$start = $pos4-100;
 						$context = substr($linea, $start, 250);
 						$context = str_replace("\n", ' ', $context);
 						$context = str_replace('&amp;', '&', $context);
 					} else {
-						debug_fwrite($log, 'The page doesn\'t link to us, here\'s an excerpt :'."\n\n".$linea."\n\n");
+						//debug_fwrite($log, 'The page doesn\'t link to us, here\'s an excerpt :'."\n\n".$linea."\n\n");
 					}
 				//}
-				debug_fwrite($log, '*****'."\n\n");
+				//debug_fwrite($log, '*****'."\n\n");
 				fclose($fp);
 
 				if (!empty($context)) {
-
 					// Check if pings are on, inelegant exit
 					$pingstatus = $wpdb->get_var("SELECT ping_status FROM $tableposts WHERE ID = $post_ID");
 					if ('closed' == $pingstatus) die('Sorry, pings are turned off for this post.');
@@ -1833,30 +1957,16 @@ function pingback_ping($m) {
 					$pagelinkedfrom = addslashes($pagelinkedfrom);
 					$original_title = $title;
 					$title = addslashes(strip_tags(trim($title)));
-					$sql = "INSERT INTO $tablecomments 
+					$now = current_time('mysql');
+					$consulta = $wpdb->query("INSERT INTO $tablecomments 
 						(comment_post_ID, comment_author, comment_author_url, comment_date, comment_content) 
-						VALUES ($post_ID, '$title', '$pagelinkedfrom', NOW(), '$context')";
-					$consulta = $wpdb->query($sql);
+						VALUES 
+						($post_ID, '$title', '$pagelinkedfrom', '$now', '$context')
+						");
 
-					$authordata = get_userdata($postdata['Author_ID']);
-					if ($comments_notify && '' != $authordata->user_email) {
-						$postdata = get_postdata($post_ID);
-
-						$notify_message  = "New pingback on your post #$comment_post_ID \"".stripslashes($postdata['Title'])."\"\r\n\r\n";
-						$notify_message .= "Website: $original_title\r\n";
-						$notify_message .= "URI    : $original_pagelinkedfrom\r\n";
-						$notify_message .= "Excerpt: \n[...] $original_context [...]\r\n\r\n";
-						$notify_message .= "You can see all pingbacks on this post here: \r\n";
-						$notify_message .= "$siteurl/$blogfilename?p=$post_ID&c=1\r\n\r\n";
-
-						$subject = '[' . stripslashes($blogname) . '] Pingback: "' .stripslashes($postdata['Title']).'"';
-			
-						$from = "From: wordpress@".$HTTP_SERVER_VARS['SERVER_NAME'];
-						$from .= "X-Mailer: WordPress $b2_version with PHP/" . phpversion();
-			
-						@mail($authordata->user_email, $subject, $notify_message, $from);
-
-					}
+					$comment_ID = $wpdb->get_var('SELECT last_insert_id()');
+					if ($comments_notify)
+						wp_notify_postauthor($comment_ID, 'pingback');
 				} else {
 					// URL pattern not found
 					$message = "Page linked to: $pagelinkedto\nPage linked from:"
@@ -1870,7 +1980,7 @@ function pingback_ping($m) {
 		} else {
 			// Post_ID not found
 			$message = $messages[2];
-			debug_fwrite($log, 'Post doesn\'t exist'."\n");
+			//debug_fwrite($log, 'Post doesn\'t exist'."\n");
 		}
 	}
 	return new xmlrpcresp(new xmlrpcval($message));
@@ -2469,6 +2579,11 @@ $dispatch_map =  array( "blogger.newPost" =>
 										 "signature" => $mwgetcats_sig,
 										 "docstring" => $mwgetcats_doc),
 
+							 "metaWeblog.newMediaObject" =>
+							 array("function" => "mwnewmedia",
+										 "signature" => $mwnewmedia_sig,
+										 "docstring" => $mwnewmedia_doc),
+
 							 "mt.getCategoryList" =>
 							 array("function" => "mwgetcats",
 										 "signature" => $mwgetcats_sig,
@@ -2499,19 +2614,29 @@ $dispatch_map =  array( "blogger.newPost" =>
 										 "signature" => $mt_supportedTextFilters_sig,
 										 "docstring" => $mt_supportedTextFilters_doc),
 
+							 "mt.getRecentPostTitles" =>
+							 array("function" => "mt_getRecentPostTitles",
+										 "signature" => $mt_getRecentPostTitles_sig,
+										 "docstring" => $mt_getRecentPostTitles_doc),
+
+							 "mt.getTrackbackPings" =>
+							 array("function" => "mt_getTrackbackPings",
+										 "signature" => $mt_getTrackbackPings_sig,
+										 "docstring" => $mt_getTrackbackPings_doc),
+
 							 "b2.newPost" =>
 							 array("function" => "b2newpost",
-										 "signature" => $b2newpost_sig,
-										 "docstring" => $b2newpost_doc),
+										 "signature" => $wpnewpost_sig,
+										 "docstring" => $wpnewpost_doc),
 							 "b2.getCategories" =>
 							 array("function" => "b2getcategories",
-										 "signature" => $b2getcategories_sig,
-										 "docstring" => $b2getcategories_doc),
+										 "signature" => $wpgetcategories_sig,
+										 "docstring" => $wpgetcategories_doc),
 
 							 "b2.ping" =>
 							 array("function" => "b2ping",
-										 "signature" => $b2ping_sig,
-										 "docstring" => $b2ping_doc),
+										 "signature" => $wpping_sig,
+										 "docstring" => $wpping_doc),
 
 							 "pingback.ping" =>
 							 array("function" => "pingback_ping",
@@ -2520,8 +2645,8 @@ $dispatch_map =  array( "blogger.newPost" =>
 
 							 "b2.getPostURL" =>
 							 array("function" => "pingback_getPostURL",
-										 "signature" => $b2_getPostURL_sig,
-										 "docstring" => $b2_getPostURL_doc),
+										 "signature" => $wp_getPostURL_sig,
+										 "docstring" => $wp_getPostURL_doc),
 
 
 							 "examples.getStateName" =>

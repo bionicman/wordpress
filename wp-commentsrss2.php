@@ -7,12 +7,12 @@
 		   In every template you do, you got to copy them before the CafeLog 'loop' */
 $blog=1; // enter your blog's ID
 header('Content-type: text/xml');
-include('blog.header.php');
+require('wp-blog-header.php');
 
 if (!isset($rss_language)) { $rss_language = 'en'; }
 echo "<?xml version=\"1.0\"?".">"; 
 ?>
-<!-- generator="wordpress/<?php echo $b2_version ?>" -->
+<!-- generator="wordpress/<?php echo $wp_version ?>" -->
 <rss version="2.0" 
 	xmlns:dc="http://purl.org/dc/elements/1.1/"
 	xmlns:sy="http://purl.org/rss/1.0/modules/syndication/"
@@ -22,7 +22,7 @@ echo "<?xml version=\"1.0\"?".">";
 <channel>
 <?php
 $i = 0;
-foreach ($posts as $post) { start_b2();
+foreach ($posts as $post) { start_wp();
 	if ($i < 1) {
 		$i++;
 ?>
@@ -30,11 +30,11 @@ foreach ($posts as $post) { start_b2();
 	<link><?php isset($_REQUEST["p"]) ? permalink_single_rss() : bloginfo_rss("url") ?></link>
 	<description><?php bloginfo_rss("description") ?></description>
 	<dc:language><?php echo $rss_language ?></dc:language>
-	<dc:creator><?php echo $admin_email ?></dc:creator>
+	<dc:creator><?php echo antispambot($admin_email) ?></dc:creator>
 	<dc:rights>Copyright <?php echo mysql2date('Y', get_lastpostdate()); ?></dc:rights>
 	<dc:date><?php echo gmdate('Y-m-d\TH:i:s'); ?></dc:date>
-	<admin:generatorAgent rdf:resource="http://wordpress.org/?v=<?php echo $b2_version ?>"/>
-	<admin:errorReportsTo rdf:resource="mailto:<?php echo $admin_email ?>"/>
+	<admin:generatorAgent rdf:resource="http://wordpress.org/?v=<?php echo $wp_version ?>"/>
+	<admin:errorReportsTo rdf:resource="mailto:<?php echo antispambot($admin_email) ?>"/>
 	<sy:updatePeriod>hourly</sy:updatePeriod>
 	<sy:updateFrequency>1</sy:updateFrequency>
 	<sy:updateBase>2000-01-01T12:00+00:00</sy:updateBase>
@@ -53,6 +53,7 @@ foreach ($posts as $post) { start_b2();
 											FROM $tablecomments 
 											LEFT JOIN $tableposts ON comment_post_id = id
 											WHERE comment_post_ID = '$id'
+											AND $tablecomments.comment_approved = '1'
 											AND $tableposts.post_status = 'publish'
 											AND post_category > '0'
 											AND post_date < '".date("Y-m-d H:i:s")."' 
@@ -72,6 +73,7 @@ foreach ($posts as $post) { start_b2();
 											FROM $tablecomments 
 											LEFT JOIN $tableposts ON comment_post_id = id
 											WHERE $tableposts.post_status = 'publish'
+											AND $tablecomments.comment_approved = '1'
 											AND post_category > '0'
 											AND post_date < '".date("Y-m-d H:i:s")."' 
 											ORDER BY comment_date DESC

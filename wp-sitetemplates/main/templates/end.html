@@ -1,0 +1,58 @@
+</div>
+
+
+<div id="menu">
+
+<ul>
+ <li>Links:
+	<ul>
+	{get_links category='-1' before='<li>' after='</li>' between='' show_images='0' orderby='_updated' show_description='0' show_rating='0' limit='-1' show_updated='-1'}
+	</ul>
+ </li>
+ <li>Categories:
+	<ul>
+	{list_cats optional='0' all='All' sort_column='name'}
+	</ul>
+ </li>
+ <li>Search:
+	<form id="searchform" method="get" action="{$Smarty.server.PHP_SELF}">
+	<div>
+		<input type="text" name="s" size="15" /><br />
+		<input type="submit" name="submit" value="search" />
+	</div>
+	</form>
+ </li>
+ <li>Archives:
+ 	<ul>
+	 {get_archives type='monthly'}
+ 	</ul>
+ </li>
+ <li>
+	{get_calendar}
+ </li>
+ <li>Other:
+	<ul>
+		<li><a href="wp-login.php">login</a></li>
+		<li><a href="b2register.php">register</a></li>
+	</ul>
+ </li>
+ <li>Meta:
+ 	<ul>
+		<li><a href="{bloginfo show='rss_url'}">RSS .92</a></li>
+		<li><a href="{bloginfo show='rdf_url'}">RDF 1.0</a></li>
+		<li><a href="{bloginfo show='rss2_url'}">RSS 2.0</a></li>
+		<li><a href="{bloginfo show='comments_rss2_url'}">Comments RSS 2.0</a></li>
+		<li><a href="http://validator.w3.org/check/referer" title="This page validates as XHTML 1.0 Transitional">Valid <abbr title="eXtensible HyperText Markup Language">XHTML</abbr></a></li>
+		<li><a href="http://wordpress.org" title="Powered by WordPress, personal publishing platform">WP</a></li>
+	</ul>
+ </li>
+
+</ul>
+
+</div>
+
+</div>
+
+<p class="credit">{timer_stop display='1'} <cite>Powered by <a href="http://wordpress.org"><strong>WordPress</strong></a></cite></p>
+</body>
+</html>

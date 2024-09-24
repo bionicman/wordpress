@@ -1,0 +1,53 @@
+<pre>
+Wordpress and Smarty Templates
+==============================
+
+What is it?
+===========
+Smarty Templates make it much easier to change the look and feel of 
+your weblog.
+Using them we can seperate out the PHP code that runs the site and 
+the actual html and content very easily. They're good for 
+us, the developers and good for you, the weblog owner!
+This directory is here because in the future it'll be possible to
+run several weblogs from one WordPress installation. The different
+blogs will live in sub-directories of this one.
+
+How?
+====
+Smarty support in Wordpress is still very much in the testing phase 
+but it's usable today if you follow the instructions below:
+
+1. Go to http://smarty.php.net/ and download the latest stable 
+   release of Smarty. It's version 2.5.0 at the time of writing.
+2. Install Smarty in the WP directory. (That usually means copying
+   Smarty_Compiler.class.php, Smarty.class.php and Config_File.class.php)
+3. Create a folder here called "main". In that folder create two
+   more folders: "templates" and "templates_c".
+4. The folder "templates_c" should be writable by the web server.
+   In a UNIX environment, the easiest way to do that is with
+   "chmod 777 templates_c", or changing the owner of it to the 
+   same user that runs the web server. In a Windows environment
+   fat32 you probably don't need to do anything, but in NTFS
+   there may be some messing around to do.
+5. The folder "wp-sitetemplates" in the main WP folder holds
+   example template(s). Currently, there's only one, so copy 
+   wp-sitetemplates/main/templates/*html into wp-blogs/main/templates/
+
+In Unix:
+(download and install Smarty.. DIY!)
+  mkdir 
+  mkdir main
+  mkdir main/templates
+  mkdir main/templates_c
+  chmod 777 main/templates_c
+  cp ../wp-sitetemplates/main/templates/*.html main/templates/
+
+Open up your browser at the place where WP is installed, and launch
+index-smarty.php! 
+If your installation isn't a live one, then it's probably worth
+overwriting index.php with index-smarty.php, making backups if necessary.
+
+If you encounter any problems please visit the forums on
+http://wordpress.org or email me at donncha@linux.ie
+</pre>
