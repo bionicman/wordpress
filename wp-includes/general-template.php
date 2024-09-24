@@ -199,7 +199,7 @@ function wp_loginout($redirect = '', $echo = true) {
  *
  * Returns the URL that allows the user to log out of the site
  *
- * @since 2.7
+ * @since 2.7.0
  * @uses wp_nonce_url() To protect against CSRF
  * @uses site_url() To generate the log in URL
  * @uses apply_filters() calls 'logout_url' hook on final logout url
@@ -223,7 +223,7 @@ function wp_logout_url($redirect = '') {
  *
  * Returns the URL that allows the user to log in to the site
  *
- * @since 2.7
+ * @since 2.7.0
  * @uses site_url() To generate the log in URL
  * @uses apply_filters() calls 'login_url' hook on final login url
  *
@@ -271,7 +271,7 @@ function wp_login_form( $args = array() ) {
 
 	$form = '
 		<form name="' . $args['form_id'] . '" id="' . $args['form_id'] . '" action="' . site_url( 'wp-login.php', 'login' ) . '" method="post">
-			' . apply_filters( 'login_form_top', '' ) . '
+			' . apply_filters( 'login_form_top', '', $args ) . '
 			<p class="login-username">
 				<label for="' . esc_attr( $args['id_username'] ) . '">' . esc_html( $args['label_username'] ) . '</label>
 				<input type="text" name="log" id="' . esc_attr( $args['id_username'] ) . '" class="input" value="' . esc_attr( $args['value_username'] ) . '" size="20" tabindex="10" />
@@ -280,13 +280,13 @@ function wp_login_form( $args = array() ) {
 				<label for="' . esc_attr( $args['id_password'] ) . '">' . esc_html( $args['label_password'] ) . '</label>
 				<input type="password" name="pwd" id="' . esc_attr( $args['id_password'] ) . '" class="input" value="" size="20" tabindex="20" />
 			</p>
-			' . apply_filters( 'login_form_middle', '' ) . '
+			' . apply_filters( 'login_form_middle', '', $args ) . '
 			' . ( $args['remember'] ? '<p class="login-remember"><label><input name="rememberme" type="checkbox" id="' . esc_attr( $args['id_remember'] ) . '" value="forever" tabindex="90"' . ( $args['value_remember'] ? ' checked="checked"' : '' ) . ' /> ' . esc_html( $args['label_remember'] ) . '</label></p>' : '' ) . '
 			<p class="login-submit">
 				<input type="submit" name="wp-submit" id="' . esc_attr( $args['id_submit'] ) . '" class="button-primary" value="' . esc_attr( $args['label_log_in'] ) . '" tabindex="100" />
 				<input type="hidden" name="redirect_to" value="' . esc_attr( $args['redirect'] ) . '" />
 			</p>
-			' . apply_filters( 'login_form_bottom', '' ) . '
+			' . apply_filters( 'login_form_bottom', '', $args ) . '
 		</form>';
 
 	if ( $args['echo'] )
@@ -667,8 +667,7 @@ function post_type_archive_title( $prefix = '', $display = true ) {
 	if ( ! is_post_type_archive() )
 		return;
 
-
-	$post_type_obj = get_post_type_object( get_query_var( 'post_type' ) );
+	$post_type_obj = get_queried_object();
 	$title = apply_filters('post_type_archive_title', $post_type_obj->labels->name );
 
 	if ( $display )
@@ -2252,7 +2251,7 @@ function get_the_generator( $type = '' ) {
  *
  * Compares the first two arguments and if identical marks as checked
  *
- * @since 1.0
+ * @since 1.0.0
  *
  * @param mixed $checked One of the values to compare
  * @param mixed $current (true) The other value to compare if not just true
@@ -2268,7 +2267,7 @@ function checked( $checked, $current = true, $echo = true ) {
  *
  * Compares the first two arguments and if identical marks as selected
  *
- * @since 1.0
+ * @since 1.0.0
  *
  * @param mixed $selected One of the values to compare
  * @param mixed $current (true) The other value to compare if not just true
@@ -2300,7 +2299,7 @@ function disabled( $disabled, $current = true, $echo = true ) {
  *
  * Compares the first two arguments and if identical marks as $type
  *
- * @since 2.8
+ * @since 2.8.0
  * @access private
  *
  * @param any $helper One of the values to compare

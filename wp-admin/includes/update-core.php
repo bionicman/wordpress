@@ -237,6 +237,8 @@ $_old_files = array(
 'wp-admin/images/fav-arrow-vs.png',
 'wp-admin/images/fav-arrow-vs-rtl.png',
 'wp-admin/images/fav-top-vs.png',
+'wp-admin/images/visit-site-button-grad-vs.gif',
+'wp-admin/images/visit-site-button-grad.gif'
 );
 
 /**
@@ -288,7 +290,7 @@ function update_core($from, $to) {
 	$mysql_version  = $wpdb->db_version();
 	$required_php_version = '4.3';
 	$required_mysql_version = '4.1.2';
-	$wp_version = '3.0';
+	$wp_version = '3.1';
 	$php_compat     = version_compare( $php_version, $required_php_version, '>=' );
 	$mysql_compat   = version_compare( $mysql_version, $required_mysql_version, '>=' ) || file_exists( WP_CONTENT_DIR . '/db.php' );
 

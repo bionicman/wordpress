@@ -38,11 +38,14 @@ function post_submit_meta_box($post) {
 <div id="preview-action">
 <?php
 if ( 'publish' == $post->post_status ) {
-	$preview_link = esc_url(get_permalink($post->ID));
-	$preview_button = __('Preview Changes');
+	$preview_link = esc_url( get_permalink( $post->ID ) );
+	$preview_button = __( 'Preview Changes' );
 } else {
-	$preview_link = esc_url(apply_filters('preview_post_link', add_query_arg('preview', 'true', get_permalink($post->ID))));
-	$preview_button = __('Preview');
+	$preview_link = get_permalink( $post->ID );
+	if ( is_ssl() )
+		$preview_link = str_replace( 'http://', 'https://', $preview_link );
+	$preview_link = esc_url( apply_filters( 'preview_post_link', add_query_arg( 'preview', 'true', $preview_link ) ) );
+	$preview_button = __( 'Preview' );
 }
 ?>
 <a class="preview button" href="<?php echo $preview_link; ?>" target="wp-preview" id="post-preview" tabindex="4"><?php echo $preview_button; ?></a>
@@ -114,7 +117,7 @@ if ( 'private' == $post->post_status ) {
 } elseif ( !empty( $post->post_password ) ) {
 	$visibility = 'password';
 	$visibility_trans = __('Password protected');
-} elseif ( post_type_supports( $post->post_type, 'sticky' ) && is_sticky( $post->ID ) ) {
+} elseif ( $post_type == 'post' && is_sticky( $post->ID ) ) {
 	$visibility = 'public';
 	$visibility_trans = __('Public, Sticky');
 } else {
@@ -128,15 +131,15 @@ echo esc_html( $visibility_trans ); ?></span>
 
 <div id="post-visibility-select" class="hide-if-js">
 <input type="hidden" name="hidden_post_password" id="hidden-post-password" value="<?php echo esc_attr($post->post_password); ?>" />
-<?php if ( post_type_supports( $post->post_type, 'sticky' ) ): ?>
+<?php if ($post_type == 'post'): ?>
 <input type="checkbox" style="display:none" name="hidden_post_sticky" id="hidden-post-sticky" value="sticky" <?php checked(is_sticky($post->ID)); ?> />
 <?php endif; ?>
 <input type="hidden" name="hidden_post_visibility" id="hidden-post-visibility" value="<?php echo esc_attr( $visibility ); ?>" />
 
 
 <input type="radio" name="visibility" id="visibility-radio-public" value="public" <?php checked( $visibility, 'public' ); ?> /> <label for="visibility-radio-public" class="selectit"><?php _e('Public'); ?></label><br />
-<?php if ( post_type_supports( $post->post_type, 'sticky' ) ): ?>
-<span id="sticky-span"><input id="sticky" name="sticky" type="checkbox" value="sticky" <?php checked(is_sticky($post->ID)); ?> tabindex="4" /> <label for="sticky" class="selectit"><?php _e('Stick this to the front page') ?></label><br /></span>
+<?php if ($post_type == 'post'): ?>
+<span id="sticky-span"><input id="sticky" name="sticky" type="checkbox" value="sticky" <?php checked(is_sticky($post->ID)); ?> tabindex="4" /> <label for="sticky" class="selectit"><?php _e('Stick this post to the front page') ?></label><br /></span>
 <?php endif; ?>
 <input type="radio" name="visibility" id="visibility-radio-password" value="password" <?php checked( $visibility, 'password' ); ?> /> <label for="visibility-radio-password" class="selectit"><?php _e('Password protected'); ?></label><br />
 <span id="password-span"><label for="post_password"><?php _e('Password:'); ?></label> <input type="text" name="post_password" id="post_password" value="<?php echo esc_attr($post->post_password); ?>" /><br /></span>
@@ -150,38 +153,6 @@ echo esc_html( $visibility_trans ); ?></span>
 <?php } ?>
 
 </div><?php // /misc-pub-section ?>
-
-<?php
-if ( current_theme_supports( 'post-formats' ) && post_type_supports( $post->post_type, 'post-formats' ) ) :
-$post_formats = get_theme_support( 'post-formats' );
-
-if ( is_array( $post_formats[0] ) ) :
-	$post_format = get_post_format( $post->ID );
-	if ( !$post_format )
-		$post_format = '0';
-	$post_format_display = get_post_format_string( $post_format );
-	// Add in the current one if it isn't there yet, in case the current theme doesn't support it
-	if ( $post_format && !in_array( $post_format, $post_formats[0] ) )
-		$post_formats[0][] = $post_format;
-?>
-<div class="misc-pub-section" id="post-formats"><label for="post-format"><?php _e( 'Format:' ); ?></label>
-
- <b><span id="post-format-display"><?php echo esc_html( $post_format_display ); ?></span></b> <a href="#post-formats-select" class="edit-post-format hide-if-no-js"><?php _e('Edit'); ?></a>
-
-<div id="post-formats-select" class="hide-if-js">
-<input type="hidden" id="old-post-format" value="<?php echo esc_attr( $post_format ); ?>" />
-	<input type="radio" name="post_format" class="post-format" id="post-format-0" value="0" <?php checked( $post_format, '0' ); ?> /> <label for="post-format-0"><?php _e('Default'); ?></label>
-	<?php foreach ( $post_formats[0] as $format ) : ?>
-	<br /><input type="radio" name="post_format" class="post-format" id="post-format-<?php echo esc_attr( $format ); ?>" value="<?php echo esc_attr( $format ); ?>" <?php checked( $post_format, $format ); ?> /> <label for="post-format-<?php echo esc_attr( $format ); ?>"><?php echo esc_html( get_post_format_string( $format ) ); ?></label>
-	<?php endforeach; ?><br />
-	<p>
-	 <a href="#post-formats" class="save-post-format hide-if-no-js button"><?php _e('OK'); ?></a>
-	 <a href="#post-formats" class="cancel-post-format hide-if-no-js"><?php _e('Cancel'); ?></a>
-	</p>
-</div>
-</div><?php // /misc-pub-section ?>
-<?php endif; endif; ?>
-
 
 <?php
 // translators: Publish box date formt, see http://php.net/date
@@ -260,6 +231,35 @@ if ( !in_array( $post->post_status, array('publish', 'future', 'private') ) || 0
 </div>
 
 <?php
+}
+
+/**
+ * Display post format form elements.
+ *
+ * @since 3.1.0
+ *
+ * @param object $post
+ */
+function post_format_meta_box( $post, $box ) {
+	if ( current_theme_supports( 'post-formats' ) && post_type_supports( $post->post_type, 'post-formats' ) ) :
+	$post_formats = get_theme_support( 'post-formats' );
+
+	if ( is_array( $post_formats[0] ) ) :
+		$post_format = get_post_format( $post->ID );
+		if ( !$post_format )
+			$post_format = '0';
+		$post_format_display = get_post_format_string( $post_format );
+		// Add in the current one if it isn't there yet, in case the current theme doesn't support it
+		if ( $post_format && !in_array( $post_format, $post_formats[0] ) )
+			$post_formats[0][] = $post_format;
+	?>
+	<div id="post-formats-select">
+		<input type="radio" name="post_format" class="post-format" id="post-format-0" value="0" <?php checked( $post_format, '0' ); ?> /> <label for="post-format-0"><?php _e('Standard'); ?></label>
+		<?php foreach ( $post_formats[0] as $format ) : ?>
+		<br /><input type="radio" name="post_format" class="post-format" id="post-format-<?php echo esc_attr( $format ); ?>" value="<?php echo esc_attr( $format ); ?>" <?php checked( $post_format, $format ); ?> /> <label for="post-format-<?php echo esc_attr( $format ); ?>"><?php echo esc_html( get_post_format_string( $format ) ); ?></label>
+		<?php endforeach; ?><br />
+	</div>
+	<?php endif; endif;
 }
 
 

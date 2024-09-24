@@ -28,14 +28,14 @@
 		while ( t && t != aB && t != d ) {
 			if( 'LI' == t.nodeName.toUpperCase() ) {
 				ancestors[ ancestors.length ] = t;
-				id = getTOID(t);	
+				id = getTOID(t);
 				if ( id )
 					clearTimeout( id );
 				t.className = t.className ? ( t.className.replace(hc, '') + ' hover' ) : 'hover';
 			}
 			t = t.parentNode;
 		}
-		
+
 		/* remove the hover class for any objects not in the immediate element's ancestry */
 		while ( i-- ) {
 			inA = false;	
@@ -66,7 +66,6 @@
 
 	clickShortlink = function(e) {
 		var t = e.target || e.srcElement, links, i;
-		
 
 		if ( 'undefined' == typeof adminBarL10n )
 			return;
@@ -94,7 +93,7 @@
 					return false;
 				}
 			}
-			
+
 			alert( adminBarL10n.noShortlink );
 			return false;
 		}
@@ -102,8 +101,7 @@
 
 	addEvent(w, 'load', function() {
 		var b = d.getElementsByTagName('body')[0],
-		s = d.getElementById('adminbar-search');
-		
+
 		aB = d.getElementById('wpadminbar');
 
 		if ( b && aB ) {
@@ -120,18 +118,6 @@
 			addEvent(aB, 'click', clickShortlink );
 		}
 
-		if ( s ) {
-			if ( '' == s.value )
-				s.value = s.getAttribute('title');
-
-			s.onblur = function() {
-				this.value = '' == this.value ? this.getAttribute('title') : this.value;
-			}
-			s.onfocus = function() {
-				this.value = this.getAttribute('title') == this.value ? '' : this.value;
-			}
-		}
-		
 		if ( w.location.hash )
 			w.scrollBy(0,-32);
 	});

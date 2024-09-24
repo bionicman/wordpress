@@ -61,7 +61,7 @@ function wp_dashboard_setup() {
 	}
 
 	// WP Plugins Widget
-	if ( ( is_blog_admin() && current_user_can( 'install_plugins' ) ) || ( is_network_admin() && current_user_can( 'manage_network_plugins' ) && current_user_can( 'install_plugins' ) ) )
+	if ( ( ! is_multisite() && is_blog_admin() && current_user_can( 'install_plugins' ) ) || ( is_network_admin() && current_user_can( 'manage_network_plugins' ) && current_user_can( 'install_plugins' ) ) )
 		wp_add_dashboard_widget( 'dashboard_plugins', __( 'Plugins' ), 'wp_dashboard_plugins' );
 
 	// QuickPress Widget
@@ -138,16 +138,17 @@ function wp_dashboard_setup() {
 function wp_add_dashboard_widget( $widget_id, $widget_name, $callback, $control_callback = null ) {
 	$screen = get_current_screen();
 	global $wp_dashboard_control_callbacks;
+
 	if ( $control_callback && current_user_can( 'edit_dashboard' ) && is_callable( $control_callback ) ) {
 		$wp_dashboard_control_callbacks[$widget_id] = $control_callback;
 		if ( isset( $_GET['edit'] ) && $widget_id == $_GET['edit'] ) {
 			list($url) = explode( '#', add_query_arg( 'edit', false ), 2 );
 			$widget_name .= ' <span class="postbox-title-action"><a href="' . esc_url( $url ) . '">' . __( 'Cancel' ) . '</a></span>';
-			add_meta_box( $widget_id, $widget_name, '_wp_dashboard_control_callback', $screen->id, 'normal', 'core' );
-			return;
+			$callback = '_wp_dashboard_control_callback';
+		} else {
+			list($url) = explode( '#', add_query_arg( 'edit', $widget_id ), 2 );
+			$widget_name .= ' <span class="postbox-title-action"><a href="' . esc_url( "$url#$widget_id" ) . '" class="edit-box open-box">' . __( 'Configure' ) . '</a></span>';
 		}
-		list($url) = explode( '#', add_query_arg( 'edit', $widget_id ), 2 );
-		$widget_name .= ' <span class="postbox-title-action"><a href="' . esc_url( "$url#$widget_id" ) . '" class="edit-box open-box">' . __( 'Configure' ) . '</a></span>';
 	}
 
 	if ( is_blog_admin () )
@@ -605,10 +606,8 @@ function wp_dashboard_recent_comments() {
 	$start = 0;
 
 	$widgets = get_option( 'dashboard_widget_options' );
-	if ( isset( $widgets['dashboard_recent_comments'] ) && isset( $widgets['dashboard_recent_comments']['items'] ) )
-		$total_items = (int) $widgets['dashboard_recent_comments']['items'];
-	else
-		$total_items = 5;
+	$total_items = isset( $widgets['dashboard_recent_comments'] ) && isset( $widgets['dashboard_recent_comments']['items'] )
+		? absint( $widgets['dashboard_recent_comments']['items'] ) : 5;
 
 	while ( count( $comments ) < 5 && $possible = $wpdb->get_results( "SELECT * FROM $wpdb->comments c LEFT JOIN $wpdb->posts p ON c.comment_post_ID = p.ID WHERE p.post_status != 'trash' ORDER BY c.comment_date_gmt DESC LIMIT $start, 50" ) ) {
 
@@ -756,9 +755,7 @@ function wp_dashboard_recent_comments_control() {
 		$widget_options['dashboard_recent_comments'] = array();
 
 	if ( 'POST' == $_SERVER['REQUEST_METHOD'] && isset($_POST['widget-recent-comments']) ) {
-		$number = (int) stripslashes($_POST['widget-recent-comments']['items']);
-		if ( $number < 1 || $number > 30 )
-			$number = 5;
+		$number = absint( $_POST['widget-recent-comments']['items'] );
 		$widget_options['dashboard_recent_comments']['items'] = $number;
 		update_option( 'dashboard_widget_options', $widget_options );
 	}
@@ -766,7 +763,7 @@ function wp_dashboard_recent_comments_control() {
 	$number = isset( $widget_options['dashboard_recent_comments']['items'] ) ? (int) $widget_options['dashboard_recent_comments']['items'] : '';
 
 	echo '<p><label for="comments-number">' . __('Number of comments to show:') . '</label>';
-	echo '<input id="comments-number" name="widget-recent-comments[items]" type="text" value="' . $number . '" size="3" /> <small>' . __( '(at most 30)' ) . '</small></p>';
+	echo '<input id="comments-number" name="widget-recent-comments[items]" type="text" value="' . $number . '" size="3" /></p>';
 }
 
 function wp_dashboard_incoming_links() {

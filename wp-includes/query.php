@@ -398,19 +398,19 @@ function is_month() {
 }
 
 /**
- * Is the query for a single Page?
+ * Is the query for a single page?
  *
  * If the $page parameter is specified, this function will additionally
- * check if the query is for one of the Pages specified.
+ * check if the query is for one of the pages specified.
  *
  * @see is_single()
  * @see is_singular()
  *
- * @see WP_Query::is_single()
+ * @see WP_Query::is_page()
  * @since 1.5.0
  * @uses $wp_query
  *
- * @param mixed $page Page ID, title, slug, or array of Page IDs, titles, and slugs.
+ * @param mixed $page Page ID, title, slug, or array of such.
  * @return bool
  */
 function is_page( $page = '' ) {
@@ -482,10 +482,10 @@ function is_search() {
 /**
  * Is the query for a single post?
  *
+ * Works for any post type, except attachments and pages
+ *
  * If the $post parameter is specified, this function will additionally
  * check if the query is for one of the Posts specified.
- *
- * Can also be used for attachments or any other post type except pages.
  *
  * @see is_page()
  * @see is_singular()
@@ -494,7 +494,7 @@ function is_search() {
  * @since 1.5.0
  * @uses $wp_query
  *
- * @param mixed $post Post ID, title, slug, or array of Post IDs, titles, and slugs.
+ * @param mixed $post Post ID, title, slug, or array of such.
  * @return bool
  */
 function is_single( $post = '' ) {
@@ -714,9 +714,9 @@ class WP_Query {
 	 *
 	 * @since 3.1.0
 	 * @access public
-	 * @var array
+	 * @var object WP_Tax_Query
 	 */
-	var $tax_query = array();
+	var $tax_query;
 
 	/**
 	 * Holds the data for a single object that is queried.
@@ -1357,6 +1357,22 @@ class WP_Query {
 
 			$this->parse_tax_query( $qv );
 
+			foreach ( $this->tax_query->queries as $tax_query ) {
+				if ( 'IN' == $tax_query['operator'] ) {
+					switch ( $tax_query['taxonomy'] ) {
+						case 'category':
+							$this->is_category = true;
+							break;
+						case 'post_tag':
+							$this->is_tag = true;
+							break;
+						default:
+							$this->is_tax = true;
+					}
+				}
+			}
+			unset( $tax_query );
+
 			_parse_meta_query( $qv );
 
 			if ( empty($qv['author']) || ($qv['author'] == '0') ) {
@@ -1471,13 +1487,12 @@ class WP_Query {
 	}
 
 	/*
-	 * Parses various taxonomy related query vars and sets the appropriate query flags
+	 * Parses various taxonomy related query vars.
 	 *
 	 * @access protected
 	 * @since 3.1.0
 	 *
 	 * @param array &$q The query variables
-	 * @return array tax query
 	 */
 	function parse_tax_query( &$q ) {
 		if ( ! empty( $q['tax_query'] ) && is_array( $q['tax_query'] ) ) {
@@ -1491,7 +1506,6 @@ class WP_Query {
 				'taxonomy' => $q['taxonomy'],
 				'terms' => array( $q['term'] ),
 				'field' => 'slug',
-				'operator' => 'IN',
 			);
 		}
 
@@ -1500,7 +1514,6 @@ class WP_Query {
 				$tax_query_defaults = array(
 					'taxonomy' => $taxonomy,
 					'field' => 'slug',
-					'operator' => 'IN'
 				);
 
  				if ( isset( $t->rewrite['hierarchical'] ) && $t->rewrite['hierarchical'] ) {
@@ -1550,7 +1563,6 @@ class WP_Query {
 			$tax_query[] = array(
 				'taxonomy' => 'category',
 				'terms' => $q['category__in'],
-				'operator' => 'IN',
 				'field' => 'term_id'
 			);
 		}
@@ -1561,7 +1573,6 @@ class WP_Query {
 				'taxonomy' => 'category',
 				'terms' => $q['category__not_in'],
 				'operator' => 'NOT IN',
-				'field' => 'term_id'
 			);
 		}
 
@@ -1570,8 +1581,6 @@ class WP_Query {
 			$tax_query[] = array(
 				'taxonomy' => 'post_tag',
 				'terms' => $qv['tag_id'],
-				'operator' => 'IN',
-				'field' => 'term_id'
 			);
 		}
 
@@ -1579,8 +1588,6 @@ class WP_Query {
 			$tax_query[] = array(
 				'taxonomy' => 'post_tag',
 				'terms' => $q['tag__in'],
-				'operator' => 'IN',
-				'field' => 'term_id'
 			);
 		}
 
@@ -1589,26 +1596,10 @@ class WP_Query {
 				'taxonomy' => 'post_tag',
 				'terms' => $q['tag__not_in'],
 				'operator' => 'NOT IN',
-				'field' => 'term_id'
 			);
 		}
 
-		foreach ( $tax_query as $query ) {
-			if ( 'IN' == $query['operator'] ) {
-				switch ( $query['taxonomy'] ) {
-					case 'category':
-						$this->is_category = true;
-						break;
-					case 'post_tag':
-						$this->is_tag = true;
-						break;
-					default:
-						$this->is_tax = true;
-				}
-			}
-		}
-
-		return $tax_query;
+		$this->tax_query = new WP_Tax_Query( $tax_query );
 	}
 
 	/**
@@ -1943,54 +1934,53 @@ class WP_Query {
 		$search = apply_filters_ref_array('posts_search', array( $search, &$this ) );
 
 		// Taxonomies
-		if ( !$this->is_singular ) {
-			$this->tax_query = $this->parse_tax_query( $q );
-			if ( !empty( $this->tax_query ) ) {
-				$clauses = call_user_func_array( 'get_tax_sql', array( $this->tax_query, $wpdb->posts, 'ID', &$this) );
+		$this->parse_tax_query( $q );
 
-				$join .= $clauses['join'];
-				$where .= $clauses['where'];
+		$clauses = $this->tax_query->get_sql( $wpdb->posts, 'ID' );
 
-				if ( $this->is_tax ) {
-					if ( empty($post_type) ) {
-						$post_type = 'any';
-						$post_status_join = true;
-					} elseif ( in_array('attachment', (array) $post_type) ) {
-						$post_status_join = true;
+		$join .= $clauses['join'];
+		$where .= $clauses['where'];
+
+		if ( $this->is_tax ) {
+			if ( empty($post_type) ) {
+				$post_type = 'any';
+				$post_status_join = true;
+			} elseif ( in_array('attachment', (array) $post_type) ) {
+				$post_status_join = true;
+			}
+		}
+
+		// Back-compat
+		if ( $this->is_category || $this->is_tag || $this->is_tax ) {
+			$tax_query_in = wp_list_filter( $this->tax_query->queries, array( 'operator' => 'IN' ) );
+			if ( !empty( $tax_query_in ) ) {
+				if ( !isset( $q['taxonomy'] ) ) {
+					foreach ( $tax_query_in as $a_tax_query ) {
+						if ( !in_array( $a_tax_query['taxonomy'], array( 'category', 'post_tag' ) ) ) {
+							$q['taxonomy'] = $a_tax_query['taxonomy'];
+							if ( 'slug' == $a_tax_query['field'] )
+								$q['term'] = $a_tax_query['terms'][0];
+							else
+								$q['term_id'] = $a_tax_query['terms'][0];
+
+							break;
+						}
 					}
 				}
 
-				// Back-compat
-				$tax_query_in = wp_list_filter( $this->tax_query, array( 'operator' => 'IN' ) );
-				if ( !empty( $tax_query_in ) ) {
-					if ( !isset( $q['taxonomy'] ) ) {
-						foreach ( $tax_query_in as $a_tax_query ) {
-							if ( !in_array( $a_tax_query['taxonomy'], array( 'category', 'post_tag' ) ) ) {
-								$q['taxonomy'] = $a_tax_query['taxonomy'];
-								if ( 'slug' == $a_tax_query['field'] )
-									$q['term'] = $a_tax_query['terms'][0];
-								else
-									$q['term_id'] = $a_tax_query['terms'][0];
-
-								break;
-							}
-						}
-					}
-
-					$cat_query = wp_list_filter( $tax_query_in, array( 'taxonomy' => 'category' ) );
-					if ( !empty( $cat_query ) ) {
-						$cat_query = reset( $cat_query );
-						$cat = get_term_by( $cat_query['field'], $cat_query['terms'][0], 'category' );
-						if ( $cat ) {
-							$this->set( 'cat', $cat->term_id );
-							$this->set( 'category_name', $cat->slug );
-						}
+				$cat_query = wp_list_filter( $tax_query_in, array( 'taxonomy' => 'category' ) );
+				if ( !empty( $cat_query ) ) {
+					$cat_query = reset( $cat_query );
+					$cat = get_term_by( $cat_query['field'], $cat_query['terms'][0], 'category' );
+					if ( $cat ) {
+						$this->set( 'cat', $cat->term_id );
+						$this->set( 'category_name', $cat->slug );
 					}
 				}
 			}
 		}
 
-		if ( !empty( $this->tax_query ) || !empty( $q['meta_key'] ) ) {
+		if ( !empty( $this->tax_query->queries ) || !empty( $q['meta_key'] ) ) {
 			$groupby = "{$wpdb->posts}.ID";
 		}
 
@@ -2662,8 +2652,9 @@ class WP_Query {
 		$this->queried_object = NULL;
 		$this->queried_object_id = 0;
 
-		$tax_query_in = wp_list_filter( $this->tax_query, array( 'operator' => 'IN' ) );
-		if ( !empty( $tax_query_in ) ) {
+		if ( $this->is_category || $this->is_tag || $this->is_tax ) {
+			$tax_query_in = wp_list_filter( $this->tax_query->queries, array( 'operator' => 'IN' ) );
+
 			$query = reset( $tax_query_in );
 
 			if ( 'term_id' == $query['field'] )
@@ -2675,6 +2666,8 @@ class WP_Query {
 				$this->queried_object = $term;
 				$this->queried_object_id = (int) $term->term_id;
 			}
+		} elseif ( $this->is_post_type_archive ) {
+			$this->queried_object = get_post_type_object( $this->get('post_type') );
 		} elseif ( $this->is_posts_page ) {
 			$page_for_posts = get_option('page_for_posts');
 			$this->queried_object = & get_page( $page_for_posts );
@@ -3022,17 +3015,17 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for a single Page?
+	 * Is the query for a single page?
 	 *
 	 * If the $page parameter is specified, this function will additionally
-	 * check if the query is for one of the Pages specified.
+	 * check if the query is for one of the pages specified.
 	 *
 	 * @see WP_Query::is_single()
 	 * @see WP_Query::is_singular()
 	 *
 	 * @since 3.1.0
 	 *
-	 * @param mixed $page Page ID, title, slug, or array of Page IDs, titles, and slugs.
+	 * @param mixed $page Page ID, title, slug, or array of such.
 	 * @return bool
 	 */
 	function is_page( $page = '' ) {
@@ -3103,17 +3096,17 @@ class WP_Query {
 	/**
 	 * Is the query for a single post?
 	 *
+	 * Works for any post type, except attachments and pages
+	 *
 	 * If the $post parameter is specified, this function will additionally
 	 * check if the query is for one of the Posts specified.
-	 *
-	 * Can also be used for attachments or any other post type except pages.
 	 *
 	 * @see WP_Query::is_page()
 	 * @see WP_Query::is_singular()
 	 *
 	 * @since 3.1.0
 	 *
-	 * @param mixed $post Post ID, title, slug, or array of Post IDs, titles, and slugs.
+	 * @param mixed $post Post ID, title, slug, or array of such.
 	 * @return bool
 	 */
 	function is_single( $post = '' ) {
@@ -3228,6 +3221,10 @@ function wp_old_slug_redirect() {
 			$post_type = 'page';
 		else
 			$post_type = 'post';
+
+		// Do not attempt redirect for hierarchical post types
+		if ( is_post_type_hierarchical( $post_type ) )
+			return;
 
 		$query = $wpdb->prepare("SELECT post_id FROM $wpdb->postmeta, $wpdb->posts WHERE ID = post_id AND post_type = %s AND meta_key = '_wp_old_slug' AND meta_value = %s", $post_type, $wp_query->query_vars['name']);
 

@@ -368,14 +368,14 @@ class Plugin_Upgrader extends WP_Upgrader {
 
 	function upgrade_strings() {
 		$this->strings['up_to_date'] = __('The plugin is at the latest version.');
-		$this->strings['no_package'] = __('Upgrade package not available.');
+		$this->strings['no_package'] = __('Update package not available.');
 		$this->strings['downloading_package'] = __('Downloading update from <span class="code">%s</span>&#8230;');
 		$this->strings['unpack_package'] = __('Unpacking the update&#8230;');
 		$this->strings['deactivate_plugin'] = __('Deactivating the plugin&#8230;');
 		$this->strings['remove_old'] = __('Removing the old version of the plugin&#8230;');
 		$this->strings['remove_old_failed'] = __('Could not remove the old plugin.');
-		$this->strings['process_failed'] = __('Plugin upgrade failed.');
-		$this->strings['process_success'] = __('Plugin upgraded successfully.');
+		$this->strings['process_failed'] = __('Plugin update failed.');
+		$this->strings['process_success'] = __('Plugin updated successfully.');
 	}
 
 	function install_strings() {
@@ -608,13 +608,13 @@ class Theme_Upgrader extends WP_Upgrader {
 
 	function upgrade_strings() {
 		$this->strings['up_to_date'] = __('The theme is at the latest version.');
-		$this->strings['no_package'] = __('Upgrade package not available.');
+		$this->strings['no_package'] = __('Update package not available.');
 		$this->strings['downloading_package'] = __('Downloading update from <span class="code">%s</span>&#8230;');
 		$this->strings['unpack_package'] = __('Unpacking the update&#8230;');
 		$this->strings['remove_old'] = __('Removing the old version of the theme&#8230;');
 		$this->strings['remove_old_failed'] = __('Could not remove the old theme.');
-		$this->strings['process_failed'] = __('Theme upgrade failed.');
-		$this->strings['process_success'] = __('Theme upgraded successfully.');
+		$this->strings['process_failed'] = __('Theme update failed.');
+		$this->strings['process_success'] = __('Theme updated successfully.');
 	}
 
 	function install_strings() {
@@ -861,7 +861,7 @@ class Core_Upgrader extends WP_Upgrader {
 
 	function upgrade_strings() {
 		$this->strings['up_to_date'] = __('WordPress is at the latest version.');
-		$this->strings['no_package'] = __('Upgrade package not available.');
+		$this->strings['no_package'] = __('Update package not available.');
 		$this->strings['downloading_package'] = __('Downloading update from <span class="code">%s</span>&#8230;');
 		$this->strings['unpack_package'] = __('Unpacking the update&#8230;');
 		$this->strings['copy_failed'] = __('Could not copy files.');
@@ -1017,7 +1017,7 @@ class Plugin_Upgrader_Skin extends WP_Upgrader_Skin {
 	}
 
 	function __construct($args = array()) {
-		$defaults = array( 'url' => '', 'plugin' => '', 'nonce' => '', 'title' => __('Upgrade Plugin') );
+		$defaults = array( 'url' => '', 'plugin' => '', 'nonce' => '', 'title' => __('Update Plugin') );
 		$args = wp_parse_args($args, $defaults);
 
 		$this->plugin = $args['plugin'];
@@ -1081,7 +1081,7 @@ class Bulk_Upgrader_Skin extends WP_Upgrader_Skin {
 
 	function add_strings() {
 		$this->upgrader->strings['skin_upgrade_start'] = __('The update process is starting. This process may take a while on some hosts, so please be patient.');
-		$this->upgrader->strings['skin_update_failed_error'] = __('An error occured while updating %1$s: <strong>%2$s</strong>.');
+		$this->upgrader->strings['skin_update_failed_error'] = __('An error occurred while updating %1$s: <strong>%2$s</strong>.');
 		$this->upgrader->strings['skin_update_failed'] = __('The update of %1$s failed.');
 		$this->upgrader->strings['skin_update_successful'] = __('%1$s updated successfully.').' <a onclick="%2$s" href="#" class="hide-if-no-js"><span>'.__('Show Details').'</span><span class="hidden">'.__('Hide Details').'</span>.</a>';
 		$this->upgrader->strings['skin_upgrade_end'] = __('All updates have been completed.');
@@ -1226,8 +1226,8 @@ class Bulk_Theme_Upgrader_Skin extends Bulk_Upgrader_Skin {
 	function bulk_footer() {
 		parent::bulk_footer();
 		$update_actions =  array(
-			'themes_page' => '<a href="' . admin_url('themes.php') . '" title="' . esc_attr__('Go to themes page') . '" target="_parent">' . __('Return to Themes page') . '</a>',
-			'updates_page' => '<a href="' . admin_url('update-core.php') . '" title="' . esc_attr__('Go to WordPress Updates page') . '" target="_parent">' . __('Return to WordPress Updates') . '</a>'
+			'themes_page' => '<a href="' . self_admin_url('themes.php') . '" title="' . esc_attr__('Go to themes page') . '" target="_parent">' . __('Return to Themes page') . '</a>',
+			'updates_page' => '<a href="' . self_admin_url('update-core.php') . '" title="' . esc_attr__('Go to WordPress Updates page') . '" target="_parent">' . __('Return to WordPress Updates') . '</a>'
 		);
 
 		$update_actions = apply_filters('update_bulk_theme_complete_actions', $update_actions, $this->theme_info);
@@ -1388,7 +1388,7 @@ class Theme_Upgrader_Skin extends WP_Upgrader_Skin {
 	}
 
 	function __construct($args = array()) {
-		$defaults = array( 'url' => '', 'theme' => '', 'nonce' => '', 'title' => __('Upgrade Theme') );
+		$defaults = array( 'url' => '', 'theme' => '', 'nonce' => '', 'title' => __('Update Theme') );
 		$args = wp_parse_args($args, $defaults);
 
 		$this->theme = $args['theme'];
@@ -1417,7 +1417,7 @@ class Theme_Upgrader_Skin extends WP_Upgrader_Skin {
 				unset($update_actions['preview'], $update_actions['activate']);
 		}
 
-		$update_actions['themes_page'] = '<a href="' . admin_url('themes.php') . '" title="' . esc_attr__('Return to Themes page') . '" target="_parent">' . __('Return to Themes page') . '</a>';
+		$update_actions['themes_page'] = '<a href="' . self_admin_url('themes.php') . '" title="' . esc_attr__('Return to Themes page') . '" target="_parent">' . __('Return to Themes page') . '</a>';
 
 		$update_actions = apply_filters('update_theme_complete_actions', $update_actions, $this->theme);
 		if ( ! empty($update_actions) )

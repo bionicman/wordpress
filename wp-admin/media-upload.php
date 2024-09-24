@@ -9,7 +9,8 @@
  * @subpackage Administration
  */
 
-define('IFRAME_REQUEST' , true);
+if ( ! isset( $_GET['inline'] ) )
+	define( 'IFRAME_REQUEST' , true );
 
 /** Load WordPress Administration Bootstrap */
 require_once('./admin.php');
@@ -54,6 +55,7 @@ if ( isset($_GET['inline']) ) {
 			$location .= '?message=3';
 
 		wp_redirect( admin_url($location) );
+		exit;
 	}
 
 	$title = __('Upload New Media');

@@ -1426,7 +1426,7 @@ class WP_Http_Curl {
 				$theBody = substr( $theResponse, $headerLength );
 			else
 				$theBody = '';
-			if ( false !== strrpos($theHeaders, "\r\n\r\n") ) {
+			if ( false !== strpos($theHeaders, "\r\n\r\n") ) {
 				$headerParts = explode("\r\n\r\n", $theHeaders);
 				$theHeaders = $headerParts[ count($headerParts) -1 ];
 			}
@@ -1624,7 +1624,7 @@ class WP_HTTP_Proxy {
 	 * hosts that won't be sent through the proxy.
 	 *
 	 * @uses WP_PROXY_BYPASS_HOSTS
-	 * @since unknown
+	 * @since 2.8.0
 	 *
 	 * @param string $uri URI to check.
 	 * @return bool True, to send through the proxy and false if, the proxy should not be used.

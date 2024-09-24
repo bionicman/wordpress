@@ -9,6 +9,11 @@
 /** WordPress Administration Bootstrap */
 require_once('./admin.php');
 
+if ( is_multisite() && ! is_network_admin() ) {
+	wp_redirect( network_admin_url( 'theme-editor.php' ) );
+	exit();
+}
+
 if ( !current_user_can('edit_themes') )
 	wp_die('<p>'.__('You do not have sufficient permissions to edit templates for this site.').'</p>');
 
@@ -44,10 +49,13 @@ if (empty($theme)) {
 if ( ! isset($themes[$theme]) )
 	wp_die(__('The requested theme does not exist.'));
 
-$allowed_files = array_merge($themes[$theme]['Stylesheet Files'], $themes[$theme]['Template Files']);
+$allowed_files = array_merge( $themes[$theme]['Stylesheet Files'], $themes[$theme]['Template Files'] );
 
-if (empty($file)) {
-	$file = $allowed_files[0];
+if ( empty( $file ) ) {
+	if ( false !== array_search( $themes[$theme]['Stylesheet Dir'] . '/style.css', $allowed_files ) )
+		$file = $themes[$theme]['Stylesheet Dir'] . '/style.css';
+	else
+		$file = $allowed_files[0];
 } else {
 	$file = stripslashes($file);
 	if ( 'theme' == $dir ) {
@@ -125,7 +133,9 @@ default:
 <?php endif;
 
 $description = get_file_description($file);
-$desc_header = ( $description != $file_show ) ? "<strong>$description</strong> (%s)" : "%s";
+$desc_header = ( $description != $file_show ) ? "$description <span>($file_show)</span>" : $file_show;
+
+$is_child_theme = $themes[$theme]['Template'] != $themes[$theme]['Stylesheet'];
 ?>
 <div class="wrap">
 <?php screen_icon(); ?>
@@ -133,7 +143,7 @@ $desc_header = ( $description != $file_show ) ? "<strong>$description</strong> (
 
 <div class="fileedit-sub">
 <div class="alignleft">
-<big><?php echo sprintf($desc_header, $file_show); ?></big>
+<h3><?php echo $themes[$theme]['Name'] . ': ' . $desc_header; ?></h3>
 </div>
 <div class="alignright">
 	<form action="theme-editor.php" method="post">
@@ -155,30 +165,27 @@ $desc_header = ( $description != $file_show ) ? "<strong>$description</strong> (
 <br class="clear" />
 </div>
 	<div id="templateside">
-
 <?php
 if ($allowed_files) :
 ?>
 	<h3><?php _e('Templates'); ?></h3>
+	<?php if ( $is_child_theme ) : ?>
+	<p class="howto"><?php printf( __( 'This child theme inherits templates from a parent theme, %s.' ), $themes[$theme]['Parent Theme'] ); ?></p>
+	<?php endif; ?>
 	<ul>
 <?php
 	$template_mapping = array();
 	$template_dir = $themes[$theme]['Template Dir'];
 	foreach ( $themes[$theme]['Template Files'] as $template_file ) {
+		// Don't show parent templates.
+		if ( $is_child_theme && strpos( $template_file, $themes[$theme]['Template Dir'] ) === 0 )
+			continue;
+
 		$description = trim( get_file_description($template_file) );
 		$template_show = basename($template_file);
 		$filedesc = ( $description != $template_file ) ? "$description<br /><span class='nonessential'>($template_show)</span>" : "$description";
 		$filedesc = ( $template_file == $file ) ? "<span class='highlight'>$description<br /><span class='nonessential'>($template_show)</span></span>" : $filedesc;
-
-		// If we have two files of the same name prefer the one in the Template Directory
-		// This means that we display the correct files for child themes which overload Templates as well as Styles
-		if ( array_key_exists($description, $template_mapping ) ) {
-			if ( false !== strpos( $template_file, $template_dir ) )  {
-				$template_mapping[ $description ] = array( _get_template_edit_filename($template_file, $template_dir), $filedesc );
-			}
-		} else {
-			$template_mapping[ $description ] = array( _get_template_edit_filename($template_file, $template_dir), $filedesc );
-		}
+		$template_mapping[ $description ] = array( _get_template_edit_filename($template_file, $template_dir), $filedesc );
 	}
 	ksort( $template_mapping );
 	while ( list( $template_sorted_key, list( $template_file, $filedesc ) ) = each( $template_mapping ) ) :
@@ -192,6 +199,10 @@ if ($allowed_files) :
 	$template_mapping = array();
 	$stylesheet_dir = $themes[$theme]['Stylesheet Dir'];
 	foreach ( $themes[$theme]['Stylesheet Files'] as $style_file ) {
+		// Don't show parent styles.
+		if ( $is_child_theme && strpos( $style_file, $themes[$theme]['Template Dir'] ) === 0 )
+			continue;
+
 		$description = trim( get_file_description($style_file) );
 		$style_show = basename($style_file);
 		$filedesc = ( $description != $style_file ) ? "$description<br /><span class='nonessential'>($style_show)</span>" : "$description";
@@ -224,8 +235,12 @@ if ($allowed_files) :
 	<?php } ?>
 
 		<div>
+		<?php if ( is_child_theme() && ! $is_child_theme && $themes[$theme]['Template'] == get_option('template') ) : ?>
+			<p><?php if ( is_writeable( $file ) ) { ?><strong><?php _e( 'Caution:' ); ?></strong><?php } ?>
+			<?php _e( 'This is a file in your current parent theme.' ); ?></p>
+		<?php endif; ?>
 <?php
-	if ( is_writeable($file) ) :
+	if ( is_writeable( $file ) ) :
 		submit_button( __( 'Update File' ), 'primary', 'submit', true, array( 'tabindex' => '2' ) );
 	else : ?>
 <p><em><?php _e('You need to make this file writable before you can save your changes. See <a href="http://codex.wordpress.org/Changing_File_Permissions">the Codex</a> for more information.'); ?></em></p>

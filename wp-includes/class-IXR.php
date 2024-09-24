@@ -216,6 +216,7 @@ class IXR_Message
         xml_set_element_handler($this->_parser, 'tag_open', 'tag_close');
         xml_set_character_data_handler($this->_parser, 'cdata');
         $chunk_size = 262144; // 256Kb, parse in chunks to avoid the RAM usage on very large messages
+        $final = false;
         do {
             if (strlen($this->message) <= $chunk_size) {
                 $final = true;
@@ -441,7 +442,7 @@ EOD;
         } else {
             // It's a function - does it exist?
             if (is_array($method)) {
-                if (!method_exists($method[0], $method[1])) {
+                if (!is_callable(array($method[0], $method[1]))) {
                     return new IXR_Error(-32601, 'server error. requested object method "'.$method[1].'" does not exist.');
                 }
             } else if (!function_exists($method)) {

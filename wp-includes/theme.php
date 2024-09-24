@@ -166,7 +166,7 @@ function get_template_directory_uri() {
  * The description will have the tags filtered with the following HTML elements
  * whitelisted. The <b>'a'</b> element with the <em>href</em> and <em>title</em>
  * attributes. The <b>abbr</b> element with the <em>title</em> attribute. The
- * <b>acronym<b> element with the <em>title</em> attribute allowed. The
+ * <b>acronym</b> element with the <em>title</em> attribute allowed. The
  * <b>code</b>, <b>em</b>, and <b>strong</b> elements also allowed.
  *
  * The style.css file must contain theme name, theme URI, and description. The
@@ -385,8 +385,8 @@ function get_themes() {
 		$template_files = array_unique($template_files);
 		$stylesheet_files = array_unique($stylesheet_files);
 
-		$template_dir = dirname($template_files[0]);
-		$stylesheet_dir = dirname($stylesheet_files[0]);
+		$template_dir = $template_directory;
+		$stylesheet_dir = $theme_root . '/' . $stylesheet;
 
 		if ( empty($template_dir) )
 			$template_dir = '/';
@@ -870,7 +870,7 @@ function get_tag_template() {
  * template is used. If none of the files exist, then it will fall back on to
  * index.php.
  *
- * @since unknown (2.6.0 most likely)
+ * @since 2.5.0
  * @uses apply_filters() Calls 'taxonomy_template' filter on found path.
  *
  * @return string
@@ -912,7 +912,11 @@ function get_date_template() {
  * @return string
  */
 function get_home_template() {
+	$template = get_post_meta( get_queried_object_id(), '_wp_page_template', true);
 	$templates = array( 'home.php', 'index.php' );
+
+	if ( ! empty( $template ) )
+		array_unshift( $templates, $template );
 
 	return get_query_template( 'home', $templates );
 }
@@ -1235,7 +1239,7 @@ function preview_theme_ob_filter_callback( $matches ) {
 /**
  * Switches current theme to new template and stylesheet names.
  *
- * @since unknown
+ * @since 2.5.0
  * @uses do_action() Calls 'switch_theme' action on updated theme display name.
  *
  * @param string $template Template name
@@ -1279,6 +1283,11 @@ function validate_current_theme() {
 	}
 
 	if ( get_stylesheet() != WP_DEFAULT_THEME && !file_exists(get_template_directory() . '/style.css') ) {
+		switch_theme( WP_DEFAULT_THEME, WP_DEFAULT_THEME );
+		return false;
+	}
+
+	if ( is_child_theme() && ! file_exists( get_stylesheet_directory() . '/style.css' ) ) {
 		switch_theme( WP_DEFAULT_THEME, WP_DEFAULT_THEME );
 		return false;
 	}
@@ -1415,9 +1424,16 @@ function header_textcolor() {
  * @return string
  */
 function get_header_image() {
-	$default = defined('HEADER_IMAGE') ? HEADER_IMAGE : '';
+	$default = defined( 'HEADER_IMAGE' ) ? HEADER_IMAGE : '';
 
-	return get_theme_mod('header_image', $default);
+	$url = get_theme_mod( 'header_image', $default );
+
+	if ( is_ssl() )
+		$url = str_replace( 'http://', 'https://', $url );
+	else
+		$url = str_replace( 'https://', 'http://', $url );
+
+	return $url;
 }
 
 /**
@@ -1444,18 +1460,46 @@ function header_image() {
  * @param callback $admin_header_callback Call on custom header administration screen.
  * @param callback $admin_image_div_callback Output a custom header image div on the custom header administration screen. Optional.
  */
-function add_custom_image_header($header_callback, $admin_header_callback, $admin_image_div_callback = '') {
-	if ( ! empty($header_callback) )
+function add_custom_image_header( $header_callback, $admin_header_callback, $admin_image_div_callback = '' ) {
+	if ( ! empty( $header_callback ) )
 		add_action('wp_head', $header_callback);
 
-	add_theme_support( 'custom-header' );
+	add_theme_support( 'custom-header', array( 'callback' => $header_callback ) );
 	add_theme_support( 'custom-header-uploads' );
 
 	if ( ! is_admin() )
 		return;
-	require_once(ABSPATH . 'wp-admin/custom-header.php');
-	$GLOBALS['custom_image_header'] =& new Custom_Image_Header($admin_header_callback, $admin_image_div_callback);
-	add_action('admin_menu', array(&$GLOBALS['custom_image_header'], 'init'));
+
+	global $custom_image_header;
+
+	require_once( ABSPATH . 'wp-admin/custom-header.php' );
+	$custom_image_header = new Custom_Image_Header( $admin_header_callback, $admin_image_div_callback );
+	add_action( 'admin_menu', array( &$custom_image_header, 'init' ) );
+}
+
+/**
+ * Remove image header support.
+ *
+ * @since 3.1.0
+ * @see add_custom_image_header()
+ *
+ * @return bool Whether support was removed.
+ */
+function remove_custom_image_header() {
+	if ( ! current_theme_supports( 'custom-header' ) )
+		return false;
+
+	$callback = get_theme_support( 'custom-header' );
+	remove_action( 'wp_head', $callback[0]['callback'] );
+	_remove_theme_support( 'custom-header' );
+	remove_theme_support( 'custom-header-uploads' );
+
+	if ( is_admin() ) {
+		remove_action( 'admin_menu', array( &$GLOBALS['custom_image_header'], 'init' ) );
+		unset( $GLOBALS['custom_image_header'] );
+	}
+
+	return true;
 }
 
 /**
@@ -1555,22 +1599,46 @@ function background_color() {
  * @param callback $admin_header_callback Call on custom background administration screen.
  * @param callback $admin_image_div_callback Output a custom background image div on the custom background administration screen. Optional.
  */
-function add_custom_background($header_callback = '', $admin_header_callback = '', $admin_image_div_callback = '') {
-	if ( isset($GLOBALS['custom_background']) )
+function add_custom_background( $header_callback = '', $admin_header_callback = '', $admin_image_div_callback = '' ) {
+	if ( isset( $GLOBALS['custom_background'] ) )
 		return;
 
-	if ( empty($header_callback) )
+	if ( empty( $header_callback ) )
 		$header_callback = '_custom_background_cb';
 
-	add_action('wp_head', $header_callback);
+	add_action( 'wp_head', $header_callback );
 
-	add_theme_support( 'custom-background' );
+	add_theme_support( 'custom-background', array( 'callback' => $header_callback ) );
 
 	if ( ! is_admin() )
 		return;
-	require_once(ABSPATH . 'wp-admin/custom-background.php');
-	$GLOBALS['custom_background'] =& new Custom_Background($admin_header_callback, $admin_image_div_callback);
-	add_action('admin_menu', array(&$GLOBALS['custom_background'], 'init'));
+	require_once( ABSPATH . 'wp-admin/custom-background.php' );
+	$GLOBALS['custom_background'] =& new Custom_Background( $admin_header_callback, $admin_image_div_callback );
+	add_action( 'admin_menu', array( &$GLOBALS['custom_background'], 'init' ) );
+}
+
+/**
+ * Remove custom background support.
+ *
+ * @since 3.1.0
+ * @see add_custom_background()
+ *
+ * @return bool Whether support was removed.
+ */
+function remove_custom_background() {
+	if ( ! current_theme_supports( 'custom-background' ) )
+		return false;
+
+	$callback = get_theme_support( 'custom-background' );
+	remove_action( 'wp_head', $callback[0]['callback'] );
+	_remove_theme_support( 'custom-background' );
+
+	if ( is_admin() ) {
+		remove_action( 'admin_menu', array( &$GLOBALS['custom_background'], 'init' ) );
+		unset( $GLOBALS['custom_background'] );
+	}
+
+	return true;
 }
 
 /**
@@ -1622,6 +1690,10 @@ body { <?php echo trim( $style ); ?> }
  * the theme root. It also accepts an array of stylesheets.
  * It is optional and defaults to 'editor-style.css'.
  *
+ * Supports RTL stylesheets automatically by searching for the -rtl prefix, e.g.
+ * editor-style-rtl.css. If an array of stylesheets is passed to add_editor_style(),
+ * RTL is only added for the first stylesheet.
+ *
  * @since 3.0.0
  *
  * @param mixed $stylesheet Optional. Stylesheet name or array thereof, relative to theme root.
@@ -1643,6 +1715,22 @@ function add_editor_style( $stylesheet = 'editor-style.css' ) {
 	}
 
 	$editor_styles = array_merge( $editor_styles, $stylesheet );
+}
+
+/**
+ * Removes all visual editor stylesheets.
+ *
+ * @since 3.1.0
+ *
+ * @return bool True on success, false if there were no stylesheets to remove.
+ */
+function remove_editor_styles() {
+	if ( ! current_theme_supports( 'editor-style' ) )
+		return false;
+	_remove_theme_support( 'editor-style' );
+	if ( is_admin() )
+		$GLOBALS['editor_styles'] = array();
+	return true;
 }
 
 /**
@@ -1694,7 +1782,16 @@ function remove_theme_support( $feature ) {
 	// Blacklist: for internal registrations not used directly by themes.
 	if ( in_array( $feature, array( 'custom-background', 'custom-header', 'editor-style', 'widgets', 'menus' ) ) )
 		return false;
+	return _remove_theme_support( $feature );
+}
 
+/**
+ * Do not use. Removes theme support internally, ignorant of the blacklist.
+ *
+ * @access private
+ * @since 3.1.0
+ */
+function _remove_theme_support( $feature ) {
 	global $_wp_theme_features;
 
 	if ( ! isset( $_wp_theme_features[$feature] ) )

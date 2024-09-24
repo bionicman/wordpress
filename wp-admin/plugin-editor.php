@@ -9,6 +9,11 @@
 /** WordPress Administration Bootstrap */
 require_once('./admin.php');
 
+if ( is_multisite() && ! is_network_admin() ) {
+	wp_redirect( network_admin_url( 'plugin-editor.php' ) );
+	exit();
+}
+
 if ( !current_user_can('edit_plugins') )
 	wp_die( __('You do not have sufficient permissions to edit plugins for this site.') );
 
@@ -65,7 +70,6 @@ case 'update':
 			update_option('recently_activated', array($file => time()) + (array)get_option('recently_activated'));
 
 			wp_redirect(add_query_arg('_wpnonce', wp_create_nonce('edit-plugin-test_' . $file), "plugin-editor.php?file=$file&liveupdate=1&scrollto=$scrollto&networkwide=" . $network_wide));
-			exit;
 		}
 		wp_redirect( self_admin_url("plugin-editor.php?file=$file&a=te&scrollto=$scrollto") );
 	} else {

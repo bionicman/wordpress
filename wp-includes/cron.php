@@ -50,6 +50,8 @@ function wp_schedule_single_event( $timestamp, $hook, $args = array()) {
  * Valid values for the recurrence are hourly, daily and twicedaily.  These can
  * be extended using the cron_schedules filter in wp_get_schedules().
  *
+ * Use wp_next_scheduled() to prevent duplicates
+ *
  * @since 2.1.0
  *
  * @param int $timestamp Timestamp for when to run the event.
@@ -196,14 +198,6 @@ function spawn_cron( $local_time = 0 ) {
 		$local_time = time();
 
 	if ( defined('DOING_CRON') || isset($_GET['doing_wp_cron']) )
-		return;
-
-	/*
-	 * do not even start the cron if local server timer has drifted
-	 * such as due to power failure, or misconfiguration
-	 */
-	$timer_accurate = check_server_timer( $local_time );
-	if ( !$timer_accurate )
 		return;
 
 	/*
@@ -410,9 +404,4 @@ function _upgrade_cron_array($cron) {
 	$new_cron['version'] = 2;
 	update_option( 'cron', $new_cron );
 	return $new_cron;
-}
-
-// stub for checking server timer accuracy, using outside standard time sources
-function check_server_timer( $local_time ) {
-	return true;
 }

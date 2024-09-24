@@ -125,7 +125,7 @@ function _wp_translate_postdata( $update = false, $post_data = null ) {
 /**
  * Update an existing post with values provided in $_POST.
  *
- * @since unknown
+ * @since 1.5.0
  *
  * @param array $post_data Optional.
  * @return int Post ID.
@@ -156,10 +156,10 @@ function edit_post( $post_data = null ) {
 	}
 
 	$post_data = _wp_translate_postdata( true, $post_data );
-	if ( 'autosave' != $post_data['action']  && 'auto-draft' == $post_data['post_status'] )
-		$post_data['post_status'] = 'draft';
 	if ( is_wp_error($post_data) )
 		wp_die( $post_data->get_error_message() );
+	if ( 'autosave' != $post_data['action']  && 'auto-draft' == $post_data['post_status'] )
+		$post_data['post_status'] = 'draft';
 
 	if ( isset($post_data['visibility']) ) {
 		switch ( $post_data['visibility'] ) {
@@ -434,7 +434,7 @@ function get_default_page_to_edit() {
 /**
  * Get an existing post and format it for editing.
  *
- * @since unknown
+ * @since 2.0.0
  *
  * @param unknown_type $id
  * @return unknown
@@ -452,7 +452,7 @@ function get_post_to_edit( $id ) {
 /**
  * Determine if a post exists based on title, content, and date
  *
- * @since unknown
+ * @since 2.0.0
  *
  * @param string $title Post title
  * @param string $content Optional post content
@@ -493,7 +493,7 @@ function post_exists($title, $content = '', $date = '') {
 /**
  * Creates a new post from the "Write Post" form using $_POST information.
  *
- * @since unknown
+ * @since 2.1.0
  *
  * @return unknown
  */
@@ -590,7 +590,7 @@ function wp_write_post() {
 /**
  * Calls wp_write_post() and handles the errors.
  *
- * @since unknown
+ * @since 2.0.0
  *
  * @return unknown
  */
@@ -609,7 +609,7 @@ function write_post() {
 /**
  * {@internal Missing Short Description}}
  *
- * @since unknown
+ * @since 1.2.0
  *
  * @param unknown_type $post_ID
  * @return unknown
@@ -641,9 +641,10 @@ function add_meta( $post_ID ) {
 
 		wp_cache_delete($post_ID, 'post_meta');
 		$wpdb->insert( $wpdb->postmeta, array( 'post_id' => $post_ID, 'meta_key' => $metakey, 'meta_value' => $metavalue ) );
-		do_action( 'added_postmeta', $wpdb->insert_id, $post_ID, $metakey, $metavalue );
+		$meta_id = $wpdb->insert_id;
+		do_action( 'added_postmeta', $meta_id, $post_ID, $metakey, $metavalue );
 
-		return $wpdb->insert_id;
+		return $meta_id;
 	}
 	return false;
 } // add_meta
@@ -651,7 +652,7 @@ function add_meta( $post_ID ) {
 /**
  * {@internal Missing Short Description}}
  *
- * @since unknown
+ * @since 1.2.0
  *
  * @param unknown_type $mid
  * @return unknown
@@ -673,7 +674,7 @@ function delete_meta( $mid ) {
 /**
  * Get a list of previously defined keys.
  *
- * @since unknown
+ * @since 1.2.0
  *
  * @return unknown
  */
@@ -692,7 +693,7 @@ function get_meta_keys() {
 /**
  * {@internal Missing Short Description}}
  *
- * @since unknown
+ * @since 2.1.0
  *
  * @param unknown_type $mid
  * @return unknown
@@ -712,7 +713,7 @@ function get_post_meta_by_id( $mid ) {
  *
  * Some postmeta stuff.
  *
- * @since unknown
+ * @since 1.2.0
  *
  * @param unknown_type $postid
  * @return unknown
@@ -729,7 +730,7 @@ function has_meta( $postid ) {
 /**
  * {@internal Missing Short Description}}
  *
- * @since unknown
+ * @since 1.2.0
  *
  * @param unknown_type $meta_id
  * @param unknown_type $meta_key Expect Slashed
@@ -772,7 +773,7 @@ function update_meta( $meta_id, $meta_key, $meta_value ) {
 /**
  * Replace hrefs of attachment anchors with up-to-date permalinks.
  *
- * @since unknown
+ * @since 2.3.0
  * @access private
  *
  * @param unknown_type $post_ID
@@ -828,7 +829,7 @@ function _fix_attachment_links_replace_cb($match) {
 /**
  * Move child posts to a new parent.
  *
- * @since unknown
+ * @since 2.3.0
  * @access private
  *
  * @param unknown_type $old_ID
@@ -949,7 +950,7 @@ function get_post_mime_types() {
 /**
  * {@internal Missing Short Description}}
  *
- * @since unknown
+ * @since 2.5.0
  *
  * @param unknown_type $type
  * @return unknown
@@ -964,7 +965,7 @@ function get_available_post_mime_types($type = 'attachment') {
 /**
  * {@internal Missing Short Description}}
  *
- * @since unknown
+ * @since 2.5.0
  *
  * @param unknown_type $q
  * @return unknown
@@ -1007,7 +1008,7 @@ function _edit_attachments_query_helper($where) {
  * {@internal Missing Short Description}}
  *
  * @uses get_user_option()
- * @since unknown
+ * @since 2.5.0
  *
  * @param unknown_type $id
  * @param unknown_type $page
@@ -1030,7 +1031,7 @@ function postbox_classes( $id, $page ) {
 /**
  * {@internal Missing Short Description}}
  *
- * @since unknown
+ * @since 2.5.0
  *
  * @param int|object $id    Post ID or post object.
  * @param string $title (optional) Title
@@ -1094,7 +1095,7 @@ function get_sample_permalink($id, $title = null, $name = null) {
  *
  * intended to be used for the inplace editor of the permalink post slug on in the post (and page?) editor.
  *
- * @since unknown
+ * @since 2.5.0
  *
  * @param int|object $id Post ID or post object.
  * @param string $new_title (optional) New title
@@ -1117,7 +1118,7 @@ function get_sample_permalink_html( $id, $new_title = null, $new_slug = null ) {
 
 	if ( false === strpos($permalink, '%postname%') && false === strpos($permalink, '%pagename%') ) {
 		$return = '<strong>' . __('Permalink:') . "</strong>\n" . '<span id="sample-permalink">' . $permalink . "</span>\n";
-		if ( current_user_can( 'manage_options' ) && !( 'page' == get_option('show_on_front') && $id == get_option('page_on_front') ) )
+		if ( '' == get_option( 'permalink_structure' ) && current_user_can( 'manage_options' ) && !( 'page' == get_option('show_on_front') && $id == get_option('page_on_front') ) )
 			$return .= '<span id="change-permalinks"><a href="options-permalink.php" class="button" target="_blank">' . __('Change Permalinks') . "</a></span>\n";
 		if ( isset($view_post) )
 			$return .= "<span id='view-post-btn'><a href='$permalink' class='button' target='_blank'>$view_post</a></span>\n";
@@ -1200,13 +1201,17 @@ function wp_check_post_lock( $post_id ) {
 	if ( !$post = get_post( $post_id ) )
 		return false;
 
-	$lock = get_post_meta( $post->ID, '_edit_lock', true );
-	$last = get_post_meta( $post->ID, '_edit_last', true );
+	if ( !$lock = get_post_meta( $post->ID, '_edit_lock', true ) )
+		return false;
 
+	$lock = explode( ':', $lock );
+	$time = $lock[0];
+	$user = isset( $lock[1] ) ? $lock[1] : get_post_meta( $post->ID, '_edit_last', true );
+	
 	$time_window = apply_filters( 'wp_check_post_lock_window', AUTOSAVE_INTERVAL * 2 );
 
-	if ( $lock && $lock > time() - $time_window && $last != get_current_user_id() )
-		return $last;
+	if ( $time && $time > time() - $time_window && $user != get_current_user_id() )
+		return $user;
 	return false;
 }
 
@@ -1221,12 +1226,13 @@ function wp_check_post_lock( $post_id ) {
 function wp_set_post_lock( $post_id ) {
 	if ( !$post = get_post( $post_id ) )
 		return false;
-	if ( 0 == get_current_user_id() )
+	if ( 0 == ($user_id = get_current_user_id()) )
 		return false;
 
 	$now = time();
+	$lock = "$now:$user_id";
 
-	update_post_meta( $post->ID, '_edit_lock', $now );
+	update_post_meta( $post->ID, '_edit_lock', $lock );
 }
 
 /**
@@ -1237,7 +1243,10 @@ function wp_set_post_lock( $post_id ) {
  */
 function _admin_notice_post_locked() {
 	global $post;
-	$last_user = get_userdata( get_post_meta( $post->ID, '_edit_last', true ) );
+
+	$lock = explode( ':', get_post_meta( $post->ID, '_edit_lock', true ) );
+	$user = isset( $lock[1] ) ? $lock[1] : get_post_meta( $post->ID, '_edit_last', true );
+	$last_user = get_userdata( $user );
 	$last_user_name = $last_user ? $last_user->display_name : __('Somebody');
 
 	switch ($post->post_type) {
@@ -1544,7 +1553,7 @@ function wp_tiny_mce( $teeny = false, $settings = false ) {
 	if ( ! empty( $editor_styles ) && is_array( $editor_styles ) ) {
 		$mce_css = array();
 		$style_uri = get_stylesheet_directory_uri();
-		if ( TEMPLATEPATH == STYLESHEETPATH ) {
+		if ( ! is_child_theme() ) {
 			foreach ( $editor_styles as $file )
 				$mce_css[] = "$style_uri/$file";
 		} else {
@@ -1552,10 +1561,10 @@ function wp_tiny_mce( $teeny = false, $settings = false ) {
 			$template_uri = get_template_directory_uri();
 			$template_dir = get_template_directory();
 			foreach ( $editor_styles as $file ) {
-				if ( file_exists( "$style_dir/$file" ) )
-					$mce_css[] = "$style_uri/$file";
 				if ( file_exists( "$template_dir/$file" ) )
 					$mce_css[] = "$template_uri/$file";
+				if ( file_exists( "$style_dir/$file" ) )
+					$mce_css[] = "$style_uri/$file";
 			}
 		}
 		$mce_css = implode( ',', $mce_css );

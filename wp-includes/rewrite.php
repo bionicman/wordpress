@@ -268,11 +268,6 @@ function url_to_postid($url) {
 	if ( empty($rewrite) )
 		return 0;
 
-	// $url cleanup by Mark Jaquith
-	// This fixes things like #anchors, ?query=strings, missing 'www.',
-	// added 'www.', or added 'index.php/' that will mess up our WP_Query
-	// and return a false negative
-
 	// Get rid of the #anchor
 	$url_split = explode('#', $url);
 	$url = $url_split[0];
@@ -308,8 +303,6 @@ function url_to_postid($url) {
 
 	$request = $url;
 
-	// Done with cleanup
-
 	// Look for matches.
 	$request_match = $request;
 	foreach ( (array)$rewrite as $match => $query) {
@@ -337,7 +330,7 @@ function url_to_postid($url) {
 
 			// Do the query
 			$query = new WP_Query($query);
-			if ( $query->is_single || $query->is_page )
+			if ( !empty($query->posts) && $query->is_singular )
 				return $query->post->ID;
 			else
 				return 0;

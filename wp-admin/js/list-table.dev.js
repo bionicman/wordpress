@@ -15,7 +15,7 @@ window.listTable = {
 
 		this.$tbody = $('#the-list, #the-comment-list');
 
-		this.$overlay = $('<div id="loading-items>')
+		this.$overlay = $('<div id="loading-items">')
 			.html(listTableL10n.loading)
 			.hide()
 			.prependTo($('body'));
@@ -31,13 +31,6 @@ window.listTable = {
 
 	get_total_pages: function() {
 		return this.total_pages;
-	},
-
-	change_page: function(paged) {
-		if ( paged < 1 || paged > this.total_pages )
-			return false;
-
-		this.update_rows({'paged': paged});
 	},
 
 	htmlencode: function(value) {
@@ -116,6 +109,10 @@ window.listTable = {
 
 			$('th.column-cb :input').attr('checked', false);
 
+			if ( history.replaceState ) {
+				history.replaceState({}, '', location.pathname + $.query);
+			}
+
 			if ( this._callback )
 				this._callback();
 		}
@@ -151,11 +148,27 @@ listTable.init();
 
 // Ajaxify various UI elements
 
+	function change_page(paged, $el) {
+		if ( paged < 1 )
+			paged = 1;
+
+		if ( paged > listTable.get_total_pages() )
+			paged = listTable.get_total_pages();
+
+		listTable.update_rows({'paged': paged}, false, function() {
+			if ( $el.parents('.tablenav.bottom').length )
+				scrollTo(0, 0);
+				
+			$(listTable).trigger('changePage');
+		});
+	}
+
 	// pagination
 	$('.tablenav-pages a').click(function() {
-		var paged = $.query.GET('paged');
+		var $el = $(this),
+			paged = $.query.GET('paged');
 
-		switch ( $(this).attr('class') ) {
+		switch ( $el.attr('class') ) {
 			case 'first-page':
 				paged = 1;
 				break;
@@ -170,7 +183,7 @@ listTable.init();
 				break;
 		}
 
-		listTable.change_page(paged);
+		change_page(paged, $el);
 
 		return false;
 	});
@@ -179,36 +192,48 @@ listTable.init();
 		if ( 13 != e.keyCode )
 			return;
 
-		listTable.change_page(parseInt($(this).val()));
+		var $el = $(this);
+
+		change_page(parseInt($el.val()) || 1, $el);
 
 		return false;
 	});
 
 	// sortable columns
-	$('th a').click(function() {
-		var orderby = $.query.GET('orderby'),
-			order = $.query.GET('order'),
-			$th = $(this).parent('th');
+	$('th.sortable a, th.sorted a').click(function() {
 
-		if ( $th.hasClass('sortable') ) {
-			orderby = $.query.load($(this).attr('href')).get('orderby');
-			order = 'asc';
+		function get_initial_order($el) {
+			return $.query.load( $el.find('a').attr('href') ).get('order');
+		}
 
-			$('th.sorted-desc, th.sorted-asc')
-				.removeClass('sorted-asc')
-				.removeClass('sorted-desc')
-				.addClass('sortable');
+		var $link = $(this),
+			$th = $link.parent('th'),
+			thIndex = $th.index(),
+			orderby = $.query.load( $link.attr('href') ).get('orderby'),
+			order;
 
-			$th.removeClass('sortable').addClass('sorted-asc');
+		// th should include both headers in thead and tfoot
+		$th = $th.closest('table').find('thead th:eq(' + thIndex + '), tfoot th:eq(' + thIndex + ')');
+
+		if ( orderby == $.query.get('orderby') ) {
+			// changing the direction
+			order = ( 'asc' == $.query.get('order') ) ? 'desc' : 'asc';
+		} else {
+			// changing the parameter
+			order = get_initial_order($th);
+
+			var $old_th = $('th.sorted');
+			if ( $old_th.length ) {
+				$old_th.removeClass('sorted').addClass('sortable');
+				$old_th.removeClass('desc').removeClass('asc').addClass(
+					'asc' == get_initial_order( $old_th ) ? 'desc' : 'asc'
+				);
+			}
+
+			$th.removeClass('sortable').addClass('sorted');
 		}
-		else if ( $th.hasClass('sorted-asc') ) {
-			order = 'desc';
-			$th.removeClass('sorted-asc').addClass('sorted-desc');
-		}
-		else if ( $th.hasClass('sorted-desc') ) {
-			order = 'asc';
-			$th.removeClass('sorted-desc').addClass('sorted-asc');
-		}
+
+		$th.removeClass('desc').removeClass('asc').addClass(order);
 
 		listTable.update_rows({'orderby': orderby, 'order': order}, true);
 

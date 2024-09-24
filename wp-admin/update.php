@@ -6,7 +6,8 @@
  * @subpackage Administration
  */
 
-define('IFRAME_REQUEST' , true);
+if ( ! defined( 'IFRAME_REQUEST' ) && isset( $_GET['action'] ) && in_array( $_GET['action'], array( 'update-selected', 'activate-plugin', 'update-selected-themes' ) ) )
+	define( 'IFRAME_REQUEST', true );
 
 /** WordPress Administration Bootstrap */
 require_once('./admin.php');
@@ -36,7 +37,6 @@ if ( isset($_GET['action']) ) {
 		$url = 'update.php?action=update-selected&amp;plugins=' . urlencode(implode(',', $plugins));
 		$nonce = 'bulk-update-plugins';
 
-		require_once( ABSPATH . 'wp-admin/includes/class-wp-upgrader.php' );
 		wp_enqueue_script('jquery');
 		iframe_header();
 
@@ -51,7 +51,7 @@ if ( isset($_GET['action']) ) {
 
 		check_admin_referer('upgrade-plugin_' . $plugin);
 
-		$title = __('Upgrade Plugin');
+		$title = __('Update Plugin');
 		$parent_file = 'plugins.php';
 		$submenu_file = 'plugins.php';
 		require_once(ABSPATH . 'wp-admin/admin-header.php');
@@ -155,7 +155,7 @@ if ( isset($_GET['action']) ) {
 
 		add_thickbox();
 		wp_enqueue_script('theme-preview');
-		$title = __('Upgrade Theme');
+		$title = __('Update Theme');
 		$parent_file = 'themes.php';
 		$submenu_file = 'themes.php';
 		require_once(ABSPATH . 'wp-admin/admin-header.php');
@@ -185,7 +185,6 @@ if ( isset($_GET['action']) ) {
 		$url = 'update.php?action=update-selected-themes&amp;themes=' . urlencode(implode(',', $themes));
 		$nonce = 'bulk-update-themes';
 
-		require_once( ABSPATH . 'wp-admin/includes/class-wp-upgrader.php' );
 		wp_enqueue_script('jquery');
 		iframe_header();
 

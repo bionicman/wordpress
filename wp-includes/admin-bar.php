@@ -39,7 +39,7 @@ add_action( 'init', 'wp_admin_bar_init' );
  * This is called very late on the footer actions so that it will render after anything else being
  * added to the footer.
  *
- * It includes the action "wp_before_admin_bar_render" which should be used to hook in and
+ * It includes the action "admin_bar_menu" which should be used to hook in and
  * add new menus to the admin bar. That way you can be sure that you are adding at most optimal point,
  * right before the admin bar is rendered. This also gives you access to the $post global, among others.
  *
@@ -67,18 +67,6 @@ add_action( 'wp_footer', 'wp_admin_bar_render', 1000 );
 add_action( 'admin_footer', 'wp_admin_bar_render', 1000 );
 
 /**
- * Show the logged in user's gravatar as a separator.
- *
- * @since 3.1.0
- */
-function wp_admin_bar_me_separator() {
-	global $wp_admin_bar;
-	$user_id = get_current_user_id();
-	if ( 0 != $user_id )
-		$wp_admin_bar->add_menu( array( 'id' => 'me', 'title' => get_avatar( get_current_user_id(), 16 ), 'href' => get_edit_profile_url( $user_id ), ) );
-}
-
-/**
  * Add the "My Account" menu and all submenus.
  *
  * @since 3.1.0
@@ -90,14 +78,17 @@ function wp_admin_bar_my_account_menu() {
 
 	if ( 0 != $user_id ) {
 		/* Add the 'My Account' menu */
-		$wp_admin_bar->add_menu( array( 'id' => 'my-account', 'title' => $user_identity,  'href' => get_edit_profile_url( $user_id ) ) );
+		$avatar = get_avatar( get_current_user_id(), 16 );
+		$id = ( ! empty( $avatar ) ) ? 'my-account-with-avatar' : 'my-account';
+
+		$wp_admin_bar->add_menu( array( 'id' => $id, 'title' => $avatar . $user_identity,  'href' => get_edit_profile_url( $user_id ) ) );
 
 		/* Add the "My Account" sub menus */
-		$wp_admin_bar->add_menu( array( 'parent' => 'my-account', 'title' => __( 'Edit My Profile' ), 'href' => get_edit_profile_url( $user_id ) ) );
+		$wp_admin_bar->add_menu( array( 'parent' => $id, 'title' => __( 'Edit My Profile' ), 'href' => get_edit_profile_url( $user_id ) ) );
 		if ( is_multisite() )
-			$wp_admin_bar->add_menu( array( 'parent' => 'my-account', 'title' => __( 'Dashboard' ), 'href' => get_dashboard_url( $user_id ), ) );
+			$wp_admin_bar->add_menu( array( 'parent' => $id, 'title' => __( 'Dashboard' ), 'href' => get_dashboard_url( $user_id ), ) );
 		else
-			$wp_admin_bar->add_menu( array( 'parent' => 'my-account', 'title' => __( 'Dashboard' ), 'href' => admin_url(), ) );
+			$wp_admin_bar->add_menu( array( 'parent' => $id, 'title' => __( 'Dashboard' ), 'href' => admin_url(), ) );
 		$wp_admin_bar->add_menu( array( 'parent' => 'my-account', 'title' => __( 'Log Out' ), 'href' => wp_logout_url(), ) );
 	}
 }
@@ -121,39 +112,30 @@ function wp_admin_bar_my_sites_menu() {
 	foreach ( (array) $wp_admin_bar->user->blogs as $blog ) {
 		// @todo Replace with some favicon lookup.
 		//$blavatar = '<img src="' . esc_url( blavatar_url( blavatar_domain( $blog->siteurl ), 'img', 16, $default ) ) . '" alt="Blavatar" width="16" height="16" />';
-		$blavatar = '<img src="' . esc_url($default) . '" alt="' . esc_attr__( 'Blavatar' ) . '" width="16" height="16" />';
+		$blavatar = '<img src="' . esc_url($default) . '" alt="' . esc_attr__( 'Blavatar' ) . '" width="16" height="16" class="blavatar"/>';
 
 		$marker = '';
-		if ( strlen($blog->blogname) > 15 )
+		if ( strlen($blog->blogname) > 18 )
 			$marker = '...';
 
 		if ( empty( $blog->blogname ) )
 			$blogname = $blog->domain;
 		else
-			$blogname = substr( $blog->blogname, 0, 15 ) . $marker;
+			$blogname = substr( $blog->blogname, 0, 18 ) . $marker;
 
 		if ( ! isset( $blog->visible ) || $blog->visible === true ) {
 			$wp_admin_bar->add_menu( array( 'parent' => 'my-blogs', 'id' => 'blog-' . $blog->userblog_id, 'title' => $blavatar . $blogname,  'href' => get_admin_url($blog->userblog_id), ) );
 			$wp_admin_bar->add_menu( array( 'parent' => 'blog-' . $blog->userblog_id, 'id' => 'blog-' . $blog->userblog_id . '-d', 'title' => __( 'Dashboard' ), 'href' => get_admin_url($blog->userblog_id), ) );
-			$wp_admin_bar->add_menu( array( 'parent' => 'blog-' . $blog->userblog_id, 'id' => 'blog-' . $blog->userblog_id . '-n', 'title' => __( 'New Post' ), 'href' => get_admin_url($blog->userblog_id, 'post-new.php'), ) );
 
-			$wp_admin_bar->add_menu( array( 'parent' => 'blog-' . $blog->userblog_id, 'id' => 'blog-' . $blog->userblog_id . '-c', 'title' => __( 'Manage Comments' ), 'href' => get_admin_url($blog->userblog_id, 'edit-comments.php'), ) );
+			if ( current_user_can_for_blog( $blog->userblog_id, 'edit_posts' ) ) {
+				$wp_admin_bar->add_menu( array( 'parent' => 'blog-' . $blog->userblog_id, 'id' => 'blog-' . $blog->userblog_id . '-n', 'title' => __( 'New Post' ), 'href' => get_admin_url($blog->userblog_id, 'post-new.php'), ) );
+				$wp_admin_bar->add_menu( array( 'parent' => 'blog-' . $blog->userblog_id, 'id' => 'blog-' . $blog->userblog_id . '-c', 'title' => __( 'Manage Comments' ), 'href' => get_admin_url($blog->userblog_id, 'edit-comments.php'), ) );
+			}
+
 			$wp_admin_bar->add_menu( array( 'parent' => 'blog-' . $blog->userblog_id, 'id' => 'blog-' . $blog->userblog_id . '-v', 'title' => __( 'Visit Site' ), 'href' => get_home_url($blog->userblog_id), ) );
 		}
 	}
 }
-
-/**
- * Show the blavatar of the current site as a separator.
- *
- * @since 3.1.0
- */
-function wp_admin_bar_blog_separator() {
-	global $wp_admin_bar, $current_blog;
-	$default = includes_url('images/wpmini-blue.png');
-	$wp_admin_bar->add_menu( array( 'id' => 'blog', 'title' => '<img class="avatar" src="' . $default . '" alt="' . esc_attr__( 'Current site avatar' ) . '" width="16" height="16" />',  'href' => home_url(), ) );
-}
-
 
 /**
  * Provide a shortlink.
@@ -189,6 +171,11 @@ function wp_admin_bar_edit_menu () {
 	}
 }
 
+/**
+ * Add "Add New" menu.
+ *
+ * @since 3.1.0
+ */
 function wp_admin_bar_new_content_menu() {
 	global $wp_admin_bar;
 
@@ -196,19 +183,25 @@ function wp_admin_bar_new_content_menu() {
 	foreach ( (array) get_post_types( array( 'show_ui' => true ), 'objects' ) as $ptype_obj ) {
 		if ( true !== $ptype_obj->show_in_menu || ! current_user_can( $ptype_obj->cap->edit_posts ) )
 			continue;
+
 		$actions[ 'post-new.php?post_type=' . $ptype_obj->name ] = array( $ptype_obj->labels->singular_name, $ptype_obj->cap->edit_posts, 'new-' . $ptype_obj->name );
 	}
 
 	if ( empty( $actions ) )
 		return;
 
-	$wp_admin_bar->add_menu( array( 'id' => 'new-content', 'title' => __( 'Add New' ), 'href' => '', ) );
+	$wp_admin_bar->add_menu( array( 'id' => 'new-content', 'title' => _x( 'Add New', 'admin bar menu group label' ), 'href' => admin_url( array_shift( array_keys( $actions ) ) ), ) );
 
 	foreach ( $actions as $link => $action ) {
 		$wp_admin_bar->add_menu( array( 'parent' => 'new-content', 'id' => $action[2], 'title' => $action[0], 'href' => admin_url($link) ) );
 	}
 }
 
+/**
+ * Add edit comments link with awaiting moderation count bubble.
+ *
+ * @since 3.1.0
+ */
 function wp_admin_bar_comments_menu() {
 	global $wp_admin_bar;
 
@@ -218,9 +211,15 @@ function wp_admin_bar_comments_menu() {
 	$awaiting_mod = wp_count_comments();
 	$awaiting_mod = $awaiting_mod->moderated;
 
-	$wp_admin_bar->add_menu( array( 'id' => 'comments', 'title' => sprintf( __('Comments %s'), "<span id='ab-awaiting-mod' class='count-$awaiting_mod'><span class='pending-count'>" . number_format_i18n($awaiting_mod) . "</span></span>" ), 'href' => admin_url('edit-comments.php') ) );
+	$awaiting_mod = $awaiting_mod ? "<span id='ab-awaiting-mod'><span class='pending-count'>" . number_format_i18n( $awaiting_mod ) . "</span></span>" : '';
+	$wp_admin_bar->add_menu( array( 'id' => 'comments', 'title' => sprintf( __('Comments %s'), $awaiting_mod ), 'href' => admin_url('edit-comments.php') ) );
 }
 
+/**
+ * Add "Appearance" menu with widget and nav menu submenu.
+ *
+ * @since 3.1.0
+ */
 function wp_admin_bar_appearance_menu() {
 	global $wp_admin_bar;
 
@@ -239,6 +238,11 @@ function wp_admin_bar_appearance_menu() {
 		$wp_admin_bar->add_menu( array( 'parent' => 'appearance', 'id' => 'menus', 'title' => __('Menus'), 'href' => admin_url('nav-menus.php') ) );
 }
 
+/**
+ * Provide an update link if theme/plugin/core updates are available.
+ *
+ * @since 3.1.0
+ */
 function wp_admin_bar_updates_menu() {
 	global $wp_admin_bar;
 
@@ -273,48 +277,35 @@ function wp_admin_bar_updates_menu() {
 
 	$update_title = !empty($update_title) ? esc_attr(implode(', ', $update_title)) : '';
 
-	$update_title = sprintf( __('Updates %s'), "<span id='ab-updates' class='count-$update_count' title='$update_title'><span class='update-count'>" . number_format_i18n($update_count) . "</span></span>" );
+	$update_title = "<span title='$update_title'>";
+	$update_title .= sprintf( __('Updates %s'), "<span id='ab-updates' class='update-count'>" . number_format_i18n($update_count) . '</span>' );
+	$update_title .= '</span>';
 
-	$wp_admin_bar->add_menu( array( 'id' => 'updates', 'title' => $update_title, 'href' => admin_url('update-core.php') ) );
+	$href = is_multisite() ? network_admin_url( 'update-core.php' ) : admin_url( 'update-core.php' );
+
+	$wp_admin_bar->add_menu( array( 'id' => 'updates', 'title' => $update_title, 'href' => $href ) );
 }
 
 /**
  * Style and scripts for the admin bar.
  *
  * @since 3.1.0
- * @todo move js into a admin-bar js file
  *
  */
-function wp_admin_bar_header() {
-	?>
-	<style type="text/css" media="print">#wpadminbar { display:none; }</style>
-	<?php
+function wp_admin_bar_header() { ?>
+<style type="text/css" media="print">#wpadminbar { display:none; }</style>
+<?php
 }
 
-// @TODO do we still need this in core?
-function wp_admin_body_style() {
-	?>
-	<style type="text/css">
-		<?php
-
-		if (
-			( empty( $_GET['nobump'] ) || is_admin() ) &&
-			! strpos( $_SERVER['REQUEST_URI'], 'media-upload.php' )
-		) :
-			?>
-			body { padding-top: 28px !important; }
-			<?php
-		endif;
-
-		if ( in_array( get_current_theme(), array('H3', 'H4', 'The Journalist v1.9') ) ) :
-			?>
-			body { padding-top: 28px; background-position: 0px 28px; }
-			<?php
-		endif;
-
-		?>
-	</style>
-	<?php
+/**
+ * Default admin bar callback.
+ *
+ * @since 3.1.0
+ *
+ */
+function _admin_bar_bump_cb() { ?>
+<style type="text/css">body { padding-top: 28px !important; }</style>
+<?php
 }
 
 /**

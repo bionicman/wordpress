@@ -747,7 +747,17 @@ form.upgrade .hint {
 	list-style-type: disc;
 	margin-left: 18px;
 }
-
+.toggle-arrow {
+	background-repeat: no-repeat;
+	background-position: top left;
+	background-color: transparent;
+	height: 22px;
+	line-height: 22px;
+	display: block;
+}
+.toggle-arrow-active {
+	background-position: bottom left;
+}
 #screen-meta a.show-settings {
 	text-decoration: none;
 	z-index: 1;
@@ -1140,6 +1150,10 @@ body.wp-admin {
 	min-width: 785px;
 }
 
+body.admin-bar {
+	padding-top: 28px;
+}
+
 .narrow {
 	width: 70%;
 	margin-bottom: 40px;
@@ -1365,19 +1379,23 @@ table.fixed {
 	height: 4px;
 	margin-top: 5px;
 }
-th.sortable a, th.sorted-asc a, th.sorted-desc a {
+th.sortable a,
+th.sorted a {
 	display: block;
 	overflow: hidden;
 }
-th.sortable a span, th.sorted-asc a span, th.sorted-desc a span {
+th.sortable a span,
+th.sorted a span {
 	float: left;
 	cursor: pointer;
 }
-th.sorted-asc .sorting-indicator, th.sorted-desc:hover .sorting-indicator, th.sortable:hover .sorting-indicator {
+th.sorted.asc .sorting-indicator,
+th.desc:hover span.sorting-indicator {
 	display: block;
 	background: url(../images/sort_asc.gif) no-repeat scroll 0 0;
 }
-th.sorted-desc .sorting-indicator, th.sorted-asc:hover .sorting-indicator {
+th.sorted.desc .sorting-indicator,
+th.asc:hover span.sorting-indicator {
 	display: block;
 	background: url(../images/sort_desc.gif) no-repeat scroll 0 0;
 }
@@ -2509,6 +2527,7 @@ div.tabs-panel-inactive {
 
 #front-page-warning,
 #front-static-pages ul,
+ul.export-filters,
 .inline-editor ul.cat-checklist ul,
 .categorydiv ul.categorychecklist ul,
 .customlinkdiv ul.categorychecklist ul,
@@ -2942,8 +2961,6 @@ abbr.required {
 	bottom: 1px;
 }
 
-<<<<<<< .mine
-=======
 /* favorite-actions */
 #favorite-actions {
 	float: right;
@@ -3778,10 +3795,8 @@ input.button-highlighted,
 	padding-right: 12px;
 }
 
-.plugins .second td,
-.plugins .second th {
-	border-top: 0 none;
-	padding: 0 7px 5px;
+.plugins .second, .plugins .row-actions-visible {
+	padding: 0 0 5px;
 }
 
 .plugins-php .widefat tfoot th,
@@ -3832,6 +3847,9 @@ input.button-highlighted,
 	width: 15em;
 }
 
+#createuser .form-field input {
+	width: 25em;
+}
 
 /*------------------------------------------------------------------------------
   19.0 - Tools

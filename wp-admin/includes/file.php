@@ -7,10 +7,11 @@
  */
 
 /** The descriptions for theme files. */
-$wp_file_descriptions = array (
+$wp_file_descriptions = array(
 	'index.php' => __( 'Main Index Template' ),
 	'style.css' => __( 'Stylesheet' ),
 	'editor-style.css' => __( 'Visual Editor Stylesheet' ),
+	'editor-style-rtl.css' => __( 'Visual Editor RTL Stylesheet' ),
 	'rtl.css' => __( 'RTL Stylesheet' ),
 	'comments.php' => __( 'Comments' ),
 	'comments-popup.php' => __( 'Popup Comments' ),
@@ -36,7 +37,10 @@ $wp_file_descriptions = array (
 	'my-hacks.php' => __( 'my-hacks.php (legacy hacks support)' ),
 	'.htaccess' => __( '.htaccess (for rewrite rules )' ),
 	// Deprecated files
-	'wp-layout.css' => __( 'Stylesheet' ), 'wp-comments.php' => __( 'Comments Template' ), 'wp-comments-popup.php' => __( 'Popup Comments Template' ));
+	'wp-layout.css' => __( 'Stylesheet' ),
+	'wp-comments.php' => __( 'Comments Template' ),
+	'wp-comments-popup.php' => __( 'Popup Comments Template' ),
+);
 
 /**
  * Get the description for standard WordPress theme files and other various standard
@@ -503,9 +507,10 @@ function wp_handle_sideload( &$file, $overrides = false ) {
  * @since 2.5.0
  *
  * @param string $url the URL of the file to download
+ * @param int $timeout The timeout for the request to download the file default 300 seconds
  * @return mixed WP_Error on failure, string Filename on success.
  */
-function download_url( $url ) {
+function download_url( $url, $timeout = 300 ) {
 	//WARNING: The file is not automatically deleted, The script must unlink() the file.
 	if ( ! $url )
 		return new WP_Error('http_no_url', __('Invalid URL Provided.'));
@@ -518,7 +523,7 @@ function download_url( $url ) {
 	if ( ! $handle )
 		return new WP_Error('http_no_file', __('Could not create Temporary file.'));
 
-	$response = wp_remote_get($url, array('timeout' => 300));
+	$response = wp_remote_get($url, array('timeout' => $timeout));
 
 	if ( is_wp_error($response) ) {
 		fclose($handle);

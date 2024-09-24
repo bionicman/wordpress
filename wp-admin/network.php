@@ -137,14 +137,14 @@ function network_step1( $errors = false ) {
 	if ( get_option( 'siteurl' ) != get_option( 'home' ) ) {
 		echo '<div class="error"><p><strong>' . __('Error:') . '</strong> ' . sprintf( __( 'Your <strong>WordPress address</strong> must match your <strong>Site address</strong> before creating a Network. See <a href="%s">General Settings</a>.' ), esc_url( admin_url( 'options-general.php' ) ) ) . '</p></div>';
 		echo '</div>';
-		include ('./admin-footer.php' );
+		include ( ABSPATH . 'wp-admin/admin-footer.php' );
 		die();
 	}
 
 	if ( defined('DO_NOT_UPGRADE_GLOBAL_TABLES') ) {
 		echo '<div class="error"><p><strong>' . __('Error:') . '</strong> ' . __( 'The constant DO_NOT_UPGRADE_GLOBAL_TABLES cannot be defined when creating a network.' ) . '</p></div>';
 		echo '</div>';
-		include ('./admin-footer.php' );
+		include ( ABSPATH . 'wp-admin/admin-footer.php' );
 		die();
 	}
 
@@ -152,7 +152,7 @@ function network_step1( $errors = false ) {
 	if ( ! empty( $active_plugins ) ) {
 		echo '<div class="updated"><p><strong>' . __('Warning:') . '</strong> ' . sprintf( __( 'Please <a href="%s">deactivate your plugins</a> before enabling the Network feature.' ), admin_url( 'plugins.php?plugin_status=active' ) ) . '</p></div><p>' . __( 'Once the network is created, you may reactivate your plugins.' ) . '</p>';
 		echo '</div>';
-		include( './admin-footer.php' );
+		include( ABSPATH . 'wp-admin/admin-footer.php' );
 		die();
 	}
 
@@ -163,7 +163,7 @@ function network_step1( $errors = false ) {
 		echo '<p>' . sprintf( __( 'You cannot use port numbers such as <code>%s</code>.' ), $has_ports ) . '</p>';
 		echo '<a href="' . esc_url( admin_url() ) . '">' . __( 'Return to Dashboard' ) . '</a>';
 		echo '</div>';
-		include( './admin-footer.php' );
+		include( ABSPATH . 'wp-admin/admin-footer.php' );
 		die();
 	}
 
@@ -336,10 +336,12 @@ function network_step2( $errors = false ) {
 		<h3><?php esc_html_e( 'Enabling the Network' ); ?></h3>
 		<p><?php _e( 'Complete the following steps to enable the features for creating a network of sites.' ); ?></p>
 		<div class="updated inline"><p><?php
-			if ( iis7_supports_permalinks() )
-				_e( '<strong>Caution:</strong> We recommend you back up your existing <code>wp-config.php</code> file.' );
+			if ( file_exists( ABSPATH . '.htaccess' ) )
+				printf( __( '<strong>Caution:</strong> We recommend you back up your existing <code>wp-config.php</code> and <code>%s</code> files.' ), '.htaccess' );
+			elseif ( file_exists( ABSPATH . 'web.config' ) )
+				printf( __( '<strong>Caution:</strong> We recommend you back up your existing <code>wp-config.php</code> and <code>%s</code> files.' ), 'web.config' );
 			else
-				_e( '<strong>Caution:</strong> We recommend you back up your existing <code>wp-config.php</code> and <code>.htaccess</code> files.' );
+				_e( '<strong>Caution:</strong> We recommend you back up your existing <code>wp-config.php</code> file.' );
 		?></p></div>
 <?php
 	}
@@ -366,26 +368,23 @@ define( 'BLOG_ID_CURRENT_SITE', 1 );</textarea>
 			unset( $keys_salts[ $c ] );
 	}
 	if ( ! empty( $keys_salts ) ) {
+		$keys_salts_str = '';
 		$from_api = wp_remote_get( 'https://api.wordpress.org/secret-key/1.1/salt/' );
 		if ( is_wp_error( $from_api ) ) {
 			foreach ( $keys_salts as $c => $v ) {
-				$keys_salts[ $c ] = wp_generate_password( 64, true, true );
+				$keys_salts_str .= "\ndefine( '$c', '" . wp_generate_password( 64, true, true ) . "' );";
 			}
 		} else {
 			$from_api = explode( "\n", wp_remote_retrieve_body( $from_api ) );
 			foreach ( $keys_salts as $c => $v ) {
-				$keys_salts[ $c ] = substr( array_shift( $from_api ), 28, 64 );
+				$keys_salts_str .= "\ndefine( '$c', '" . substr( array_shift( $from_api ), 28, 64 ) . "' );";
 			}
 		}
 		$num_keys_salts = count( $keys_salts );
 ?>
 	<p><?php
 		echo _n( 'This unique authentication key is also missing from your <code>wp-config.php</code> file.', 'These unique authentication keys are also missing from your <code>wp-config.php</code> file.', $num_keys_salts ); ?> <?php _e( 'To make your installation more secure, you should also add:' ) ?></p>
-	<textarea class="code" readonly="readonly" cols="100" rows="<?php echo $num_keys_salts; ?>"><?php
-	foreach ( $keys_salts as $c => $v ) {
-		echo "\ndefine( '$c', '" . esc_textarea( $v ) . "' );";
-	}
-?></textarea>
+	<textarea class="code" readonly="readonly" cols="100" rows="<?php echo $num_keys_salts; ?>"><?php echo esc_textarea( $keys_salts_str ); ?></textarea>
 <?php
 	}
 ?>
@@ -511,9 +510,10 @@ RewriteRule ^ - [L]';
 	}
 }
 
-$base = trailingslashit( stripslashes( dirname( dirname( $_SERVER['SCRIPT_NAME'] ) ) ) );
-
 if ( $_POST ) {
+
+	$base = trailingslashit( stripslashes( dirname( dirname( $_SERVER['SCRIPT_NAME'] ) ) ) );
+
 	check_admin_referer( 'install-network-1' );
 
 	require_once( ABSPATH . 'wp-admin/includes/upgrade.php' );

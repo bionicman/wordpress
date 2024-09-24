@@ -68,7 +68,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 				$_GET['author'] = get_current_user_id();
 		}
 
-		if ( $sticky_posts = get_option( 'sticky_posts' ) ) {
+		if ( 'post' == $post_type && $sticky_posts = get_option( 'sticky_posts' ) ) {
 			$sticky_posts = implode( ', ', array_map( 'absint', (array) $sticky_posts ) );
 			$this->sticky_posts_count = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT( 1 ) FROM $wpdb->posts WHERE post_type = %s AND ID IN ($sticky_posts)", $post_type ) );
 		}
@@ -300,7 +300,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 			'author'   => 'author',
 			'parent'   => 'parent',
 			'comments' => 'comment_count',
-			'date'     => 'date',
+			'date'     => array( 'date', true )
 		);
 	}
 
@@ -411,7 +411,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 	 * Given a top level page ID, display the nested hierarchy of sub-pages
 	 * together with paging support
 	 *
-	 * @since unknown
+	 * @since 3.1.0 (Standalone function exists since 2.6.0)
 	 *
 	 * @param unknown_type $children_pages
 	 * @param unknown_type $count
@@ -518,7 +518,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 							$find_main_page = (int) $parent->post_parent;
 
 							if ( !isset( $parent_name ) )
-								$parent_name = $parent->post_title;
+								$parent_name = apply_filters( 'the_title', $parent->post_title, $parent->ID );
 						}
 					}
 
@@ -841,7 +841,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 			<label>
 				<span class="title"><?php _e( 'Parent' ); ?></span>
 	<?php
-		$dropdown_args = array( 'post_type' => $post_type_object->name, 'selected' => $post->post_parent, 'name' => 'post_parent', 'show_option_none' => __( 'Main Page ( no parent )' ), 'option_none_value' => 0, 'sort_column'=> 'menu_order, post_title' );
+		$dropdown_args = array( 'post_type' => $post_type_object->name, 'selected' => $post->post_parent, 'name' => 'post_parent', 'show_option_none' => __( 'Main Page (no parent)' ), 'option_none_value' => 0, 'sort_column'=> 'menu_order, post_title' );
 		if ( $bulk )
 			$dropdown_args['show_option_no_change'] =  __( '&mdash; No Change &mdash;' );
 		$dropdown_args = apply_filters( 'quick_edit_dropdown_pages_args', $dropdown_args );
@@ -950,7 +950,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 					</select>
 				</label>
 
-	<?php if ( post_type_supports( $screen->post_type, 'sticky' ) && $can_publish && current_user_can( $post_type_object->cap->edit_others_posts ) ) : ?>
+	<?php if ( 'post' == $screen->post_type && $can_publish && current_user_can( $post_type_object->cap->edit_others_posts ) ) : ?>
 
 	<?php	if ( $bulk ) : ?>
 
@@ -967,12 +967,12 @@ class WP_Posts_List_Table extends WP_List_Table {
 
 				<label class="alignleft">
 					<input type="checkbox" name="sticky" value="sticky" />
-					<span class="checkbox-title"><?php _e( 'Make this sticky' ); ?></span>
+					<span class="checkbox-title"><?php _e( 'Make this post sticky' ); ?></span>
 				</label>
 
 	<?php	endif; // $bulk ?>
 
-	<?php endif; // post_type_supports(sticky) && $can_publish && current_user_can( 'edit_others_cap' ) ?>
+	<?php endif; // 'post' && $can_publish && current_user_can( 'edit_others_cap' ) ?>
 
 			</div>
 

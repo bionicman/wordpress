@@ -455,7 +455,7 @@ class wpdb {
 	/**
 	 * A textual description of the last query/get_row/get_var call
 	 *
-	 * @since unknown
+	 * @since 3.0.0
 	 * @access public
 	 * @var string
 	 */
@@ -1044,7 +1044,11 @@ class wpdb {
 <p>If you're unsure what these terms mean you should probably contact your host. If you still need help you can always visit the <a href='http://wordpress.org/support/'>WordPress Support Forums</a>.</p>
 "/*/WP_I18N_DB_CONN_ERROR*/, $this->dbhost ), 'db_connect_fail' );
 
-			//If show errors is disabled then we need to die anyway as we don't have a working DB connection
+			// If show errors is disabled then we need to die anyway as we don't have a working DB connection
+			// unless we're trying to test the initial connection, in which case setup-config.php will handle.
+			if ( defined( 'WP_SETUP_CONFIG' ) )
+				return;
+
 			die();
 		}
 

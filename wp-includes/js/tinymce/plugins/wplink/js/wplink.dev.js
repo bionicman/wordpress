@@ -2,7 +2,7 @@ var wpLink;
 
 (function($){
 	var inputs = {}, rivers = {}, ed, River, Query;
-	
+
 	wpLink = {
 		timeToTriggerRiver: 150,
 		minRiverAJAXDuration: 200,
@@ -32,22 +32,23 @@ var wpLink;
 				e.preventDefault();
 			});
 			$('#wp-link-cancel').click( wpLink.cancel );
-			
+			$('#internal-toggle a').click( wpLink.toggleInternalLinking );
+
 			rivers.elements.bind('river-select', wpLink.updateFields );
-			
+
 			inputs.search.keyup( wpLink.searchInternalLinks );
-			
+
 			inputs.dialog.bind('wpdialogrefresh', wpLink.refresh);
 		},
 
 		refresh : function() {
 			var e;
 			ed = tinyMCEPopup.editor;
-			
+
 			// Refresh rivers (clear links, check visibility)
 			rivers.search.refresh();
 			rivers.recent.refresh();
-			
+
 			tinyMCEPopup.restoreSelection();
 
 			// If link exists, select proper values.
@@ -77,7 +78,7 @@ var wpLink;
 			if ( ! rivers.recent.ul.children().length )
 				rivers.recent.ajax();
 		},
-		
+
 		cancel : function() {
 			tinyMCEPopup.close();
 		},
@@ -118,7 +119,7 @@ var wpLink;
 						ed.dom.setAttribs(e, attrs);
 					}
 				});
-				
+
 				// Sometimes WebKit lets a user create a link where
 				// they shouldn't be able to. In this case, CreateLink
 				// injects "#mce_temp_url#" into their content. Fix it.
@@ -144,7 +145,7 @@ var wpLink;
 
 		updateFields : function( e, li, originalEvent ) {
 			inputs.url.val( li.children('.item-permalink').val() );
-			inputs.title.val( li.children('.item-title').text() );
+			inputs.title.val( li.hasClass('no-title') ? '' : li.children('.item-title').text() );
 			if ( originalEvent && originalEvent.type == "click" )
 				inputs.url.focus();
 		},
@@ -177,7 +178,7 @@ var wpLink;
 				rivers.recent.show();
 			}
 		},
-		
+
 		next : function() {
 			rivers.search.next();
 			rivers.recent.next();
@@ -186,10 +187,10 @@ var wpLink;
 			rivers.search.prev();
 			rivers.recent.prev();
 		},
-		
+
 		keydown : function( event ) {
 			var fn, key = $.ui.keyCode;
-			
+
 			switch( event.which ) {
 				case key.UP:
 					fn = 'prev';
@@ -206,7 +207,7 @@ var wpLink;
 		},
 		keyup: function( event ) {
 			var key = $.ui.keyCode;
-			
+
 			switch( event.which ) {
 				case key.ESCAPE:
 					wpLink.cancel();
@@ -242,22 +243,51 @@ var wpLink;
 				funcContext = this;
 				funcTriggered = true;
 			};
+		},
+
+		toggleInternalLinking : function( event ) {
+			var panel = $('#search-panel'),
+				widget = inputs.dialog.wpdialog('widget'),
+				// We're about to toggle visibility; it's currently the opposite
+				visible = !panel.is(':visible'),
+				win = $(window);
+			
+			$(this).toggleClass('toggle-arrow-active', visible);
+			
+			inputs.dialog.height('auto');
+			panel.slideToggle( 300, function() {
+				setUserSetting('wplink', visible ? '1' : '0');
+				inputs[ visible ? 'search' : 'url' ].focus();
+				
+				// Move the box if the box is now expanded, was opened in a collapsed state,
+				// and if it needs to be moved. (Judged by bottom not being positive or
+				// bottom being smaller than top.)
+				var scroll = win.scrollTop(),
+					top = widget.offset().top,
+					bottom = top + widget.outerHeight(),
+					diff = bottom - win.height();
+				
+				if ( diff > scroll ) {
+					widget.animate({'top': diff < top ?  top - diff : scroll }, 200);
+				}
+			});
+			event.preventDefault();
 		}
 	}
-	
+
 	River = function( element, search ) {
 		var self = this;
 		this.element = element;
 		this.ul = element.children('ul');
 		this.waiting = element.find('.river-waiting');
-		
+
 		this.change( search );
 		this.refresh();
-		
+
 		element.scroll( function(){ self.maybeLoad(); });
 		element.delegate('li', 'click', function(e){ self.select( $(this), e ); });
 	};
-	
+
 	$.extend( River.prototype, {
 		refresh: function() {
 			this.deselect();
@@ -277,10 +307,10 @@ var wpLink;
 		// Selects a list item and triggers the river-select event.
 		select: function( li, event ) {
 			var liHeight, elHeight, liTop, elTop;
-			
+
 			if ( li.hasClass('unselectable') || li == this.selected )
 				return;
-			
+
 			this.deselect();
 			this.selected = li.addClass('selected');
 			// Make sure the element is visible
@@ -288,12 +318,12 @@ var wpLink;
 			elHeight = this.element.height();
 			liTop = li.position().top;
 			elTop = this.element.scrollTop();
-			
+
 			if ( liTop < 0 ) // Make first visible element
 				this.element.scrollTop( elTop + liTop );
 			else if ( liTop + liHeight > elHeight ) // Make last visible element
 				this.element.scrollTop( elTop + liTop - elHeight + liHeight );
-			
+
 			// Trigger the river-select event
 			this.element.trigger('river-select', [ li, event, this ]);
 		},
@@ -305,7 +335,7 @@ var wpLink;
 		prev: function() {
 			if ( ! this.visible )
 				return;
-			
+
 			var to;
 			if ( this.selected ) {
 				to = this.selected.prev('li');
@@ -316,7 +346,7 @@ var wpLink;
 		next: function() {
 			if ( ! this.visible )
 				return;
-			
+
 			var to = this.selected ? this.selected.next('li') : $('li:not(.unselectable):first', this.element);
 			if ( to.length )
 				this.select( to );
@@ -329,19 +359,19 @@ var wpLink;
 					if ( callback )
 						callback( results, params );
 				}, delay );
-			
+
 			this.query.ajax( response );
 		},
 		change: function( search ) {
 			if ( this.query && this._search == search )
 				return;
-			
+
 			this._search = search;
 			this.query = new Query( search );
 			this.element.scrollTop(0);
 		},
 		process: function( results, params ) {
-			var list = '', alt = true,
+			var list = '', alt = true, classes = '',
 				firstPage = params.page == 1;
 
 			if ( !results ) {
@@ -352,10 +382,12 @@ var wpLink;
 				}
 			} else {
 				$.each( results, function() {
-					list += alt ? '<li class="alternate">' : '<li>';
+					classes = alt ? 'alternate' : '';
+					classes += this['title'] ? '' : ' no-title';
+					list += classes ? '<li class="' + classes + '">' : '<li>';
 					list += '<input type="hidden" class="item-permalink" value="' + this['permalink'] + '" />';
 					list += '<span class="item-title">';
-					list += this['title'] ? this['title'] : '<em>'+ wpLinkL10n.untitled + '</em>';
+					list += this['title'] ? this['title'] : wpLinkL10n.noTitle;
 					list += '</span><span class="item-info">' + this['info'] + '</span></li>';
 					alt = ! alt;
 				});
@@ -385,14 +417,14 @@ var wpLink;
 			}, wpLink.timeToTriggerRiver );
 		}
 	});
-	
+
 	Query = function( search ) {
 		this.page = 1;
 		this.allLoaded = false;
 		this.querying = false;
 		this.search = search;
 	};
-	
+
 	$.extend( Query.prototype, {
 		ready: function() {
 			return !( this.querying || this.allLoaded );
@@ -408,7 +440,7 @@ var wpLink;
 				query.search = this.search;
 
 			this.querying = true;
-			
+
 			$.post( ajaxurl, query, function(r) {
 				self.page++;
 				self.querying = false;

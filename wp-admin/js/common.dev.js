@@ -46,18 +46,17 @@ adminMenu = {
 	},
 
 	toggle : function(el) {
-		var id = el.slideToggle(150, function() {
-			el.css('display','');
-		}).parent().toggleClass( 'wp-menu-open' ).attr('id');
-
-		if ( id ) {
-			$('li.wp-has-submenu', '#adminmenu').each(function(i, e) {
-				if ( id == e.id ) {
-				    var v = $(e).hasClass('wp-menu-open') ? 'o' : 'c';
-				    setUserSetting( 'm'+i, v );
-				}
-			});
-		}
+		el.slideToggle(150, function() {
+			var id = el.parent().toggleClass( 'wp-menu-open' ).attr('id');
+			if ( id ) {
+				$('li.wp-has-submenu', '#adminmenu').each(function(i, e) {
+					if ( id == e.id ) {
+						var v = $(e).hasClass('wp-menu-open') ? 'o' : 'c';
+						setUserSetting( 'm'+i, v );
+					}
+				});
+			}
+		});
 
 		return false;
 	},

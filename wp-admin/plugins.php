@@ -9,6 +9,9 @@
 /** WordPress Administration Bootstrap */
 require_once('./admin.php');
 
+if ( !current_user_can('activate_plugins') )
+	wp_die( __( 'You do not have sufficient permissions to manage plugins for this site.' ) );
+
 $wp_list_table = get_list_table('WP_Plugins_List_Table');
 $wp_list_table->check_permissions();
 
@@ -98,7 +101,7 @@ if ( $action ) {
 			else
 				$plugins = array();
 
-			$title = __( 'Upgrade Plugins' );
+			$title = __( 'Update Plugins' );
 			$parent_file = 'plugins.php';
 
 			require_once(ABSPATH . 'wp-admin/admin-header.php');
@@ -236,11 +239,11 @@ if ( $action ) {
 						foreach ( $plugin_info as $plugin ) {
 							if ( $plugin['is_uninstallable'] ) {
 								/* translators: 1: plugin name, 2: plugin author */
-								echo '<li>', sprintf( __( '<strong>%1$s</strong> by <em>%2$s</em> (will also <strong>delete its data</strong>)' ), esc_html($plugin['Name']), esc_html($plugin['Author']) ), '</li>';
+								echo '<li>', sprintf( __( '<strong>%1$s</strong> by <em>%2$s</em> (will also <strong>delete its data</strong>)' ), esc_html($plugin['Name']), esc_html($plugin['AuthorName']) ), '</li>';
 								$data_to_delete = true;
 							} else {
 								/* translators: 1: plugin name, 2: plugin author */
-								echo '<li>', sprintf( __('<strong>%1$s</strong> by <em>%2$s</em>' ), esc_html($plugin['Name']), esc_html($plugin['Author']) ), '</li>';
+								echo '<li>', sprintf( __('<strong>%1$s</strong> by <em>%2$s</em>' ), esc_html($plugin['Name']), esc_html($plugin['AuthorName']) ), '</li>';
 							}
 						}
 						?>
@@ -357,21 +360,27 @@ if ( !empty($invalid) )
 
 <div class="wrap">
 <?php screen_icon(); ?>
-<h2><?php echo esc_html( $title ); if ( current_user_can('install_plugins') ) { ?> <a href="plugin-install.php" class="button add-new-h2"><?php echo esc_html_x('Add New', 'plugin'); ?></a><?php } ?></h2>
-
-<form method="get" action="">
-<p class="search-box">
-	<label class="screen-reader-text" for="plugin-search-input"><?php _e( 'Search Plugins' ); ?>:</label>
-	<input type="text" id="plugin-search-input" name="s" value="<?php _admin_search_query(); ?>" />
-	<?php submit_button( __( 'Search Installed Plugins' ), 'button', '', false ); ?>
-</p>
-</form>
+<h2><?php echo esc_html( $title );
+if ( ( ! is_multisite() || is_network_admin() ) && current_user_can('install_plugins') ) { ?>
+<a href="<?php echo self_admin_url( 'plugin-install.php' ); ?>" class="button add-new-h2"><?php echo esc_html_x('Add New', 'plugin'); ?></a>
+<?php } ?></h2>
 
 <?php do_action( 'pre_current_active_plugins', $plugins['all'] ) ?>
 
 <?php $wp_list_table->views(); ?>
 
 <form method="post" action="">
+
+<?php if ( $wp_list_table->has_items() ) : ?>
+
+<p class="search-box">
+	<label class="screen-reader-text" for="plugin-search-input"><?php _e( 'Search Plugins' ); ?>:</label>
+	<input type="text" id="plugin-search-input" name="s" value="<?php _admin_search_query(); ?>" />
+	<?php submit_button( __( 'Search Installed Plugins' ), 'button', '', false ); ?>
+</p>
+
+<?php endif; ?>
+
 <input type="hidden" name="plugin_status" value="<?php echo esc_attr($status) ?>" />
 <input type="hidden" name="paged" value="<?php echo esc_attr($page) ?>" />
 

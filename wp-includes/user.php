@@ -106,7 +106,8 @@ function wp_authenticate_username_password($user, $username, $password) {
 		return $userdata;
 
 	if ( !wp_check_password($password, $userdata->user_pass, $userdata->ID) )
-		return new WP_Error('incorrect_password', sprintf(__('<strong>ERROR</strong>: Incorrect password. <a href="%s" title="Password Lost and Found">Lost your password</a>?'), site_url('wp-login.php?action=lostpassword', 'login')));
+		return new WP_Error( 'incorrect_password', sprintf( __( '<strong>ERROR</strong>: The password you entered for the username <strong>%1$s</strong> is incorrect. <a href="%2$s" title="Password Lost and Found">Lost your password</a>?' ),
+		$username, site_url( 'wp-login.php?action=lostpassword', 'login' ) ) );
 
 	$user =  new WP_User($userdata->ID);
 	return $user;
@@ -411,7 +412,7 @@ class WP_User_Query {
 		// sorting
 		if ( in_array( $qv['orderby'], array('email', 'url', 'registered') ) ) {
 			$orderby = 'user_' . $qv['orderby'];
-		} elseif ( 'name' == $qv['orderby'] ) {
+		} elseif ( 'name' == $qv['orderby'] || 'display_name' == $qv['orderby'] ) {
 			$orderby = 'display_name';
 		} elseif ( 'post_count' == $qv['orderby'] ) {
 			$where = get_posts_by_author_sql('post');
@@ -468,7 +469,7 @@ class WP_User_Query {
 		$role = trim( $qv['role'] );
 		$blog_id = absint( $qv['blog_id'] );
 
-		if ( $blog_id ) {
+		if ( $blog_id && ( $role || is_multisite() ) ) {
 			$cap_meta_query = array();
 			$cap_meta_query['key'] = $wpdb->get_blog_prefix( $blog_id ) . 'capabilities';
 
@@ -546,7 +547,7 @@ class WP_User_Query {
 			if ( 'ID' == $col )
 				$searches[] = "$col = '$string'";
 			else
-				$searches[] = "$col LIKE '$string$wild_char'";
+				$searches[] = "$col LIKE '" . like_escape($string) . "$wild_char'";
 		}
 
 		return ' AND (' . implode(' OR ', $searches) . ')';
@@ -927,15 +928,13 @@ function setup_userdata($for_user_id = '') {
  * The available arguments are as follows:
  * <ol>
  * <li>show_option_all - Text to show all and whether HTML option exists.</li>
- * <li>show_option_none - Text for show none and whether HTML option exists.
- *     </li>
- * <li>orderby - SQL order by clause for what order the users appear. Default is
- * 'display_name'.</li>
+ * <li>show_option_none - Text for show none and whether HTML option exists.</li>
+ * <li>orderby - SQL order by clause for what order the users appear. Default is 'display_name'.</li>
  * <li>order - Default is 'ASC'. Can also be 'DESC'.</li>
  * <li>include - User IDs to include.</li>
  * <li>exclude - User IDs to exclude.</li>
  * <li>multi - Default is 'false'. Whether to skip the ID attribute on the 'select' element. A 'true' value is overridden when id argument is set.</li>
- * <li>show - Default is 'display_name'. User table column to display. If the selected item is empty then the user_login will be displayed in parentesis</li>
+ * <li>show - Default is 'display_name'. User table column to display. If the selected item is empty then the user_login will be displayed in parentheses</li>
  * <li>echo - Default is '1'. Whether to display or retrieve content.</li>
  * <li>selected - Which User ID is selected.</li>
  * <li>name - Default is 'user'. Name attribute of select element.</li>
@@ -966,7 +965,7 @@ function wp_dropdown_users( $args = '' ) {
 	$r = wp_parse_args( $args, $defaults );
 	extract( $r, EXTR_SKIP );
 
-	$users = get_users( wp_array_slice_assoc( $args, array( 'blog_id', 'include', 'exclude', 'orderby', 'order' ) ) );
+	$users = get_users( wp_array_slice_assoc( $r, array( 'blog_id', 'include', 'exclude', 'orderby', 'order' ) ) );
 
 	$output = '';
 	if ( !empty($users) ) {
@@ -1037,10 +1036,9 @@ function get_user_metavalues($ids) {
 	foreach ( $ids as $id )
 		$objects[$id] = array();
 
-	update_meta_cache('user', $ids);
+	$metas = update_meta_cache('user', $ids);
 
-	foreach ( $ids as $id ) {
-		$meta = get_metadata('user', $id);
+	foreach ( $metas as $id => $meta ) {
 		foreach ( $meta as $key => $metavalues ) {
 			foreach ( $metavalues as $value ) {
 				$objects[$id][] = (object)array( 'user_id' => $id, 'meta_key' => $key, 'meta_value' => $value);

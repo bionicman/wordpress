@@ -1642,7 +1642,7 @@ function status_header( $header ) {
  * The several different headers cover the different ways cache prevention is handled
  * by different browsers
  *
- * @since 2.8
+ * @since 2.8.0
  *
  * @uses apply_filters()
  * @return array The associative array of header names and field values.
@@ -2216,7 +2216,7 @@ function wp_upload_dir( $time = null ) {
  * The callback is passed three parameters, the first one is the directory, the
  * second is the filename, and the third is the extension.
  *
- * @since 2.5
+ * @since 2.5.0
  *
  * @param string $dir
  * @param string $filename
@@ -2596,7 +2596,7 @@ function wp_explain_nonce( $action ) {
 		$trans['edit']['plugin']       = array( __( 'Your attempt to edit this plugin file: &#8220;%s&#8221; has failed.' ), 'use_id' );
 		$trans['activate']['plugin']   = array( __( 'Your attempt to activate this plugin: &#8220;%s&#8221; has failed.' ), 'use_id' );
 		$trans['deactivate']['plugin'] = array( __( 'Your attempt to deactivate this plugin: &#8220;%s&#8221; has failed.' ), 'use_id' );
-		$trans['upgrade']['plugin']    = array( __( 'Your attempt to upgrade this plugin: &#8220;%s&#8221; has failed.' ), 'use_id' );
+		$trans['upgrade']['plugin']    = array( __( 'Your attempt to update this plugin: &#8220;%s&#8221; has failed.' ), 'use_id' );
 
 		$trans['add']['post']          = array( __( 'Your attempt to add this post has failed.' ), false );
 		$trans['delete']['post']       = array( __( 'Your attempt to delete this post: &#8220;%s&#8221; has failed.' ), 'get_the_title' );
@@ -3422,6 +3422,34 @@ function apache_mod_loaded($mod, $default = false) {
 }
 
 /**
+ * Check if IIS 7 supports pretty permalinks
+ *
+ * @since 2.8.0
+ *
+ * @return bool
+ */
+function iis7_supports_permalinks() {
+	global $is_iis7;
+
+	$supports_permalinks = false;
+	if ( $is_iis7 ) {
+		/* First we check if the DOMDocument class exists. If it does not exist,
+		 * which is the case for PHP 4.X, then we cannot easily update the xml configuration file,
+		 * hence we just bail out and tell user that pretty permalinks cannot be used.
+		 * This is not a big issue because PHP 4.X is going to be depricated and for IIS it
+		 * is recommended to use PHP 5.X NTS.
+		 * Next we check if the URL Rewrite Module 1.1 is loaded and enabled for the web site. When
+		 * URL Rewrite 1.1 is loaded it always sets a server variable called 'IIS_UrlRewriteModule'.
+		 * Lastly we make sure that PHP is running via FastCGI. This is important because if it runs
+		 * via ISAPI then pretty permalinks will not work.
+		 */
+		$supports_permalinks = class_exists('DOMDocument') && isset($_SERVER['IIS_UrlRewriteModule']) && ( php_sapi_name() == 'cgi-fcgi' );
+	}
+
+	return apply_filters('iis7_supports_permalinks', $supports_permalinks);
+}
+
+/**
  * File validates against allowed set of defined rules.
  *
  * A return value of '1' means that the $file contains either '..' or './'. A
@@ -4191,29 +4219,21 @@ function wp_scheduled_delete() {
 }
 
 /**
- * Parse the file contents to retrieve its metadata.
+ * Retrieve metadata from a file.
  *
- * Searches for metadata for a file, such as a plugin or theme.  Each piece of
- * metadata must be on its own line. For a field spanning multple lines, it
- * must not have any newlines or only parts of it will be displayed.
+ * Searches for metadata in the first 8kiB of a file, such as a plugin or theme.
+ * Each piece of metadata must be on its own line. Fields can not span multple
+ * lines, the value will get cut at the end of the first line.
  *
- * Some users have issues with opening large files and manipulating the contents
- * for want is usually the first 1kiB or 2kiB. This function stops pulling in
- * the file contents when it has all of the required data.
+ * If the file data is not within that first 8kiB, then the author should correct
+ * their plugin file and move the data headers to the top.
  *
- * The first 8kiB of the file will be pulled in and if the file data is not
- * within that first 8kiB, then the author should correct their plugin file
- * and move the data headers to the top.
- *
- * The file is assumed to have permissions to allow for scripts to read
- * the file. This is not checked however and the file is only opened for
- * reading.
+ * @see http://codex.wordpress.org/File_Header
  *
  * @since 2.9.0
- *
  * @param string $file Path to the file
- * @param array $default_headers Default metadata headers
- * @param string $context If specified adds filter hook "extra_<$context>_headers"
+ * @param array $default_headers List of headers, in the format array('HeaderKey' => 'Header Name')
+ * @param string $context If specified adds filter hook "extra_{$context}_headers"
  */
 function get_file_data( $file, $default_headers, $context = '' ) {
 	// We don't need to write to the file, so just open for reading.

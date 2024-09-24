@@ -54,6 +54,7 @@ if ( isset( $_REQUEST['updated'] ) && $_REQUEST['updated'] == 'true' && ! empty(
 		break;
 		case 'delete':
 			$msg = __( 'Site deleted.' );
+		break;
 		case 'not_deleted':
 			$msg = __( 'You do not have permission to delete that site.' );
 		break;
@@ -76,7 +77,7 @@ if ( isset( $_REQUEST['updated'] ) && $_REQUEST['updated'] == 'true' && ! empty(
 			$msg = __( 'Site marked as spam.' );
 		break;
 		default:
-			$msg = __( 'Settings saved.' );
+			$msg = apply_filters( 'network_sites_updated_message_' . $_REQUEST['action'] , __( 'Settings saved.' ) );
 		break;
 	}
 	if ( $msg )
@@ -93,7 +94,7 @@ require_once( '../admin-header.php' );
 <h2><?php _e('Sites') ?>
 <?php echo $msg; ?>
 <?php if ( current_user_can( 'create_sites') ) : ?>
-        <a href="<?php echo network_admin_url('site-new.php'); ?>" class="button add-new-h2"><?php echo esc_html_x( 'Add New', 'sites' ); ?></a>
+        <a href="<?php echo network_admin_url('site-new.php'); ?>" class="button add-new-h2"><?php echo esc_html_x( 'Add New', 'site' ); ?></a>
 <?php endif; ?>
 
 <?php if ( isset( $_REQUEST['s'] ) && $_REQUEST['s'] ) {

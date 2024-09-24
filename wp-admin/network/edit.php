@@ -13,8 +13,10 @@ require_once( './admin.php' );
 if ( ! is_multisite() )
 	wp_die( __( 'Multisite support is not enabled.' ) );
 
-if ( empty( $_GET['action'] ) )
+if ( empty( $_GET['action'] ) ) {
 	wp_redirect( admin_url( 'index.php' ) );
+	exit;
+}
 
 function confirm_delete_users( $users ) {
 	$current_user = wp_get_current_user();
@@ -56,7 +58,7 @@ function confirm_delete_users( $users ) {
 						$user_dropdown = "<select name='blog[$val][{$key}]'>";
 						$user_list = '';
 						foreach ( $blog_users as $user ) {
-							if ( $user->user_id != $val && !in_array( $user->id, $allusers ) )
+							if ( ! in_array( $user->id, $allusers ) )
 								$user_list .= "<option value='{$user->id}'>{$user->user_login}</option>";
 						}
 						if ( '' == $user_list )
@@ -100,7 +102,7 @@ switch ( $_GET['action'] ) {
 			wp_die( __( 'You do not have permission to access this page.' ) );
 
 		if ( empty( $_POST ) )
-			wp_die( sprintf( __( 'You probably need to go back to the <a href="%s">options page</a>.', esc_url( admin_url( 'settings.php' ) ) ) ) );
+			wp_die( sprintf( __( 'You probably need to go back to the <a href="%s">options page</a>.' ), esc_url( admin_url( 'settings.php' ) ) ) );
 
 		if ( isset($_POST['WPLANG']) && ( '' === $_POST['WPLANG'] || in_array( $_POST['WPLANG'], get_available_languages() ) ) )
 			update_site_option( 'WPLANG', $_POST['WPLANG'] );
@@ -178,7 +180,7 @@ switch ( $_GET['action'] ) {
 		} else {
 			wp_redirect( add_query_arg( array( 'updated' => 'true', 'action' => 'not_deleted' ), wp_get_referer() ) );
 		}
-		
+
 		exit();
 	break;
 
@@ -221,10 +223,10 @@ switch ( $_GET['action'] ) {
 			}
 
 			wp_redirect( add_query_arg( array( 'updated' => 'true', 'action' => $blogfunction ), wp_get_referer() ) );
-			exit();
 		} else {
 			wp_redirect( network_admin_url( 'sites.php' ) );
 		}
+		exit();
 	break;
 
 	case 'archiveblog':
@@ -343,6 +345,7 @@ switch ( $_GET['action'] ) {
 			</body>
 		</html>
 		<?php
+		exit();
 	break;
 
 	// Users
@@ -361,10 +364,10 @@ switch ( $_GET['action'] ) {
 			confirm_delete_users( $_POST['allusers'] );
 			echo '</div>';
             require_once( '../admin-footer.php' );
-            exit();
-		} else {
+  		} else {
 			wp_redirect( network_admin_url( 'users.php' ) );
 		}
+		exit();
 	break;
 
 	case 'allusers':
@@ -420,10 +423,10 @@ switch ( $_GET['action'] ) {
 			}
 
 			wp_redirect( add_query_arg( array( 'updated' => 'true', 'action' => $userfunction ), wp_get_referer() ) );
-			exit();
 		} else {
 			wp_redirect( network_admin_url( 'users.php' ) );
 		}
+		exit();
 	break;
 
 	case 'dodelete':
@@ -459,10 +462,14 @@ switch ( $_GET['action'] ) {
 			$deletefunction = 'all_delete';
 
 		wp_redirect( add_query_arg( array( 'updated' => 'true', 'action' => $deletefunction ), network_admin_url( 'users.php' ) ) );
+		exit();
 	break;
 
 	default:
+		// Let plugins use us as a post handler easily
+		do_action( 'network_admin_edit_' . $_GET['action'] );
 		wp_redirect( network_admin_url( 'index.php' ) );
+		exit();
 	break;
 }
 ?>

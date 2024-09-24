@@ -13,6 +13,7 @@ if ( !current_user_can('edit_posts') )
 
 $wp_list_table = get_list_table('WP_Comments_List_Table');
 $wp_list_table->check_permissions();
+$pagenum = $wp_list_table->get_pagenum();
 
 $doaction = $wp_list_table->current_action();
 
@@ -35,7 +36,9 @@ if ( $doaction ) {
 	}
 
 	$approved = $unapproved = $spammed = $unspammed = $trashed = $untrashed = $deleted = 0;
+
 	$redirect_to = remove_query_arg( array( 'trashed', 'untrashed', 'deleted', 'spammed', 'unspammed', 'approved', 'unapproved', 'ids' ), wp_get_referer() );
+	$redirect_to = add_query_arg( 'paged', $pagenum, $redirect_to );
 
 	foreach ( $comment_ids as $comment_id ) { // Check the permissions on each
 		if ( !current_user_can( 'edit_comment', $comment_id ) )
@@ -99,6 +102,12 @@ if ( $doaction ) {
 
 $wp_list_table->prepare_items();
 
+$total_pages = $wp_list_table->get_pagination_arg( 'total_pages' );
+if ( $pagenum > $total_pages && $total_pages > 0 ) {
+	wp_redirect( add_query_arg( 'paged', $total_pages ) );
+	exit;
+}
+
 wp_enqueue_script('admin-comments');
 enqueue_comment_hotkeys_js();
 
@@ -126,7 +135,17 @@ require_once('./admin-header.php');
 
 <div class="wrap">
 <?php screen_icon(); ?>
-<h2><?php echo esc_html( $title );
+<h2><?php
+if ( $post_id )
+	echo sprintf(__('Comments on &#8220;%s&#8221;'),
+		sprintf('<a href="%s">%s</a>',
+			get_edit_post_link($post_id),
+			wp_html_excerpt(_draft_or_post_title($post_id), 50)
+		)
+	);
+else
+	echo __('Comments');
+
 if ( isset($_REQUEST['s']) && $_REQUEST['s'] )
 	printf( '<span class="subtitle">' . sprintf( __( 'Search results for &#8220;%s&#8221;' ), wp_html_excerpt( esc_html( stripslashes( $_REQUEST['s'] ) ), 50 ) ) . '</span>' ); ?>
 </h2>
@@ -201,12 +220,17 @@ if ( isset($_REQUEST['approved']) || isset($_REQUEST['deleted']) || isset($_REQU
 <?php $wp_list_table->views(); ?>
 
 <form id="comments-form" action="" method="post">
+
+<?php if ( $wp_list_table->has_items() ) : ?>
+
 <p class="search-box">
 	<label class="screen-reader-text" for="comment-search-input"><?php _e( 'Search Comments' ); ?>:</label>
 	<input type="text" id="comment-search-input" name="s" value="<?php _admin_search_query(); ?>" />
 	<?php submit_button( __( 'Search Comments' ), 'button', 'submit', false ); ?>
 </p>
-<input type="hidden" name="mode" value="<?php echo esc_attr($mode); ?>" />
+
+<?php endif; ?>
+
 <?php if ( $post_id ) : ?>
 <input type="hidden" name="p" value="<?php echo esc_attr( intval( $post_id ) ); ?>" />
 <?php endif; ?>

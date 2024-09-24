@@ -104,9 +104,12 @@ function twentyten_setup() {
 	add_custom_background();
 
 	// Your changeable header business starts here
-	define( 'HEADER_TEXTCOLOR', '' );
+	if ( ! defined( 'HEADER_TEXTCOLOR' ) )
+		define( 'HEADER_TEXTCOLOR', '' );
+
 	// No CSS, just IMG call. The %s is a placeholder for the theme template directory URI.
-	define( 'HEADER_IMAGE', '%s/images/headers/path.jpg' );
+	if ( ! defined( 'HEADER_IMAGE' ) )
+		define( 'HEADER_IMAGE', '%s/images/headers/path.jpg' );
 
 	// The height and width of your custom header. You can hook into the theme's own filters to change these values.
 	// Add a filter to twentyten_header_image_width and twentyten_header_image_height to change these values.
@@ -119,7 +122,8 @@ function twentyten_setup() {
 	set_post_thumbnail_size( HEADER_IMAGE_WIDTH, HEADER_IMAGE_HEIGHT, true );
 
 	// Don't support text inside the header image.
-	define( 'NO_HEADER_TEXT', true );
+	if ( ! defined( 'NO_HEADER_TEXT' ) )
+		define( 'NO_HEADER_TEXT', true );
 
 	// Add a way for the custom header to be styled in the admin panel that controls
 	// custom headers. See twentyten_admin_header_style(), below.
@@ -278,15 +282,27 @@ add_filter( 'get_the_excerpt', 'twentyten_custom_excerpt_more' );
 /**
  * Remove inline styles printed when the gallery shortcode is used.
  *
- * Galleries are styled by the theme in Twenty Ten's style.css.
+ * Galleries are styled by the theme in Twenty Ten's style.css. This is just
+ * a simple filter call that tells WordPress to not use the default styles.
+ *
+ * @since Twenty Ten 1.3
+ */
+add_filter( 'use_default_gallery_style', '__return_false' );
+
+/**
+ * Deprecated way to remove inline styles printed when the gallery shortcode is used.
+ *
+ * This function is no longer needed or used. Use the use_default_gallery_style
+ * filter instead, as seen above.
  *
  * @since Twenty Ten 1.0
+ * @deprecated Deprecated in Twenty Ten 1.3 for WordPress 3.1
+ *
  * @return string The gallery style filter, with the styles themselves removed.
  */
 function twentyten_remove_gallery_css( $css ) {
 	return preg_replace( "#<style type='text/css'>(.*?)</style>#s", '', $css );
 }
-add_filter( 'gallery_style', 'twentyten_remove_gallery_css' );
 
 if ( ! function_exists( 'twentyten_comment' ) ) :
 /**

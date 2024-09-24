@@ -171,7 +171,7 @@ commentsBox = {
 			'action' : 'get-comments',
 			'mode' : 'single',
 			'_ajax_nonce' : $('#add_comment_nonce').val(),
-			'post_ID' : $('#post_ID').val(),
+			'p' : $('#post_ID').val(),
 			'start' : st,
 			'num' : num
 		};
@@ -476,27 +476,6 @@ jQuery(document).ready( function($) {
 
 		$('input:radio', '#post-visibility-select').change(function() {
 			updateVisibility();
-		});
-
-		$('.edit-post-format', '#post-formats').click(function () {
-			$('#post-formats-select').slideDown("normal");
-			$(this).hide();
-			return false;
-		});
-
-		$('.cancel-post-format', '#post-formats-select').click(function () {
-			$('#post-formats-select').slideUp("normal");
-			$('#post-format-' + $('#old-post-format').val()).attr('checked', true);
-			$('#post-format-display').text( $('label[for="post-format-' + $('#old-post-format').val() + '"]', '#post-formats-select').text() );
-			$('.edit-post-format').show();
-			return false;
-		});
-
-		$('.save-post-format', '#post-formats-select').click(function () {
-			$('#post-formats-select').slideUp("normal");
-			$('#post-format-display').text( $('label[for="' + $('input:checked', '#post-formats-select').attr('id') + '"]', '#post-formats-select').text() );
-			$('.edit-post-format').show();
-			return false;
 		});
 
 		$('#timestampdiv').siblings('a.edit-timestamp').click(function() {

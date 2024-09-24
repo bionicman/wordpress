@@ -63,7 +63,7 @@ $menu[5] = array( __('Posts'), 'edit_posts', 'edit.php', '', 'open-if-no-js menu
 	$submenu['edit.php'][10]  = array( _x('Add New', 'post'), 'edit_posts', 'post-new.php' );
 
 	$i = 15;
-	foreach ( $wp_taxonomies as $tax ) {
+	foreach ( get_taxonomies( array(), 'objects' ) as $tax ) {
 		if ( ! $tax->show_ui || ! in_array('post', (array) $tax->object_type, true) )
 			continue;
 
@@ -87,7 +87,7 @@ $menu[20] = array( __('Pages'), 'edit_pages', 'edit.php?post_type=page', '', 'me
 	/* translators: add new page */
 	$submenu['edit.php?post_type=page'][10] = array( _x('Add New', 'page'), 'edit_pages', 'post-new.php?post_type=page' );
 	$i = 15;
-	foreach ( $wp_taxonomies as $tax ) {
+	foreach ( get_taxonomies( array(), 'objects' ) as $tax ) {
 		if ( ! $tax->show_ui || ! in_array('page', (array) $tax->object_type, true) )
 			continue;
 
@@ -127,7 +127,7 @@ foreach ( (array) get_post_types( array('show_ui' => true, '_builtin' => false, 
 	$submenu["edit.php?post_type=$ptype"][10]  = array( $ptype_obj->labels->add_new, $ptype_obj->cap->edit_posts, "post-new.php?post_type=$ptype" );
 
 	$i = 15;
-	foreach ( $wp_taxonomies as $tax ) {
+	foreach ( get_taxonomies( array(), 'objects' ) as $tax ) {
 		if ( ! $tax->show_ui || ! in_array($ptype, (array) $tax->object_type, true) )
 			continue;
 
@@ -151,7 +151,8 @@ if ( current_user_can( 'switch_themes') ) {
 }
 
 // Add 'Editor' to the bottom of the Appearence menu.
-add_action('admin_menu', '_add_themes_utility_last', 101);
+if ( ! is_multisite() )
+	add_action('admin_menu', '_add_themes_utility_last', 101);
 function _add_themes_utility_last() {
 	// Must use API on the admin_menu hook, direct modification is only possible on/before the _admin_menu hook
 	add_submenu_page('themes.php', _x('Editor', 'theme editor'), _x('Editor', 'theme editor'), 'edit_themes', 'theme-editor.php');
@@ -168,10 +169,12 @@ if ( is_super_admin() || ( is_multisite() && isset($menu_perms['plugins']) && $m
 	if ( is_multisite() )
 		$count = '';
 	$menu[65] = array( sprintf( __('Plugins %s'), $count ), 'activate_plugins', 'plugins.php', '', 'menu-top menu-icon-plugins', 'menu-plugins', 'div' );
-		$submenu['plugins.php'][5]  = array( __('Plugins'), 'activate_plugins', 'plugins.php' );
-		/* translators: add new plugin */
-		$submenu['plugins.php'][10] = array(_x('Add New', 'plugin'), 'install_plugins', 'plugin-install.php');
-		$submenu['plugins.php'][15] = array( _x('Editor', 'plugin editor'), 'edit_plugins', 'plugin-editor.php' );
+		if ( ! is_multisite() ) {
+			/* translators: add new plugin */
+			$submenu['plugins.php'][5]  = array( __('Plugins'), 'activate_plugins', 'plugins.php' );
+			$submenu['plugins.php'][10] = array( _x('Add New', 'plugin'), 'install_plugins', 'plugin-install.php' );
+			$submenu['plugins.php'][15] = array( _x('Editor', 'plugin editor'), 'edit_plugins', 'plugin-editor.php' );
+		}
 }
 unset($menu_perms, $update_plugins, $update_count);
 

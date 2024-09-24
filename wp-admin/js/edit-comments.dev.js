@@ -210,10 +210,26 @@ setCommentsList = function() {
 
 		theList.get(0).wpList.add( theExtraList.children(':eq(0)').remove().clone() );
 
-		// Refill the extra list
-		var args = $.query.get();
-		args.number = 1;
-		args.paged++;
+		refillTheExtraList();
+	};
+	
+	var refillTheExtraList = function(ev) {
+		var args = $.query.get(), total_pages = listTable.get_total_pages(), per_page = $('input[name=_per_page]', '#comments-form').val();
+		
+		if (args.paged > total_pages) {
+			return;
+		}
+
+		if (ev) {
+			theExtraList.empty();
+			args.number = Math.min(8, per_page); // see WP_Comments_List_Table::prepare_items() @ class-wp-comments-list-table.php
+		} else {
+			args.number = 1;
+			args.offset = per_page - 1; // fetch only the last item of the next page
+		}
+		
+		args.paged ++;
+
 		listTable.fetch_list(args, function(response) {
 			theExtraList.get(0).wpList.add( response.rows );
 		});
@@ -227,6 +243,7 @@ setCommentsList = function() {
 			if ( s.target.className.indexOf(':trash=1') != -1 || s.target.className.indexOf(':spam=1') != -1 )
 				$('#undo-' + id).fadeIn(300, function(){ $(this).show() });
 		});
+	$(listTable).bind('changePage', refillTheExtraList);
 };
 
 commentReply = {
@@ -395,6 +412,7 @@ commentReply = {
 		post.content = $('#replycontent').val();
 		post.id = post.comment_post_ID;
 		post.comments_listing = this.comments_listing;
+		post.p = $('[name=p]').val();
 
 		$.ajax({
 			type : 'POST',
@@ -491,14 +509,14 @@ $(document).ready(function(){
 			return function() {
 				var scope = $('select[name="action"]');
 				$('option[value='+value+']', scope).attr('selected', 'selected');
-				$('#comments-form').submit();
+				$('#doaction').click();
 			}
 		};
 
 		$.table_hotkeys(
 			$('table.widefat'),
 			['a', 'u', 's', 'd', 'r', 'q', 'z', ['e', edit_comment], ['shift+x', toggle_all],
-			['shift+a', make_bulk('approve')], ['shift+s', make_bulk('markspam')],
+			['shift+a', make_bulk('approve')], ['shift+s', make_bulk('spam')],
 			['shift+d', make_bulk('delete')], ['shift+t', make_bulk('trash')],
 			['shift+z', make_bulk('untrash')], ['shift+u', make_bulk('unapprove')]],
 			{ highlight_first: adminCommentsL10n.hotkeys_highlight_first, highlight_last: adminCommentsL10n.hotkeys_highlight_last,

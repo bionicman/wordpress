@@ -17,7 +17,7 @@ class WP_MS_Users_List_Table extends WP_List_Table {
 	}
 
 	function prepare_items() {
-		global $usersearch, $role, $wpdb;
+		global $usersearch, $role, $wpdb, $mode;
 
 		$usersearch = isset( $_REQUEST['s'] ) ? $_REQUEST['s'] : '';
 
@@ -54,6 +54,8 @@ class WP_MS_Users_List_Table extends WP_List_Table {
 
 		if ( isset( $_REQUEST['order'] ) )
 			$args['order'] = $_REQUEST['order'];
+
+		$mode = empty( $_REQUEST['mode'] ) ? 'list' : $_REQUEST['mode'];
 
 		// Query the user IDs for this page
 		$wp_user_search = new WP_User_Query( $args );
@@ -109,7 +111,7 @@ class WP_MS_Users_List_Table extends WP_List_Table {
 	function get_columns() {
 		$users_columns = array(
 			'cb'         => '<input type="checkbox" />',
-			'login'      => __( 'Username' ),
+			'username'   => __( 'Username' ),
 			'name'       => __( 'Name' ),
 			'email'      => __( 'E-mail' ),
 			'registered' => _x( 'Registered', 'user' ),
@@ -122,7 +124,7 @@ class WP_MS_Users_List_Table extends WP_List_Table {
 
 	function get_sortable_columns() {
 		return array(
-			'login'      => 'login',
+			'username'   => 'login',
 			'name'       => 'name',
 			'email'      => 'email',
 			'registered' => 'id',
@@ -132,30 +134,33 @@ class WP_MS_Users_List_Table extends WP_List_Table {
 	function display_rows() {
 		global $current_site, $mode;
 
-		$class = '';
+		$alt = '';
 		$super_admins = get_super_admins();
 		foreach ( $this->items as $user ) {
-			$class = ( 'alternate' == $class ) ? '' : 'alternate';
+			$alt = ( 'alternate' == $alt ) ? '' : 'alternate';
 
 			$status_list = array( 'spam' => 'site-spammed', 'deleted' => 'site-deleted' );
 
 			foreach ( $status_list as $status => $col ) {
 				if ( $user->$status )
-					$class = $col;
+					$alt .= " $col";
 			}
 
 			?>
-			<tr class="<?php echo $class; ?>">
+			<tr class="<?php echo $alt; ?>">
 			<?php
 
 			list( $columns, $hidden ) = $this->get_column_info();
 
 			foreach ( $columns as $column_name => $column_display_name ) :
+				$class = "class='$column_name column-$column_name'";
+
 				$style = '';
 				if ( in_array( $column_name, $hidden ) )
 					$style = ' style="display:none;"';
 
 				$attributes = "$class$style";
+
 
 				switch ( $column_name ) {
 					case 'cb': ?>
@@ -165,18 +170,11 @@ class WP_MS_Users_List_Table extends WP_List_Table {
 					<?php
 					break;
 
-					case 'id': ?>
-						<th valign="top" scope="row">
-							<?php echo $user->ID ?>
-						</th>
-					<?php
-					break;
-
-					case 'login':
+					case 'username':
 						$avatar	= get_avatar( $user->user_email, 32 );
 						$edit_link = ( get_current_user_id() == $user->ID ) ? 'profile.php' : 'user-edit.php?user_id=' . $user->ID;
-						?>
-						<td class="username column-username">
+
+						echo "<td $attributes>"; ?>
 							<?php echo $avatar; ?><strong><a href="<?php echo esc_url( self_admin_url( $edit_link ) ); ?>" class="edit"><?php echo stripslashes( $user->user_login ); ?></a><?php
 							if ( in_array( $user->user_login, $super_admins ) )
 								echo ' - ' . __( 'Super Admin' );
@@ -197,14 +195,12 @@ class WP_MS_Users_List_Table extends WP_List_Table {
 					<?php
 					break;
 
-					case 'name': ?>
-						<td class="name column-name"><?php echo "$user->first_name $user->last_name"; ?></td>
-					<?php
+					case 'name':
+						echo "<td $attributes>$user->first_name $user->last_name</td>";
 					break;
 
-					case 'email': ?>
-						<td class="email column-email"><a href="mailto:<?php echo $user->user_email ?>"><?php echo $user->user_email ?></a></td>
-					<?php
+					case 'email':
+						echo "<td $attributes><a href='mailto:$user->user_email'>$user->user_email</a></td>";
 					break;
 
 					case 'registered':
@@ -212,32 +208,47 @@ class WP_MS_Users_List_Table extends WP_List_Table {
 							$date = 'Y/m/d';
 						else
 							$date = 'Y/m/d \<\b\r \/\> g:i:s a';
-					?>
-						<td><?php echo mysql2date( $date, $user->user_registered ); ?></td>
-					<?php
+
+						echo "<td $attributes>" . mysql2date( $date, $user->user_registered ) . "</td>";
 					break;
 
 					case 'blogs':
 						$blogs = get_blogs_of_user( $user->ID, true );
-						?>
-						<td>
-							<?php
+						echo "<td $attributes>";
 							if ( is_array( $blogs ) ) {
 								foreach ( (array) $blogs as $key => $val ) {
+									if ( !can_edit_network( $val->site_id ) )
+										continue;
+
 									$path	= ( $val->path == '/' ) ? '' : $val->path;
+									echo '<span class="site-' . $val->site_id . '" >';
 									echo '<a href="'. esc_url( network_admin_url( 'site-info.php?id=' . $val->userblog_id ) ) .'">' . str_replace( '.' . $current_site->domain, '', $val->domain . $path ) . '</a>';
 									echo ' <small class="row-actions">';
+									$actions = array();
+									$actions['edit'] = '<a href="'. esc_url( network_admin_url( 'site-info.php?id=' . $val->userblog_id ) ) .'">' . __( 'Edit' ) . '</a>';
 
-									// Edit
-									echo '<a href="'. esc_url( network_admin_url( 'site-info.php?id=' . $val->userblog_id ) ) .'">' . __( 'Edit' ) . '</a> | ';
-
-									// View
-									echo '<a ';
+									$class = '';
 									if ( get_blog_status( $val->userblog_id, 'spam' ) == 1 )
-										echo 'style="background-color: #faa" ';
-									echo 'href="' .  esc_url( get_home_url( $val->userblog_id ) )  . '">' . __( 'View' ) . '</a>';
+										$class .= 'site-spammed ';
+									if ( get_blog_status( $val->userblog_id, 'mature' ) == 1 )
+										$class .= 'site-mature ';
+									if ( get_blog_status( $val->userblog_id, 'deleted' ) == 1 )
+										$class .= 'site-deleted ';
+									if ( get_blog_status( $val->userblog_id, 'archived' ) == 1 )
+										$class .= 'site-archived ';
 
-									echo '</small><br />';
+									$actions['view'] = '<a class="' . $class . '" href="' .  esc_url( get_home_url( $val->userblog_id ) )  . '">' . __( 'View' ) . '</a>';
+
+									$actions = apply_filters('ms_user_list_site_actions', $actions, $val->userblog_id);
+
+									$i=0;
+									$action_count = count( $actions );
+									foreach ( $actions as $action => $link ) {
+										++$i;
+										( $i == $action_count ) ? $sep = '' : $sep = ' | ';
+										echo "<span class='$action'>$link$sep</span>";
+									}
+									echo '</span></small><br/>';
 								}
 							}
 							?>
@@ -245,9 +256,10 @@ class WP_MS_Users_List_Table extends WP_List_Table {
 					<?php
 					break;
 
-					default: ?>
-						<td><?php echo apply_filters( 'manage_users_custom_column', '', $column_name, $user->ID ); ?></td>
-					<?php
+					default:
+						echo "<td $attributes>";
+						echo apply_filters( 'manage_users_custom_column', '', $column_name, $user->ID );
+						echo "</td>";
 					break;
 				}
 			endforeach

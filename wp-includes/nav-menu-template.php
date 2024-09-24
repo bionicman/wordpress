@@ -73,7 +73,7 @@ class Walker_Nav_Menu extends Walker {
 		$classes = empty( $item->classes ) ? array() : (array) $item->classes;
 		$classes[] = 'menu-item-' . $item->ID;
 
-		$class_names = join( ' ', apply_filters( 'nav_menu_css_class', array_filter( $classes ), $item ) );
+		$class_names = join( ' ', apply_filters( 'nav_menu_css_class', array_filter( $classes ), $item, $args ) );
 		$class_names = ' class="' . esc_attr( $class_names ) . '"';
 
 		$id = apply_filters( 'nav_menu_item_id', 'menu-item-'. $item->ID, $item, $args );
@@ -311,6 +311,8 @@ function _wp_menu_item_classes_by_context( &$menu_items ) {
 
 	$possible_object_parents = array_filter( $possible_object_parents );
 
+	$front_page_url = home_url();
+
 	foreach ( (array) $menu_items as $key => $menu_item ) {
 
 		$menu_items[$key]->current = false;
@@ -381,6 +383,10 @@ function _wp_menu_item_classes_by_context( &$menu_items ) {
 				$active_parent_item_ids[] = (int) $menu_item->menu_item_parent;
 				$active_parent_object_ids[] = (int) $menu_item->post_parent;
 				$active_object = $menu_item->object;
+
+			// give front page item current-menu-item class when extra query arguments involved
+			} elseif ( $item_url == $front_page_url && is_front_page() ) {
+				$classes[] = 'current-menu-item';
 			}
 
 			if ( untrailingslashit($item_url) == home_url() )
@@ -411,14 +417,16 @@ function _wp_menu_item_classes_by_context( &$menu_items ) {
 					'post_type' == $parent_item->type &&
 					! empty( $queried_object->post_type ) &&
 					is_post_type_hierarchical( $queried_object->post_type ) &&
-					in_array( $parent_item->object_id, $queried_object->ancestors )
+					in_array( $parent_item->object_id, $queried_object->ancestors ) &&
+					$parent_item->object != $queried_object->ID
 				) ||
 
 				// ancestral term
 				(
 					'taxonomy' == $parent_item->type &&
 					isset( $possible_taxonomy_ancestors[ $parent_item->object ] ) &&
-					in_array( $parent_item->object_id, $possible_taxonomy_ancestors[ $parent_item->object ] )
+					in_array( $parent_item->object_id, $possible_taxonomy_ancestors[ $parent_item->object ] ) &&
+					$parent_item->object_id != $queried_object->term_id
 				)
 			)
 		) {

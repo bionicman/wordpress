@@ -823,7 +823,9 @@ function gallery_shortcode($attr) {
 
 	$selector = "gallery-{$instance}";
 
-	$output = apply_filters('gallery_style', "
+	$gallery_style = $gallery_div = '';
+	if ( apply_filters( 'use_default_gallery_style', true ) )
+		$gallery_style = "
 		<style type='text/css'>
 			#{$selector} {
 				margin: auto;
@@ -832,7 +834,8 @@ function gallery_shortcode($attr) {
 				float: {$float};
 				margin-top: 10px;
 				text-align: center;
-				width: {$itemwidth}%;			}
+				width: {$itemwidth}%;
+			}
 			#{$selector} img {
 				border: 2px solid #cfcfcf;
 			}
@@ -840,8 +843,10 @@ function gallery_shortcode($attr) {
 				margin-left: 0;
 			}
 		</style>
-		<!-- see gallery_shortcode() in wp-includes/media.php -->
-		<div id='$selector' class='gallery galleryid-{$id}'>");
+		<!-- see gallery_shortcode() in wp-includes/media.php -->";
+	$size_class = sanitize_html_class( $size );
+	$gallery_div = "<div id='$selector' class='gallery galleryid-{$id} gallery-columns-{$columns} gallery-size-{$size_class}'>";
+	$output = apply_filters( 'gallery_style', $gallery_style . "\n\t\t" . $gallery_div );
 
 	$i = 0;
 	foreach ( $attachments as $id => $attachment ) {
@@ -854,7 +859,7 @@ function gallery_shortcode($attr) {
 			</{$icontag}>";
 		if ( $captiontag && trim($attachment->post_excerpt) ) {
 			$output .= "
-				<{$captiontag} class='gallery-caption'>
+				<{$captiontag} class='wp-caption-text gallery-caption'>
 				" . wptexturize($attachment->post_excerpt) . "
 				</{$captiontag}>";
 		}
@@ -1158,6 +1163,10 @@ class WP_Embed {
 		$rawattr = $attr;
 		$attr = wp_parse_args( $attr, wp_embed_defaults() );
 
+		// kses converts & into &amp; and we need to undo this
+		// See http://core.trac.wordpress.org/ticket/11311
+		$url = str_replace( '&amp;', '&', $url );
+
 		// Look for known internal handlers
 		ksort( $this->handlers );
 		foreach ( $this->handlers as $priority => $handlers ) {
@@ -1186,7 +1195,7 @@ class WP_Embed {
 					return $this->maybe_make_link( $url );
 
 				if ( !empty($cache) )
-					return apply_filters( 'embed_oembed_html', $cache, $url, $attr );
+					return apply_filters( 'embed_oembed_html', $cache, $url, $attr, $post_ID );
 			}
 
 			// Use oEmbed to get the HTML
@@ -1199,7 +1208,7 @@ class WP_Embed {
 
 			// If there was a result, return it
 			if ( $html )
-				return apply_filters( 'embed_oembed_html', $html, $url, $attr );
+				return apply_filters( 'embed_oembed_html', $html, $url, $attr, $post_ID );
 		}
 
 		// Still unknown

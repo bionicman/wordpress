@@ -70,7 +70,7 @@ function wpmu_delete_blog( $blog_id, $drop = false ) {
 	// Remove users from this blog.
 	if ( ! empty( $users ) ) {
 		foreach ( $users as $user ) {
-			remove_user_from_blog( $user->user_id, $blog_id) ;
+			remove_user_from_blog( $user->ID, $blog_id) ;
 		}
 	}
 
@@ -432,13 +432,15 @@ function upload_space_setting( $id ) {
 }
 add_action( 'wpmueditblogaction', 'upload_space_setting' );
 
-function update_user_status( $id, $pref, $value, $refresh = 1 ) {
+function update_user_status( $id, $pref, $value, $deprecated = null ) {
 	global $wpdb;
+
+	if ( null !== $deprecated  )
+		_deprecated_argument( __FUNCTION__, '3.1.0' );
 
 	$wpdb->update( $wpdb->users, array( $pref => $value ), array( 'ID' => $id ) );
 
-	if ( $refresh == 1 )
-		refresh_user_details( $id );
+	clean_user_cache( $id );
 
 	if ( $pref == 'spam' ) {
 		if ( $value == 1 )
@@ -505,12 +507,10 @@ function redirect_user_to_blog() {
 
 	if ( is_object( $blog ) ) {
 		wp_redirect( get_admin_url( $blog->blog_id, '?c=' . $c ) ); // redirect and count to 5, "just in case"
-		exit;
 	} else {
 		wp_redirect( user_admin_url( '?c=' . $c ) ); // redirect and count to 5, "just in case"
 	}
-
-	wp_die( __( 'You do not have sufficient permissions to access this page.' ) );
+	exit;
 }
 add_action( 'admin_page_access_denied', 'redirect_user_to_blog', 99 );
 
@@ -718,5 +718,23 @@ function revoke_super_admin( $user_id ) {
 		}
 	}
 	return false;
+}
+/**
+ * Whether or not we can edit this network from this page
+ *
+ * By default editing of network is restricted to the Network Admin for that site_id this allows for this to be overridden
+ *
+ * @since 3.1.0
+ * @param integer $site_id The network/site id to check.
+ */
+function can_edit_network( $site_id ) {
+	global $wpdb;
+
+	if ($site_id == $wpdb->siteid )
+		$result = true;
+	else
+		$result = false;
+
+	return apply_filters( 'can_edit_network', $result, $site_id );
 }
 ?>

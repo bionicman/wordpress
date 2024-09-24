@@ -66,15 +66,18 @@ case 'fetch-list' :
 	die( '0' );
 	break;
 case 'ajax-tag-search' :
-	if ( !current_user_can( 'edit_posts' ) )
-		die('-1');
+	if ( isset( $_GET['tax'] ) ) {
+		$taxonomy = sanitize_key( $_GET['tax'] );
+		$tax = get_taxonomy( $taxonomy );
+		if ( ! $tax )
+			die( '0' );
+		if ( ! current_user_can( $tax->cap->assign_terms ) )
+			die( '-1' );
+	} else {
+		die('0');
+	}
 
 	$s = $_GET['q']; // is this slashed already?
-
-	if ( isset($_GET['tax']) )
-		$taxonomy = sanitize_title($_GET['tax']);
-	else
-		die('0');
 
 	if ( false !== strpos( $s, ',' ) ) {
 		$s = explode( ',', $s );
@@ -508,7 +511,7 @@ case 'add-tag' :
 	$tag = wp_insert_term($_POST['tag-name'], $taxonomy, $_POST );
 
 	if ( !$tag || is_wp_error($tag) || (!$tag = get_term( $tag['term_id'], $taxonomy )) ) {
-		$message = __('An error has occured. Please reload the page and try again.');
+		$message = __('An error has occurred. Please reload the page and try again.');
 		if ( is_wp_error($tag) && $tag->get_error_message() )
 			$message = $tag->get_error_message();
 
@@ -542,28 +545,29 @@ case 'add-tag' :
 	$x->add( array(
 		'what' => 'term',
 		'position' => $level,
-		'supplemental' => $tag
+		'supplemental' => (array) $tag
 		) );
 	$x->send();
 	break;
 case 'get-tagcloud' :
-	if ( !current_user_can( 'edit_posts' ) )
-		die('-1');
-
-	if ( isset($_POST['tax']) )
-		$taxonomy = sanitize_title($_POST['tax']);
-	else
+	if ( isset( $_POST['tax'] ) ) {
+		$taxonomy = sanitize_key( $_POST['tax'] );
+		$tax = get_taxonomy( $taxonomy );
+		if ( ! $tax )
+			die( '0' );
+		if ( ! current_user_can( $tax->cap->assign_terms ) )
+			die( '-1' );
+	} else {
 		die('0');
+	}
 
 	$tags = get_terms( $taxonomy, array( 'number' => 45, 'orderby' => 'count', 'order' => 'DESC' ) );
 
-	if ( empty( $tags ) ) {
-		$tax = get_taxonomy( $taxonomy );
+	if ( empty( $tags ) )
 		die( isset( $tax->no_tagcloud ) ? $tax->no_tagcloud : __('No tags found!') );
-	}
 
-	if ( is_wp_error($tags) )
-		die($tags->get_error_message());
+	if ( is_wp_error( $tags ) )
+		die( $tags->get_error_message() );
 
 	foreach ( $tags as $key => $tag ) {
 		$tags[ $key ]->link = '#';
@@ -583,13 +587,12 @@ case 'get-tagcloud' :
 case 'get-comments' :
 	check_ajax_referer( $action );
 
-	$post_ID = (int) $_POST['post_ID'];
-	if ( !current_user_can( 'edit_post', $post_ID ) )
-		die('-1');
-
 	set_current_screen( 'edit-comments' );
 
 	$wp_list_table = get_list_table('WP_Post_Comments_List_Table');
+
+	if ( !current_user_can( 'edit_post', $post_id ) )
+		die('-1');
 
 	$wp_list_table->prepare_items();
 
@@ -661,7 +664,7 @@ case 'replyto-comment' :
 	$x = new WP_Ajax_Response();
 
 	ob_start();
-		if ( 'dashboard' == $mode ) {
+		if ( 'dashboard' == $_REQUEST['mode'] ) {
 			require_once( ABSPATH . 'wp-admin/includes/dashboard.php' );
 			_wp_dashboard_recent_comments_row( $comment );
 		} else {
@@ -1344,7 +1347,7 @@ case 'save-widget' :
 	$sidebar_id = $_POST['sidebar'];
 	$multi_number = !empty($_POST['multi_number']) ? (int) $_POST['multi_number'] : 0;
 	$settings = isset($_POST['widget-' . $id_base]) && is_array($_POST['widget-' . $id_base]) ? $_POST['widget-' . $id_base] : false;
-	$error = '<p>' . __('An error has occured. Please reload the page and try again.') . '</p>';
+	$error = '<p>' . __('An error has occurred. Please reload the page and try again.') . '</p>';
 
 	$sidebars = wp_get_sidebars_widgets();
 	$sidebar = isset($sidebars[$sidebar_id]) ? $sidebars[$sidebar_id] : array();

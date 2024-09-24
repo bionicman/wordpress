@@ -232,7 +232,7 @@ div.error a {
 
 .highlight {
 	background-color: #e4f2fd;
-	color: #d54e21;
+	color: #000;
 }
 
 .howto,
@@ -776,6 +776,7 @@ table.widefat .spam a:hover,
 #quicktags {
 	border-color: #dfdfdf;
 	background-color: #dfdfdf;
+	background-image: url("../images/ed-bg.gif");
 }
 
 #ed_toolbar input {
@@ -1516,7 +1517,8 @@ fieldset.inline-edit-col-right .inline-edit-col {
 	text-decoration: underline;
 }
 
-#screen-meta a.show-settings {
+#screen-meta a.show-settings,
+.toggle-arrow {
 	background-image:url("../images/screen-options-toggle.gif?ver=20100531");
 }
 

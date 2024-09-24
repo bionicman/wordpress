@@ -8,17 +8,19 @@
 
 /** WordPress Administration Bootstrap */
 require_once('./admin.php');
+if ( !current_user_can('switch_themes') && !current_user_can('edit_theme_options') )
+	wp_die( __( 'Cheatin&#8217; uh?' ) );
 
 $wp_list_table = get_list_table('WP_Themes_List_Table');
 $wp_list_table->check_permissions();
 
-if ( current_user_can('switch_themes') && isset($_GET['action']) ) {
+if ( current_user_can( 'switch_themes' ) && isset($_GET['action'] ) ) {
 	if ( 'activate' == $_GET['action'] ) {
 		check_admin_referer('switch-theme_' . $_GET['template']);
 		switch_theme($_GET['template'], $_GET['stylesheet']);
 		wp_redirect( admin_url('themes.php?activated=true') );
 		exit;
-	} else if ( 'delete' == $_GET['action'] ) {
+	} elseif ( 'delete' == $_GET['action'] ) {
 		check_admin_referer('delete-theme_' . $_GET['template']);
 		if ( !current_user_can('delete_themes') )
 			wp_die( __( 'Cheatin&#8217; uh?' ) );
@@ -34,6 +36,10 @@ $title = __('Manage Themes');
 $parent_file = 'themes.php';
 
 if ( current_user_can( 'switch_themes' ) ) :
+
+// Flush rewrite rules on activation once new theme is in place.
+if ( isset( $_GET['activated'] ) && $_GET['activated'] == 'true' )
+	flush_rewrite_rules();
 
 $help = '<p>' . __('Aside from the default theme included with your WordPress installation, themes are designed and developed by third parties.') . '</p>';
 $help .= '<p>' . __('You can see your active theme at the top of the screen. Below are the other themes you have installed that are not currently in use. You can see what your site would look like with one of these themes by clicking the Preview link. To change themes, click the Activate link.') . '</p>';
@@ -67,9 +73,19 @@ require_once('./admin-header.php');
 <div id="message3" class="updated"><p><?php _e('Theme deleted.') ?></p></div>
 <?php endif; ?>
 
-<div class="wrap">
-<?php screen_icon(); ?>
-<h2 class="nav-tab-wrapper"><a href="themes.php" class="nav-tab nav-tab-active"><?php echo esc_html( $title ); ?></a><?php if ( current_user_can('install_themes') ) { ?><a href="theme-install.php" class="nav-tab"><?php echo esc_html_x('Install Themes', 'theme'); ?></a><?php } ?></h2>
+<div class="wrap"><?php
+screen_icon();
+if ( !is_multisite() ) : ?>
+<h2 class="nav-tab-wrapper">
+<a href="themes.php" class="nav-tab nav-tab-active"><?php echo esc_html( $title ); ?></a>
+	<?php if ( current_user_can('install_themes') ) : ?>
+<a href="<?php echo admin_url( 'theme-install.php'); ?>" class="nav-tab"><?php echo esc_html_x('Install Themes', 'theme'); ?></a>
+	<?php endif;
+else : ?>
+<h2>
+<?php echo esc_html( $title ); ?>
+<?php endif; ?>
+</h2>
 
 <h3><?php _e('Current Theme'); ?></h3>
 <div id="current-theme">
@@ -119,7 +135,7 @@ require_once('./admin-header.php');
 
 </div>
 
-<br class="clear">
+<br class="clear" />
 <?php
 if ( ! current_user_can( 'switch_themes' ) ) {
 	echo '</div>';
@@ -127,9 +143,13 @@ if ( ! current_user_can( 'switch_themes' ) ) {
 	exit;
 }
 ?>
+
 <h3><?php _e('Available Themes'); ?></h3>
 
+<?php if ( $wp_list_table->has_items() ) : ?>
+
 <form class="search-form filter-form" action="" method="get">
+
 <p class="search-box">
 	<label class="screen-reader-text" for="theme-search-input"><?php _e('Search Themes'); ?>:</label>
 	<input type="text" id="theme-search-input" name="s" value="<?php _admin_search_query(); ?>" />
@@ -177,6 +197,8 @@ if ( ! current_user_can( 'switch_themes' ) ) {
 
 </form>
 <br class="clear" />
+
+<?php endif; ?>
 
 <?php $wp_list_table->display(); ?>
 

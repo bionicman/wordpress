@@ -18,9 +18,8 @@
  * check fails. If any of the parameter contents match the blacklist of words,
  * then the check fails.
  *
- * If the comment is a trackback and part of the blogroll, then the trackback is
- * automatically whitelisted. If the comment author was approved before, then
- * the comment is automatically whitelisted.
+ * If the comment author was approved before, then the comment is
+ * automatically whitelisted.
  *
  * If none of the checks fail, then the failback is to set the check to pass
  * (return true).
@@ -82,16 +81,7 @@ function check_comment($author, $email, $url, $comment, $user_ip, $user_agent, $
 
 	// Comment whitelisting:
 	if ( 1 == get_option('comment_whitelist')) {
-		if ( 'trackback' == $comment_type || 'pingback' == $comment_type ) { // check if domain is in blogroll
-			$uri = parse_url($url);
-			$domain = $uri['host'];
-			$uri = parse_url( home_url() );
-			$home_domain = $uri['host'];
-			if ( $wpdb->get_var($wpdb->prepare("SELECT link_id FROM $wpdb->links WHERE link_url LIKE (%s) LIMIT 1", '%'.$domain.'%')) || $domain == $home_domain )
-				return true;
-			else
-				return false;
-		} elseif ( $author != '' && $email != '' ) {
+		if ( 'trackback' != $comment_type && 'pingback' != $comment_type && $author != '' && $email != '' ) {
 			// expected_slashed ($author, $email)
 			$ok_to_comment = $wpdb->get_var("SELECT comment_approved FROM $wpdb->comments WHERE comment_author = '$author' AND comment_author_email = '$email' and comment_approved = '1' LIMIT 1");
 			if ( ( 1 == $ok_to_comment ) &&
@@ -1723,7 +1713,7 @@ function do_trackbacks($post_id) {
 				trackback($tb_ping, $post_title, $excerpt, $post_id);
 				$pinged[] = $tb_ping;
 			} else {
-				$wpdb->query( $wpdb->prepare("UPDATE $wpdb->posts SET to_ping = TRIM(REPLACE(to_ping, '$tb_ping', '')) WHERE ID = %d", $post_id) );
+				$wpdb->query( $wpdb->prepare("UPDATE $wpdb->posts SET to_ping = TRIM(REPLACE(to_ping, %s, '')) WHERE ID = %d", $tb_ping, $post_id) );
 			}
 		}
 	}
@@ -1875,9 +1865,8 @@ function trackback($trackback_url, $title, $excerpt, $ID) {
 	if ( is_wp_error( $response ) )
 		return;
 
-	$tb_url = addslashes( $trackback_url );
-	$wpdb->query( $wpdb->prepare("UPDATE $wpdb->posts SET pinged = CONCAT(pinged, '\n', '$tb_url') WHERE ID = %d", $ID) );
-	return $wpdb->query( $wpdb->prepare("UPDATE $wpdb->posts SET to_ping = TRIM(REPLACE(to_ping, '$tb_url', '')) WHERE ID = %d", $ID) );
+	$wpdb->query( $wpdb->prepare("UPDATE $wpdb->posts SET pinged = CONCAT(pinged, '\n', %s) WHERE ID = %d", $trackback_url, $ID) );
+	return $wpdb->query( $wpdb->prepare("UPDATE $wpdb->posts SET to_ping = TRIM(REPLACE(to_ping, %s, '')) WHERE ID = %d", $trackback_url, $ID) );
 }
 
 /**

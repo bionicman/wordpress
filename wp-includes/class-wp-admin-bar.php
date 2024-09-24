@@ -7,11 +7,6 @@ class WP_Admin_Bar {
 	var $user;
 
 	function initialize() {
-		/* Only load super admin menu code if the logged in user is a super admin */
-		if ( is_super_admin() ) {
-			require( ABSPATH . WPINC . '/ms-admin-bar.php' );
-		}
-
 		/* Set the protocol used throughout this code */
 		if ( is_ssl() )
 			$this->proto = 'https://';
@@ -33,10 +28,18 @@ class WP_Admin_Bar {
 		$this->user->locale = get_locale();
 
 		add_action( 'wp_head', 'wp_admin_bar_header' );
-		add_action( 'wp_head', 'wp_admin_body_style');
 
 		add_action( 'admin_head', 'wp_admin_bar_header' );
-		add_action( 'admin_head', 'wp_admin_body_style');
+
+		if ( current_theme_supports( 'admin-bar' ) ) {
+			$admin_bar_args = get_theme_support( 'admin-bar' ); // add_theme_support( 'admin-bar', array( 'callback' => '__return_false') );
+			$header_callback = $admin_bar_args[0]['callback'];
+		}
+
+		if ( empty($header_callback) )
+			$header_callback = '_admin_bar_bump_cb';
+
+		add_action('wp_head', $header_callback);
 
 		wp_enqueue_script( 'admin-bar' );
 		wp_enqueue_style( 'admin-bar' );
@@ -86,7 +89,7 @@ class WP_Admin_Bar {
 
 	function render() {
 		?>
-		<div id="wpadminbar" class="snap_nopreview no-grav">
+		<div id="wpadminbar">
 			<div class="quicklinks">
 				<ul>
 					<?php foreach ( (array) $this->menu as $id => $menu_item ) : ?>
@@ -97,8 +100,8 @@ class WP_Admin_Bar {
 
 			<div id="adminbarsearch-wrap">
 				<form action="<?php echo home_url(); ?>" method="get" id="adminbarsearch">
-					<input class="adminbar-input" name="s" id="adminbar-search" type="text" title="<?php esc_attr_e( 'Search' ); ?>" value="" maxlength="150" />
-					<button type="submit" class="adminbar-button"><span><?php _e('Search'); ?></span></button>
+					<input class="adminbar-input" name="s" id="adminbar-search" type="text" value="" maxlength="150" />
+					<input type="submit" class="adminbar-button" value="<?php _e('Search'); ?>"/>
 				</form>
 			</div>
 		</div>
@@ -171,20 +174,19 @@ class WP_Admin_Bar {
 	}
 
 	function add_menus() {
-		add_action( 'admin_bar_menu', 'wp_admin_bar_me_separator', 10 );
-		add_action( 'admin_bar_menu', 'wp_admin_bar_my_account_menu', 20 );
-		add_action( 'admin_bar_menu', 'wp_admin_bar_my_sites_menu', 30 );
-		add_action( 'admin_bar_menu', 'wp_admin_bar_edit_menu', 40 );
-		add_action( 'admin_bar_menu', 'wp_admin_bar_new_content_menu', 50 );
-		add_action( 'admin_bar_menu', 'wp_admin_bar_comments_menu', 60 );
-		add_action( 'admin_bar_menu', 'wp_admin_bar_appearance_menu', 70 );
-		add_action( 'admin_bar_menu', 'wp_admin_bar_updates_menu', 80 );
-		add_action( 'admin_bar_menu', 'wp_admin_bar_shortlink_menu', 90 );
+		add_action( 'admin_bar_menu', 'wp_admin_bar_my_account_menu', 10 );
+		add_action( 'admin_bar_menu', 'wp_admin_bar_my_sites_menu', 20 );
+		add_action( 'admin_bar_menu', 'wp_admin_bar_edit_menu', 30 );
+		add_action( 'admin_bar_menu', 'wp_admin_bar_shortlink_menu', 80 );
+		add_action( 'admin_bar_menu', 'wp_admin_bar_updates_menu', 70 );
 
-		if ( is_multisite() && is_super_admin() && function_exists('wp_admin_bar_superadmin_settings_menu') )
-			add_action( 'admin_bar_menu', 'wp_admin_bar_superadmin_settings_menu', 1000 );
+		if ( !is_network_admin() && !is_user_admin() ) {
+			add_action( 'admin_bar_menu', 'wp_admin_bar_new_content_menu', 40 );
+			add_action( 'admin_bar_menu', 'wp_admin_bar_comments_menu', 50 );
+			add_action( 'admin_bar_menu', 'wp_admin_bar_appearance_menu', 60 );
+		}
 
-		do_action('add_admin_bar_menus');
+		do_action( 'add_admin_bar_menus' );
 	}
 
 	function remove_node( $id, &$menu ) {

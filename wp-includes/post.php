@@ -26,7 +26,7 @@ function create_initial_post_types() {
 		'hierarchical' => false,
 		'rewrite' => false,
 		'query_var' => false,
-		'supports' => array( 'title', 'editor', 'author', 'thumbnail', 'excerpt', 'sticky', 'trackbacks', 'custom-fields', 'comments', 'revisions', 'post-formats' ),
+		'supports' => array( 'title', 'editor', 'author', 'thumbnail', 'excerpt', 'trackbacks', 'custom-fields', 'comments', 'revisions', 'post-formats' ),
 	) );
 
 	register_post_type( 'page', array(
@@ -54,7 +54,6 @@ function create_initial_post_types() {
 		'hierarchical' => false,
 		'rewrite' => false,
 		'query_var' => false,
-		'can_export' => false,
 		'show_in_nav_menus' => false,
 	) );
 
@@ -71,6 +70,7 @@ function create_initial_post_types() {
 		'hierarchical' => false,
 		'rewrite' => false,
 		'query_var' => false,
+		'can_export' => false,
 	) );
 
 	register_post_type( 'nav_menu_item', array(
@@ -266,7 +266,7 @@ function _wp_relative_upload_path( $path ) {
  * @param string $output Optional. Constant for return type, either OBJECT (default), ARRAY_A, ARRAY_N.
  * @return array|bool False on failure and the type will be determined by $output parameter.
  */
-function &get_children($args = '', $output = OBJECT) {
+function get_children($args = '', $output = OBJECT) {
 	$kids = array();
 	if ( empty( $args ) ) {
 		if ( isset( $GLOBALS['post'] ) ) {
@@ -295,7 +295,7 @@ function &get_children($args = '', $output = OBJECT) {
 	update_post_cache($children);
 
 	foreach ( $children as $key => $child )
-		$kids[$child->ID] =& $children[$key];
+		$kids[$child->ID] = $children[$key];
 
 	if ( $output == OBJECT ) {
 		return $kids;
@@ -526,8 +526,14 @@ function set_post_format( $post, $format ) {
 	if ( empty($post) )
 		return new WP_Error('invalid_post', __('Invalid post'));
 
-	if ( !empty($format) )
-		$format = 'post-format-' . sanitize_key($format);
+	if ( !empty($format) ) {
+		$format = sanitize_key($format);
+		$empty_formats = array( 'post', 'standard' );
+		if ( in_array( $format, $empty_formats ) )
+			$format = '';
+		else
+			$format = 'post-format-' . $format;
+	}
 
 	return wp_set_post_terms($post->ID, $format, 'post_format');
 }
@@ -878,7 +884,7 @@ function get_post_types( $args = array(), $output = 'names', $operator = 'and' )
  *
  * @param string $post_type Name of the post type.
  * @param array|string $args See above description.
- * @return object the registered post type object
+ * @return object|WP_Error the registered post type object, or an error object
  */
 function register_post_type($post_type, $args = array()) {
 	global $wp_post_types, $wp_rewrite, $wp;
@@ -901,6 +907,9 @@ function register_post_type($post_type, $args = array()) {
 
 	$post_type = sanitize_key($post_type);
 	$args->name = $post_type;
+
+	if ( strlen( $post_type ) > 20 )
+			return new WP_Error( 'post_type_too_long', __( 'Post types cannot exceed 20 characters in length' ) );
 
 	// If not set, default to the setting for public.
 	if ( null === $args->publicly_queryable )
@@ -976,7 +985,7 @@ function register_post_type($post_type, $args = array()) {
 				$wp_rewrite->add_rule( "{$archive_slug}/$feeds/?$", "index.php?post_type=$post_type" . '&feed=$matches[1]', 'top' );
 			}
 			if ( $args->rewrite['pages'] )
-				$wp_rewrite->add_rule( "{$archive_slug}/page/([0-9]{1,})/?$", "index.php?post_type=$post_type" . '&paged=$matches[1]', 'top' );
+				$wp_rewrite->add_rule( "{$archive_slug}/{$wp_rewrite->pagination_base}/([0-9]{1,})/?$", "index.php?post_type=$post_type" . '&paged=$matches[1]', 'top' );
 		}
 
 		$wp_rewrite->add_permastruct($post_type, "{$args->rewrite['slug']}/%$post_type%", $args->rewrite['with_front'], $args->permalink_epmask);
@@ -1083,14 +1092,6 @@ function get_post_type_capabilities( $args ) {
 			'edit_published_posts'   => 'edit_published_'   . $plural_base,
 		);
 		$default_capabilities = array_merge( $default_capabilities, $default_capabilities_for_mapping );
-	}
-
-	if ( ! post_type_supports( $args->name, 'author' ) ) {
-		// While these may be checked in core, users/roles shouldn't need to be
-		// granted these by default if the post type doesn't support authors.
-		$default_capabilities['edit_others_posts']   = $default_capabilities['edit_posts'];
-		if ( $args->map_meta_cap )
-			$default_capabilities['delete_others_posts'] = $default_capabilities['delete_posts'];
 	}
 
 	$capabilities = array_merge( $default_capabilities, $args->capabilities );
@@ -2317,7 +2318,7 @@ function wp_get_single_post($postid = 0, $mode = OBJECT) {
 
 	$post = get_post($postid, $mode);
 
-	if ( 
+	if (
 		( OBJECT == $mode && empty( $post->ID ) ) ||
 		( OBJECT != $mode && empty( $post['ID'] ) )
 	)
@@ -3822,10 +3823,12 @@ function wp_get_attachment_url( $post_id = 0 ) {
 	if ( empty($url) ) //If any of the above options failed, Fallback on the GUID as used pre-2.7, not recomended to rely upon this.
 		$url = get_the_guid( $post->ID );
 
-	if ( 'attachment' != $post->post_type || empty($url) )
+	$url = apply_filters( 'wp_get_attachment_url', $url, $post->ID );
+
+	if ( 'attachment' != $post->post_type || empty( $url ) )
 		return false;
 
-	return apply_filters( 'wp_get_attachment_url', $url, $post->ID );
+	return $url;
 }
 
 /**
@@ -4013,14 +4016,14 @@ function wp_check_for_changed_slugs($post_id, $post, $post_before) {
 	if ( $post->post_name == $post_before->post_name )
 		return;
 
-	// we're only concerned with published objects
-	if ( $post->post_status != 'publish' )
+	// we're only concerned with published, non-hierarchical objects
+	if ( $post->post_status != 'publish' || is_post_type_hierarchical( $post->post_type ) )
 		return;
 
 	$old_slugs = (array) get_post_meta($post_id, '_wp_old_slug');
 
 	// if we haven't added this old slug before, add it now
-	if ( !in_array($post_before->post_name, $old_slugs) )
+	if ( !empty( $post_before->post_name ) && !in_array($post_before->post_name, $old_slugs) )
 		add_post_meta($post_id, '_wp_old_slug', $post_before->post_name);
 
 	// if the new slug was used previously, delete it from the list
@@ -5044,18 +5047,35 @@ function wp_check_post_hierarchy_for_loops( $post_parent, $post_ID ) {
  */
 function get_post_format_strings() {
 	$strings = array(
-		'default' => _x( 'Default', 'Post format' ), // Special case. any value that evals to false will be considered default
-		'aside'   => _x( 'Aside',   'Post format' ),
-		'chat'    => _x( 'Chat',    'Post format' ),
-		'gallery' => _x( 'Gallery', 'Post format' ),
-		'link'    => _x( 'Link',    'Post format' ),
-		'image'   => _x( 'Image',   'Post format' ),
-		'quote'   => _x( 'Quote',   'Post format' ),
-		'status'  => _x( 'Status',  'Post format' ),
-		'video'   => _x( 'Video',   'Post format' ),
-		'audio'   => _x( 'Audio',   'Post format' ),
+		'standard' => _x( 'Standard', 'Post format' ), // Special case. any value that evals to false will be considered standard
+		'aside'    => _x( 'Aside',    'Post format' ),
+		'chat'     => _x( 'Chat',     'Post format' ),
+		'gallery'  => _x( 'Gallery',  'Post format' ),
+		'link'     => _x( 'Link',     'Post format' ),
+		'image'    => _x( 'Image',    'Post format' ),
+		'quote'    => _x( 'Quote',    'Post format' ),
+		'status'   => _x( 'Status',   'Post format' ),
+		'video'    => _x( 'Video',    'Post format' ),
+		'audio'    => _x( 'Audio',    'Post format' ),
 	);
 	return $strings;
+}
+
+function get_post_format_slugs() {
+	$slugs = array(
+		'standard' => _x( 'standard', 'Post format slug' ),
+		'aside'    => _x( 'aside',    'Post format slug' ),
+		'chat'     => _x( 'chat',     'Post format slug' ),
+		'gallery'  => _x( 'gallery',  'Post format slug' ),
+		'link'     => _x( 'link',     'Post format slug' ),
+		'image'    => _x( 'image',    'Post format slug' ),
+		'quote'    => _x( 'quote',    'Post format slug' ),
+		'status'   => _x( 'status',   'Post format slug' ),
+		'video'    => _x( 'video',    'Post format slug' ),
+		'audio'    => _x( 'audio',    'Post format slug' ),
+	);
+	$slugs = array_map( 'sanitize_title_with_dashes', $slugs );
+	return $slugs;
 }
 
 /**
@@ -5069,7 +5089,7 @@ function get_post_format_strings() {
 function get_post_format_string( $slug ) {
 	$strings = get_post_format_strings();
 	if ( !$slug )
-		return $strings['default'];
+		return $strings['standard'];
 	else
 		return ( isset( $strings[$slug] ) ) ? $strings[$slug] : '';
 }
@@ -5095,5 +5115,56 @@ function set_post_thumbnail( $post, $thumbnail_id ) {
 	}
 	return false;
 }
+
+/**
+ * Returns a link to a post format index.
+ *
+ * @since 3.1.0
+ *
+ * @param $format string Post format
+ * @return string Link
+ */
+function get_post_format_link( $format ) {
+	$term = get_term_by('slug', 'post-format-' . $format, 'post_format' );
+	if ( ! $term || is_wp_error( $term ) )
+		return false;
+	return get_term_link( $term );
+}
+
+/**
+ * Filters the request to allow for the format prefix.
+ *
+ * @access private
+ * @since 3.1.0
+ */
+function _post_format_request( $qvs ) {
+	if ( ! isset( $qvs['post_format'] ) )
+		return $qvs;
+	$slugs = array_flip( get_post_format_slugs() );
+	if ( isset( $slugs[ $qvs['post_format'] ] ) )
+		$qvs['post_format'] = 'post-format-' . $slugs[ $qvs['post_format'] ];
+	return $qvs;
+}
+add_filter( 'request', '_post_format_request' );
+
+/**
+ * Filters the post format term link to remove the format prefix.
+ *
+ * @access private
+ * @since 3.1.0
+ */
+function _post_format_link( $link, $term, $taxonomy ) {
+	global $wp_rewrite;
+	if ( 'post_format' != $taxonomy )
+		return $link;
+	$slugs = get_post_format_slugs();
+	if ( $wp_rewrite->get_extra_permastruct( $taxonomy ) ) {
+		return str_replace( "/{$term->slug}", '/' . $slugs[ str_replace( 'post-format-', '', $term->slug ) ], $link );
+	} else {
+		$link = remove_query_arg( 'post_format', $link );
+		return add_query_arg( 'post_format', str_replace( 'post-format-', '', $term->slug ), $link );
+	}
+}
+add_filter( 'term_link', '_post_format_link', 10, 3 );
 
 ?>

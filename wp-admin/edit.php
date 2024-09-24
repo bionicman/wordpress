@@ -8,9 +8,9 @@
 
 /** WordPress Administration Bootstrap */
 require_once( './admin.php' );
-
 $wp_list_table = get_list_table('WP_Posts_List_Table');
 $wp_list_table->check_permissions();
+$pagenum = $wp_list_table->get_pagenum();
 
 // Back-compat for viewing comments of an entry
 foreach ( array( 'p', 'attachment_id', 'page_id' ) as $_redirect ) {
@@ -21,13 +21,13 @@ foreach ( array( 'p', 'attachment_id', 'page_id' ) as $_redirect ) {
 }
 unset( $_redirect );
 
-// Handle bulk actions
 $doaction = $wp_list_table->current_action();
 
 if ( $doaction ) {
 	check_admin_referer('bulk-posts');
-	$sendback = remove_query_arg( array('trashed', 'untrashed', 'deleted', 'ids'), wp_get_referer() );
 
+	$sendback = remove_query_arg( array('trashed', 'untrashed', 'deleted', 'ids'), wp_get_referer() );
+	$sendback = add_query_arg( 'paged', $pagenum, $sendback );
 	if ( strpos($sendback, 'post.php') !== false )
 		$sendback = admin_url($post_new_file);
 
@@ -61,7 +61,7 @@ if ( $doaction ) {
 
 				$trashed++;
 			}
-			$sendback = add_query_arg( array('trashed' => $trashed, 'ids' => join(',', $post_ids)), $sendback );
+			$sendback = add_query_arg( array('trashed' => $trashed, 'ids' => join(',', $post_ids) ), $sendback );
 			break;
 		case 'untrash':
 			$untrashed = 0;
@@ -127,6 +127,12 @@ if ( 'post' != $post_type ) {
 }
 
 $wp_list_table->prepare_items();
+
+$total_pages = $wp_list_table->get_pagination_arg( 'total_pages' );
+if ( $pagenum > $total_pages && $total_pages > 0 ) {
+	wp_redirect( add_query_arg( 'paged', $total_pages ) );
+	exit;
+}
 
 wp_enqueue_script('inline-edit-post');
 
@@ -221,11 +227,16 @@ $_SERVER['REQUEST_URI'] = remove_query_arg( array('locked', 'skipped', 'updated'
 <?php $wp_list_table->views(); ?>
 
 <form id="posts-filter" action="" method="get">
+
+<?php if ( $wp_list_table->has_items() ) : ?>
+
 <p class="search-box">
 	<label class="screen-reader-text" for="post-search-input"><?php echo $post_type_object->labels->search_items; ?>:</label>
 	<input type="text" id="post-search-input" name="s" value="<?php the_search_query(); ?>" />
 	<?php submit_button( $post_type_object->labels->search_items, 'button', 'submit', false ); ?>
 </p>
+
+<?php endif; ?>
 
 <input type="hidden" name="post_status" class="post_status_page" value="<?php echo !empty($_REQUEST['post_status']) ? esc_attr($_REQUEST['post_status']) : 'all'; ?>" />
 <input type="hidden" name="post_type" class="post_type_page" value="<?php echo $post_type; ?>" />
@@ -234,7 +245,10 @@ $_SERVER['REQUEST_URI'] = remove_query_arg( array('locked', 'skipped', 'updated'
 
 </form>
 
-<?php $wp_list_table->inline_edit(); ?>
+<?php
+if ( $wp_list_table->has_items() )
+	$wp_list_table->inline_edit();
+?>
 
 <div id="ajax-response"></div>
 <br class="clear" />

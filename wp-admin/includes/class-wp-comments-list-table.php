@@ -21,11 +21,11 @@ class WP_Comments_List_Table extends WP_List_Table {
 	var $pending_count = array();
 
 	function WP_Comments_List_Table() {
-		global $mode;
+		global $post_id;
 
-		$mode = ( empty( $_REQUEST['mode'] ) ) ? 'detail' : $_REQUEST['mode'];
+		$post_id = isset( $_REQUEST['p'] ) ? absint( $_REQUEST['p'] ) : 0;
 
-		if ( get_option('show_avatars') && 'single' != $mode )
+		if ( get_option('show_avatars') )
 			add_filter( 'comment_author', 'floated_admin_avatar' );
 
 		parent::WP_List_Table( array(
@@ -41,15 +41,6 @@ class WP_Comments_List_Table extends WP_List_Table {
 	function prepare_items() {
 		global $post_id, $comment_status, $search;
 
-		if ( isset( $_REQUEST['p'] ) )
-			$post_id = absint( $_REQUEST['p'] );
-		elseif ( isset( $_REQUEST['post'] ) )
-			$post_id = absint( $_REQUEST['post'] );
-		elseif ( isset( $_REQUEST['post_ID'] ) )
-			$post_id = absint( $_REQUEST['post_ID'] );
-		else
-			$post_id = 0;
-
 		$comment_status = isset( $_REQUEST['comment_status'] ) ? $_REQUEST['comment_status'] : 'all';
 		if ( !in_array( $comment_status, array( 'all', 'moderated', 'approved', 'spam', 'trash' ) ) )
 			$comment_status = 'all';
@@ -62,24 +53,32 @@ class WP_Comments_List_Table extends WP_List_Table {
 
 		$orderby = ( isset( $_REQUEST['orderby'] ) ) ? $_REQUEST['orderby'] : '';
 		$order = ( isset( $_REQUEST['order'] ) ) ? $_REQUEST['order'] : '';
-		
+
 		$comments_per_page = $this->get_items_per_page( 'edit_comments_per_page' );
 		$comments_per_page = apply_filters( 'comments_per_page', $comments_per_page, $comment_status );
 
-		if ( isset( $_POST['number'] ) )
-			$number = (int) $_POST['number'];
-		else
+		$doing_ajax = defined( 'DOING_AJAX' ) && DOING_AJAX;
+
+		if ( isset( $_REQUEST['number'] ) ) {
+			$number = (int) $_REQUEST['number'];
+		}
+		else {
 			$number = $comments_per_page + min( 8, $comments_per_page ); // Grab a few extra
+		}
 
 		$page = $this->get_pagenum();
 
-		$start = $offset = ( $page - 1 ) * $comments_per_page;
+		$start = ( $page - 1 ) * $comments_per_page;
+		
+		if ( $doing_ajax && isset( $_REQUEST['offset'] ) ) {
+			$start += $_REQUEST['offset'];
+		}
 
 		$status_map = array(
 			'moderated' => 'hold',
 			'approved' => 'approve'
 		);
-		
+
 		$args = array(
 			'status' => isset( $status_map[$comment_status] ) ? $status_map[$comment_status] : $comment_status,
 			'search' => $search,
@@ -232,7 +231,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 	}
 
 	function get_columns() {
-		global $mode;
+		global $post_id;
 
 		$columns = array();
 
@@ -242,7 +241,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 		$columns['author'] = __( 'Author' );
 		$columns['comment'] = _x( 'Comment', 'column name' );
 
-		if ( 'single' !== $mode )
+		if ( !$post_id )
 			$columns['response'] = _x( 'In Response To', 'column name' );
 
 		return $columns;
@@ -251,7 +250,6 @@ class WP_Comments_List_Table extends WP_List_Table {
 	function get_sortable_columns() {
 		return array(
 			'author'   => 'comment_author',
-			'comment'  => 'comment_content',
 			'response' => 'comment_post_ID'
 		);
 	}
@@ -300,7 +298,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 
 		echo "<tr id='comment-$comment->comment_ID' class='$the_comment_status'>";
 		echo $this->single_row_columns( $comment );
-		echo "</tr>\n";
+		echo "</tr>";
 	}
 
 	function column_cb( $comment ) {

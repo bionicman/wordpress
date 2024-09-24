@@ -876,6 +876,8 @@ if ( !function_exists('wp_redirect') ) :
  * @return bool False if $location is not set
  */
 function wp_redirect($location, $status = 302) {
+	global $is_IIS;
+
 	$location = apply_filters('wp_redirect', $location, $status);
 	$status = apply_filters('wp_redirect_status', $status, $location);
 
@@ -884,8 +886,9 @@ function wp_redirect($location, $status = 302) {
 
 	$location = wp_sanitize_redirect($location);
 
-	if ( php_sapi_name() != 'cgi-fcgi' )
+	if ( !$is_IIS && php_sapi_name() != 'cgi-fcgi' )
 		status_header($status); // This causes problems on IIS and some FastCGI setups
+
 	header("Location: $location", true, $status);
 }
 endif;
@@ -1054,7 +1057,7 @@ function wp_notify_postauthor( $comment_id, $comment_type = '' ) {
 		$subject = sprintf( __('[%1$s] Pingback: "%2$s"'), $blogname, $post->post_title );
 	}
 	$notify_message .= get_permalink($comment->comment_post_ID) . "#comments\r\n\r\n";
-	$notify_message .= sprintf( __('Permalink : %s'), get_permalink( $comment->comment_post_ID ) . '#comment-' . $comment_id ) . "\r\n";
+	$notify_message .= sprintf( __('Permalink: %s'), get_permalink( $comment->comment_post_ID ) . '#comment-' . $comment_id ) . "\r\n";
 	if ( EMPTY_TRASH_DAYS )
 		$notify_message .= sprintf( __('Trash it: %s'), admin_url("comment.php?action=trash&c=$comment_id") ) . "\r\n";
 	else

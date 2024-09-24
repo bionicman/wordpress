@@ -22,7 +22,7 @@ if ( ! $id )
 	wp_die( __('Invalid site ID.') );
 
 $details = get_blog_details( $id );
-if ( $details->site_id != $wpdb->siteid )
+if ( !can_edit_network( $details->site_id ) )
 	wp_die( __( 'You do not have permission to access this page.' ) );
 
 $is_main_site = is_main_site( $id );
@@ -56,9 +56,9 @@ if ( isset($_REQUEST['action']) && 'update-site' == $_REQUEST['action'] ) {
 	}
 	update_blog_details( $id, $blog_data );
 
-	do_action( 'wpmu_update_blog_options' );
 	restore_current_blog();
 	wp_redirect( add_query_arg( array( 'update' => 'updated', 'id' => $id ), 'site-info.php') );
+	exit;
 }
 
 if ( isset($_GET['update']) ) {
