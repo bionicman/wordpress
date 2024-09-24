@@ -329,7 +329,7 @@ function update_option($option_name, $newvalue) {
 
 // thx Alex Stapleton, http://alex.vort-x.net/blog/
 // expects $name to NOT be SQL-escaped
-function add_option($name, $value = '', $description = '', $autoload = 'yes') {
+function add_option($name, $value = '', $deprecated = '', $autoload = 'yes') {
 	global $wpdb;
 
 	wp_protect_special_option($name);
@@ -361,8 +361,7 @@ function add_option($name, $value = '', $description = '', $autoload = 'yes') {
 
 	$name = $wpdb->escape($name);
 	$value = $wpdb->escape($value);
-	$description = $wpdb->escape($description);
-	$wpdb->query("INSERT INTO $wpdb->options (option_name, option_value, option_description, autoload) VALUES ('$name', '$value', '$description', '$autoload')");
+	$wpdb->query("INSERT INTO $wpdb->options (option_name, option_value, autoload) VALUES ('$name', '$value', '$autoload')");
 
 	return;
 }
@@ -582,6 +581,10 @@ function is_new_day() {
 	}
 }
 
+function build_query($data) {
+	return _http_build_query($data, NULL, '&', '', false);
+}
+
 /*
 add_query_arg: Returns a modified querystring by adding
 a single key & value or an associative array.
@@ -636,6 +639,7 @@ function add_query_arg() {
 	}
 
 	wp_parse_str($query, $qs);
+	$qs = urlencode_deep($qs); // this re-URL-encodes things that were already in the query string
 	if ( is_array(func_get_arg(0)) ) {
 		$kayvees = func_get_arg(0);
 		$qs = array_merge($qs, $kayvees);
@@ -648,10 +652,7 @@ function add_query_arg() {
 			unset($qs[$k]);
 	}
 
-	if ( ini_get('arg_separator.output') === '&')
-		$ret = http_build_query($qs, '', '&');
-	else
-		$ret = _http_build_query($qs, NULL, '&');
+	$ret = build_query($qs);
 	$ret = trim($ret, '?');
 	$ret = preg_replace('#=(&|$)#', '$1', $ret);
 	$ret = $protocol . $base . $ret . $frag;
@@ -1183,7 +1184,11 @@ function wp_die( $message, $title = '' ) {
 		$message = "<p>$message</p>";
 	}
 
-	if (strpos($_SERVER['PHP_SELF'], 'wp-admin') !== false)
+	if ( defined('WP_SITEURL') && '' != WP_SITEURL ) 
+		$admin_dir = WP_SITEURL.'/wp-admin/'; 
+	elseif (function_exists('get_bloginfo') && '' != get_bloginfo('wpurl'))
+		$admin_dir = get_bloginfo('wpurl').'/wp-admin/'; 
+	elseif (strpos($_SERVER['PHP_SELF'], 'wp-admin') !== false)
 		$admin_dir = '';
 	else
 		$admin_dir = 'wp-admin/';

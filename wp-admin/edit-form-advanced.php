@@ -57,7 +57,7 @@ if (empty($post->post_status)) $post->post_status = 'draft';
 <input type="hidden" id="post_type" name="post_type" value="post" />
 
 <?php echo $form_extra ?>
-<?php if (isset($_GET['message']) && 2 > $_GET['message']) : ?>
+<?php if ((isset($post->post_title) && '' == $post->post_title) || (isset($_GET['message']) && 2 > $_GET['message'])) : ?>
 <script type="text/javascript">
 function focusit() {
 	// focus on first input field
@@ -119,6 +119,8 @@ addLoadEvent(focusit);
 
 <?php
 $authors = get_editable_user_ids( $current_user->id ); // TODO: ROLE SYSTEM
+if ( $post->post_author && !in_array($post->post_author, $authors) )
+	$authors[] = $post->post_author;
 if ( $authors && count( $authors ) > 1 ) :
 ?>
 <fieldset id="authordiv" class="dbx-box">

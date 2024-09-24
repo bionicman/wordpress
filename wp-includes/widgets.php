@@ -210,7 +210,8 @@ function dynamic_sidebar($index = 1) {
 		$params = array_merge(array($sidebar), (array) $wp_registered_widgets[$id]['params']);
 
 		// Substitute HTML id and class attributes into before_widget
-		$params[0]['before_widget'] = sprintf($params[0]['before_widget'], $id, $wp_registered_widgets[$id]['classname']);
+		$classname_ = ( is_array($wp_registered_widgets[$id]['classname']) ) ? implode('_', $wp_registered_widgets[$id]['classname']) : $wp_registered_widgets[$id]['classname'];
+		$params[0]['before_widget'] = sprintf($params[0]['before_widget'], $id, $classname_);
 
 		if ( is_callable($callback) ) {
 			call_user_func_array($callback, $params);
@@ -1074,6 +1075,38 @@ function wp_widget_rss_register() {
 	add_action('sidebar_admin_page', 'wp_widget_rss_page');
 }
 
+function wp_widget_tag_cloud($args) {
+	extract($args);
+	$options = get_option('widget_tag_cloud');
+	$title = empty($options['title']) ? __('Tags') : $options['title'];
+
+	echo $before_widget;
+	echo $before_title . $title . $after_title;
+	wp_tag_cloud();
+	echo $after_widget;
+}
+
+function wp_widget_tag_cloud_control() {
+	$options = $newoptions = get_option('widget_tag_cloud');
+
+	if ( $_POST['tag-cloud-submit'] ) {
+		$newoptions['title'] = strip_tags(stripslashes($_POST['tag-cloud-title']));
+	}
+
+	if ( $options != $newoptions ) {
+		$options = $newoptions;
+		update_option('widget_tag_cloud', $options);
+	}
+
+	$title = attribute_escape( $options['title'] );
+?>
+	<p><label for="tag-cloud-title">
+	<?php _e('Title:') ?> <input type="text" style="width:300px" id="tag-cloud-title" name="tag-cloud-title" value="<?php echo $title ?>" /></label>
+	</p>
+	<input type="hidden" name="tag-cloud-submit" id="tag-cloud-submit" value="1" />
+<?php
+}
+
 function wp_widgets_init() {
 	if ( !is_blog_installed() )
 		return;
@@ -1109,6 +1142,10 @@ function wp_widgets_init() {
 	$class['classname'] = 'widget_recent_entries';
 	wp_register_sidebar_widget('recent-posts', __('Recent Posts'), 'wp_widget_recent_entries', $class);
 	wp_register_widget_control('recent-posts', __('Recent Posts'), 'wp_widget_recent_entries_control', $dims90);
+
+	$class['classname'] = 'widget_tag_cloud';
+	wp_register_sidebar_widget('tag_cloud', __('Tag Cloud'), 'wp_widget_tag_cloud', $class);
+	wp_register_widget_control('tag_cloud', __('Tag Cloud'), 'wp_widget_tag_cloud_control', 'width=300&height=160');
 
 	wp_widget_categories_register();
 	wp_widget_text_register();

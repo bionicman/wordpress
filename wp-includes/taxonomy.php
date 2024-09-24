@@ -514,23 +514,23 @@ function &get_terms($taxonomies, $args = '') {
 	// Update category counts to include children.
 	if ( $pad_counts )
 		_pad_category_counts($type, $categories);
+	*/
 
 	// Make sure we show empty categories that have children.
 	if ( $hierarchical && $hide_empty ) {
-		foreach ( $categories as $k => $category ) {
-			if ( ! $category->{'link' == $type ? 'link_count' : 'category_count'} ) {
-				$children = _get_cat_children($category->cat_ID, $categories);
+		foreach ( $terms as $k => $term ) {
+			if ( ! $term->count ) {
+				$children = _get_term_children($term->term_id, $terms, $taxonomies[0]);
 				foreach ( $children as $child )
-					if ( $child->{'link' == $type ? 'link_count' : 'category_count'} )
+					if ( $child->count )
 						continue 2;
 
 				// It really is empty
-				unset($categories[$k]);
+				unset($terms[$k]);
 			}
 		}
 	}
-	reset ( $categories );
-	*/
+	reset ( $terms );
 
 	$cache[ $key ] = $terms;
 	wp_cache_set( 'get_terms', $cache, 'term' );
@@ -680,6 +680,7 @@ function wp_delete_term( $term, $taxonomy, $args = array() ) {
 			$terms = array($default);
 		else
 			$terms = array_diff($terms, array($term));
+		$terms = array_map('intval', $terms);
 		wp_set_object_terms($object, $terms, $taxonomy);
 	}
 

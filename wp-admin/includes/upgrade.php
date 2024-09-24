@@ -97,7 +97,8 @@ function wp_install_defaults($user_id) {
 	// First post
 	$now = date('Y-m-d H:i:s');
 	$now_gmt = gmdate('Y-m-d H:i:s');
-	$wpdb->query("INSERT INTO $wpdb->posts (post_author, post_date, post_date_gmt, post_content, post_excerpt, post_title, post_category, post_name, post_modified, post_modified_gmt, comment_count, to_ping, pinged, post_content_filtered) VALUES ($user_id, '$now', '$now_gmt', '".$wpdb->escape(__('Welcome to WordPress. This is your first post. Edit or delete it, then start blogging!'))."', '', '".$wpdb->escape(__('Hello world!'))."', '0', '".$wpdb->escape(__('hello-world'))."', '$now', '$now_gmt', '1', '', '', '')");
+	$first_post_guid = get_option('home') . '/?p=1';
+	$wpdb->query("INSERT INTO $wpdb->posts (post_author, post_date, post_date_gmt, post_content, post_excerpt, post_title, post_category, post_name, post_modified, post_modified_gmt, guid, comment_count, to_ping, pinged, post_content_filtered) VALUES ($user_id, '$now', '$now_gmt', '".$wpdb->escape(__('Welcome to WordPress. This is your first post. Edit or delete it, then start blogging!'))."', '', '".$wpdb->escape(__('Hello world!'))."', '0', '".$wpdb->escape(__('hello-world'))."', '$now', '$now_gmt', '$first_post_guid', '1', '', '', '')");
 	$wpdb->query( "INSERT INTO $wpdb->term_relationships (`object_id`, `term_taxonomy_id`) VALUES (1, 1)" );
 
 	// Default comment
@@ -170,6 +171,9 @@ function upgrade_all() {
 			$wp_current_db_version = 2541;
 	}
 
+	if ( $wp_current_db_version < 6039 )
+		upgrade_230_options_table();
+
 	populate_options();
 
 	if ( $wp_current_db_version < 2541 ) {
@@ -190,7 +194,6 @@ function upgrade_all() {
 
 	if ( $wp_current_db_version < 5539 )
 		upgrade_230();
-
 
 	maybe_disable_automattic_widgets();
 
@@ -671,11 +674,23 @@ function upgrade_230() {
 	}
 
 	// Recalculate all counts
-	$terms = $wpdb->get_col("SELECT term_taxonomy_id FROM $wpdb->term_taxonomy");
+	$terms = $wpdb->get_results("SELECT term_taxonomy_id, taxonomy FROM $wpdb->term_taxonomy");
 	foreach ( (array) $terms as $term ) {
-		$count = $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->term_relationships WHERE term_taxonomy_id = '$term'");
-		$wpdb->query("UPDATE $wpdb->term_taxonomy SET count = '$count' WHERE term_taxonomy_id = '$term'");
+		if ( ('post_tag' == $term->taxonomy) || ('category' == $term->taxonomy) )
+			$count = $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->term_relationships, $wpdb->posts WHERE $wpdb->posts.ID = $wpdb->term_relationships.object_id AND post_status = 'publish' AND post_type = 'post' AND term_taxonomy_id = '$term->term_taxonomy_id'");
+		else
+			$count = $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->term_relationships WHERE term_taxonomy_id = '$term->term_taxonomy_id'");
+		$wpdb->query("UPDATE $wpdb->term_taxonomy SET count = '$count' WHERE term_taxonomy_id = '$term->term_taxonomy_id'");
 	}
+}
+
+function upgrade_230_options_table() {
+	global $wpdb;
+	$old_options_fields = array( 'option_can_override', 'option_type', 'option_width', 'option_height', 'option_description', 'option_admin_level' );
+	$wpdb->hide_errors();
+	foreach ( $old_options_fields as $old )
+		$wpdb->query("ALTER TABLE $wpdb->options DROP $old");
+	$wpdb->show_errors();
 }
 
 function upgrade_old_slugs() {

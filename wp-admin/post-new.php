@@ -48,7 +48,7 @@ $nag_posts = array(
 	array(
 		'others_drafts',
 		__('Others&#8217; Drafts:'),
-		'edit.php?post_status=pending&author=-' . $user_ID,
+		'edit.php?post_status=draft&author=-' . $user_ID,
 		count($others_drafts))
 	);
 
@@ -64,7 +64,7 @@ if ( !empty($my_drafts) || !empty($pending) || !empty($others_drafts) ) {
 				if ( $i > $nag_posts_limit )
 					break;
 				echo '<a href="post.php?action=edit&amp;post=' . $post->ID . '">';
-				the_title();
+				( '' == the_title('', '', FALSE) ) ? printf( __('Post #%s'), $post->ID ) : the_title();
 				echo '</a>';
 				if ( $i < min($nag[3], $nag_posts_limit) )
 					echo ', ';
