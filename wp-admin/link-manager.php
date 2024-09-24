@@ -2,33 +2,37 @@
 // Links
 // Copyright (C) 2002, 2003 Mike Little -- mike@zed1.com
 
-require_once('../wp-config.php');
+require_once('admin.php');
 
 $title = __('Manage Links');
-$this_file = 'link-manager.php';
+$this_file = $parent_file = 'link-manager.php';
 
 function xfn_check($class, $value = '', $type = 'check') {
 	global $link_rel;
-	if ('' != $value && strstr($link_rel, $value)) {
+	$rels = preg_split('/\s+/', $link_rel);
+
+	if ('' != $value && in_array($value, $rels) ) {
 		echo ' checked="checked"';
 	}
+
 	if ('' == $value) {
-		if ('family' == $class && !strstr($link_rel, 'child') && !strstr($link_rel, 'parent') && !strstr($link_rel, 'sibling') && !strstr($link_rel, 'spouse') ) echo ' checked="checked"';
-		if ('friendship' == $class && !strstr($link_rel, 'friend') && !strstr($link_rel, 'acquaintance') ) echo ' checked="checked"';
+		if ('family' == $class && !strstr($link_rel, 'child') && !strstr($link_rel, 'parent') && !strstr($link_rel, 'sibling') && !strstr($link_rel, 'spouse') && !strstr($link_rel, 'kin')) echo ' checked="checked"';
+		if ('friendship' == $class && !strstr($link_rel, 'friend') && !strstr($link_rel, 'acquaintance') && !strstr($link_rel, 'contact') ) echo ' checked="checked"';
 		if ('geographical' == $class && !strstr($link_rel, 'co-resident') && !strstr($link_rel, 'neighbor') ) echo ' checked="checked"';
+		if ('identity' == $class && in_array('me', $rels) ) echo ' checked="checked"';
 	}
 }
 
 function category_dropdown($fieldname, $selected = 0) {
-	global $wpdb, $tablelinkcategories;
+	global $wpdb;
 	
-	$results = $wpdb->get_results("SELECT cat_id, cat_name, auto_toggle FROM $tablelinkcategories ORDER BY cat_id");
+	$results = $wpdb->get_results("SELECT cat_id, cat_name, auto_toggle FROM $wpdb->linkcategories ORDER BY cat_id");
 	echo "\n<select name='$fieldname' size='1'>";
 	foreach ($results as $row) {
 		echo "\n\t<option value='$row->cat_id'";
 		if ($row->cat_id == $selected)
 			echo " selected='selected'";
-		echo ">$row->cat_id: $row->cat_name";
+		echo ">$row->cat_id: ".wp_specialchars($row->cat_name);
 		if ('Y' == $row->auto_toggle)
 			echo ' (auto toggle)';
 		echo "</option>\n";
@@ -36,23 +40,7 @@ function category_dropdown($fieldname, $selected = 0) {
 	echo "\n</select>\n";
 }
 
-function add_magic_quotes($array) {
-    foreach ($array as $k => $v) {
-        if (is_array($v)) {
-            $array[$k] = add_magic_quotes($v);
-        } else {
-            $array[$k] = addslashes($v);
-        }
-    }
-    return $array;
-}
-if (!get_magic_quotes_gpc()) {
-    $_GET    = add_magic_quotes($_GET);
-    $_POST   = add_magic_quotes($_POST);
-    $_COOKIE = add_magic_quotes($_COOKIE);
-}
-
-$wpvarstoreset = array('action','standalone','cat_id', 'linkurl', 'name', 'image',
+$wpvarstoreset = array('action','cat_id', 'linkurl', 'name', 'image',
                        'description', 'visible', 'target', 'category', 'link_id',
                        'submit', 'order_by', 'links_show_cat_id', 'rating', 'rel',
                        'notes', 'linkcheck[]');
@@ -72,8 +60,8 @@ for ($i=0; $i<count($wpvarstoreset); $i += 1) {
     }
 }
 
-$links_show_cat_id = $_COOKIE['links_show_cat_id_' . $cookiehash];
-$links_show_order = $_COOKIE['links_show_order_' . $cookiehash];
+$links_show_cat_id = $_COOKIE['links_show_cat_id_' . COOKIEHASH];
+$links_show_order = $_COOKIE['links_show_order_' . COOKIEHASH];
 
 if ('' != $_POST['assign']) $action = 'assign';
 if ('' != $_POST['visibility']) $action = 'visibility';
@@ -82,13 +70,10 @@ if ('' != $_POST['move']) $action = 'move';
 switch ($action) {
   case 'assign':
   {
-    $standalone = 1;
-    include_once('admin-header.php');
-
     check_admin_referer();
 
     // check the current user's level first.
-    if ($user_level < get_settings('links_minadminlevel'))
+    if ($user_level < 5)
       die (__("Cheatin' uh ?"));
 
     //for each link id (in $linkcheck[]): if the current user level >= the
@@ -99,29 +84,26 @@ switch ($action) {
         exit;
     }
     $all_links = join(',', $linkcheck);
-    $results = $wpdb->get_results("SELECT link_id, link_owner, user_level FROM $tablelinks LEFT JOIN $tableusers ON link_owner = ID WHERE link_id in ($all_links)");
+    $results = $wpdb->get_results("SELECT link_id, link_owner, user_level FROM $wpdb->links LEFT JOIN $wpdb->users ON link_owner = ID WHERE link_id in ($all_links)");
     foreach ($results as $row) {
-      if (!get_settings('links_use_adminlevels') || ($user_level >= $row->user_level)) { // ok to proceed
+      if (($user_level >= $row->user_level)) { // ok to proceed
         $ids_to_change[] = $row->link_id;
       }
     }
 
     // should now have an array of links we can change
     $all_links = join(',', $ids_to_change);
-    $q = $wpdb->query("update $tablelinks SET link_owner='$newowner' WHERE link_id IN ($all_links)");
+    $q = $wpdb->query("update $wpdb->links SET link_owner='$newowner' WHERE link_id IN ($all_links)");
 
     header('Location: ' . $this_file);
     break;
   }
   case 'visibility':
   {
-    $standalone = 1;
-    include_once('admin-header.php');
-
     check_admin_referer();
 
     // check the current user's level first.
-    if ($user_level < get_settings('links_minadminlevel'))
+    if ($user_level < 5)
       die (__("Cheatin' uh ?"));
 
     //for each link id (in $linkcheck[]): toggle the visibility
@@ -130,7 +112,7 @@ switch ($action) {
         exit;
     }
     $all_links = join(',', $linkcheck);
-    $results = $wpdb->get_results("SELECT link_id, link_visible FROM $tablelinks WHERE link_id in ($all_links)");
+    $results = $wpdb->get_results("SELECT link_id, link_visible FROM $wpdb->links WHERE link_id in ($all_links)");
     foreach ($results as $row) {
         if ($row->link_visible == 'Y') { // ok to proceed
             $ids_to_turnoff[] = $row->link_id;
@@ -142,12 +124,12 @@ switch ($action) {
     // should now have two arrays of links to change
     if (count($ids_to_turnoff)) {
         $all_linksoff = join(',', $ids_to_turnoff);
-        $q = $wpdb->query("update $tablelinks SET link_visible='N' WHERE link_id IN ($all_linksoff)");
+        $q = $wpdb->query("update $wpdb->links SET link_visible='N' WHERE link_id IN ($all_linksoff)");
     }
 
     if (count($ids_to_turnon)) {
         $all_linkson = join(',', $ids_to_turnon);
-        $q = $wpdb->query("update $tablelinks SET link_visible='Y' WHERE link_id IN ($all_linkson)");
+        $q = $wpdb->query("update $wpdb->links SET link_visible='Y' WHERE link_id IN ($all_linkson)");
     }
 
     header('Location: ' . $this_file);
@@ -155,13 +137,10 @@ switch ($action) {
   }
   case 'move':
   {
-    $standalone = 1;
-    include_once('admin-header.php');
-
     check_admin_referer();
 
     // check the current user's level first.
-    if ($user_level < get_settings('links_minadminlevel'))
+    if ($user_level < 5)
       die (__("Cheatin' uh ?"));
 
     //for each link id (in $linkcheck[]) change category to selected value
@@ -171,7 +150,7 @@ switch ($action) {
     }
     $all_links = join(',', $linkcheck);
     // should now have an array of links we can change
-    $q = $wpdb->query("update $tablelinks SET link_category='$category' WHERE link_id IN ($all_links)");
+    $q = $wpdb->query("update $wpdb->links SET link_category='$category' WHERE link_id IN ($all_links)");
 
     header('Location: ' . $this_file);
     break;
@@ -179,17 +158,14 @@ switch ($action) {
 
   case 'Add':
   {
-    $standalone = 1;
-    include_once('admin-header.php');
-
     check_admin_referer();
 
-     $link_url = wp_specialchars($_POST['linkurl']);
-      $link_url = preg_match('/^(https?|ftps?|mailto|news|gopher):/is', $link_url) ? $link_url : 'http://' . $link_url; 
-     $link_name = wp_specialchars($_POST['name']);
-     $link_image = wp_specialchars($_POST['image']);
-     $link_target = $_POST['target'];
-     $link_category = $_POST['category'];
+    $link_url = wp_specialchars($_POST['linkurl']);
+    $link_url = preg_match('/^(https?|ftps?|mailto|news|gopher):/is', $link_url) ? $link_url : 'http://' . $link_url; 
+    $link_name = wp_specialchars($_POST['name']);
+    $link_image = wp_specialchars($_POST['image']);
+    $link_target = $_POST['target'];
+    $link_category = $_POST['category'];
     $link_description = $_POST['description'];
     $link_visible = $_POST['visible'];
     $link_rating = $_POST['rating'];
@@ -198,19 +174,19 @@ switch ($action) {
 	$link_rss_uri =  wp_specialchars($_POST['rss_uri']);
     $auto_toggle = get_autotoggle($link_category);
 
-    if ($user_level < get_settings('links_minadminlevel'))
+    if ($user_level < 5)
       die (__("Cheatin' uh ?"));
 
     // if we are in an auto toggle category and this one is visible then we
     // need to make the others invisible before we add this new one.
     if (($auto_toggle == 'Y') && ($link_visible == 'Y')) {
-      $wpdb->query("UPDATE $tablelinks set link_visible = 'N' WHERE link_category = $link_category");
+      $wpdb->query("UPDATE $wpdb->links set link_visible = 'N' WHERE link_category = $link_category");
     }
-    $wpdb->query("INSERT INTO $tablelinks (link_url, link_name, link_image, link_target, link_category, link_description, link_visible, link_owner, link_rating, link_rel, link_notes, link_rss) " .
-      " VALUES('" . addslashes($link_url) . "','"
-           . addslashes($link_name) . "', '"
-           . addslashes($link_image) . "', '$link_target', $link_category, '"
-           . addslashes($link_description) . "', '$link_visible', $user_ID, $link_rating, '" . addslashes($link_rel) . "', '" . addslashes($link_notes) . "', '$link_rss_uri')");
+    $wpdb->query("INSERT INTO $wpdb->links (link_url, link_name, link_image, link_target, link_category, link_description, link_visible, link_owner, link_rating, link_rel, link_notes, link_rss) " .
+      " VALUES('" . $link_url . "','"
+           . $link_name . "', '"
+           . $link_image . "', '$link_target', $link_category, '"
+           . $link_description . "', '$link_visible', $user_ID, $link_rating, '" . $link_rel . "', '" . $link_notes . "', '$link_rss_uri')");
 
     header('Location: ' . $_SERVER['HTTP_REFERER'] . '?added=true');
     break;
@@ -229,19 +205,16 @@ switch ($action) {
       }
       $links_show_cat_id = $cat_id;
 
-      $standalone = 1;
-      include_once('admin-header.php');
-
       check_admin_referer();
 
-       $link_id = (int) $_POST['link_id'];
-       $link_url = wp_specialchars($_POST['linkurl']);
-        $link_url = preg_match('/^(https?|ftps?|mailto|news|gopher):/is', $link_url) ? $link_url : 'http://' . $link_url; 
-       $link_name = wp_specialchars($_POST['name']);
-       $link_image = wp_specialchars($_POST['image']);
-       $link_target = wp_specialchars($_POST['target']);
-       $link_category = $_POST['category'];
-       $link_description = $_POST['description'];
+      $link_id = (int) $_POST['link_id'];
+      $link_url = wp_specialchars($_POST['linkurl']);
+      $link_url = preg_match('/^(https?|ftps?|mailto|news|gopher):/is', $link_url) ? $link_url : 'http://' . $link_url; 
+      $link_name = wp_specialchars($_POST['name']);
+      $link_image = wp_specialchars($_POST['image']);
+      $link_target = wp_specialchars($_POST['target']);
+      $link_category = $_POST['category'];
+      $link_description = $_POST['description'];
       $link_visible = $_POST['visible'];
       $link_rating = $_POST['rating'];
       $link_rel = $_POST['rel'];
@@ -249,43 +222,40 @@ switch ($action) {
 	  $link_rss_uri =  $_POST['rss_uri'];
       $auto_toggle = get_autotoggle($link_category);
 
-      if ($user_level < get_settings('links_minadminlevel'))
+      if ($user_level < 5)
         die (__("Cheatin' uh ?"));
 
       // if we are in an auto toggle category and this one is visible then we
       // need to make the others invisible before we update this one.
       if (($auto_toggle == 'Y') && ($link_visible == 'Y')) {
-        $wpdb->query("UPDATE $tablelinks set link_visible = 'N' WHERE link_category = $link_category");
+        $wpdb->query("UPDATE $wpdb->links set link_visible = 'N' WHERE link_category = $link_category");
       }
 
-      $wpdb->query("UPDATE $tablelinks SET link_url='" . addslashes($link_url) . "',
-	  link_name='" . addslashes($link_name) . "',\n link_image='" . addslashes($link_image) . "',
+      $wpdb->query("UPDATE $wpdb->links SET link_url='" . $link_url . "',
+	  link_name='" . $link_name . "',\n link_image='" . $link_image . "',
 	  link_target='$link_target',\n link_category=$link_category,
-	  link_visible='$link_visible',\n link_description='" . addslashes($link_description) . "',
+	  link_visible='$link_visible',\n link_description='" . $link_description . "',
 	  link_rating=$link_rating,
-	  link_rel='" . addslashes($link_rel) . "',
-	  link_notes='" . addslashes($link_notes) . "',
+	  link_rel='" . $link_rel . "',
+	  link_notes='" . $link_notes . "',
 	  link_rss = '$link_rss_uri'
 	  WHERE link_id=$link_id");
     } // end if save
-    setcookie('links_show_cat_id_' . $cookiehash, $links_show_cat_id, time()+600);
+    setcookie('links_show_cat_id_' . COOKIEHASH, $links_show_cat_id, time()+600);
     header('Location: ' . $this_file);
     break;
   } // end Save
 
   case 'Delete':
   {
-    $standalone = 1;
-    include_once('admin-header.php');
-
     check_admin_referer();
 
-    $link_id = (int) $_GET["link_id"];
+    $link_id = (int) $_GET['link_id'];
 
-    if ($user_level < get_settings('links_minadminlevel'))
+    if ($user_level < 5)
       die (__("Cheatin' uh ?"));
 
-    $wpdb->query("DELETE FROM $tablelinks WHERE link_id = $link_id");
+    $wpdb->query("DELETE FROM $wpdb->links WHERE link_id = $link_id");
 
     if (isset($links_show_cat_id) && ($links_show_cat_id != ''))
         $cat_id = $links_show_cat_id;
@@ -295,49 +265,38 @@ switch ($action) {
         $cat_id = 'All';
     }
     $links_show_cat_id = $cat_id;
-    setcookie("links_show_cat_id_".$cookiehash, $links_show_cat_id, time()+600);
+    setcookie('links_show_cat_id_' . COOKIEHASH, $links_show_cat_id, time()+600);
     header('Location: '.$this_file);
     break;
   } // end Delete
 
-  case 'linkedit':
-  {
-    $standalone=0;
+  case 'linkedit': {
 	$xfn = true;
     include_once ('admin-header.php');
-    if ($user_level < get_settings('links_minadminlevel')) {
+    if ($user_level < 5)
       die(__('You do not have sufficient permissions to edit the links for this blog.'));
-    }
 
-      $link_id = (int) $_GET['link_id'];
-     $row = $wpdb->get_row("SELECT * FROM $tablelinks WHERE link_id = $link_id");
-  
-      if ($row) {
-       $link_url = wp_specialchars($row->link_url, 1);
-       $link_name = wp_specialchars($row->link_name, 1);
-        $link_image = $row->link_image;
-        $link_target = $row->link_target;
-        $link_category = $row->link_category;
-       $link_description = wp_specialchars($row->link_description);
-        $link_visible = $row->link_visible;
-        $link_rating = $row->link_rating;
-        $link_rel = $row->link_rel;
-       $link_notes = wp_specialchars($row->link_notes);
- 	  $link_rss_uri = wp_specialchars($row->link_rss);
-     } else {
- 		die( __('Link not found.') ); 
- 	}
+    $link_id = (int) $_GET['link_id'];
+    $row = $wpdb->get_row("SELECT * FROM $wpdb->links WHERE link_id = $link_id");
+
+    if ($row) {
+      $link_url = wp_specialchars($row->link_url, 1);
+      $link_name = wp_specialchars($row->link_name, 1);
+      $link_image = $row->link_image;
+      $link_target = $row->link_target;
+      $link_category = $row->link_category;
+      $link_description = wp_specialchars($row->link_description);
+      $link_visible = $row->link_visible;
+      $link_rating = $row->link_rating;
+      $link_rel = $row->link_rel;
+      $link_notes = wp_specialchars($row->link_notes);
+	  $link_rss_uri = wp_specialchars($row->link_rss);
+    } else {
+		die( __('Link not found.') ); 
+	}
 
 ?>
-<ul id="adminmenu2"> 
-  <li><a href="link-manager.php" class="current"><?php _e('Manage Links') ?></a></li> 
-  <li><a href="link-add.php"><?php _e('Add Link') ?></a></li> 
-  <li><a href="link-categories.php"><?php _e('Link Categories') ?></a></li> 
-  <li class="last"><a href="link-import.php"><?php _e('Import Blogroll') ?></a></li> 
-</ul> 
-<style media="screen" type="text/css">
-th { text-align: right; }
-</style>
+
 <div class="wrap"> 
   <form action="" method="post" name="editlink" id="editlink"> 
   <h2><?php _e('Edit a link:') ?></h2>
@@ -346,7 +305,7 @@ th { text-align: right; }
         <table class="editform" width="100%" cellspacing="2" cellpadding="5">
          <tr>
            <th width="33%" scope="row"><?php _e('URI:') ?></th>
-           <td width="67%"><input type="text" name="linkurl" value="<?php echo $link_url; ?>" style="width: 95%; /"></td>
+           <td width="67%"><input type="text" name="linkurl" value="<?php echo $link_url; ?>" style="width: 95%;" /></td>
          </tr>
          <tr>
            <th scope="row"><?php _e('Link Name:') ?></th>
@@ -370,94 +329,108 @@ th { text-align: right; }
         <table class="editform" width="100%" cellspacing="2" cellpadding="5">
             <tr>
                 <th width="33%" scope="row"><?php _e('rel:') ?></th>
-            	<td width="67%"><input type="text" name="rel" id="rel" size="50" value="<?php echo $link_rel; ?>"></td>
+            	<td width="67%"><input type="text" name="rel" id="rel" size="50" value="<?php echo $link_rel; ?>" /></td>
            	</tr>
             <tr>
                 <th scope="row"><?php _e('<a href="http://gmpg.org/xfn/">XFN</a> Creator:') ?></th>
-            	<td><table cellpadding="3" cellspacing="5">
+            	<td>
+					<table cellpadding="3" cellspacing="5">
+	          <tr>
+              <th scope="row"> <?php _e('identity') ?> </th>
+              <td>
+                <label for="me">
+                <input type="checkbox" name="identity" value="me" id="me" <?php xfn_check('identity', 'me'); ?> />
+          <?php _e('another web address of mine') ?></label>
+              </td>
+            </tr>
             <tr>
               <th scope="row"> <?php _e('friendship') ?> </th>
               <td>
-                <label for="label">
-                <input class="valinp" type="radio" name="friendship" value="acquaintance" id="label" <?php xfn_check('friendship', 'acquaintance', 'radio'); ?> />  <?php _e('acquaintance') ?></label>
-                <label for="label2">
-                <input class="valinp" type="radio" name="friendship" value="friend" id="label2" <?php xfn_check('friendship', 'friend', 'radio'); ?> /> <?php _e('friend') ?></label>
-                <label for="label3">
-                <input name="friendship" type="radio" class="valinp" id="label3" value="" <?php xfn_check('friendship', '', 'radio'); ?> />
-                <?php _e('none') ?></label>
+                <label for="acquaintance">
+                <input class="valinp" type="radio" name="friendship" value="acquaintance" id="acquaintance" <?php xfn_check('friendship', 'acquaintance', 'radio'); ?> />  <?php _e('acquaintance') ?></label>
+                <label for="contact">
+                <input class="valinp" type="radio" name="friendship" value="contact" id="contact" <?php xfn_check('friendship', 'contact', 'radio'); ?> /> <?php _e('contact') ?></label>
+                <label id="friend">
+                <input class="valinp" type="radio" name="friendship" value="friend" id="friend" <?php xfn_check('friendship', 'friend', 'radio'); ?> /> <?php _e('friend') ?></label>
+                <label for="friendship">
+                <input name="friendship" type="radio" class="valinp" value="" id="friendship" <?php xfn_check('friendship', '', 'radio'); ?> /> <?php _e('none') ?></label>
               </td>
             </tr>
             <tr>
               <th scope="row"> <?php _e('physical') ?> </th>
               <td>
-                <label for="label4">
-                <input class="valinp" type="checkbox" name="physical" value="met" id="label4" <?php xfn_check('physical', 'met'); ?> />
+                <label for="met">
+                <input class="valinp" type="checkbox" name="physical" value="met" id="met" <?php xfn_check('physical', 'met'); ?> />
           <?php _e('met') ?></label>
               </td>
             </tr>
             <tr>
               <th scope="row"> <?php _e('professional') ?> </th>
               <td>
-                <label for="label5">
-                <input class="valinp" type="checkbox" name="professional" value="co-worker" id="label5" <?php xfn_check('professional', 'co-worker'); ?> />
+                <label for="co-worker">
+                <input class="valinp" type="checkbox" name="professional" value="co-worker" id="co-worker" <?php xfn_check('professional', 'co-worker'); ?> />
           <?php _e('co-worker') ?></label>
-                <label for="label6">
-                <input class="valinp" type="checkbox" name="professional" value="colleague" id="label6" <?php xfn_check('professional', 'colleague'); ?> />
+                <label for="colleague">
+                <input class="valinp" type="checkbox" name="professional" value="colleague" id="colleague" <?php xfn_check('professional', 'colleague'); ?> />
           <?php _e('colleague') ?></label>
               </td>
             </tr>
             <tr>
               <th scope="row"> <?php _e('geographical') ?> </th>
               <td>
-                <label for="label7">
-                <input class="valinp" type="radio" name="geographical" value="co-resident" id="label7" <?php xfn_check('geographical', 'co-resident', 'radio'); ?> />
+                <label for="co-resident">
+                <input class="valinp" type="radio" name="geographical" value="co-resident" id="co-resident" <?php xfn_check('geographical', 'co-resident', 'radio'); ?> />
           <?php _e('co-resident') ?></label>
-                <label for="label8">
-                <input class="valinp" type="radio" name="geographical" value="neighbor" id="label8" <?php xfn_check('geographical', 'neighbor', 'radio'); ?> />
+                <label for="neighbor">
+                <input class="valinp" type="radio" name="geographical" value="neighbor" id="neighbor" <?php xfn_check('geographical', 'neighbor', 'radio'); ?> />
           <?php _e('neighbor') ?></label>
-                <label for="label9">
-                <input class="valinp" type="radio" name="geographical" value="" id="label9" <?php xfn_check('geographical', '', 'radio'); ?> />
+                <label for="geographical">
+                <input class="valinp" type="radio" name="geographical" value="" id="geographical" <?php xfn_check('geographical', '', 'radio'); ?> />
           <?php _e('none') ?></label>
               </td>
             </tr>
             <tr>
               <th scope="row"> family </th>
               <td>
-                <label for="label10">
-                <input class="valinp" type="radio" name="family" value="child" id="label10" <?php xfn_check('family', 'child', 'radio'); ?>  />
+                <label for="child">
+                <input class="valinp" type="radio" name="family" value="child" id="child" <?php xfn_check('family', 'child', 'radio'); ?>  />
           <?php _e('child') ?></label>
-                <label for="label11">
-                <input class="valinp" type="radio" name="family" value="parent" id="label11" <?php xfn_check('family', 'parent', 'radio'); ?> />
+                <label for="kin">
+                <input class="valinp" type="radio" name="family" value="kin" id="kin" <?php xfn_check('family', 'kin', 'radio'); ?>  />
+          <?php _e('kin') ?></label>
+                <label for="parent">
+                <input class="valinp" type="radio" name="family" value="parent" id="parent" <?php xfn_check('family', 'parent', 'radio'); ?> />
           <?php _e('parent') ?></label>
-                <label for="label12">
-                <input class="valinp" type="radio" name="family" value="sibling" id="label12" <?php xfn_check('family', 'sibling', 'radio'); ?> />
+                <label for="sibling">
+                <input class="valinp" type="radio" name="family" value="sibling" id="sibling" <?php xfn_check('family', 'sibling', 'radio'); ?> />
           <?php _e('sibling') ?></label>
-                <label for="label13">
-                <input class="valinp" type="radio" name="family" value="spouse" id="label13" <?php xfn_check('family', 'spouse', 'radio'); ?> />
+                <label for="spouse">
+                <input class="valinp" type="radio" name="family" value="spouse" id="spouse" <?php xfn_check('family', 'spouse', 'radio'); ?> />
           <?php _e('spouse') ?></label>
-                <label for="label14">
-                <input class="valinp" type="radio" name="family" value="" id="label14" <?php xfn_check('family', '', 'radio'); ?> />
+                <label for="family">
+                <input class="valinp" type="radio" name="family" value="" id="family" <?php xfn_check('family', '', 'radio'); ?> />
           <?php _e('none') ?></label>
               </td>
             </tr>
             <tr>
               <th scope="row"> <?php _e('romantic') ?> </th>
               <td>
-                <label for="label15">
-                <input class="valinp" type="checkbox" name="romantic" value="muse" id="label15" <?php xfn_check('romantic', 'muse'); ?> />
+                <label for="muse">
+                <input class="valinp" type="checkbox" name="romantic" value="muse" id="muse" <?php xfn_check('romantic', 'muse'); ?> />
          <?php _e('muse') ?></label>
-                <label for="label16">
-                <input class="valinp" type="checkbox" name="romantic" value="crush" id="label16" <?php xfn_check('romantic', 'crush'); ?> />
+                <label for="crush">
+                <input class="valinp" type="checkbox" name="romantic" value="crush" id="crush" <?php xfn_check('romantic', 'crush'); ?> />
          <?php _e('crush') ?></label>
-                <label for="label17">
-                <input class="valinp" type="checkbox" name="romantic" value="date" id="label17" <?php xfn_check('romantic', 'date'); ?> />
+                <label for="date">
+                <input class="valinp" type="checkbox" name="romantic" value="date" id="date" <?php xfn_check('romantic', 'date'); ?> />
          <?php _e('date') ?></label>
-                <label for="label18">
-                <input class="valinp" type="checkbox" name="romantic" value="sweetheart" id="label18" <?php xfn_check('romantic', 'sweetheart'); ?> />
+                <label for="romantic">
+                <input class="valinp" type="checkbox" name="romantic" value="sweetheart" id="romantic" <?php xfn_check('romantic', 'sweetheart'); ?> />
          <?php _e('sweetheart') ?></label>
               </td>
             </tr>
-        </table></td>
+        </table>
+		  </td>
            	</tr>
 </table>
 </fieldset>
@@ -519,7 +492,7 @@ th { text-align: right; }
 <p class="submit"><input type="submit" name="submit" value="<?php _e('Save Changes &raquo;') ?>" />
           <input type="hidden" name="action" value="editlink" />
           <input type="hidden" name="link_id" value="<?php echo (int) $link_id; ?>" />
-          <input type="hidden" name="order_by" value="<?php echo wp_specialchars($order_by, 1) ?>" />
+          <input type="hidden" name="order_by" value="<?php echo wp_specialchars($order_by, 1); ?>" />
           <input type="hidden" name="cat_id" value="<?php echo (int) $cat_id ?>" /></p>
   </form> 
 </div>
@@ -563,11 +536,10 @@ th { text-align: right; }
         $order_by = 'order_name';
     $links_show_order = $order_by;
 
-    setcookie('links_show_cat_id_'.$cookiehash, $links_show_cat_id, time()+600);
-    setcookie('links_show_order_'.$cookiehash, $links_show_order, time()+600);
-    $standalone=0;
+    setcookie('links_show_cat_id_' . COOKIEHASH, $links_show_cat_id, time()+600);
+    setcookie('links_show_order_' . COOKIEHASH, $links_show_order, time()+600);
     include_once ("./admin-header.php");
-    if ($user_level < get_settings('links_minadminlevel')) {
+    if ($user_level < 5) {
       die(__("You do not have sufficient permissions to edit the links for this blog."));
     }
 
@@ -599,33 +571,28 @@ function checkAll(form)
 }
 //-->
 </script>
-<ul id="adminmenu2">
-    <li><a href="link-manager.php" class="current"><?php _e('Manage Links') ?></a></li>
-    <li><a href="link-add.php"><?php _e('Add Link') ?></a></li>
-    <li><a href="link-categories.php"><?php _e('Link Categories') ?></a></li>
-    <li class="last"><a href="link-import.php"><?php _e('Import Blogroll') ?></a></li>
-</ul>
+
 <div class="wrap">
     <form name="cats" method="post" action="">
     <table width="75%" cellpadding="3" cellspacing="3">
       <tr>
         <td>
-          <strong>Show</strong> links in category:<?php echo gethelp_link($this_file,'link_categories');?><br />
+        <?php _e('<strong>Show</strong> links in category:'); ?><br />
         </td>
         <td>
-          <strong>Order</strong> by:<?php echo gethelp_link($this_file,'order_by');?>
+          <?php _e('<strong>Order</strong> by:');?>
         </td>
 		<td>&nbsp;</td>
       </tr>
       <tr>
         <td>
 <?php
-    $results = $wpdb->get_results("SELECT cat_id, cat_name, auto_toggle FROM $tablelinkcategories ORDER BY cat_id");
+    $results = $wpdb->get_results("SELECT cat_id, cat_name, auto_toggle FROM $wpdb->linkcategories ORDER BY cat_id");
     echo "        <select name=\"cat_id\">\n";
     echo "          <option value=\"All\"";
     if ($cat_id == 'All')
       echo " selected='selected'";
-    echo "> All</option>\n";
+    echo "> " . __('All') . "</option>\n";
     foreach ($results as $row) {
       echo "          <option value=\"".$row->cat_id."\"";
       if ($row->cat_id == $cat_id)
@@ -650,7 +617,6 @@ function checkAll(form)
         </td>
         <td>
           <input type="submit" name="action" value="<?php _e('Show') ?>" />
-          <?php echo gethelp_link($this_file,'show');?>
         </td>
       </tr>
     </table>
@@ -658,16 +624,16 @@ function checkAll(form)
 
 </div>
 
+<form name="links" id="links" method="post" action="">
 <div class="wrap">
 
-    <form name="links" id="links" method="post" action="">
     <input type="hidden" name="link_id" value="" />
     <input type="hidden" name="action" value="" />
-    <input type="hidden" name="order_by" value="<?php echo wp_specialchars($order_by) ?>" />
+    <input type="hidden" name="order_by" value="<?php echo wp_specialchars($order_by, 1); ?>" />
     <input type="hidden" name="cat_id" value="<?php echo (int) $cat_id ?>" />
   <table width="100%" cellpadding="3" cellspacing="3">
     <tr>
-      <th width="15%"><?php echo gethelp_link($this_file,'list_o_links');?> <?php _e('Name') ?></th>
+      <th width="15%"><?php _e('Name') ?></th>
       <th><?php _e('URI') ?></th>
       <th><?php _e('Category') ?></th>
       <th><?php _e('rel') ?></th>
@@ -678,11 +644,11 @@ function checkAll(form)
   </tr>
 <?php
     $sql = "SELECT link_url, link_name, link_image, link_description, link_visible,
-            link_category AS cat_id, cat_name AS category, $tableusers.user_login, link_id,
-            link_rating, link_rel, $tableusers.user_level
-            FROM $tablelinks
-            LEFT JOIN $tablelinkcategories ON $tablelinks.link_category = $tablelinkcategories.cat_id
-            LEFT JOIN $tableusers ON $tableusers.ID = $tablelinks.link_owner ";
+            link_category AS cat_id, cat_name AS category, $wpdb->users.user_login, link_id,
+            link_rating, link_rel, $wpdb->users.user_level
+            FROM $wpdb->links
+            LEFT JOIN $wpdb->linkcategories ON $wpdb->links.link_category = $wpdb->linkcategories.cat_id
+            LEFT JOIN $wpdb->users ON $wpdb->users.ID = $wpdb->links.link_owner ";
 
     if (isset($cat_id) && ($cat_id != 'All')) {
       $sql .= " WHERE link_category = $cat_id ";
@@ -693,28 +659,29 @@ function checkAll(form)
     $links = $wpdb->get_results($sql);
     if ($links) {
         foreach ($links as $link) {
-            $short_url = str_replace('http://', '', stripslashes($link->link_url));
+      	    $link->link_name = wp_specialchars($link->link_name);
+      	    $link->link_category = wp_specialchars($link->link_category);
+      	    $link->link_description = wp_specialchars($link->link_description);
+            $link->link_url = wp_specialchars($link->link_url);
+            $short_url = str_replace('http://', '', $link->link_url);
             $short_url = str_replace('www.', '', $short_url);
             if ('/' == substr($short_url, -1))
                 $short_url = substr($short_url, 0, -1);
             if (strlen($short_url) > 35)
                 $short_url =  substr($short_url, 0, 32).'...';
 
-            $link->link_name = wp_specialchars(stripslashes($link->link_name));
-            $link->category = wp_specialchars(stripslashes($link->category));
-            $link->link_rel = wp_specialchars(stripslashes($link->link_rel));
-            $link->link_description = wp_specialchars(stripslashes($link->link_description));
             $image = ($link->link_image != null) ? __('Yes') : __('No');
             $visible = ($link->link_visible == 'Y') ? __('Yes') : __('No');
             ++$i;
             $style = ($i % 2) ? ' class="alternate"' : '';
             echo <<<LINKS
- 
- 
+
     <tr valign="middle" $style>
         <td><strong>$link->link_name</strong><br />
-        Description: $link->link_description</td>
-        <td><a href="$link->link_url" title="Visit $link->link_name">$short_url</a></td>
+LINKS;
+        echo sprintf(__('Description: %s'), $link->link_description) . "</td>";
+        echo "<td><a href=\"$link->link_url\" title=\"" . sprintf(__('Visit %s'), $link->link_name) . "\">$short_url</a></td>";
+        echo <<<LINKS
         <td>$link->category</td>
         <td>$link->link_rel</td>
         <td align='center'>$image</td>
@@ -722,16 +689,14 @@ function checkAll(form)
 LINKS;
             $show_buttons = 1; // default
 
-            if (get_settings('links_use_adminlevels') && ($link->user_level > $user_level)) {
+            if ($link->user_level > $user_level) {
               $show_buttons = 0;
             }
 
             if ($show_buttons) {
-              echo <<<LINKS
-        <td><a href="link-manager.php?link_id=$link->link_id&amp;action=linkedit" class="edit">Edit</a></td>
-        <td><a href="link-manager.php?link_id=$link->link_id&amp;action=Delete" onclick="return confirm('You are about to delete this link.\\n  \'Cancel\' to stop, \'OK\' to delete.');" class="delete">Delete</a></td>
-        <td><input type="checkbox" name="linkcheck[]" value="$link->link_id" /></td>
-LINKS;
+        echo '<td><a href="link-manager.php?link_id=' . $link->link_id . '&amp;action=linkedit" class="edit">' . __('Edit') . '</a></td>';
+        echo '<td><a href="link-manager.php?link_id=' . $link->link_id . '&amp;action=Delete"' .  " onclick=\"return confirm('" . __("You are about to delete this link.\\n  \'Cancel\' to stop, \'OK\' to delete.") .  "');" . '" class="delete">' . __('Delete') . '</a></td>';
+        echo '<td><input type="checkbox" name="linkcheck[]" value="' . $link->link_id . '" /></td>';
             } else {
               echo "<td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td>\n";
             }
@@ -749,9 +714,9 @@ LINKS;
     <tr><td colspan="4"><?php _e('Use the checkboxes on the right to select multiple links and choose an action below:') ?></td></tr>
     <tr>
         <td>
-          <?php _e('Assign ownership to:'); echo ' ' . gethelp_link($this_file,'assign_ownership'); ?>
+          <?php _e('Assign ownership to:'); ?>
 <?php
-    $results = $wpdb->get_results("SELECT ID, user_login FROM $tableusers WHERE user_level > 0 ORDER BY ID");
+    $results = $wpdb->get_results("SELECT ID, user_login FROM $wpdb->users WHERE user_level > 0 ORDER BY ID");
     echo "          <select name=\"newowner\" size=\"1\">\n";
     foreach ($results as $row) {
       echo "            <option value=\"".$row->ID."\"";
@@ -763,13 +728,13 @@ LINKS;
         <input name="assign" type="submit" id="assign" value="<?php _e('Go') ?>" />
         </td>
         <td>
-          <input name="visibility" type="submit" id="visibility" value="<?php _e('Toggle Visibility') ?>" /><?php echo gethelp_link($this_file,'toggle_visibility');?>
+          <input name="visibility" type="submit" id="visibility" value="<?php _e('Toggle Visibility') ?>" />
         </td>
         <td>
-          <?php _e('Move to category:'); echo ' ' . gethelp_link($this_file,'move_to_cat'); category_dropdown('category'); ?> <input name="move" type="submit" id="move" value="<?php _e('Go') ?>" />
+          <?php _e('Move to category:'); category_dropdown('category'); ?> <input name="move" type="submit" id="move" value="<?php _e('Go') ?>" />
         </td>
         <td align="right">
-          <a href="#" onClick="checkAll(document.getElementById('links')); return false; "><?php _e('Toggle Checkboxes') ?></a><?php echo gethelp_link($this_file,'toggle_checkboxes');?>
+          <a href="#" onclick="checkAll(document.getElementById('links')); return false; "><?php _e('Toggle Checkboxes') ?></a>
         </td>
     </tr>
 </table>
@@ -777,8 +742,8 @@ LINKS;
 <?php
   } // end if !popup
 ?>
-</form>
 </div>
+</form>
 
 
 <?php
@@ -786,7 +751,5 @@ LINKS;
   } // end default
 } // end case
 ?>
-
-
 
 <?php include('admin-footer.php'); ?>

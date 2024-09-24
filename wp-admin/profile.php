@@ -1,27 +1,10 @@
 <?php 
-require_once('../wp-includes/wp-l10n.php');
+require_once('admin.php');
 
-$title = "Profile";
-/* <Profile | My Profile> */
+$title = 'Profile';
+$parent_file = 'profile.php';
 
-function add_magic_quotes($array) {
-	foreach ($array as $k => $v) {
-		if (is_array($v)) {
-			$array[$k] = add_magic_quotes($v);
-		} else {
-			$array[$k] = addslashes($v);
-		}
-	}
-	return $array;
-} 
-
-if (!get_magic_quotes_gpc()) {
-	$_GET    = add_magic_quotes($_GET);
-	$_POST   = add_magic_quotes($_POST);
-	$_COOKIE = add_magic_quotes($_COOKIE);
-}
-
-$wpvarstoreset = array('action','standalone','redirect','profile','user');
+$wpvarstoreset = array('action', 'profile', 'user');
 for ($i=0; $i<count($wpvarstoreset); $i += 1) {
 	$wpvar = $wpvarstoreset[$i];
 	if (!isset($$wpvar)) {
@@ -38,7 +21,7 @@ for ($i=0; $i<count($wpvarstoreset); $i += 1) {
 }
 
 require_once('../wp-config.php');
-require_once('auth.php');
+auth_redirect();
 switch($action) {
 
 case 'update':
@@ -64,7 +47,7 @@ case 'update':
 		die (__("<strong>ERROR</strong>: please type your e-mail address"));
 		return false;
 	} else if (!is_email($_POST["newuser_email"])) {
-		die (__("<strong>ERROR</strong>: the email address isn't correct"));
+		die (__("<strong>ERROR</strong>: the e-mail address isn't correct"));
 		return false;
 	}
 
@@ -79,112 +62,32 @@ case 'update':
 			die (__("<strong>ERROR</strong>: you typed two different passwords. Go back to correct that."));
 		$newuser_pass = $_POST["pass1"];
 		$updatepassword = "user_pass=MD5('$newuser_pass'), ";
-		setcookie('wordpresspass_'.$cookiehash, " ", time() - 31536000, COOKIEPATH);
-		setcookie('wordpresspass_'.$cookiehash, md5(md5($newuser_pass)), time() + 31536000, COOKIEPATH);
+		wp_clearcookie();
+		wp_setcookie($user_login, $newuser_pass);
 	}
 
-	$newuser_firstname=addslashes(stripslashes($_POST['newuser_firstname']));
-	$newuser_lastname=addslashes(stripslashes($_POST['newuser_lastname']));
-	$newuser_nickname=addslashes(stripslashes($_POST['newuser_nickname']));
-	$newuser_icq=addslashes(stripslashes($_POST['newuser_icq']));
-	$newuser_aim=addslashes(stripslashes($_POST['newuser_aim']));
-	$newuser_msn=addslashes(stripslashes($_POST['newuser_msn']));
-	$newuser_yim=addslashes(stripslashes($_POST['newuser_yim']));
-	$newuser_email=addslashes(stripslashes($_POST['newuser_email']));
-	$newuser_url=addslashes(stripslashes($_POST['newuser_url']));
-	$newuser_idmode=addslashes(stripslashes($_POST['newuser_idmode']));
-	$user_description = addslashes(stripslashes($_POST['user_description']));
+	$newuser_firstname = wp_specialchars($_POST['newuser_firstname']);
+	$newuser_lastname = wp_specialchars($_POST['newuser_lastname']);
+	$newuser_nickname = $_POST['newuser_nickname'];
+    $newuser_nicename = sanitize_title($newuser_nickname);
+	$newuser_icq = wp_specialchars($_POST['newuser_icq']);
+	$newuser_aim = wp_specialchars($_POST['newuser_aim']);
+	$newuser_msn = wp_specialchars($_POST['newuser_msn']);
+	$newuser_yim = wp_specialchars($_POST['newuser_yim']);
+	$newuser_email = wp_specialchars($_POST['newuser_email']);
+	$newuser_url = wp_specialchars($_POST['newuser_url']);
+	$newuser_url = preg_match('/^(https?|ftps?|mailto|news|gopher):/is', $newuser_url) ? $newuser_url : 'http://' . $newuser_url; 
+	$newuser_idmode = wp_specialchars($_POST['newuser_idmode']);
+	$user_description = $_POST['user_description'];
 
-	$query = "UPDATE $tableusers SET user_firstname='$newuser_firstname', $updatepassword user_lastname='$newuser_lastname', user_nickname='$newuser_nickname', user_icq='$newuser_icq', user_email='$newuser_email', user_url='$newuser_url', user_aim='$newuser_aim', user_msn='$newuser_msn', user_yim='$newuser_yim', user_idmode='$newuser_idmode', user_description = '$user_description' WHERE ID = $user_ID";
-	$result = $wpdb->query($query);
-	if (!$result) {
-		die (__("<strong>ERROR</strong>: couldn't update your profile..."));
-	}
+	$result = $wpdb->query("UPDATE $wpdb->users SET user_firstname='$newuser_firstname', $updatepassword user_lastname='$newuser_lastname', user_nickname='$newuser_nickname', user_icq='$newuser_icq', user_email='$newuser_email', user_url='$newuser_url', user_aim='$newuser_aim', user_msn='$newuser_msn', user_yim='$newuser_yim', user_idmode='$newuser_idmode', user_description = '$user_description', user_nicename = '$newuser_nicename' WHERE ID = $user_ID");
+
 	header('Location: profile.php?updated=true');
 break;
 
-case 'viewprofile':
-
-
-	$profiledata = get_userdata($user);
-	if ($_COOKIE['wordpressuser_'.$cookiehash] == $profiledata->user_login)
-		header ('Location: profile.php');
-	
-	include_once('admin-header.php');
-	?>
-
-<h2><?php _e('View Profile') ?> &#8220;
-  <?php
-	switch($profiledata->user_idmode) {
-		case 'nickname':
-			$r = $profiledata->user_nickname;
-			break;
-		case 'login':
-			$r = $profiledata->user_login;
-			break;
-		case 'firstname':
-			$r = $profiledata->user_firstname;
-			break;
-		case 'lastname':
-			$r = $profiledata->user_lastname;
-			break;
-		case 'namefl':
-			$r = $profiledata->user_firstname.' '.$profiledata->user_lastname;
-			break;
- 		case 'namelf':
-			$r = $profiledata->user_lastname.' '.$profiledata->user_firstname;
-			break;
-	}
-	echo $r;
-	?>
-  &#8221;</h2>
-	  
-  <div id="profile">
-<p> 
-  <strong><?php _e('Login') ?></strong> <?php echo $profiledata->user_login ?>
-  | <strong><?php _e('User #') ?></strong> <?php echo $profiledata->ID ?> | <strong><?php _e('Level') ?></strong> 
-  <?php echo $profiledata->user_level ?> | <strong><?php _e('Posts') ?></strong> 
-  <?php
-	$posts = get_usernumposts($user);
-	echo $posts;
-	?>
-</p>
-
-<p> <strong><?php _e('First name:') ?></strong> <?php echo $profiledata->user_firstname ?> </p>
-  
-<p> <strong><?php _e('Last name:') ?></strong> <?php echo $profiledata->user_lastname ?> </p>
-  
-<p> <strong><?php _e('Nickname:') ?></strong> <?php echo $profiledata->user_nickname ?> </p>
-  
-<p> <strong><?php _e('Email:') ?></strong> <?php echo make_clickable($profiledata->user_email) ?> 
-</p>
-  
-<p> <strong><?php _e('Website:') ?></strong> <?php echo $profiledata->user_url ?> </p>
-  
-<p> <strong><?php _e('ICQ:') ?></strong> 
-  <?php if ($profiledata->user_icq > 0) { echo make_clickable("icq:".$profiledata->user_icq); } ?>
-</p>
-  
-<p> <strong><?php _e('AIM:') ?></strong> <?php echo "<a href='aim:goim?screenname=". str_replace(' ', '+', $profiledata->user_aim) ."&message=Howdy'>$profiledata->user_aim</a>"; ?> 
-</p>
-  
-<p> <strong><?php _e('MSN IM:') ?></strong> <?php echo $profiledata->user_msn ?> </p>
-  
-<p> <strong><?php _e('Yahoo IM:') ?></strong> <?php echo $profiledata->user_yim ?> </p>
-  
-</div>
-
-	<?php
-
-break;
-
-
 case 'IErightclick':
 
-
-	$bookmarklet_tbpb  = (get_settings('use_trackback')) ? '&trackback=1' : '';
-	$bookmarklet_tbpb .= (get_settings('use_pingback'))  ? '&pingback=1'  : '';
-	$bookmarklet_height= (get_settings('use_trackback')) ? 590 : 550;
+	$bookmarklet_height= 550;
 
 	?>
 
@@ -216,16 +119,13 @@ break;
 
 
 default:
-
+	$parent_file = 'profile.php';
 	include_once('admin-header.php');
 	$profiledata=get_userdata($user_ID);
 
-	$bookmarklet_tbpb  = (get_settings('use_trackback')) ? '&trackback=1' : '';
-	$bookmarklet_tbpb .= (get_settings('use_pingback'))  ? '&pingback=1'  : '';
-	$bookmarklet_height= (get_settings('use_trackback')) ? 480 : 440;
+	$bookmarklet_height= 440;
 
-	?>
-<?php if (isset($updated)) { ?>
+if (isset($updated)) { ?>
 <div class="updated">
 <p><strong><?php _e('Profile updated.') ?></strong></p>
 </div>
@@ -238,13 +138,10 @@ default:
     <input type="hidden" name="checkuser_id" value="<?php echo $user_ID ?>" />
   </p>
 
-	<style type="text/css" media="screen">
-	th { text-align: right; }
-	</style>
-  <table width="99%"  border="0" cellspacing="2" cellpadding="3">
+  <table width="99%"  border="0" cellspacing="2" cellpadding="3" class="editform">
     <tr>
       <th width="33%" scope="row"><?php _e('Login:') ?></th>
-      <td width="73%"><?php echo $profiledata->user_login; ?></td>
+      <td width="67%"><?php echo $profiledata->user_login; ?></td>
     </tr>
     <tr>
       <th scope="row"><?php _e('Level:') ?></th>
@@ -266,15 +163,42 @@ default:
       <td><input type="text" name="newuser_lastname" id="newuser_lastname2" value="<?php echo $profiledata->user_lastname ?>" /></td>
     </tr>
     <tr>
-      <th scope="row"><?php _e('Profile:') ?></th>
-      <td><textarea name="user_description" rows="5" id="textarea2" style="width: 99%; "><?php echo $profiledata->user_description ?></textarea></td>
-    </tr>
-    <tr>
       <th scope="row"><?php _e('Nickname:') ?></th>
       <td><input type="text" name="newuser_nickname" id="newuser_nickname2" value="<?php echo $profiledata->user_nickname ?>" /></td>
     </tr>
     <tr>
-      <th scope="row"><?php _e('Email:') ?></th>
+      <th scope="row"><?php _e('How to display name:') ?> </th>
+      <td><select name="newuser_idmode">
+        <option value="nickname"<?php
+	if ($profiledata->user_idmode == 'nickname')
+	echo ' selected="selected"'; ?>><?php echo $profiledata->user_nickname ?></option>
+        <option value="login"<?php
+	if ($profiledata->user_idmode=="login")
+	echo ' selected="selected"'; ?>><?php echo $profiledata->user_login ?></option>
+	<?php if ( !empty( $profiledata->user_firstname ) ) : ?>
+        <option value="firstname"<?php
+	if ($profiledata->user_idmode=="firstname")
+	echo ' selected="selected"'; ?>><?php echo $profiledata->user_firstname ?></option>
+	<?php endif; ?>
+	<?php if ( !empty( $profiledata->user_lastname ) ) : ?>
+        <option value="lastname"<?php
+	if ($profiledata->user_idmode=="lastname")
+	echo ' selected="selected"'; ?>><?php echo $profiledata->user_lastname ?></option>
+	<?php endif; ?>
+	<?php if ( !empty( $profiledata->user_firstname ) && !empty( $profiledata->user_lastname ) ) : ?>
+        <option value="namefl"<?php
+	if ($profiledata->user_idmode=="namefl")
+	echo ' selected="selected"'; ?>><?php echo $profiledata->user_firstname." ".$profiledata->user_lastname ?></option>
+	<?php endif; ?>
+	<?php if ( !empty( $profiledata->user_firstname ) && !empty( $profiledata->user_lastname ) ) : ?>
+        <option value="namelf"<?php
+	if ($profiledata->user_idmode=="namelf")
+	echo ' selected="selected"'; ?>><?php echo $profiledata->user_lastname." ".$profiledata->user_firstname ?></option>
+	<?php endif; ?>
+      </select>        </td>
+    </tr>
+    <tr>
+      <th scope="row"><?php _e('E-mail:') ?></th>
       <td><input type="text" name="newuser_email" id="newuser_email2" value="<?php echo $profiledata->user_email ?>" /></td>
     </tr>
     <tr>
@@ -298,44 +222,27 @@ default:
       <td>        <input type="text" name="newuser_yim" id="newuser_yim2" value="<?php echo $profiledata->user_yim ?>" />      </td>
     </tr>
     <tr>
-      <th scope="row"><?php _e('Identity on blog:') ?> </th>
-      <td><select name="newuser_idmode">
-        <option value="nickname"<?php
-	if ($profiledata->user_idmode == 'nickname')
-	echo " selected"; ?>><?php echo $profiledata->user_nickname ?></option>
-        <option value="login"<?php
-	if ($profiledata->user_idmode=="login")
-	echo " selected"; ?>><?php echo $profiledata->user_login ?></option>
-        <option value="firstname"<?php
-	if ($profiledata->user_idmode=="firstname")
-	echo " selected"; ?>><?php echo $profiledata->user_firstname ?></option>
-        <option value="lastname"<?php
-	if ($profiledata->user_idmode=="lastname")
-	echo " selected"; ?>><?php echo $profiledata->user_lastname ?></option>
-        <option value="namefl"<?php
-	if ($profiledata->user_idmode=="namefl")
-	echo " selected"; ?>><?php echo $profiledata->user_firstname." ".$profiledata->user_lastname ?></option>
-        <option value="namelf"<?php
-	if ($profiledata->user_idmode=="namelf")
-	echo " selected"; ?>><?php echo $profiledata->user_lastname." ".$profiledata->user_firstname ?></option>
-      </select>        </td>
+      <th scope="row"><?php _e('Profile:') ?></th>
+      <td><textarea name="user_description" rows="5" id="textarea2" style="width: 99%; "><?php echo $profiledata->user_description ?></textarea></td>
     </tr>
     <tr>
       <th scope="row"><?php _e('New <strong>Password</strong> (Leave blank to stay the same.)') ?></th>
       <td><input type="password" name="pass1" size="16" value="" />
-      	<br>
+      	<br />
         <input type="password" name="pass2" size="16" value="" /></td>
     </tr>
   </table>
   <p class="submit">
     <input type="submit" value="<?php _e('Update Profile &raquo;') ?>" name="submit" />
   </p>
-	</div>
 </form>
 </div>
+
+
 <?php if ($is_gecko && $profiledata->user_level != 0) { ?>
 <div class="wrap">
-    <script language="JavaScript" type="text/javascript">
+    <script type="text/javascript">
+//<![CDATA[
 function addPanel()
         {
           if ((typeof window.sidebar == "object") && (typeof window.sidebar.addPanel == "function"))
@@ -343,18 +250,19 @@ function addPanel()
           else
             alert(<?php __("'No Sidebar found!  You must use Mozilla 0.9.4 or later!'") ?>);
         }
+//]]>
 </script>
-    <strong>SideBar</strong><br />
-    Add the <a href="#" onClick="addPanel()">WordPress Sidebar</a>! 
+    <strong><?php _e('SideBar') ?></strong><br />
+    <?php _e('Add the <a href="#" onclick="addPanel()">WordPress Sidebar</a>!') ?> 
     <?php } elseif (($is_winIE) || ($is_macIE)) { ?>
-    <strong>SideBar</strong><br />
-    Add this link to your favorites:<br />
-    <a href="javascript:Q='';if(top.frames.length==0)Q=document.selection.createRange().text;void(_search=open('<?php echo get_settings('siteurl');
-	 ?>/wp-admin/sidebar.php?text='+escape(Q)+'&popupurl='+escape(location.href)+'&popuptitle='+escape(document.title),'_search'))">WordPress 
-    Sidebar</a>. 
+    <strong><?php _e('SideBar') ?></strong><br />
+    <?php __('Add this link to your favorites:') ?><br />
+<a href="javascript:Q='';if(top.frames.length==0)Q=document.selection.createRange().text;void(_search=open('<?php echo get_settings('siteurl');
+	 ?>/wp-admin/sidebar.php?text='+escape(Q)+'&popupurl='+escape(location.href)+'&popuptitle='+escape(document.title),'_search'))"><?php _e('WordPress Sidebar') ?></a>. 
     
 </div>
 <?php } ?>
+</div>
 	<?php
 
 break;

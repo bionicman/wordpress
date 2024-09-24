@@ -1,12 +1,12 @@
 <?php
 // Links
 // Copyright (C) 2002, 2003 Mike Little -- mike@zed1.com
-require_once('../wp-includes/wp-l10n.php');
+require_once('admin.php');
 $title = __('Link Categories');
 $this_file='link-categories.php';
 $parent_file = 'link-manager.php';
 
-$wpvarstoreset = array('action','standalone','cat', 'auto_toggle');
+$wpvarstoreset = array('action', 'cat', 'auto_toggle');
 for ($i=0; $i<count($wpvarstoreset); $i += 1) {
     $wpvar = $wpvarstoreset[$i];
     if (!isset($$wpvar)) {
@@ -25,13 +25,10 @@ for ($i=0; $i<count($wpvarstoreset); $i += 1) {
 switch ($action) {
   case 'addcat':
   {
-      $standalone = 1;
-      include_once('admin-header.php');
-
-      if ($user_level < get_settings('links_minadminlevel'))
+      if ($user_level < 5)
           die (__("Cheatin' uh ?"));
 
-      $cat_name = wp_specialchars(addslashes($_POST['cat_name']));
+      $cat_name = wp_specialchars($_POST['cat_name']);
       $auto_toggle = $_POST['auto_toggle'];
       if ($auto_toggle != 'Y') {
           $auto_toggle = 'N';
@@ -71,7 +68,7 @@ switch ($action) {
       if ($list_limit == '')
           $list_limit = -1;
 
-      $wpdb->query("INSERT INTO $tablelinkcategories (cat_id, cat_name, auto_toggle, show_images, show_description, \n" .
+      $wpdb->query("INSERT INTO $wpdb->linkcategories (cat_id, cat_name, auto_toggle, show_images, show_description, \n" .
              " show_rating, show_updated, sort_order, sort_desc, text_before_link, text_after_link, text_after_all, list_limit) \n" .
              " VALUES ('0', '$cat_name', '$auto_toggle', '$show_images', '$show_description', \n" .
              " '$show_rating', '$show_updated', '$sort_order', '$sort_desc', '$text_before_link', '$text_after_link', \n" .
@@ -82,21 +79,17 @@ switch ($action) {
   } // end addcat
   case 'Delete':
   {
-    $standalone = 1;
-    include_once('admin-header.php');
-
     $cat_id = (int) $_GET['cat_id'];
     $cat_name=get_linkcatname($cat_id);
-    $cat_name=addslashes($cat_name);
 
     if ($cat_id=="1")
         die(sprintf(__("Can't delete the <strong>%s</strong> link category: this is the default one"), $cat_name));
 
-    if ($user_level < get_settings('links_minadminlevel'))
+    if ($user_level < 5)
       die (__("Cheatin' uh ?"));
 
-    $wpdb->query("DELETE FROM $tablelinkcategories WHERE cat_id='$cat_id'");
-    $wpdb->query("UPDATE $tablelinks SET link_category=1 WHERE link_category='$cat_id'");
+    $wpdb->query("DELETE FROM $wpdb->linkcategories WHERE cat_id='$cat_id'");
+    $wpdb->query("UPDATE $wpdb->links SET link_category=1 WHERE link_category='$cat_id'");
 
     header('Location: link-categories.php');
     break;
@@ -107,32 +100,25 @@ switch ($action) {
     $cat_id = (int) $_GET['cat_id'];
     $row = $wpdb->get_row("SELECT cat_id, cat_name, auto_toggle, show_images, show_description, "
          . " show_rating, show_updated, sort_order, sort_desc, text_before_link, text_after_link, "
-         . " text_after_all, list_limit FROM $tablelinkcategories WHERE cat_id=$cat_id");
+         . " text_after_all, list_limit FROM $wpdb->linkcategories WHERE cat_id=$cat_id");
     if ($row) {
         if ($row->list_limit == -1) {
             $row->list_limit = '';
         }
 ?>
 
-<ul id="adminmenu2">
-	<li><a href="link-manager.php" ><?php _e('Manage Links') ?></a></li>
-	<li><a href="link-add.php"><?php _e('Add Link') ?></a></li>
-	<li><a href="link-categories.php" class="current"><?php _e('Link Categories') ?></a></li>
-	<li class="last"><a href="link-import.php"><?php _e('Import Blogroll') ?></a></li>
-</ul>
-
 <div class="wrap">
-  <h2>Edit &#8220;<?php echo wp_specialchars($row->cat_name); ?>&#8221; Category </h2>
+  <h2>Edit &#8220;<?php echo wp_specialchars($row->cat_name)?>&#8221; Category </h2>
 
   <form name="editcat" method="post">
       <input type="hidden" name="action" value="editedcat" />
-      <input type="hidden" name="cat_id" value="<?php echo (int) $row->cat_id ?>" />
+      <input type="hidden" name="cat_id" value="<?php echo $row->cat_id ?>" />
 <fieldset class="options">
 <legend><?php _e('Category Options') ?></legend>
 <table class="editform" width="100%" cellspacing="2" cellpadding="5">
 <tr>
 	<th width="33%" scope="row"><?php _e('Name:') ?></th>
-	<td width="67%"><input name="cat_name" type="text" value="<?php echo wp_specialchars(stripslashes($row->cat_name), 1)?>" size="30" /></td>
+	<td width="67%"><input name="cat_name" type="text" value="<?php echo wp_specialchars($row->cat_name)?>" size="30" /></td>
 </tr>
 <tr>
 	<th scope="row"><?php _e('Show:') ?></th>
@@ -156,7 +142,7 @@ switch ($action) {
 	<th scope="row"><?php _e('Sort order:') ?></th>
 	<td>
 	<select name="sort_order" size="1">
-            <option value="name"    <?php echo ($row->sort_order == 'name') ? 'selected' : ''?>><?php _e('Name') ?></option>
+            <option value="name" <?php echo ($row->sort_order == 'name') ? 'selected="selected"' : ''?>><?php _e('Name') ?></option>
             <option value="id"      <?php echo ($row->sort_order == 'id') ? 'selected' : ''?>><?php _e('Id') ?></option>
             <option value="url"     <?php echo ($row->sort_order == 'url') ? 'selected' : ''?>><?php _e('URL') ?></option>
             <option value="rating"  <?php echo ($row->sort_order == 'rating') ? 'selected' : ''?>><?php _e('Rating') ?></option>
@@ -190,15 +176,15 @@ switch ($action) {
 <table class="editform" width="100%" cellspacing="2" cellpadding="5">
 <tr>
 	<th width="33%" scope="row"><?php _e('Before Link:') ?></th>
-	<td width="67%"><input type="text" name="text_before_link" size="45" value="<?php echo stripslashes($row->text_before_link)?>" /></td>
+	<td width="67%"><input type="text" name="text_before_link" size="45" value="<?php echo wp_specialchars($row->text_before_link)?>" /></td>
 </tr>
 <tr>
 <th scope="row"><?php _e('Between Link and Description:') ?></th>
-<td><input type="text" name="text_after_link" size="45" value="<?php echo stripslashes($row->text_after_link)?>" /></td>
+<td><input type="text" name="text_after_link" size="45" value="<?php echo wp_specialchars($row->text_after_link)?>" /></td>
 </tr>
 <tr>
 <th scope="row"><?php _e('After Link:') ?></th>
-<td><input type="text" name="text_after_all" size="45" value="<?php echo stripslashes($row->text_after_all)?>"/></td>
+<td><input type="text" name="text_after_all" size="45" value="<?php echo wp_specialchars($row->text_after_all)?>"/></td>
 </tr>
 </table>
 </fieldset>
@@ -212,18 +198,15 @@ switch ($action) {
   } // end Edit
   case "editedcat":
   {
-    $standalone = 1;
-    include_once("./admin-header.php");
-
-    if ($user_level < get_settings('links_minadminlevel'))
+    if ($user_level < 5)
       die (__("Cheatin' uh ?"));
 
     $submit=$_POST["submit"];
     if (isset($submit)) {
 
-    $cat_id= (int) $_POST["cat_id"];
+    $cat_id = (int)$_POST["cat_id"];
 
-    $cat_name= wp_specialchars(addslashes(stripslashes($_POST["cat_name"])));
+    $cat_name= wp_specialchars($_POST["cat_name"]);
     $auto_toggle = $_POST["auto_toggle"];
     if ($auto_toggle != 'Y') {
         $auto_toggle = 'N';
@@ -263,7 +246,7 @@ switch ($action) {
     if ($list_limit == '')
         $list_limit = -1;
 
-    $wpdb->query("UPDATE $tablelinkcategories set
+    $wpdb->query("UPDATE $wpdb->linkcategories set
             cat_name='$cat_name',
             auto_toggle='$auto_toggle',
             show_images='$show_images',
@@ -286,35 +269,29 @@ switch ($action) {
   } // end editcat
   default:
   {
-    $standalone=0;
-    include_once ("./admin-header.php");
-    if ($user_level < get_settings('links_minadminlevel')) {
+    include_once ("admin-header.php");
+    if ($user_level < 5) {
       die(__("You have do not have sufficient permissions to edit the link categories for this blog. :)"));
     }
 ?>
-<ul id="adminmenu2">
-	<li><a href="link-manager.php" ><?php _e('Manage Links') ?></a></li>
-	<li><a href="link-add.php"><?php _e('Add Link') ?></a></li>
-	<li><a href="link-categories.php" class="current"><?php _e('Link Categories') ?></a></li>
-	<li class="last"><a href="link-import.php"><?php _e('Import Blogroll') ?></a></li>
-</ul>
+
 <div class="wrap">
-            <h2><?php _e('Link Categories:') ?><?php echo gethelp_link($this_file,'edit_link_category');?></h2>
+            <h2><?php _e('Link Categories:') ?></h2>
             <table width="100%" cellpadding="5" cellspacing="0" border="0">
               <tr>
  	        <th rowspan="2" valign="bottom"><?php _e('Name') ?></th>
                 <th rowspan="2" valign="bottom"><?php _e('ID') ?></th>
                 <th rowspan="2" valign="bottom"><?php _e('Toggle?') ?></th>
-                <th colspan="4" valign="bottom"><?php _e('Show') ?></th>
+                <th colspan="4" valign="bottom" class="alternate"><?php _e('Show') ?></th>
                 <th rowspan="2" valign="bottom"><?php _e('Sort Order') ?></th>
                 <th rowspan="2" valign="bottom"><?php _e('Desc?') ?></th>
-                <th colspan="3" valign="bottom"><?php _e('Formatting') ?></th>
+                <th colspan="3" valign="bottom" class="alternate"><?php _e('Formatting') ?></th>
                 <th rowspan="2" valign="bottom"><?php _e('Limit') ?></th>
                 <th rowspan="2" colspan="2">&nbsp;</th>
               </tr>
               <tr>
                 <th valign="top"><?php _e('Images') ?></th>
-                <th valign="top"><?php _e('Desc.') ?></th>
+                <th valign="top"><?php _e('Description') ?></th>
                 <th valign="top"><?php _e('Rating') ?></th>
                 <th valign="top"><?php _e('Updated') ?></th>
                 <th valign="top"><?php _e('Before') ?></th>
@@ -324,7 +301,7 @@ switch ($action) {
 <?php
 $results = $wpdb->get_results("SELECT cat_id, cat_name, auto_toggle, show_images, show_description, "
          . " show_rating, show_updated, sort_order, sort_desc, text_before_link, text_after_link, "
-         . " text_after_all, list_limit FROM $tablelinkcategories ORDER BY cat_id");
+         . " text_after_all, list_limit FROM $wpdb->linkcategories ORDER BY cat_id");
 $i = 1;
 foreach ($results as $row) {
     if ($row->list_limit == -1) {
@@ -333,7 +310,7 @@ foreach ($results as $row) {
     $style = ($i % 2) ? ' class="alternate"' : '';
 ?>
               <tr valign="middle" align="center" <?php echo $style ?> style="border-bottom: 1px dotted #9C9A9C;">
-                <td><?php echo wp_specialchars(stripslashes($row->cat_name))?></td>
+                <td><?php echo wp_specialchars($row->cat_name)?></td>
 				<td ><?php echo $row->cat_id?></td>
                 <td><?php echo $row->auto_toggle?></td>
                 <td><?php echo $row->show_images?></td>
@@ -361,7 +338,7 @@ foreach ($results as $row) {
 <div class="wrap">
     <form name="addcat" method="post">
       <input type="hidden" name="action" value="addcat" />
-	  <h2><?php _e('Add a Link Category:') ?><?php echo gethelp_link($this_file,'add_link_category');?></h2>
+	  <h2><?php _e('Add a Link Category:') ?></h2>
 <fieldset class="options">
 <legend><?php _e('Category Options') ?></legend>
 <table class="editform" width="100%" cellspacing="2" cellpadding="5">

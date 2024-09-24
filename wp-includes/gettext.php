@@ -53,8 +53,10 @@ class gettext_reader {
         return;
     }
 
-    $MAGIC1 = (int)0x950412de;
-    $MAGIC2 = (int)0xde120495;
+	// $MAGIC1 = (int)0x950412de; //bug in PHP 5
+	$MAGIC1 = (int) - 1794895138;
+	// $MAGIC2 = (int)0xde120495; //bug
+	$MAGIC2 = (int) - 569244523;
 
 
     $this->STREAM = $Reader;
@@ -113,6 +115,9 @@ class gettext_reader {
     $meta = $this->ORIGINALS[$num];
     $length = $meta[0];
     $offset = $meta[1];
+		if (! $length) {
+			return '';
+		}
     $this->STREAM->seekto($offset);
     $data = $this->STREAM->read($length);
     return (string)$data;

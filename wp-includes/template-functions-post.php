@@ -1,19 +1,5 @@
 <?php
 
-// Default filters
-add_filter('the_title', 'convert_chars');
-add_filter('the_title', 'trim');
-
-add_filter('the_title_rss', 'strip_tags');
-
-add_filter('the_content', 'convert_smilies');
-add_filter('the_content', 'convert_chars');
-add_filter('the_content', 'wpautop');
-
-add_filter('the_excerpt', 'convert_smilies');
-add_filter('the_excerpt', 'convert_chars');
-add_filter('the_excerpt', 'wpautop');
-
 function get_the_password_form() {
     $output = '<form action="' . get_settings('siteurl') . '/wp-pass.php" method="post">
     <p>' . __("This post is password protected. To view it please enter your password below:") . '</p>
@@ -31,7 +17,7 @@ function the_ID() {
 function the_title($before = '', $after = '', $echo = true) {
 	$title = get_the_title();
 	if (!empty($title)) {
-		$title = apply_filters('the_title', $before . $title . $after);
+		$title = apply_filters('the_title', $before . $title . $after, $before, $after);
 		if ($echo)
 			echo $title;
 		else
@@ -39,21 +25,37 @@ function the_title($before = '', $after = '', $echo = true) {
 	}
 }
 
-function the_title_rss() {
-	$title = get_the_title();
-	$title = apply_filters('the_title', $title);
-	$title = apply_filters('the_title_rss', $title);
-	echo $title;
+function get_the_title($id = 0) {
+	global $post, $wpdb;
+	
+	if ( 0 != $id ) {
+		$id_post = $wpdb->get_row("SELECT post_title, post_password FROM $wpdb->posts WHERE ID = $id");
+		$title = $id_post->post_title;
+		if (!empty($id_post->post_password))
+			$title = sprintf(__('Protected: %s'), $title);
+	}
+	else {
+		$title = $post->post_title;
+		if (!empty($post->post_password))
+			$title = sprintf(__('Protected: %s'), $title);
+	}
+	return $title;
 }
 
-function get_the_title() {
-	global $post;
-	$output = stripslashes($post->post_title);
-	if (!empty($post->post_password)) { // if there's a password
-		$output = 'Protected: ' . $output;
-	}
-	return $output;
+function get_the_guid( $id = 0 ) {
+	global $post, $wpdb;
+	$guid = $post->guid;
+
+	if ( 0 != $id )
+		$guid = $wpdb->get_var("SELECT guid FROM $wpdb->posts WHERE ID = $id");
+	$guid = apply_filters('get_the_guid', $guid);
+	return $guid;
 }
+
+function the_guid( $id = 0 ) {
+	echo get_the_guid();
+}
+
 
 function the_content($more_link_text = '(more...)', $stripteaser = 0, $more_file = '') {
     $content = get_the_content($more_link_text, $stripteaser, $more_file);
@@ -62,47 +64,14 @@ function the_content($more_link_text = '(more...)', $stripteaser = 0, $more_file
     echo $content;
 }
 
-function the_content_rss($more_link_text='(more...)', $stripteaser=0, $more_file='', $cut = 0, $encode_html = 0) {
-	$content = get_the_content($more_link_text, $stripteaser, $more_file);
-	$content = apply_filters('the_content', $content);
-	if ($cut && !$encode_html) {
-		$encode_html = 2;
-	}
-	if ($encode_html == 1) {
-		$content = htmlspecialchars($content);
-		$cut = 0;
-	} elseif ($encode_html == 0) {
-		$content = make_url_footnote($content);
-	} elseif ($encode_html == 2) {
-		$content = strip_tags($content);
-	}
-	if ($cut) {
-		$blah = explode(' ', $content);
-		if (count($blah) > $cut) {
-			$k = $cut;
-			$use_dotdotdot = 1;
-		} else {
-			$k = count($blah);
-			$use_dotdotdot = 0;
-		}
-		for ($i=0; $i<$k; $i++) {
-			$excerpt .= $blah[$i].' ';
-		}
-		$excerpt .= ($use_dotdotdot) ? '...' : '';
-		$content = $excerpt;
-	}
-	$content = str_replace(']]>', ']]&gt;', $content);
-	echo $content;
-}
-
 function get_the_content($more_link_text = '(more...)', $stripteaser = 0, $more_file = '') {
     global $id, $post, $more, $single, $withcomments, $page, $pages, $multipage, $numpages;
-    global $preview, $cookiehash;
+    global $preview;
     global $pagenow;
     $output = '';
 
     if (!empty($post->post_password)) { // if there's a password
-        if ($_COOKIE['wp-postpass_'.$cookiehash] != $post->post_password) {  // and it doesn't match the cookie
+        if (stripslashes($_COOKIE['wp-postpass_'.COOKIEHASH]) != $post->post_password) {  // and it doesn't match the cookie
             $output = get_the_password_form();
             return $output;
         }
@@ -114,7 +83,7 @@ function get_the_content($more_link_text = '(more...)', $stripteaser = 0, $more_
         $file = $pagenow; //$_SERVER['PHP_SELF'];
     }
     $content = $pages[$page-1];
-    $content = explode('<!--more-->', $content);
+    $content = explode('<!--more-->', $content, 2);
     if ((preg_match('/<!--noteaser-->/', $post->post_content) && ((!$multipage) || ($page==1))))
         $stripteaser = 1;
     $teaser = $content[0];
@@ -135,78 +104,21 @@ function get_the_content($more_link_text = '(more...)', $stripteaser = 0, $more_
 }
 
 function the_excerpt() {
-    echo apply_filters('the_excerpt', get_the_excerpt());
-}
-
-function the_excerpt_rss($cut = 0, $encode_html = 0) {
-    $output = get_the_excerpt(true);
-
-    $output = convert_chars($output);
-    if ($cut && !$encode_html) {
-        $encode_html = 2;
-    }
-    if ($encode_html == 1) {
-        $output = htmlspecialchars($output);
-        $cut = 0;
-    } elseif ($encode_html == 0) {
-        $output = make_url_footnote($output);
-    } elseif ($encode_html == 2) {
-        $output = strip_tags($output);
-        $output = str_replace('&', '&amp;', $output);
-    }
-    if ($cut) {
-        $excerpt = '';
-        $blah = explode(' ', $output);
-        if (count($blah) > $cut) {
-            $k = $cut;
-            $use_dotdotdot = 1;
-        } else {
-            $k = count($blah);
-            $use_dotdotdot = 0;
-        }
-        for ($i=0; $i<$k; $i++) {
-            $excerpt .= $blah[$i].' ';
-        }
-        $excerpt .= ($use_dotdotdot) ? '...' : '';
-        $output = $excerpt;
-    }
-    $output = str_replace(']]>', ']]&gt;', $output);
-    echo apply_filters('the_excerpt_rss', $output);
+	echo apply_filters('the_excerpt', get_the_excerpt());
 }
 
 function get_the_excerpt($fakeit = true) {
-    global $id, $post;
-    global $cookiehash;
-    $output = '';
-    $output = stripslashes($post->post_excerpt);
-    if (!empty($post->post_password)) { // if there's a password
-        if ($_COOKIE['wp-postpass_'.$cookiehash] != $post->post_password) {  // and it doesn't match the cookie
-            $output = __('There is no excerpt because this is a protected post.');
-            return $output;
-        }
-    }
+	global $id, $post;
+	$output = '';
+	$output = $post->post_excerpt;
+	if (!empty($post->post_password)) { // if there's a password
+		if ($_COOKIE['wp-postpass_'.COOKIEHASH] != $post->post_password) {  // and it doesn't match the cookie
+			$output = __('There is no excerpt because this is a protected post.');
+			return $output;
+		}
+	}
 
-    // If we haven't got an excerpt, make one in the style of the rss ones
-    if (($output == '') && $fakeit) {
-        $output = $post->post_content;
-        $output = strip_tags($output);
-        $blah = explode(' ', $output);
-        $excerpt_length = 120;
-        if (count($blah) > $excerpt_length) {
-            $k = $excerpt_length;
-            $use_dotdotdot = 1;
-        } else {
-            $k = count($blah);
-            $use_dotdotdot = 0;
-        }
-        $excerpt = '';
-        for ($i=0; $i<$k; $i++) {
-            $excerpt .= $blah[$i].' ';
-        }
-        $excerpt .= ($use_dotdotdot) ? '...' : '';
-        $output = $excerpt;
-    } // end if no excerpt
-    return $output;
+	return apply_filters('get_the_excerpt', $output);
 }
 
 function wp_link_pages($args = '') {
@@ -224,7 +136,6 @@ function wp_link_pages($args = '') {
 function link_pages($before='<br />', $after='<br />', $next_or_number='number', $nextpagelink='next page', $previouspagelink='previous page', $pagelink='%', $more_file='') {
     global $id, $page, $numpages, $multipage, $more;
     global $pagenow;
-    global $querystring_start, $querystring_equal, $querystring_separator;
     if ($more_file != '') {
         $file = $more_file;
     } else {
@@ -237,11 +148,11 @@ function link_pages($before='<br />', $after='<br />', $next_or_number='number',
                 $j=str_replace('%',"$i",$pagelink);
                 echo ' ';
                 if (($i != $page) || ((!$more) && ($page==1))) {
-                if ('' == get_settings('permalink_structure')) {
-                    echo '<a href="'.get_permalink().$querystring_separator.'page'.$querystring_equal.$i.'">';
-                } else {
-                    echo '<a href="'.get_permalink().$i.'/">';
-                }
+                    if ('' == get_settings('permalink_structure')) {
+                        echo '<a href="' . get_permalink() . '&amp;page=' . $i . '">';
+                    } else {
+                        echo '<a href="' . get_permalink() . $i . '/">';
+                    }
                 }
                 echo $j;
                 if (($i != $page) || ((!$more) && ($page==1)))
@@ -253,204 +164,22 @@ function link_pages($before='<br />', $after='<br />', $next_or_number='number',
                 echo $before;
                 $i=$page-1;
                 if ($i && $more) {
-                if ('' == get_settings('permalink_structure')) {
-                    echo '<a href="'.get_permalink().$querystring_separator.'page'.$querystring_equal.$i.'">';
-                } else {
-                    echo '<a href="'.get_permalink().$i.'/">';
-                }
+                    if ('' == get_settings('permalink_structure')) {
+                        echo '<a href="' . get_permalink() . '&amp;page=' . $i . '">'.$previouspagelink.'</a>';
+                    } else {
+                        echo '<a href="' . get_permalink() . $i . '/">'.$previouspagelink.'</a>';
+                    }
                 }
                 $i=$page+1;
                 if ($i<=$numpages && $more) {
-                if ('' == get_settings('permalink_structure')) {
-                    echo '<a href="'.get_permalink().$querystring_separator.'page'.$querystring_equal.$i.'">';
-                } else {
-                    echo '<a href="'.get_permalink().$i.'/">';
-                }
+                    if ('' == get_settings('permalink_structure')) {
+                        echo '<a href="'.get_permalink() . '&amp;page=' . $i . '">'.$nextpagelink.'</a>';
+                    } else {
+                        echo '<a href="'.get_permalink().$i.'/">'.$nextpagelink.'</a>';
+                    }
                 }
                 echo $after;
             }
-        }
-    }
-}
-
-
-function previous_post($format='%', $previous='previous post: ', $title='yes', $in_same_cat='no', $limitprev=1, $excluded_categories='') {
-    global $tableposts, $id, $post, $wpdb;
-    global $p, $posts, $posts_per_page, $s, $single;
-    global $querystring_start, $querystring_equal, $querystring_separator;
-
-    if(($p) || ($posts_per_page == 1) || 1 == $single) {
-
-        $current_post_date = $post->post_date;
-        $current_category = $post->post_category;
-
-        $sqlcat = '';
-        if ($in_same_cat != 'no') {
-            $sqlcat = " AND post_category = '$current_category' ";
-        }
-
-        $sql_exclude_cats = '';
-        if (!empty($excluded_categories)) {
-            $blah = explode('and', $excluded_categories);
-            foreach($blah as $category) {
-                $category = intval($category);
-                $sql_exclude_cats .= " AND post_category != $category";
-            }
-        }
-
-        $limitprev--;
-        $lastpost = @$wpdb->get_row("SELECT ID, post_title FROM $tableposts WHERE post_date < '$current_post_date' AND post_status = 'publish' $sqlcat $sql_exclude_cats ORDER BY post_date DESC LIMIT $limitprev, 1");
-        if ($lastpost) {
-            $string = '<a href="'.get_permalink($lastpost->ID).'">'.$previous;
-            if ($title == 'yes') {
-                $string .= wptexturize(stripslashes($lastpost->post_title));
-            }
-            $string .= '</a>';
-            $format = str_replace('%', $string, $format);
-            echo $format;
-        }
-    }
-}
-
-function next_post($format='%', $next='next post: ', $title='yes', $in_same_cat='no', $limitnext=1, $excluded_categories='') {
-    global $tableposts, $posts_per_page, $post, $wpdb, $single;
-    if(1 == $posts_per_page || 1 == $single) {
-
-        $current_post_date = $post->post_date;
-        $current_category = $post->post_category;
-
-        $sqlcat = '';
-        if ($in_same_cat != 'no') {
-            $sqlcat = " AND post_category='$current_category' ";
-        }
-
-        $sql_exclude_cats = '';
-        if (!empty($excluded_categories)) {
-            $blah = explode('and', $excluded_categories);
-            foreach($blah as $category) {
-                $category = intval($category);
-                $sql_exclude_cats .= " AND post_category != $category";
-            }
-        }
-
-        $now = current_time('mysql');
-
-        $limitnext--;
-
-        $nextpost = @$wpdb->get_row("SELECT ID,post_title FROM $tableposts WHERE post_date > '$current_post_date' AND post_date < '$now' AND post_status = 'publish' $sqlcat $sql_exclude_cats AND ID != $post->ID ORDER BY post_date ASC LIMIT $limitnext,1");
-        if ($nextpost) {
-            $string = '<a href="'.get_permalink($nextpost->ID).'">'.$next;
-            if ($title=='yes') {
-                $string .= wptexturize(stripslashes($nextpost->post_title));
-            }
-            $string .= '</a>';
-            $format = str_replace('%', $string, $format);
-            echo $format;
-        }
-    }
-}
-
-function next_posts($max_page = 0) { // original by cfactor at cooltux.org
-    global $p, $paged, $what_to_show, $pagenow;
-    global $querystring_start, $querystring_equal, $querystring_separator;
-    if (empty($p) && ($what_to_show == 'paged')) {
-        $qstr = $_SERVER['QUERY_STRING'];
-        if (!empty($qstr)) {
-            $qstr = preg_replace('/&paged=\d{0,}/', '', $qstr);
-            $qstr = preg_replace('/paged=\d{0,}/', '', $qstr);
-        } elseif (stristr($_SERVER['REQUEST_URI'], $_SERVER['SCRIPT_NAME'] )) {
-            if ('' != $qstr = str_replace($_SERVER['SCRIPT_NAME'], '',
-                                            $_SERVER['REQUEST_URI']) ) {
-                $qstr = preg_replace('/^\//', '', $qstr);
-                $qstr = preg_replace('/paged\/\d{0,}\//', '', $qstr);
-                $qstr = preg_replace('/paged\/\d{0,}/', '', $qstr);
-                $qstr = preg_replace('/\/$/', '', $qstr);
-            }
-        }
-        if (!$paged) $paged = 1;
-        $nextpage = intval($paged) + 1;
-        if (!$max_page || $max_page >= $nextpage) {
-            echo  get_settings('home') .'/'.$pagenow.$querystring_start.
-                ($qstr == '' ? '' : $qstr.$querystring_separator) .
-                'paged'.$querystring_equal.$nextpage;
-        }
-    }
-}
-
-function next_posts_link($label='Next Page &raquo;', $max_page=0) {
-    global $p, $paged, $result, $request, $posts_per_page, $what_to_show, $wpdb;
-    if ($what_to_show == 'paged') {
-        if (!$max_page) {
-            $nxt_request = $request;
-            //if the query includes a limit clause, call it again without that
-            //limit clause!
-            if ($pos = strpos(strtoupper($request), 'LIMIT')) {
-                $nxt_request = substr($request, 0, $pos);
-            }
-            $nxt_result = $wpdb->query($nxt_request);
-            $numposts = $wpdb->num_rows;
-            $max_page = ceil($numposts / $posts_per_page);
-        }
-        if (!$paged)
-            $paged = 1;
-        $nextpage = intval($paged) + 1;
-        if (empty($p) && (empty($paged) || $nextpage <= $max_page)) {
-            echo '<a href="';
-            next_posts($max_page);
-            echo '">'. preg_replace('/&([^#])(?![a-z]{1,8};)/', '&#038;$1', $label) .'</a>';
-        }
-    }
-}
-
-
-function previous_posts() { // original by cfactor at cooltux.org
-    global $_SERVER, $p, $paged, $what_to_show, $pagenow;
-    global $querystring_start, $querystring_equal, $querystring_separator;
-    if (empty($p) && ($what_to_show == 'paged')) {
-        $qstr = $_SERVER['QUERY_STRING'];
-        if (!empty($qstr)) {
-            $qstr = preg_replace('/&paged=\d{0,}/', '', $qstr);
-            $qstr = preg_replace('/paged=\d{0,}/', '', $qstr);
-        } elseif (stristr($_SERVER['REQUEST_URI'], $_SERVER['SCRIPT_NAME'] )) {
-            if ('' != $qstr = str_replace($_SERVER['SCRIPT_NAME'], '',
-                                            $_SERVER['REQUEST_URI']) ) {
-                $qstr = preg_replace('/^\//', '', $qstr);
-                $qstr = preg_replace("/paged\/\d{0,}\//", '', $qstr);
-                $qstr = preg_replace('/paged\/\d{0,}/', '', $qstr);
-                $qstr = preg_replace('/\/$/', '', $qstr);
-            }
-        }
-        $nextpage = intval($paged) - 1;
-        if ($nextpage < 1) $nextpage = 1;
-        echo  get_settings('home') .'/'.$pagenow.$querystring_start.
-            ($qstr == '' ? '' : $qstr.$querystring_separator) .
-            'paged'.$querystring_equal.$nextpage;
-    }
-}
-
-function previous_posts_link($label='&laquo; Previous Page') {
-    global $p, $paged, $what_to_show;
-    if (empty($p)  && ($paged > 1) && ($what_to_show == 'paged')) {
-        echo '<a href="';
-        previous_posts();
-        echo '">'. preg_replace('/&([^#])(?![a-z]{1,8};)/', '&#038;$1', $label) .'</a>';
-    }
-}
-
-function posts_nav_link($sep=' :: ', $prelabel='<< Previous Page', $nxtlabel='Next Page >>') {
-    global $p, $what_to_show, $request, $posts_per_page, $wpdb;
-    if (empty($p) && ($what_to_show == 'paged')) {
-        $nxt_request = $request;
-        if ($pos = strpos(strtoupper($request), 'LIMIT')) {
-            $nxt_request = substr($request, 0, $pos);
-        }
-        $nxt_result = $wpdb->query($nxt_request);
-        $numposts = $wpdb->num_rows;
-        $max_page = ceil($numposts / $posts_per_page);
-        if ($max_page > 1) {
-            previous_posts_link($prelabel);
-            echo preg_replace('/&([^#])(?![a-z]{1,8};)/', '&#038;$1', $sep);
-            next_posts_link($nxtlabel, $max_page);
         }
     }
 }
@@ -459,10 +188,34 @@ function posts_nav_link($sep=' :: ', $prelabel='<< Previous Page', $nxtlabel='Ne
  * Post-meta: Custom per-post fields.
  */
  
-function get_post_custom() {
-	global $id, $post_meta_cache;
-
-	return $post_meta_cache[$id];
+function get_post_custom( $post_id = 0 ) {
+	global $id, $post_meta_cache, $wpdb;
+	if ( $post_id )
+		$id = $post_id;
+	if ( isset($post_meta_cache[$id]) ) {
+		return $post_meta_cache[$id];
+	} else {
+	if ( $meta_list = $wpdb->get_results("SELECT post_id, meta_key, meta_value FROM $wpdb->postmeta  WHERE post_id = '$id' ORDER BY post_id, meta_key", ARRAY_A) ) {
+		
+	// Change from flat structure to hierarchical:
+	$post_meta_cache = array();
+		foreach ($meta_list as $metarow) {
+			$mpid = $metarow['post_id'];
+			$mkey = $metarow['meta_key'];
+			$mval = $metarow['meta_value'];
+			
+			// Force subkeys to be array type:
+			if (!isset($post_meta_cache[$mpid]) || !is_array($post_meta_cache[$mpid]))
+			$post_meta_cache[$mpid] = array();
+			if (!isset($post_meta_cache[$mpid]["$mkey"]) || !is_array($post_meta_cache[$mpid]["$mkey"]))
+			$post_meta_cache[$mpid]["$mkey"] = array();
+			
+			// Add a value to the current pid/key:
+			$post_meta_cache[$mpid][$mkey][] = $mval;
+		}
+	return $post_meta_cache[$mpid];
+    }
+	}
 }
 
 function get_post_custom_keys() {
@@ -480,6 +233,11 @@ function get_post_custom_values($key='') {
 	return $post_meta_cache[$id][$key];
 }
 
+function post_custom( $key = '' ) {
+	if ( 1 == count($post_meta_cache[$id][$key]) ) return $post_meta_cache[$id][$key][0];
+	else return $post_meta_cache[$id][$key];
+}
+
 // this will probably change at some point...
 function the_meta() {
 	global $id, $post_meta_cache;
@@ -493,6 +251,149 @@ function the_meta() {
 			echo "<li><span class='post-meta-key'>$key:</span> $value</li>\n";
 		}
 		echo "</ul>\n";
+	}
+}
+
+
+//
+// Pages
+//
+
+function get_pages($args = '') {
+	global $wpdb, $cache_pages;
+
+	if (!isset($cache_pages) || empty($cache_pages)) {
+
+		parse_str($args, $r);
+
+		if (!isset($r['child_of'])) $r['child_of'] = 0;
+		if (!isset($r['sort_column'])) $r['sort_column'] = 'post_title';
+		if (!isset($r['sort_order'])) $r['sort_order'] = 'ASC';
+
+		$exclusions = '';
+		if (!empty($r['exclude'])) {
+			$expages = preg_split('/[\s,]+/',$r['exclude']);
+			if (count($expages)) {
+				foreach ($expages as $expage) {
+					$exclusions .= ' AND ID <> ' . intval($expage) . ' ';
+				}
+			}
+		}
+
+		$dates = ",UNIX_TIMESTAMP(post_modified) AS time_modified";
+		$dates .= ",UNIX_TIMESTAMP(post_date) AS time_created";
+	
+		$post_parent = '';
+		if ($r['child_of']) {
+			$post_parent = ' AND post_parent=' . $r['child_of'] . ' ';
+		}
+	
+		$pages = $wpdb->get_results("SELECT " .
+		  "ID, post_title, post_name, post_parent " .
+		  "$dates " .
+		  "FROM $wpdb->posts " .
+		  "WHERE post_status = 'static' " .
+		  "$post_parent" .
+		  "$exclusions " .
+		  "ORDER BY " . $r['sort_column'] . " " . $r['sort_order']);
+
+		$cache_pages = array();
+		if (count($pages)) {
+			foreach($pages as $page) {
+				$cache_pages[$page->ID] = $page;
+			}
+		}
+	}
+
+	return $cache_pages;
+}
+
+function wp_list_pages($args = '') {
+	parse_str($args, $r);
+	if (!isset($r['depth'])) $r['depth'] = 0;
+	if (!isset($r['show_date'])) $r['show_date'] = '';
+	if (!isset($r['child_of'])) $r['child_of'] = 0;
+	if ( !isset($r['title_li']) ) $r['title_li'] = __('Pages');
+
+
+	// Query pages.
+	$pages = get_pages($args);
+	if ( $pages ) :
+
+	if ( $r['title_li'] )
+		echo '<li id="pagenav">' . $r['title_li'] . '<ul>';
+	// Now loop over all pages that were selected
+	$page_tree = Array();
+	foreach($pages as $page) {
+		// set the title for the current page
+		$page_tree[$page->ID]['title'] = $page->post_title;
+		$page_tree[$page->ID]['name'] = $page->post_name;
+
+		// set the selected date for the current page
+		// depending on the query arguments this is either
+		// the createtion date or the modification date
+		// as a unix timestamp. It will also always be in the
+		// ts field.
+		if (! empty($r['show_date'])) {
+			if ('modified' == $r['show_date'])
+				$page_tree[$page->ID]['ts'] = $page->time_modified;
+			else
+				$page_tree[$page->ID]['ts'] = $page->time_created;
+		}
+
+		// The tricky bit!!
+		// Using the parent ID of the current page as the
+		// array index we set the curent page as a child of that page.
+		// We can now start looping over the $page_tree array
+		// with any ID which will output the page links from that ID downwards.
+		$page_tree[$page->post_parent]['children'][] = $page->ID;
+	}
+	// Output of the pages starting with child_of as the root ID.
+	// child_of defaults to 0 if not supplied in the query.
+	_page_level_out($r['child_of'],$page_tree, $r);
+	if ( $r['title_li'] )
+		echo '</ul></li>';
+	endif;
+}
+
+function _page_level_out($parent, $page_tree, $args, $depth = 0) {
+	global $wp_query;
+
+	$queried_obj = $wp_query->get_queried_object();
+
+	if($depth)
+		$indent = str_repeat("\t", $depth);
+	//$indent = join('', array_fill(0,$depth,"\t"));
+
+	foreach($page_tree[$parent]['children'] as $page_id) {
+		$cur_page = $page_tree[$page_id];
+		$title = $cur_page['title'];
+
+		$css_class = 'page_item';
+		if( $page_id == $queried_obj->ID) {
+			$css_class .= ' current_page_item';
+		}
+
+		echo $indent . '<li class="' . $css_class . '"><a href="' . get_page_link($page_id) . '" title="' . wp_specialchars($title) . '">' . $title . '</a>';
+
+		if(isset($cur_page['ts'])) {
+			$format = get_settings('date_format');
+			if(isset($args['date_format']))
+				$format = $args['date_format'];
+			echo " " . gmdate($format,$cur_page['ts']);
+		}
+		echo "\n";
+
+		if(isset($cur_page['children']) && is_array($cur_page['children'])) {
+			$new_depth = $depth + 1;
+
+			if(!$args['depth'] || $depth < ($args['depth']-1)) {
+				echo "$indent<ul>\n";
+				_page_level_out($page_id,$page_tree, $args, $new_depth);
+				echo "$indent</ul>\n";
+			}
+		}
+		echo "$indent</li>\n";
 	}
 }
 

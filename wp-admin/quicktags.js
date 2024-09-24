@@ -15,11 +15,24 @@ function edButton(id, display, tagStart, tagEnd, access, open) {
 	this.open = open;			// set to -1 if tag does not need to be closed
 }
 
+function zeroise(number, threshold) {
+	// FIXME: or we could use an implementation of printf in js here
+	var str = number.toString();
+	if (number < 0) { str = str.substr(1, str.length) }
+	while (str.length < threshold) { str = "0" + str }
+	if (number < 0) { str = '-' + str }
+	return str;
+}
+
 var now = new Date();
-var datetime = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate() + 'T' + 
-				now.getHours() + ':' + now.getMinutes() + ':' + 
-				now.getSeconds() + '-' + (now.getTimezoneOffset()/60)
-				+ ':' + '00';
+var datetime = now.getFullYear() + '-' + 
+				zeroise(now.getMonth() + 1, 2) + '-' +
+				zeroise(now.getDate(), 2) + 'T' + 
+				zeroise(now.getHours(), 2) + ':' + 
+				zeroise(now.getMinutes(), 2) + ':' + 
+				zeroise(now.getSeconds() ,2) +
+				// FIXME: we could try handling timezones like +05:30 and the like
+				zeroise((now.getTimezoneOffset()/60), 2) + ':' + '00';
 
 edButtons[edButtons.length] = 
 new edButton('ed_strong'
@@ -57,7 +70,7 @@ new edButton('ed_block'
 edButtons[edButtons.length] = 
 new edButton('ed_del'
 ,'del'
-,'<del>'
+,'<del datetime="' + datetime + '">'
 ,'</del>'
 ,'d'
 );
@@ -67,7 +80,7 @@ new edButton('ed_ins'
 ,'ins'
 ,'<ins datetime="' + datetime + '">'
 ,'</ins>'
-,'d'
+,'s'
 );
 
 edButtons[edButtons.length] = 
@@ -108,6 +121,7 @@ new edButton('ed_pre'
 ,'code'
 ,'<code>'
 ,'</code>'
+,'c'
 );
 
 edButtons[edButtons.length] = 
@@ -280,6 +294,8 @@ function edInsertTag(myField, i) {
 		var startPos = myField.selectionStart;
 		var endPos = myField.selectionEnd;
 		var cursorPos = endPos;
+		var scrollTop = myField.scrollTop;
+
 		if (startPos != endPos) {
 			myField.value = myField.value.substring(0, startPos)
 			              + edButtons[i].tagStart
@@ -307,6 +323,7 @@ function edInsertTag(myField, i) {
 		myField.focus();
 		myField.selectionStart = cursorPos;
 		myField.selectionEnd = cursorPos;
+		myField.scrollTop = scrollTop;
 	}
 	else {
 		if (!edCheckOpenTags(i) || edButtons[i].tagEnd == '') {

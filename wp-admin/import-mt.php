@@ -1,16 +1,18 @@
 <?php
-define('MTEXPORT', '');// enter the relative path of the import.txt file containing the mt entries. If the file is called import.txt and it is /wp-admin, then this line
+define('MTEXPORT', '');
+// enter the relative path of the import.txt file containing the mt entries. If the file is called import.txt and it is /wp-admin, then this line
 //should be define('MTEXPORT', 'import.txt');
 
 if (!file_exists('../wp-config.php')) die("There doesn't seem to be a wp-config.php file. You must install WordPress before you import any entries.");
 require('../wp-config.php');
-$step = $HTTP_GET_VARS['step'];
+require ('upgrade-functions.php');
+$step = $_GET['step'];
 if (!$step) $step = 0;
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <title>WordPress &rsaquo; Import from Movable Type</title>
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <style media="screen" type="text/css">
 	body {
 		font-family: Georgia, "Times New Roman", Times, serif;
@@ -54,7 +56,7 @@ switch($step) {
 <p><code>define('MTEXPORT', 'import.txt');</code></p>
 <p>You have to do this manually for security reasons.</p>
 <p>If you've done that and you&#8217;re all ready, <a href="import-mt.php?step=1">let's go</a>! Remember that the import process may take a minute or so if you have a large number of entries and comments. Think of all the rebuilding time you'll be saving once it's done. :)</p>
-<p>The importer is smart enough not to import duplicates, so you can run this multiple times without worry if&#8212;for whatever reason&#8212;it doesn't finish. </p>
+<p>The importer is smart enough not to import duplicates, so you can run this multiple times without worry if&#8212;for whatever reason&#8212;it doesn't finish. If you get an <strong>out of memory</strong> error try splitting up the import file into pieces. </p>
 <?php
 	break;
 	
@@ -63,20 +65,22 @@ if ('' != MTEXPORT && !file_exists(MTEXPORT)) die("The file you specified does n
 if ('' == MTEXPORT) die("You must edit the MTEXPORT line as described on the <a href='import-mt.php'>previous page</a> to continue.");
 // Bring in the data
 set_magic_quotes_runtime(0);
-$datalines = file(MTEXPORT); // Read the file into an array
-$importdata = implode('', $datalines); // squish it
+$importdata = file(MTEXPORT); // Read the file into an array
+$importdata = implode('', $importdata); // squish it
 $importdata = preg_replace("/(\r\n|\n|\r)/", "\n", $importdata);
+$importdata = preg_replace("/--------\nAUTHOR/", "--MT-ENTRY--\nAUTHOR", $importdata);
 $authors = array();
 $temp = array();
-$posts = explode("--------", $importdata);
+$posts = explode("--MT-ENTRY--", $importdata);
+unset( $importdata ); // Free up memory
 
 function users_form($n) {
-	global $wpdb, $tableusers, $testing;
-	$users = $wpdb->get_results("SELECT * FROM $tableusers ORDER BY ID");
+	global $wpdb, $testing;
+	$users = $wpdb->get_results("SELECT * FROM $wpdb->users ORDER BY ID");
 	?><select name="userselect[<?php echo $n; ?>]">
 	<option value="#NONE#">- Select -</option>
 	<?php foreach($users as $user) {
-		echo '<option value="'.$user->user_nickname.'">'.$user->user_nickname.'</option>';
+		echo '<option value="'.$user->user_login.'">'.$user->user_login.'</option>';
 		} ?>
 	</select>
 <?php }
@@ -147,36 +151,40 @@ for ($x = 1; $x < $y; $x++) {
 	$j = -1;
 	//function to check the authorname and do the mapping
 	function checkauthor($author) {
-	global $wpdb, $tableusers, $mtnames, $newauthornames, $j;//mtnames is an array with the names in the mt import file
+	global $wpdb, $mtnames, $newauthornames, $j;//mtnames is an array with the names in the mt import file
 	$md5pass = md5(changeme);
 	if (!(in_array($author, $mtnames))) { //a new mt author name is found
 		++$j;
 		$mtnames[$j] = $author; //add that new mt author name to an array 
-		$user_id = $wpdb->get_var("SELECT ID FROM $tableusers WHERE user_login = '$newauthornames[$j]'"); //check if the new author name defined by the user is a pre-existing wp user
+		$user_id = $wpdb->get_var("SELECT ID FROM $wpdb->users WHERE user_login = '$newauthornames[$j]'"); //check if the new author name defined by the user is a pre-existing wp user
 		if (!$user_id) { //banging my head against the desk now. 
 			if ($newauthornames[$j] == 'left_blank') { //check if the user does not want to change the authorname
-				$wpdb->query("INSERT INTO $tableusers (user_level, user_login, user_pass, user_nickname) VALUES ('1', '$author', '$md5pass', '$author')"); // if user does not want to change, insert the authorname $author
-				$user_id = $wpdb->get_var("SELECT ID FROM $tableusers WHERE user_login = '$author'");
+				$wpdb->query("INSERT INTO $wpdb->users (user_level, user_login, user_pass, user_nickname) VALUES ('1', '$author', '$md5pass', '$author')"); // if user does not want to change, insert the authorname $author
+				$user_id = $wpdb->get_var("SELECT ID FROM $wpdb->users WHERE user_login = '$author'");
 				$newauthornames[$j] = $author; //now we have a name, in the place of left_blank.
 			} else {
-			$wpdb->query("INSERT INTO $tableusers (user_level, user_login, user_pass, user_nickname) VALUES ('1', '$newauthornames[$j]', '$md5pass', '$newauthornames[$j]')"); //if not left_blank, insert the user specified name
-			$user_id = $wpdb->get_var("SELECT ID FROM $tableusers WHERE user_login = '$newauthornames[$j]'");
+			$wpdb->query("INSERT INTO $wpdb->users (user_level, user_login, user_pass, user_nickname) VALUES ('1', '$newauthornames[$j]', '$md5pass', '$newauthornames[$j]')"); //if not left_blank, insert the user specified name
+			$user_id = $wpdb->get_var("SELECT ID FROM $wpdb->users WHERE user_login = '$newauthornames[$j]'");
 			}
 		} else return $user_id; // return pre-existing wp username if it exists
     } else {
     $key = array_search($author, $mtnames); //find the array key for $author in the $mtnames array
-    $user_id = $wpdb->get_var("SELECT ID FROM $tableusers WHERE user_login = '$newauthornames[$key]'");//use that key to get the value of the author's name from $newauthornames
+    $user_id = $wpdb->get_var("SELECT ID FROM $wpdb->users WHERE user_login = '$newauthornames[$key]'");//use that key to get the value of the author's name from $newauthornames
 	}
 	return $user_id;
 }//function checkauthor ends here
 
 	//bring in the posts now
-	set_magic_quotes_runtime(0);
-$datalines = file(MTEXPORT); // Read the file into an array
-$importdata = implode('', $datalines); // squish it
+set_magic_quotes_runtime(0);
+$importdata = file(MTEXPORT); // Read the file into an array
+$importdata = implode('', $importdata); // squish it
 $importdata = preg_replace("/(\r\n|\n|\r)/", "\n", $importdata);
+$importdata = preg_replace("/--------\nAUTHOR/", "--MT-ENTRY--\nAUTHOR", $importdata);
+$authors = array();
+$temp = array();
+$posts = explode("--MT-ENTRY--", $importdata);
+unset( $importdata ); // Free up memory
 
-$posts = explode("--------", $importdata);
 $i = -1;
 echo "<ol>";
 foreach ($posts as $post) { if ('' != trim($post)) {
@@ -272,31 +280,31 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 	} // End foreach
 
 	// Let's check to see if it's in already
-	if ($wpdb->get_var("SELECT ID FROM $tableposts WHERE post_title = '$post_title' AND post_date = '$post_date'")) {
+	if ($wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE post_title = '$post_title' AND post_date = '$post_date'")) {
 		echo "Post already imported.";
 	} else {
 		$post_author = checkauthor($post_author);//just so that if a post already exists, new users are not created by checkauthor
-	    $wpdb->query("INSERT INTO $tableposts (
+	    $wpdb->query("INSERT INTO $wpdb->posts (
 			post_author, post_date, post_date_gmt, post_content, post_title, post_excerpt,  post_status, comment_status, ping_status, post_name, post_modified, post_modified_gmt)
 			VALUES 
 			('$post_author', '$post_date', '$post_date_gmt', '$post_content', '$post_title', '$excerpt', '$post_status', '$comment_status', '$ping_status', '$post_name','$post_date', '$post_date_gmt')");
-		$post_id = $wpdb->get_var("SELECT ID FROM $tableposts WHERE post_title = '$post_title' AND post_date = '$post_date'");
+		$post_id = $wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE post_title = '$post_title' AND post_date = '$post_date'");
 		if (0 != count($post_categories)) {
 			foreach ($post_categories as $post_category) {
 			// See if the category exists yet
-			$cat_id = $wpdb->get_var("SELECT cat_ID from $tablecategories WHERE cat_name = '$post_category'");
+			$cat_id = $wpdb->get_var("SELECT cat_ID from $wpdb->categories WHERE cat_name = '$post_category'");
 			if (!$cat_id && '' != trim($post_category)) {
 				$cat_nicename = sanitize_title($post_category);
-				$wpdb->query("INSERT INTO $tablecategories (cat_name, category_nicename) VALUES ('$post_category', '$cat_nicename')");
-				$cat_id = $wpdb->get_var("SELECT cat_ID from $tablecategories WHERE cat_name = '$post_category'");
+				$wpdb->query("INSERT INTO $wpdb->categories (cat_name, category_nicename) VALUES ('$post_category', '$cat_nicename')");
+				$cat_id = $wpdb->get_var("SELECT cat_ID from $wpdb->categories WHERE cat_name = '$post_category'");
 			}
 			if ('' == trim($post_category)) $cat_id = 1;
 			// Double check it's not there already
-			$exists = $wpdb->get_row("SELECT * FROM $tablepost2cat WHERE post_id = $post_id AND category_id = $cat_id");
+			$exists = $wpdb->get_row("SELECT * FROM $wpdb->post2cat WHERE post_id = $post_id AND category_id = $cat_id");
 
 			 if (!$exists) { 
 				$wpdb->query("
-				INSERT INTO $tablepost2cat
+				INSERT INTO $wpdb->post2cat
 				(post_id, category_id)
 				VALUES
 				($post_id, $cat_id)
@@ -304,8 +312,8 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 			}
 		} // end category loop
 		} else {
-			$exists = $wpdb->get_row("SELECT * FROM $tablepost2cat WHERE post_id = $post_id AND category_id = 1");
-			if (!$exists) $wpdb->query("INSERT INTO $tablepost2cat (post_id, category_id) VALUES ($post_id, 1) ");
+			$exists = $wpdb->get_row("SELECT * FROM $wpdb->post2cat WHERE post_id = $post_id AND category_id = 1");
+			if (!$exists) $wpdb->query("INSERT INTO $wpdb->post2cat (post_id, category_id) VALUES ($post_id, 1) ");
 		}
 		echo " Post imported successfully...";
 		// Now for comments
@@ -338,8 +346,8 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 			$comment_content = str_replace('-----', '', $comment_content);
 
 			// Check if it's already there
-			if (!$wpdb->get_row("SELECT * FROM $tablecomments WHERE comment_date = '$comment_date' AND comment_content = '$comment_content'")) {
-				$wpdb->query("INSERT INTO $tablecomments (comment_post_ID, comment_author, comment_author_email, comment_author_url, comment_author_IP, comment_date, comment_content, comment_approved)
+			if (!$wpdb->get_row("SELECT * FROM $wpdb->comments WHERE comment_date = '$comment_date' AND comment_content = '$comment_content'")) {
+				$wpdb->query("INSERT INTO $wpdb->comments (comment_post_ID, comment_author, comment_author_email, comment_author_url, comment_author_IP, comment_date, comment_content, comment_approved)
 				VALUES
 				($post_id, '$comment_author', '$comment_email', '$comment_url', '$comment_ip', '$comment_date', '$comment_content', '1')");
 				echo " Comment added.";
@@ -380,13 +388,13 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 			$comment_content = addslashes(trim($ping));
 			$comment_content = str_replace('-----', '', $comment_content);
 			
-			$comment_content = "<trackback /><strong>$ping_title</strong>\n$comment_content";
+			$comment_content = "<strong>$ping_title</strong>\n\n$comment_content";
       
 			// Check if it's already there
-			if (!$wpdb->get_row("SELECT * FROM $tablecomments WHERE comment_date = '$comment_date' AND comment_content = '$comment_content'")) {
-				$wpdb->query("INSERT INTO $tablecomments (comment_post_ID, comment_author, comment_author_email, comment_author_url, comment_author_IP, comment_date, comment_content, comment_approved)
+			if (!$wpdb->get_row("SELECT * FROM $wpdb->comments WHERE comment_date = '$comment_date' AND comment_content = '$comment_content'")) {
+				$wpdb->query("INSERT INTO $wpdb->comments (comment_post_ID, comment_author, comment_author_email, comment_author_url, comment_author_IP, comment_date, comment_content, comment_approved, comment_type)
 				VALUES
-				($post_id, '$comment_author', '$comment_email', '$comment_url', '$comment_ip', '$comment_date', '$comment_content', '1')");
+				($post_id, '$comment_author', '$comment_email', '$comment_url', '$comment_ip', '$comment_date', '$comment_content', '1', 'trackback')");
 				echo " Comment added.";
 			}
 
@@ -397,7 +405,7 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 	flush();
 
 } }
-
+upgrade_all();
 ?>
 </ol>
 <h3>All done. <a href="../">Have fun!</a></h3>

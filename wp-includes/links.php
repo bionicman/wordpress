@@ -26,9 +26,9 @@ function get_linksbyname($cat_name = "noname", $before = '', $after = '<br />',
                          $between = " ", $show_images = true, $orderby = 'id',
                          $show_description = true, $show_rating = false,
                          $limit = -1, $show_updated = 0) {
-    global $tablelinkcategories, $wpdb;
+    global $wpdb;
     $cat_id = -1;
-    $results = $wpdb->get_results("SELECT cat_id FROM $tablelinkcategories WHERE cat_name='$cat_name'");
+    $results = $wpdb->get_results("SELECT cat_id FROM $wpdb->linkcategories WHERE cat_name='$cat_name'");
     if ($results) {
         foreach ($results as $result) {
             $cat_id = $result->cat_id;
@@ -49,11 +49,11 @@ function bool_from_yn($yn) {
  **   category (no default)  - The category to use.
  **/
 function wp_get_linksbyname($category) {
-    global $wpdb, $tablelinkcategories;
+    global $wpdb;
 
     $cat = $wpdb->get_row("SELECT cat_id, cat_name, auto_toggle, show_images, show_description, "
          . " show_rating, show_updated, sort_order, sort_desc, text_before_link, text_after_link, "
-         . " text_after_all, list_limit FROM $tablelinkcategories WHERE cat_name='$category'");
+         . " text_after_all, list_limit FROM $wpdb->linkcategories WHERE cat_name='$category'");
     if ($cat) {
         if ($cat->sort_desc == 'Y') {
             $cat->sort_order = '_'.$cat->sort_order;
@@ -71,11 +71,11 @@ function wp_get_linksbyname($category) {
  **   category (no default)  - The category to use.
  **/
 function wp_get_links($category) {
-    global $wpdb, $tablelinkcategories;
+    global $wpdb;
 
     $cat = $wpdb->get_row("SELECT cat_id, cat_name, auto_toggle, show_images, show_description, "
          . " show_rating, show_updated, sort_order, sort_desc, text_before_link, text_after_link, "
-         . " text_after_all, list_limit FROM $tablelinkcategories WHERE cat_id=$category");
+         . " text_after_all, list_limit FROM $wpdb->linkcategories WHERE cat_id=$category");
     if ($cat) {
         if ($cat->sort_desc == 'Y') {
             $cat->sort_order = '_'.$cat->sort_order;
@@ -114,7 +114,7 @@ function get_links($category = -1, $before = '', $after = '<br />',
                    $show_description = true, $show_rating = false,
                    $limit = -1, $show_updated = 1, $echo = true) {
 
-    global $tablelinks, $wpdb;
+    global $wpdb;
 
     $direction = ' ASC';
     $category_query = "";
@@ -155,7 +155,7 @@ function get_links($category = -1, $before = '', $after = '<br />',
 
     $sql = "SELECT link_url, link_name, link_image, link_target,
             link_description, link_rating, link_rel $length $recently_updated_test $get_updated
-            FROM $tablelinks
+            FROM $wpdb->links
             WHERE link_visible = 'Y' " .
            $category_query;
     $sql .= ' ORDER BY ' . $orderby;
@@ -176,14 +176,14 @@ function get_links($category = -1, $before = '', $after = '<br />',
         }
         $the_link = '#';
         if (($row->link_url != null) && ($row->link_url != '')) {
-            $the_link = htmlspecialchars(stripslashes($row->link_url));
+            $the_link = $row->link_url;
         }
-        $rel = stripslashes($row->link_rel);
+        $rel = $row->link_rel;
         if ($rel != '') {
             $rel = " rel='$rel'";
         }
-        $desc = htmlspecialchars(stripslashes($row->link_description), ENT_QUOTES);
-        $name = htmlspecialchars(stripslashes($row->link_name), ENT_QUOTES);
+        $desc = wp_specialchars($row->link_description, ENT_QUOTES);
+        $name = wp_specialchars($row->link_name, ENT_QUOTES);
 
         $title = $desc;
 
@@ -222,36 +222,6 @@ function get_links($category = -1, $before = '', $after = '<br />',
         if ($show_description && ($desc != '')) {
             echo($between.$desc);
         }
-
-        // now do the rating
-        if ($show_rating) {
-            
-            if (get_settings('links_rating_type') == 'number') {
-                if (($row->link_rating != 0) || (get_settings('links_rating_ignore_zero') != 1)) {
-                    echo($between." $row->link_rating\n");
-                }
-            } else if (get_settings('links_rating_type') == 'char') {
-                echo($between);
-                for ($r = $row->link_rating; $r > 0; $r--) {
-                    echo(get_settings('links_rating_char'));
-                }
-            } else if (get_settings('links_rating_type') == 'image') {
-                echo($between);
-                if (get_settings('links_rating_single_image')) {
-                    for ($r = $row->link_rating; $r > 0; $r--) {
-                        echo(' <img src="'.get_settings('links_rating_image0').'" alt="' .
-                             $row->link_rating.'" />'."\n");
-                    }
-                } else {
-                    if (($row->link_rating != 0) || (get_settings('links_rating_ignore_zero') != 1)) {
-                        $b = 'links_rating_image'.$row->link_rating;
-                        echo(' <img src="' .
-                             get_settings($b).'" alt="' .
-                             $row->link_rating.'" />'."\n");
-                    }
-                }
-            } // end if image
-        } // end if show_rating
         echo("$after\n");
     } // end while
 }
@@ -273,13 +243,13 @@ function get_links($category = -1, $before = '', $after = '<br />',
  ** Use this like:
  ** $links = get_linkobjectsbyname('fred');
  ** foreach ($links as $link) {
- **   echo '<li>'.stripslashes($link->link_name).'</li>';
+ **   echo '<li>'.$link->link_name.'</li>';
  ** }
  **/
 function get_linkobjectsbyname($cat_name = "noname" , $orderby = 'name', $limit = -1) {
-    global $tablelinkcategories, $wpdb;
+    global $wpdb;
     $cat_id = -1;
-    $results = $wpdb->get_results("SELECT cat_id FROM $tablelinkcategories WHERE cat_name='$cat_name'");
+    $results = $wpdb->get_results("SELECT cat_id FROM $wpdb->linkcategories WHERE cat_name='$cat_name'");
     if ($results) {
         foreach ($results as $result) {
             $cat_id = $result->cat_id;
@@ -324,9 +294,9 @@ function get_linkobjectsbyname($cat_name = "noname" , $orderby = 'name', $limit 
  ** link_notes
  **/
 function get_linkobjects($category = -1, $orderby = 'name', $limit = -1) {
-    global $tablelinks, $wpdb;
+    global $wpdb;
 
-    $sql = "SELECT * FROM $tablelinks WHERE link_visible = 'Y'";
+    $sql = "SELECT * FROM $wpdb->links WHERE link_visible = 'Y'";
     if ($category != -1) {
         $sql .= " AND link_category = $category ";
     }
@@ -350,46 +320,18 @@ function get_linkobjects($category = -1, $orderby = 'name', $limit = -1) {
     $results = $wpdb->get_results($sql);
     if ($results) {
         foreach ($results as $result) {
-            $result->link_url         = stripslashes($result->link_url);
-            $result->link_name        = stripslashes($result->link_name);
-            $result->link_description = stripslashes($result->link_description);
-            $result->link_notes       = stripslashes($result->link_notes);
+            $result->link_url         = $result->link_url;
+            $result->link_name        = $result->link_name;
+            $result->link_description = $result->link_description;
+            $result->link_notes       = $result->link_notes;
             $newresults[] = $result;
         }
     }
     return $newresults;
 }
 
-/** function get_linkrating()
- ** Returns the appropriate html for the link rating based on the configuration.
- ** Parameters:
- **   link  - The link object returned from get_linkobjects
- **/
 function get_linkrating($link) {
-    if (get_settings('links_rating_type') == 'number') {
-        if (($link->link_rating != 0) || (get_settings('links_rating_ignore_zero') != 1)) {
-            $s = "$link->link_rating";
-        }
-    } else if (get_settings('links_rating_type') == 'char') {
-        for ($r = $link->link_rating; $r > 0; $r--) {
-            $s .= get_settings('links_rating_char');
-        }
-    } else if (get_settings('links_rating_type') == 'image') {
-        if (get_settings('links_rating_single_image')) {
-            for ($r = $link->link_rating; $r > 0; $r--) {
-                $s .= '<img src="'.get_settings('links_rating_image0').'" alt="' .
-                      $link->link_rating.'" />'."\n";
-            }
-        } else {
-            if (($link->link_rating != 0) || (get_settings('links_rating_ignore_zero') != 1)) {
-                $b = 'links_rating_image'.$row->link_rating;
-                $s = ' <img src="' .
-                     get_settings($b).'" alt="' .
-                     $link->link_rating.'" />'."\n";
-            }
-        }
-    } // end if image
-    return $s;
+    return apply_filters('link_rating', $link->link_rating);
 }
 
 
@@ -459,12 +401,12 @@ function get_links_withrating($category = -1, $before = '', $after = '<br />',
  **                uses 0
  */
 function get_linkcatname($id = 0) {
-    global $tablelinkcategories, $wpdb;
+    global $wpdb;
     $cat_name = '';
     if ('' != $id) {
-        $cat_name = $wpdb->get_var("SELECT cat_name FROM $tablelinkcategories WHERE cat_id=$id");
+        $cat_name = $wpdb->get_var("SELECT cat_name FROM $wpdb->linkcategories WHERE cat_id=$id");
     }
-    return stripslashes($cat_name);
+    return $cat_name;
 }
 
 /** function get_get_autotoggle()
@@ -473,8 +415,8 @@ function get_linkcatname($id = 0) {
  **                uses 0
  */
 function get_autotoggle($id = 0) {
-    global $tablelinkcategories, $wpdb;
-    $auto_toggle = $wpdb->get_var("SELECT auto_toggle FROM $tablelinkcategories WHERE cat_id=$id");
+    global $wpdb;
+    $auto_toggle = $wpdb->get_var("SELECT auto_toggle FROM $wpdb->linkcategories WHERE cat_id=$id");
     if ('' == $auto_toggle)
         $auto_toggle = 'N';
     return $auto_toggle;
@@ -492,9 +434,8 @@ function get_autotoggle($id = 0) {
  */
 function links_popup_script($text = 'Links', $width=400, $height=400,
                             $file='links.all.php', $count = true) {
-   global $tablelinks;
    if ($count == true) {
-      $counts = $wpdb->get_var("SELECT count(*) FROM $tablelinks");
+      $counts = $wpdb->get_var("SELECT count(*) FROM $wpdb->links");
    }
 
    $javascript = "<a href=\"#\" " .
@@ -518,7 +459,7 @@ function links_popup_script($text = 'Links', $width=400, $height=400,
  * added by Dougal
  *
  * Output a list of all links, listed by category, using the
- * settings in $tablelinkcategories and output it as a nested
+ * settings in $wpdb->linkcategories and output it as a nested
  * HTML unordered list.
  *
  * Parameters:
@@ -526,7 +467,7 @@ function links_popup_script($text = 'Links', $width=400, $height=400,
  *   hide_if_empty (default true)  - Supress listing empty link categories
  */
 function get_links_list($order = 'name', $hide_if_empty = 'obsolete') {
-	global $tablelinkcategories, $tablelinks, $wpdb;
+	global $wpdb;
 
 	$order = strtolower($order);
 
@@ -545,8 +486,8 @@ function get_links_list($order = 'name', $hide_if_empty = 'obsolete') {
 		SELECT DISTINCT link_category, cat_name, show_images, 
 			show_description, show_rating, show_updated, sort_order, 
 			sort_desc, list_limit
-		FROM `$tablelinks` 
-		LEFT JOIN `$tablelinkcategories` ON (link_category = cat_id)
+		FROM `$wpdb->links` 
+		LEFT JOIN `$wpdb->linkcategories` ON (link_category = cat_id)
 		WHERE link_visible =  'Y'
 			AND list_limit <> 0
 		ORDER BY $cat_order $direction ", ARRAY_A);
@@ -560,7 +501,7 @@ function get_links_list($order = 'name', $hide_if_empty = 'obsolete') {
 			$orderby = (bool_from_yn($cat['sort_desc'])?'_':'') . $orderby;
 
 			// Display the category name
-			echo '	<li id="'.sanitize_title($cat['cat_name']).'">' . stripslashes($cat['cat_name']) . "\n\t<ul>\n";
+			echo '	<li id="linkcat-' . $cat['link_category'] . '"><h2>' . $cat['cat_name'] . "</h2>\n\t<ul>\n";
 			// Call get_links() with all the appropriate params
 			get_links($cat['link_category'],
 				'<li>',"</li>","\n",

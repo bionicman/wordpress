@@ -1,52 +1,41 @@
 <?php
+require_once('admin.php');
 
-if (isset($_GET['action'])) {
-	$standalone = 1;
-	require_once('admin-header.php');
-
+if ( isset($_GET['action']) ) {
 	check_admin_referer();
 
 	if ('activate' == $_GET['action']) {
-		$current = "\n" . get_settings('active_plugins') . "\n";
-		$current = preg_replace("|(\n)+\s*|", "\n", $current);
-		$current = trim($current) . "\n " . trim($_GET['plugin']);
-		$current = trim($current);
-		$current = preg_replace("|\n\s*|", "\n", $current); // I don't know where this is coming from
+		$current = get_settings('active_plugins');
+		if (!in_array($_GET['plugin'], $current)) {
+			$current[] = trim( $_GET['plugin'] );
+		}
+		sort($current);
 		update_option('active_plugins', $current);
 		header('Location: plugins.php?activate=true');
 	}
 	
 	if ('deactivate' == $_GET['action']) {
-		$current = "\n" . get_settings('active_plugins') . "\n";
-		$current = str_replace("\n" . $_GET['plugin'], '', $current);
-		$current = preg_replace("|(\n)+\s*|", "\n", $current);
-		update_option('active_plugins', trim($current));
+		$current = get_settings('active_plugins');
+		array_splice($current, array_search( $_GET['plugin'], $current), 1 ); // Array-fu!
+		update_option('active_plugins', $current);
 		header('Location: plugins.php?deactivate=true');
 	}
 }
 
-require_once('../wp-includes/wp-l10n.php');
 $title = __('Manage Plugins');
 require_once('admin-header.php');
 
-if ($user_level < 9) // Must be at least level 9
-	die (__("Sorry, you must be at least a level 8 user to modify plugins."));
-
 // Clean up options
-// if any files are in the option that don't exist, axe 'em
+// If any plugins don't exist, axe 'em
 
-$check_plugins = explode("\n", (get_settings('active_plugins')));
+$check_plugins = get_settings('active_plugins');
 foreach ($check_plugins as $check_plugin) {
 	if (!file_exists(ABSPATH . 'wp-content/plugins/' . $check_plugin)) {
-			$current = get_settings('active_plugins') . "\n";
-			$current = str_replace($check_plugin . "\n", '', $current);
-			$current = preg_replace("|\n+|", "\n", $current);
-			update_option('active_plugins', trim($current));
+			$current = get_settings('active_plugins');
+			unset($current[$_GET['plugin']]);
+			update_option('active_plugins', $current);
 	}
 }
-
-
-
 ?>
 
 <?php if (isset($_GET['activate'])) : ?>
@@ -60,22 +49,15 @@ foreach ($check_plugins as $check_plugin) {
 
 <div class="wrap">
 <h2><?php _e('Plugin Management'); ?></h2>
-<p><?php _e('Plugins are files you usually download seperately from WordPress that add functionality. To install a plugin you generally just need to put the plugin file into your <code>wp-content/plugins</code> directory. Once a plugin is installed, you may activate it or deactivate it here.'); ?></p>
+<p><?php _e('Plugins are files you usually download separately from WordPress that add functionality. To install a plugin you generally just need to put the plugin file into your <code>wp-content/plugins</code> directory. Once a plugin is installed, you may activate it or deactivate it here. If something goes wrong with a plugin and you can&#8217;t use WordPress, delete that plugin from the <code>wp-content/plugins</code> directory and it will be automatically deactivated.'); ?></p>
 <?php
-// Files in wp-content/plugins directory
-$plugins_dir = @ dir(ABSPATH . 'wp-content/plugins');
-if ($plugins_dir) {
-	while(($file = $plugins_dir->read()) !== false) {
-	  if ( !preg_match('|^\.+$|', $file) && preg_match('|\.php$|', $file) ) 
-		$plugin_files[] = $file;
-	}
-}
 
-if ('' != trim(get_settings('active_plugins'))) {
-	$current_plugins = explode("\n", (get_settings('active_plugins')));
-}
+if ( get_settings('active_plugins') )
+	$current_plugins = get_settings('active_plugins');
 
-if (!$plugins_dir || !$plugin_files) {
+$plugins = get_plugins();
+
+if (empty($plugins)) {
 	_e("<p>Couldn't open plugins directory or there are no plugins available.</p>"); // TODO: make more helpful
 } else {
 ?>
@@ -88,50 +70,23 @@ if (!$plugins_dir || !$plugin_files) {
 		<th><?php _e('Action'); ?></th>
 	</tr>
 <?php
-	sort($plugin_files); // Alphabetize by filename. Better way?
 	$style = '';
-	foreach($plugin_files as $plugin_file) {
-		$plugin_data = implode('', file(ABSPATH . '/wp-content/plugins/' . $plugin_file));
-		preg_match("|Plugin Name:(.*)|i", $plugin_data, $plugin_name);
-		preg_match("|Plugin URI:(.*)|i", $plugin_data, $plugin_uri);
-		preg_match("|Description:(.*)|i", $plugin_data, $description);
-		preg_match("|Author:(.*)|i", $plugin_data, $author_name);
-		preg_match("|Author URI:(.*)|i", $plugin_data, $author_uri);
-		if ( preg_match("|Version:(.*)|i", $plugin_data, $version) )
-			$version = $version[1];
-		else
-			$version ='';
-
-		$description = wptexturize($description[1]);
-
-		if ('' == $plugin_uri) {
-			$plugin = $plugin_name[1];
-		} else {
-			$plugin = __("<a href='{$plugin_uri[1]}' title='Visit plugin homepage'>{$plugin_name[1]}</a>");
-		}
-
-		if ('' == $author_uri) {
-			$author = $author_name[1];
-		} else {
-			$author = __("<a href='{$author_uri[1]}' title='Visit author homepage'>{$author_name[1]}</a>");
-		}
-
-
-
+	foreach($plugins as $plugin_file => $plugin_data) {
 		$style = ('class="alternate"' == $style) ? '' : 'class="alternate"';
 
 		if (!empty($current_plugins) && in_array($plugin_file, $current_plugins)) {
-			$action = __("<a href='plugins.php?action=deactivate&amp;plugin=$plugin_file' title='Deactivate this plugin' class='delete'>Deactivate</a>");
-			$plugin = __("<strong>$plugin</strong>");
+			$action = "<a href='plugins.php?action=deactivate&amp;plugin=$plugin_file' title='".__('Deactivate this plugin')."' class='delete'>".__('Deactivate')."</a>";
+			$plugin_data['Title'] = "<strong>{$plugin_data['Title']}</strong>";
 		} else {
-			$action = __("<a href='plugins.php?action=activate&amp;plugin=$plugin_file' title='Activate this plugin' class='edit'>Activate</a>");
+			$action = "<a href='plugins.php?action=activate&amp;plugin=$plugin_file' title='".__('Activate this plugin')."' class='edit'>".__('Activate')."</a>";
 		}
+		$plugin_data['Description'] = wp_kses($plugin_data['Description'], array('a' => array('href' => array(),'title' => array()),'abbr' => array('title' => array()),'acronym' => array('title' => array()),'code' => array(),'em' => array(),'strong' => array()) ); ;
 		echo "
 	<tr $style>
-		<td>$plugin</td>
-		<td>$version</td>
-		<td>$author</td>
-		<td>$description</td>
+		<td>{$plugin_data['Title']}</td>
+		<td>{$plugin_data['Version']}</td>
+		<td>{$plugin_data['Author']}</td>
+		<td>{$plugin_data['Description']}</td>
 		<td>$action</td>
 	</tr>";
 	}

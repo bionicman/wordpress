@@ -1,79 +1,73 @@
 <?php
 
-function get_the_category() {
-    global $post, $tablecategories, $tablepost2cat, $wpdb, $category_cache;
-    if ($category_cache[$post->ID]) {
-        return $category_cache[$post->ID];
+function get_the_category($id = false) {
+    global $post, $wpdb, $category_cache;
+
+    if (! $id) {
+        $id = $post->ID;
+    }
+
+    if ($category_cache[$id]) {
+			 $categories = $category_cache[$id];
     } else {
         $categories = $wpdb->get_results("
             SELECT category_id, cat_name, category_nicename, category_description, category_parent
-            FROM  $tablecategories, $tablepost2cat
-            WHERE $tablepost2cat.category_id = cat_ID AND $tablepost2cat.post_id = $post->ID
+            FROM  $wpdb->categories, $wpdb->post2cat
+            WHERE $wpdb->post2cat.category_id = cat_ID AND $wpdb->post2cat.post_id = '$id'
             ");
     
-        return $categories;
-    }
-}
-
-function get_category_link($echo = false, $category_id, $category_nicename) {
-    global $wpdb, $tablecategories, $post, $querystring_start, $querystring_equal, $cache_categories;
-    $cat_ID = $category_id;
-    $permalink_structure = get_settings('permalink_structure');
-    
-    if ('' == $permalink_structure) {
-        $file = get_settings('home') . '/' . get_settings('blogfilename');
-        $link = $file.$querystring_start.'cat'.$querystring_equal.$cat_ID;
-    } else {
-		$category_nicename = $cache_categories[$category_id]->category_nicename;
-		// Get any static stuff from the front
-        $front = substr($permalink_structure, 0, strpos($permalink_structure, '%'));
-		if ( '' == get_settings('category_base') ) :
-			$link = get_settings('home') . $front . 'category/';
-		else :
-         $link = get_settings('home') . get_settings('category_base') . '/';
-		endif;
-        if ($parent=$cache_categories[$category_id]->category_parent) $link .= get_category_parents($parent, FALSE, '/', TRUE);
-        $link .= $category_nicename . '/';
     }
 
-    if ($echo) echo $link;
-    return $link;
+		if (!empty($categories))
+			sort($categories);
+
+		return $categories;
 }
 
-function get_category_rss_link($echo = false, $category_id, $category_nicename) {
-       global $querystring_start, $querystring_equal;
-       $cat_ID = $category_id;
-       $permalink_structure = get_settings('permalink_structure');
+function get_category_link($category_id) {
+	global $wpdb, $wp_rewrite, $querystring_start, $querystring_equal, $cache_categories;
+	$catlink = $wp_rewrite->get_category_permastruct();
 
-       if ('' == $permalink_structure) {
-               $file = get_settings('siteurl') . '/wp-rss2.php';
-        $link = $file . $querystring_start . 'cat' . $querystring_equal . $category_id;
-       } else {
-        $link = get_category_link(0, $category_id, $category_nicename);
-               $link = $link . "feed/";
-       }
+	if ( empty($catlink) ) {
+		$file = get_settings('home') . '/' . get_settings('blogfilename');
+		$catlink = $file . '?cat=' . $category_id;
+	} else {
+		if ($cache_categories[$category_id]->category_nicename)
+			$category_nicename = $cache_categories[$category_id]->category_nicename;
+		else
+			$category_nicename = $wpdb->get_var('SELECT category_nicename FROM ' . $wpdb->categories . ' WHERE cat_ID=' . $category_id);
 
-       if ($echo) echo $link;
-       return $link;
+		if ($parent = $cache_categories[$category_id]->category_parent) 
+			$category_nicename = get_category_parents($parent, false, '/', true) . $category_nicename . '/';
+
+		$catlink = str_replace('%category%', $category_nicename, $catlink);
+		$catlink = get_settings('home') . trailingslashit($catlink);
+	}
+	return apply_filters('category_link', $catlink, $category_id);
 }
 
-function the_category($seperator = '', $parents='') {
+function the_category($separator = '', $parents='') {
     $categories = get_the_category();
+    if (empty($categories)) {
+        _e('Uncategorized');
+        return;
+    }
+
     $thelist = '';
-    if ('' == $seperator) {
+    if ('' == $separator) {
         $thelist .= '<ul class="post-categories">';
         foreach ($categories as $category) {
-            $category->cat_name = stripslashes($category->cat_name);
+            $category->cat_name = $category->cat_name;
             $thelist .= "\n\t<li>";
             switch(strtolower($parents)) {
                 case 'multiple':
                     if ($category->category_parent) {
                         $thelist .= get_category_parents($category->category_parent, TRUE);
                     }
-                    $thelist .= '<a href="' . get_category_link(0, $category->category_id, $category->category_nicename) . '" title="' . sprintf(__("View all posts in %s"), $category->cat_name) . '">'.$category->cat_name.'</a></li>';
+                    $thelist .= '<a href="' . get_category_link($category->category_id) . '" title="' . sprintf(__("View all posts in %s"), $category->cat_name) . '" rel="category tag">'.$category->cat_name.'</a></li>';
                     break;
                 case 'single':
-                    $thelist .= '<a href="' . get_category_link(0, $category->category_id, $category->category_nicename) . '" title="' . sprintf(__("View all posts in %s"), $category->cat_name) . '>';
+                    $thelist .= '<a href="' . get_category_link($category->category_id) . '" title="' . sprintf(__("View all posts in %s"), $category->cat_name) . ' rel="category tag">';
                     if ($category->category_parent) {
                         $thelist .= get_category_parents($category->category_parent, FALSE);
                     }
@@ -81,61 +75,49 @@ function the_category($seperator = '', $parents='') {
                     break;
                 case '':
                 default:
-                    $thelist .= '<a href="' . get_category_link(0, $category->category_id, $category->category_nicename) . '" title="' . sprintf(__("View all posts in %s"), $category->cat_name) . '">'.$category->cat_name.'</a></li>';
+                    $thelist .= '<a href="' . get_category_link($category->category_id) . '" title="' . sprintf(__("View all posts in %s"), $category->cat_name) . '" rel="category tag">'.$category->cat_name.'</a></li>';
             }
         }
         $thelist .= '</ul>';
     } else {
         $i = 0;
         foreach ($categories as $category) {
-            $category->cat_name = stripslashes($category->cat_name);
-            if (0 < $i) $thelist .= $seperator . ' ';
+            $category->cat_name = $category->cat_name;
+            if (0 < $i) $thelist .= $separator . ' ';
             switch(strtolower($parents)) {
                 case 'multiple':
                     if ($category->category_parent)    $thelist .= get_category_parents($category->category_parent, TRUE);
-                    $thelist .= '<a href="' . get_category_link(0, $category->category_id, $category->category_nicename) . '" title="' . sprintf(__("View all posts in %s"), $category->cat_name) . '">'.$category->cat_name.'</a>';
+                    $thelist .= '<a href="' . get_category_link($category->category_id) . '" title="' . sprintf(__("View all posts in %s"), $category->cat_name) . '" rel="category tag">'.$category->cat_name.'</a>';
+                    break;
                 case 'single':
-                    $thelist .= '<a href="' . get_category_link(0, $category->category_id, $category->category_nicename) . '" title="' . sprintf(__("View all posts in %s"), $category->cat_name) . '">';
+                    $thelist .= '<a href="' . get_category_link($category->category_id) . '" title="' . sprintf(__("View all posts in %s"), $category->cat_name) . '" rel="category tag">';
                     if ($category->category_parent)    $thelist .= get_category_parents($category->category_parent, FALSE);
                     $thelist .= "$category->cat_name</a>";
+                    break;
                 case '':
                 default:
-                    $thelist .= '<a href="' . get_category_link(0, $category->category_id, $category->category_nicename) . '" title="' . sprintf(__("View all posts in %s"), $category->cat_name) . '">'.$category->cat_name.'</a>';
+                    $thelist .= '<a href="' . get_category_link($category->category_id) . '" title="' . sprintf(__("View all posts in %s"), $category->cat_name) . '" rel="category tag">'.$category->cat_name.'</a>';
             }
             ++$i;
         }
     }
-    echo apply_filters('the_category', $thelist);
-}
-
-function the_category_rss($type = 'rss') {
-    $categories = get_the_category();
-    $the_list = '';
-    foreach ($categories as $category) {
-        $category->cat_name = stripslashes(convert_chars($category->cat_name));
-        if ('rdf' == $type) {
-            $the_list .= "\n\t<dc:subject>$category->cat_name</dc:subject>";
-        } else {
-            $the_list .= "\n\t<category>$category->cat_name</category>";
-        }
-    }
-    echo apply_filters('the_category_rss', $the_list);
+    echo apply_filters('the_category', $thelist, $separator, $parents);
 }
 
 function get_the_category_by_ID($cat_ID) {
-    global $tablecategories, $cache_categories, $wpdb;
+    global $cache_categories, $wpdb;
     if ( !$cache_categories[$cat_ID] ) {
-        $cat_name = $wpdb->get_var("SELECT cat_name FROM $tablecategories WHERE cat_ID = '$cat_ID'");
+        $cat_name = $wpdb->get_var("SELECT cat_name FROM $wpdb->categories WHERE cat_ID = '$cat_ID'");
         $cache_categories[$cat_ID]->cat_name = $cat_name;
     } else {
         $cat_name = $cache_categories[$cat_ID]->cat_name;
     }
-    return(stripslashes($cat_name));
+    return($cat_name);
 }
 
 function get_category_parents($id, $link = FALSE, $separator = '/', $nicename = FALSE){
-    global $tablecategories, $cache_categories;
-    $chain = "";
+    global $cache_categories;
+    $chain = '';
     $parent = $cache_categories[$id];
     if ($nicename) {
         $name = $parent->category_nicename;
@@ -144,7 +126,7 @@ function get_category_parents($id, $link = FALSE, $separator = '/', $nicename = 
     }
     if ($parent->category_parent) $chain .= get_category_parents($parent->category_parent, $link, $separator, $nicename);
     if ($link) {
-        $chain .= '<a href="' . get_category_link(0, $parent->cat_ID, $parent->category_nicename) . '" title="' . sprintf(__("View all posts in %s"), $parent->cat_name) . '">'.$name.'</a>' . $separator;
+        $chain .= '<a href="' . get_category_link($parent->cat_ID) . '" title="' . sprintf(__("View all posts in %s"), $parent->cat_name) . '">'.$name.'</a>' . $separator;
     } else {
         $chain .= $name.$separator;
     }
@@ -152,7 +134,7 @@ function get_category_parents($id, $link = FALSE, $separator = '/', $nicename = 
 }
 
 function get_category_children($id, $before = '/', $after = '') {
-    global $tablecategories, $cache_categories;
+    global $cache_categories;
     $c_cache = $cache_categories; // Can't do recursive foreach on a global, have to make a copy
     $chain = '';
     foreach ($c_cache as $category){
@@ -164,17 +146,23 @@ function get_category_children($id, $before = '/', $after = '') {
     return $chain;
 }
 
+// Deprecated.
 function the_category_ID($echo = true) {
-    global $post;
-    if ($echo)
-        echo $post->post_category;
-    else
-        return $post->post_category;
+    // Grab the first cat in the list.
+    $categories = get_the_category();
+    $cat = $categories[0]->category_id;
+    
+    if ($echo) echo $cat;
+
+    return $cat;
 }
 
+// Deprecated.
 function the_category_head($before='', $after='') {
-    global $post, $currentcat, $previouscat, $dateformat, $newday;
-    $currentcat = $post->post_category;
+    global $currentcat, $previouscat;
+    // Grab the first cat in the list.
+    $categories = get_the_category();
+    $currentcat = $categories[0]->category_id;
     if ($currentcat != $previouscat) {
         echo $before;
         echo get_the_category_by_ID($currentcat);
@@ -184,10 +172,10 @@ function the_category_head($before='', $after='') {
 }
 
 function category_description($category = 0) {
-    global $cat, $wpdb, $tablecategories, $cache_categories;
+    global $cat, $wpdb, $cache_categories;
     if (!$category) $category = $cat;
     $category_description = $cache_categories[$category]->category_description;
-    $category_description = apply_filters('category_description', $category_description);
+    $category_description = apply_filters('category_description', $category_description, $category);
     return $category_description;
 }
 
@@ -195,18 +183,17 @@ function category_description($category = 0) {
 function dropdown_cats($optionall = 1, $all = 'All', $sort_column = 'ID', $sort_order = 'asc',
         $optiondates = 0, $optioncount = 0, $hide_empty = 1, $optionnone=FALSE,
         $selected=0, $hide=0) {
-    global $tablecategories, $tableposts, $tablepost2cat, $wpdb;
-    global $querystring_start, $querystring_equal, $querystring_separator;
-    if (($file == 'blah') || ($file == '')) $file = get_settings('home') . '/' . get_settings('blogfilename');
+    global $wpdb;
+    if (($file == 'blah') || ($file == '')) $file = get_settings('home') . '/';
     if (!$selected) $selected=$cat;
     $sort_column = 'cat_'.$sort_column;
 
     $query = "
         SELECT cat_ID, cat_name, category_nicename,category_parent,
-        COUNT($tablepost2cat.post_id) AS cat_count,
+        COUNT($wpdb->post2cat.post_id) AS cat_count,
         DAYOFMONTH(MAX(post_date)) AS lastday, MONTH(MAX(post_date)) AS lastmonth
-        FROM $tablecategories LEFT JOIN $tablepost2cat ON (cat_ID = category_id)
-        LEFT JOIN $tableposts ON (ID = post_id)
+        FROM $wpdb->categories LEFT JOIN $wpdb->post2cat ON (cat_ID = category_id)
+        LEFT JOIN $wpdb->posts ON (ID = post_id)
         WHERE cat_ID > 0
         ";
     if ($hide) {
@@ -226,12 +213,12 @@ function dropdown_cats($optionall = 1, $all = 'All', $sort_column = 'ID', $sort_
     if (intval($optionnone) == 1) echo "\t<option value='0'>None</option>\n";
     if ($categories) {
         foreach ($categories as $category) {
-            $cat_name = apply_filters('list_cats', $category->cat_name);
+            $cat_name = apply_filters('list_cats', $category->cat_name, $category);
             echo "\t<option value=\"".$category->cat_ID."\"";
             if ($category->cat_ID == $selected)
                 echo ' selected="selected"';
             echo '>';
-            echo stripslashes($cat_name);
+            echo $cat_name;
             if (intval($optioncount) == 1) echo '&nbsp;&nbsp;('.$category->cat_count.')';
             if (intval($optiondates) == 1) echo '&nbsp;&nbsp;'.$category->lastday.'/'.$category->lastmonth;
             echo "</option>\n";
@@ -260,16 +247,16 @@ function wp_list_cats($args = '') {
 	if (!isset($r['feed'])) $r['feed'] = '';
 	if (!isset($r['feed_image'])) $r['feed_image'] = '';
 	if (!isset($r['exclude'])) $r['exclude'] = '';
+	if (!isset($r['hierarchical'])) $r['hierarchical'] = true;
 
-	list_cats($r['optionall'], $r['all'], $r['sort_column'], $r['sort_order'], $r['file'],	$r['list'], $r['optiondates'], $r['optioncount'], $r['hide_empty'], $r['use_desc_for_title'], $r['children'], $r['child_of'], $r['categories'], $r['recurse'], $r['feed'], $r['feed_image'], $r['exclude']);
+	list_cats($r['optionall'], $r['all'], $r['sort_column'], $r['sort_order'], $r['file'],	$r['list'], $r['optiondates'], $r['optioncount'], $r['hide_empty'], $r['use_desc_for_title'], $r['children'], $r['child_of'], $r['categories'], $r['recurse'], $r['feed'], $r['feed_image'], $r['exclude'], $r['hierarchical']);
 }
 
-function list_cats($optionall = 1, $all = 'All', $sort_column = 'ID', $sort_order = 'asc', $file = '', $list = true, $optiondates = 0, $optioncount = 0, $hide_empty = 1, $use_desc_for_title = 1, $children=FALSE, $child_of=0, $categories=0, $recurse=0, $feed = '', $feed_image = '', $exclude = '') {
-	global $tablecategories, $tableposts, $tablepost2cat, $wpdb, $category_posts;
-	global $querystring_start, $querystring_equal, $querystring_separator;
+function list_cats($optionall = 1, $all = 'All', $sort_column = 'ID', $sort_order = 'asc', $file = '', $list = true, $optiondates = 0, $optioncount = 0, $hide_empty = 1, $use_desc_for_title = 1, $children=FALSE, $child_of=0, $categories=0, $recurse=0, $feed = '', $feed_image = '', $exclude = '', $hierarchical=FALSE) {
+	global $wpdb, $category_posts;
 	// Optiondates now works
 	if ('' == $file) {
-		$file = get_settings('home') . '/' . get_settings('blogfilename');
+		$file = get_settings('home') . '/';
 	}
 
 	$exclusions = '';
@@ -282,53 +269,54 @@ function list_cats($optionall = 1, $all = 'All', $sort_column = 'ID', $sort_orde
 		}
 	}
 
-	if (intval($categories)==0){
-		$sort_column = 'cat_'.$sort_column;
+	if ($hide_empty) {
+		$categories = array();
+		$extra_fields = 'cat_name, category_nicename, category_description,';
+	} else {
+		if (intval($categories)==0 && !$hide_empty){
+			$sort_column = 'cat_'.$sort_column;
 
-		$query  = "
-			SELECT cat_ID, cat_name, category_nicename, category_description, category_parent
-			FROM $tablecategories
-			WHERE cat_ID > 0 $exclusions
-			ORDER BY $sort_column $sort_order";
+			$query  = "
+				SELECT cat_ID, cat_name, category_nicename, category_description, category_parent
+				FROM $wpdb->categories
+				WHERE cat_ID > 0 $exclusions
+				ORDER BY $sort_column $sort_order";
 
-		$categories = $wpdb->get_results($query);
-	}
-	if (!count($category_posts)) {
-		$cat_counts = $wpdb->get_results("	SELECT cat_ID,
-		COUNT($tablepost2cat.post_id) AS cat_count
-		FROM $tablecategories 
-		INNER JOIN $tablepost2cat ON (cat_ID = category_id)
-		INNER JOIN $tableposts ON (ID = post_id)
-		WHERE post_status = 'publish' $exclusions
-		GROUP BY category_id");
-		foreach ($cat_counts as $cat_count) {
-			if (1 != intval($hide_empty) || $cat_count > 0) {
-				$category_posts["$cat_count->cat_ID"] = $cat_count->cat_count;
-			}
+			$categories = $wpdb->get_results($query);
 		}
+		$extra_fields = '';
+	}
+
+	if (!count($category_posts)) {
+		$now = current_time('mysql', 1);
+		$cat_counts = $wpdb->get_results("	SELECT cat_ID, $extra_fields
+		COUNT($wpdb->post2cat.post_id) AS cat_count
+		FROM $wpdb->categories 
+		INNER JOIN $wpdb->post2cat ON (cat_ID = category_id)
+		INNER JOIN $wpdb->posts ON (ID = post_id)
+		WHERE post_status = 'publish'
+		AND post_date_gmt < '$now' $exclusions
+		GROUP BY category_id");
+        if (! empty($cat_counts)) {
+            foreach ($cat_counts as $cat_count) {
+                if (1 != intval($hide_empty) || $cat_count > 0) {
+                    $category_posts["$cat_count->cat_ID"] = $cat_count->cat_count;
+                    if ($hide_empty) {
+                    	$categories[] = $cat_count;
+                    }
+                }
+            }
+        }
 	}
 	
-	if (intval($optiondates) == 1) {
-		$cat_dates = $wpdb->get_results("	SELECT cat_ID,
-		DAYOFMONTH(MAX(post_date)) AS lastday, MONTH(MAX(post_date)) AS lastmonth
-		FROM $tablecategories 
-		LEFT JOIN $tablepost2cat ON (cat_ID = category_id)
-		LEFT JOIN $tableposts ON (ID = post_id)
-		WHERE post_status = 'publish' $exclusions
+	if ( $optiondates ) {
+		$cat_dates = $wpdb->get_results("	SELECT category_id,
+		UNIX_TIMESTAMP( MAX(post_date) ) AS ts
+		FROM $wpdb->posts, $wpdb->post2cat
+		WHERE post_status = 'publish' AND post_id = ID $exclusions
 		GROUP BY category_id");
 		foreach ($cat_dates as $cat_date) {
-			$category_lastday["$cat_date->cat_ID"] = $cat_date->lastday;
-			$category_lastmonth["$cat_date->cat_ID"] = $cat_date->lastmonth;
-		}
-	}
-	
-	if (intval($optionall) == 1 && !$child_of && $categories) {
-		$all = apply_filters('list_cats', $all);
-		$link = "<a href=\"".$file.$querystring_start.'cat'.$querystring_equal.'all">'.$all."</a>";
-		if ($list) {
-			echo "\n\t<li>$link</li>";
-		} else {
-			echo "\t$link<br />\n";
+			$category_timestamp["$cat_date->category_id"] = $cat_date->ts;
 		}
 	}
 	
@@ -336,16 +324,16 @@ function list_cats($optionall = 1, $all = 'All', $sort_column = 'ID', $sort_orde
 	$thelist = "";
 	
 	foreach ($categories as $category) {
-		if ((intval($hide_empty) == 0 || isset($category_posts["$category->cat_ID"])) && (!$children || $category->category_parent == $child_of)) {
+		if ((intval($hide_empty) == 0 || isset($category_posts["$category->cat_ID"])) && (!$hierarchical || $category->category_parent == $child_of) ) {
 			$num_found++;
-			$link = '<a href="'.get_category_link(0, $category->cat_ID, $category->category_nicename).'" ';
+			$link = '<a href="'.get_category_link($category->cat_ID).'" ';
 			if ($use_desc_for_title == 0 || empty($category->category_description)) {
-				$link .= 'title="'. sprintf(__("View all posts filed under %s"), htmlspecialchars($category->cat_name)) . '"';
+				$link .= 'title="'. sprintf(__("View all posts filed under %s"), wp_specialchars($category->cat_name)) . '"';
 			} else {
-				$link .= 'title="' . htmlspecialchars($category->category_description) . '"';
+				$link .= 'title="' . wp_specialchars(apply_filters('category_description',$category->category_description,$category)) . '"';
 			}
 			$link .= '>';
-			$link .= stripslashes($category->cat_name).'</a>';
+			$link .= apply_filters('list_cats', $category->cat_name, $category).'</a>';
 
 			if ( (! empty($feed_image)) || (! empty($feed)) ) {
 				
@@ -358,16 +346,16 @@ function list_cats($optionall = 1, $all = 'All', $sort_column = 'ID', $sort_orde
 				$link .= '<a href="' . get_category_rss_link(0, $category->cat_ID, $category->category_nicename)  . '"';
 
 				if ( !empty($feed) ) {
-					$title =  ' title="' . stripslashes($feed) . '"';
-					$alt = ' alt="' . stripslashes($feed) . '"';
-					$name = stripslashes($feed);
+					$title =  ' title="' . $feed . '"';
+					$alt = ' alt="' . $feed . '"';
+					$name = $feed;
 					$link .= $title;
 				}
 
 				$link .= '>';
 
 				if (! empty($feed_image)) {
-					$link .= "<img src=\"$feed_image\" border=\"0\"$alt$title" . ' />';
+					$link .= "<img src='$feed_image' $alt$title" . ' />';
 				} else {
 					$link .= $name;
 				}
@@ -382,15 +370,16 @@ function list_cats($optionall = 1, $all = 'All', $sort_column = 'ID', $sort_orde
 			if (intval($optioncount) == 1) {
 				$link .= ' ('.intval($category_posts["$category->cat_ID"]).')';
 			}
-			if (intval($optiondates) == 1) {
-				$link .= ' '.$category_lastday["$category->cat_ID"].'/'.$category_lastmonth["$category->cat_ID"];
+			if ( $optiondates ) {
+				if ( $optiondates == 1 ) $optiondates = 'Y-m-d';
+				$link .= ' ' . gmdate($optiondates, $category_timestamp["$category->cat_ID"]);
 			}
 			if ($list) {
 				$thelist .= "\t<li>$link\n";
 			} else {
 				$thelist .= "\t$link<br />\n";
 			}
-			if ($children) $thelist .= list_cats($optionall, $all, $sort_column, $sort_order, $file, $list, $optiondates, $optioncount, $hide_empty, $use_desc_for_title, $children, $category->cat_ID, $categories, 1, $feed, $feed_image, $exclude);
+			if ($hierarchical && $children) $thelist .= list_cats($optionall, $all, $sort_column, $sort_order, $file, $list, $optiondates, $optioncount, $hide_empty, $use_desc_for_title, $hierarchical, $category->cat_ID, $categories, 1, $feed, $feed_image, $exclude, $hierarchical);
 			if ($list) $thelist .= "</li>\n";
 			}
 	}

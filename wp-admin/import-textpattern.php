@@ -17,7 +17,7 @@ if (!$step) $step = 0;
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <title>WordPress &rsaquo; Textpattern Import</title>
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <style media="screen" type="text/css">
 	body {
 		font-family: Georgia, "Times New Roman", Times, serif;
@@ -71,16 +71,16 @@ if ($connection && $database) {
 <p>First let's get posts and comments.</p> 
 <?php
 // For people running this on .72
-$query = "ALTER TABLE `$tableposts` ADD `post_name` VARCHAR(200) NOT NULL";
-maybe_add_column($tableposts, 'post_name', $query);
+$query = "ALTER TABLE `$wpdb->posts` ADD `post_name` VARCHAR(200) NOT NULL";
+maybe_add_column($wpdb->posts, 'post_name', $query);
 
 // Create post_name field
 $connection = @mysql_connect($tp_database_host, $tp_database_username, $tp_database_password);
 $database = @mysql_select_db($tp_database_name);
 
 // For now we're going to give everything the same author and same category
-$author = $wpdb->get_var("SELECT ID FROM $tableusers WHERE user_level = 10 LIMIT 1");
-$category = $wpdb->get_var("SELECT cat_ID FROM $tablecategories LIMIT 1");
+$author = $wpdb->get_var("SELECT ID FROM $wpdb->users WHERE user_level = 10 LIMIT 1");
+$category = $wpdb->get_var("SELECT cat_ID FROM $wpdb->categories LIMIT 1");
 
 $posts = mysql_query('SELECT * FROM textpattern', $connection);
 
@@ -97,17 +97,17 @@ while ($post = mysql_fetch_array($posts)) {
 	$timestamp = mktime($hour, $minute, $second, $month, $day, $year);
 	$posted = date('Y-m-d H:i:s', $timestamp);
 	
-	$content = $post['Body_html'];
-	$title = $post['Title'];
+	$content = addslashes($post['Body_html']);
+	$title = addslashes($post['Title']);
 	$post_name = sanitize_title($title);
 
-	$wpdb->query("INSERT INTO $tableposts
+	$wpdb->query("INSERT INTO $wpdb->posts
 		(post_author, post_date, post_content, post_title, post_category, post_name, post_status)
 		VALUES
 		('$author', '$posted', '$content', '$title', '$category', '$post_name', 'publish')");
 
 	// Get wordpress post id
-	$wp_post_ID = $wpdb->get_var("SELECT ID FROM $tableposts ORDER BY ID DESC LIMIT 1");
+	$wp_post_ID = $wpdb->get_var("SELECT ID FROM $wpdb->posts ORDER BY ID DESC LIMIT 1");
 	
 	// Now let's insert comments if there are any for the TP post
 	$tp_id = $post['ID'];
@@ -117,7 +117,7 @@ while ($post = mysql_fetch_array($posts)) {
 			//  discussid, parentid, name, email, web, ip, posted, message
 			// For some reason here "posted" is a real MySQL date, so we don't have to do anything about it
 			//  comment_post_ID  	 comment_author  	 comment_author_email  	 comment_author_url  	 comment_author_IP  	 comment_date  	 comment_content  	 comment_karma
-			$wpdb->query("INSERT INTO $tablecomments
+			$wpdb->query("INSERT INTO $wpdb->comments
 				(comment_post_ID, comment_author, comment_author_email, comment_author_url, comment_author_IP, comment_date, comment_content)
 				VALUES
 				($wp_post_ID, '$comment->name', '$comment->email', '$comment->web', '$comment->ip', '$comment->posted', '$comment->message')");

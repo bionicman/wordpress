@@ -1,70 +1,34 @@
-<?php
-
-require_once('../wp-config.php');
-require_once(ABSPATH.'/wp-admin/auth.php');
-require(ABSPATH.'/wp-admin/admin-functions.php');
-
-// Disallow direct loading of this file
-if( basename(__FILE__) == basename($_SERVER['PHP_SELF']) ) {
-        die(__("Direct access denied."));
-}
-
-function gethelp_link($this_file, $helptag) {
-    $url = 'http://wordpress.org/docs/reference/links/#'.$helptag;
-    $s = ' <a href="'.$url.'" title="' . __('Click here for help') .'">?</a>';
-    return $s;
-}
-
-if (!isset($blogID))    $blog_ID=1;
-if (!isset($debug))        $debug=0;
-timer_start();
-
-$dogs = $wpdb->get_results("SELECT * FROM $tablecategories WHERE 1=1");
-foreach ($dogs as $catt) {
-    $cache_categories[$catt->cat_ID] = $catt;
-}
-
-get_currentuserinfo();
-
-$posts_per_page = get_settings('posts_per_page');
-$what_to_show = get_settings('what_to_show');
-$archive_mode = get_settings('archive_mode');
-$date_format = stripslashes(get_settings('date_format'));
-$time_format = stripslashes(get_settings('time_format'));
-
-// let's deactivate quicktags on IE Mac and Lynx, because they don't work there.
-if (($is_macIE) || ($is_lynx))
-    $use_quicktags = 0;
-
-$wpvarstoreset = array('profile','standalone','redirect','redirect_url','a','popuptitle','popupurl','text', 'trackback', 'pingback');
-for ($i=0; $i<count($wpvarstoreset); $i += 1) {
-    $wpvar = $wpvarstoreset[$i];
-    if (!isset($$wpvar)) {
-        if (empty($_POST["$wpvar"])) {
-            if (empty($_GET["$wpvar"])) {
-                $$wpvar = '';
-            } else {
-                $$wpvar = $_GET["$wpvar"];
-            }
-        } else {
-            $$wpvar = $_POST["$wpvar"];
-        }
-    }
-}
-
-if ($standalone == 0) :
-
-?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<?php 
+@header('Content-type: ' . get_option('html_type') . '; charset=' . get_option('blog_charset'));
+if (!isset($_GET["page"])) require_once('admin.php'); ?>
+<?php get_admin_page_title(); ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<title>WordPress &rsaquo; <?php bloginfo('name') ?> &rsaquo; <?php echo $title; ?></title>
-<link rel="stylesheet" href="wp-admin.css" type="text/css" />
-<link rel="shortcut icon" href="../wp-images/wp-favicon.png" />
-<meta http-equiv="Content-Type" content="text/html; charset=<?php echo get_settings('blog_charset'); ?>" />
+<title><?php bloginfo('name') ?> &rsaquo; <?php echo $title; ?> &#8212; WordPress</title>
+<link rel="stylesheet" href="<?php echo get_settings('siteurl') ?>/wp-admin/wp-admin.css" type="text/css" />
+<meta http-equiv="Content-Type" content="<?php bloginfo('html_type'); ?>; charset=<?php echo get_settings('blog_charset'); ?>" />
 
-<?php if (isset($xfn)) : ?>
-<script language="javascript" type="text/javascript">
+<script type="text/javascript">
 //<![CDATA[
+
+function customToggleLink() {
+	// TODO: Only show link if there's a hidden row
+	document.write('<small>(<a href="javascript:;" id="customtoggle" onclick="toggleHidden()"><?php _e('Show hidden'); ?></a>)</small>');
+	// TODO: Rotate link to say "show" or "hide"
+	// TODO: Use DOM
+}
+
+function toggleHidden() {
+	var allElements = document.getElementsByTagName('tr');
+	for (i = 0; i < allElements.length; i++) {
+		if ( allElements[i].className.indexOf('hidden') != -1 ) {
+			 allElements[i].className = allElements[i].className.replace('hidden', '');
+		}
+	}
+}
+
+<?php if ( isset($xfn) ) : ?>
 
 function GetElementsWithClassName(elementName, className) {
 	var allElements = document.getElementsByTagName(elementName);
@@ -77,58 +41,58 @@ function GetElementsWithClassName(elementName, className) {
 	return elemColl;
 }
 
+function meChecked() {
+  var undefined;
+  var eMe = document.getElementById('me');
+  if (eMe == undefined) return false;
+  else return eMe.checked;
+}
+
+function upit() {
+	var isMe = meChecked(); //document.getElementById('me').checked;
+	var inputColl = GetElementsWithClassName('input', 'valinp');
+	var results = document.getElementById('rel');
+	var linkText, linkUrl, inputs = '';
+	for (i = 0; i < inputColl.length; i++) {
+		 inputColl[i].disabled = isMe;
+		 inputColl[i].parentNode.className = isMe ? 'disabled' : '';
+		 if (!isMe && inputColl[i].checked && inputColl[i].value != '') {
+			inputs += inputColl[i].value + ' ';
+				}
+		 }
+	inputs = inputs.substr(0,inputs.length - 1);
+	if (isMe) inputs='me';
+	results.value = inputs;
+	}
+
 function blurry() {
 	if (!document.getElementById) return;
-	
+
 	var aInputs = document.getElementsByTagName('input');
-	
-	for (var i = 0; i < aInputs.length; i++) {      
-		aInputs[i].onclick = function() {
-			var inputColl = GetElementsWithClassName('input','valinp');
-			var rel = document.getElementById('rel');
-			var inputs = '';
-			for (i = 0; i < inputColl.length; i++) {
-				if (inputColl[i].checked) {
-				if (inputColl[i].value != '') inputs += inputColl[i].value + ' ';
-				}
-			}
-			inputs = inputs.substr(0,inputs.length - 1);
-			if (rel != null) {
-				rel.value = inputs;
-			}
-		}
-		
-		aInputs[i].onkeyup = function() {
-			var inputColl = GetElementsWithClassName('input','valinp');
-			var rel = document.getElementById('rel');
-			var inputs = '';
-			for (i = 0; i < inputColl.length; i++) {
-				if (inputColl[i].checked) {
-					inputs += inputColl[i].value + ' ';
-				}
-			}
-			inputs = inputs.substr(0,inputs.length - 1);
-			if (rel != null) {
-				rel.value = inputs;
-			}
-		}
-		
+
+	for (var i = 0; i < aInputs.length; i++) {		
+		 aInputs[i].onclick = aInputs[i].onkeyup = upit;
 	}
 }
 
 window.onload = blurry;
+<?php endif; ?>
+
 //]]>
 </script>
-<?php endif; ?>
 
 <?php do_action('admin_head', ''); ?>
 </head>
 <body>
+
 <div id="wphead">
-<h1><a href="http://wordpress.org" rel="external" title="<?php _e('Visit WordPress.org') ?>"><?php _e('WordPress') ?></a></h1>
+<h1><?php echo wptexturize(get_settings(('blogname'))); ?> <span>(<a href="<?php echo get_settings('home') . '/'; ?>"><?php _e('View site') ?> &raquo;</a>)</span></h1>
 </div>
 
 <?php
-require('./menu.php');
-endif;
+require(ABSPATH . '/wp-admin/menu-header.php');
+
+if ( $parent_file == 'options-general.php' ) {
+	require(ABSPATH . '/wp-admin/options-head.php');
+}
 ?>

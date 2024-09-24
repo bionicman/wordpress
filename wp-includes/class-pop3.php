@@ -13,7 +13,7 @@
     *
     * pop3 class
     *
-    * $Id: class-pop3.php,v 1.1 2003/12/11 00:22:36 saxmatt Exp $
+    * $Id: class-pop3.php,v 1.2 2005/01/07 01:29:49 saxmatt Exp $
     */
 
 class POP3 {
@@ -655,8 +655,8 @@ class POP3 {
         $length = strlen($server_text);
         for($count =0; $count < $length; $count++)
         {
-            $digit = substr($server_text,$count,1);
-            if(!empty($digit))             {
+            $digit = substr($server_text, $count, 1);
+            if ( false !== $digit ) {
                 if( (!$outside) && ($digit != '<') && ($digit != '>') )
                 {
                     $banner .= $digit;

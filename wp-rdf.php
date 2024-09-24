@@ -1,14 +1,15 @@
 <?php /* RDF 1.0 generator, original version by garym@teledyn.com */
-if (! $feed) {
+
+if (empty($feed)) {
     $blog = 1; // enter your blog's ID
+		$feed = 'rdf';
     $doing_rss = 1;
     require('wp-blog-header.php');
 }
+
+header('Content-type: application/rdf+xml; charset=' . get_settings('blog_charset'), true);
 $more = 1;
 
-header('Content-type: application/rdf+xml', true);
-
-add_filter('the_content', 'trim');
 ?>
 <?php echo '<?xml version="1.0" encoding="'.get_settings('blog_charset').'"?'.'>'; ?>
 <!-- generator="wordpress/<?php echo $wp_version ?>" -->
@@ -24,7 +25,6 @@ add_filter('the_content', 'trim');
 	<title><?php bloginfo_rss('name') ?></title>
 	<link><?php bloginfo_rss('url') ?></link>
 	<description><?php bloginfo_rss('description') ?></description>
-	<dc:language><?php echo get_settings('rss_language'); ?></dc:language>
 	<dc:date><?php echo mysql2date('Y-m-d\TH:i:s\Z', get_lastpostmodified('GMT')); ?></dc:date>
 	<admin:generatorAgent rdf:resource="http://wordpress.org/?v=<?php echo $wp_version ?>"/>
 	<sy:updatePeriod>hourly</sy:updatePeriod>
@@ -43,10 +43,10 @@ add_filter('the_content', 'trim');
 	<title><?php the_title_rss() ?></title>
 	<link><?php permalink_single_rss() ?></link>
 	<dc:date><?php echo mysql2date('Y-m-d\TH:i:s\Z', $post->post_date_gmt); ?></dc:date>
-	<dc:creator><?php the_author() ?> (mailto:<?php the_author_email() ?>)</dc:creator>
+	<dc:creator><?php the_author() ?></dc:creator>
 	<?php the_category_rss('rdf') ?>
 <?php if (get_settings('rss_use_excerpt')) : ?>
-	<description><?php the_excerpt_rss(get_settings('rss_excerpt_length'), 2) ?></description>
+	<description><?php the_excerpt_rss() ?></description>
 <?php else : ?>
 	<description><?php the_content_rss('', 0, '', get_settings('rss_excerpt_length'), 2) ?></description>
 	<content:encoded><![CDATA[<?php the_content('', 0, '') ?>]]></content:encoded>

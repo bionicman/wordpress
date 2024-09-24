@@ -9,6 +9,7 @@ define('EZSQL_VERSION', 'WP1.25');
 define('OBJECT', 'OBJECT', true);
 define('ARRAY_A', 'ARRAY_A', false);
 define('ARRAY_N', 'ARRAY_N', false);
+
 if (!defined('SAVEQUERIES'))
 	define('SAVEQUERIES', false);
 
@@ -18,22 +19,39 @@ class wpdb {
 	var $num_queries = 0;	
 	var $last_query;
 	var $col_info;
+	var $queries;
+
+	// Our tables
+	var $posts;
+	var $users;
+	var $categories;
+	var $post2cat;
+	var $comments;
+	var $links;
+	var $linkcategories;
+	var $options;
+	var $optiontypes;
+	var $optionvalues;
+	var $optiongroups;
+	var $optiongroup_options;
+	var $postmeta;
 
 	// ==================================================================
 	//	DB Constructor - connects to the server and selects a database
 
 	function wpdb($dbuser, $dbpassword, $dbname, $dbhost) {
-		$this->dbh = @mysql_connect($dbhost,$dbuser,$dbpassword);
+		$this->dbh = @mysql_connect($dbhost, $dbuser, $dbpassword);
 		if (!$this->dbh) {
-			die("<div>
-			<p><strong>Error establishing a database connection!</strong> This probably means that the connection information in your <code>wp-config.php</code> file is incorrect. Double check it and try again.</p>
-			<ul>
-			<li>Are you sure you have the correct user/password?</li>
-			<li>Are you sure that you have typed the correct hostname?</li>
-			<li>Are you sure that the database server is running?</li>
-			</ul>
-			<p><a href='http://wordpress.org/support/'>WordPress Support Forums</a></p>
-			</div>");
+			$this->bail("
+<h1>Error establishing a database connection</h1>
+<p>This either means that the username and password information in your <code>wp-config.php</code> file is incorrect or we can't contact the database server at <code>$dbhost</code>.</p>
+<ul>
+	<li>Are you sure you have the correct username and password?</li>
+	<li>Are you sure that you have typed the correct hostname?</li>
+	<li>Are you sure that the database server is running?</li>
+</ul>
+<p>If you're unsure what these terms mean you should probably contact your host. If you still need help you can always visit the <a href='http://wordpress.org/support/'>WordPress Support Forums</a>.</p>
+");
 		}
 
 		$this->select($dbname);
@@ -43,15 +61,15 @@ class wpdb {
 	//	Select a DB (if another one needs to be selected)
 
 	function select($db) {
-		if (!@mysql_select_db($db,$this->dbh)) {
-			die("
-			<p>We're having a little trouble selecting the proper database for WordPress.</p>
-			<ul>
-			<li>Are you sure it exists?</li>
-			<li>Your database name is currently specified as <code>" . DB_NAME ."</code>. Is this correct?</li>
-			<li>On some systems the name of your database is prefixed with your username, so it would be like username_wordpress. Could that be the problem?</li>
-			</ul>
-			<p><a href='http://wordpress.org/support/'>WordPress Support Forums</a></p>");
+		if (!@mysql_select_db($db, $this->dbh)) {
+			$this->bail("
+<h1>Can&#8217;t select database</h1>
+<p>We were able to connect to the database server (which means your username and password is okay) but not able to select the <code>$db</code> database.</p>
+<ul>
+<li>Are you sure it exists?</li>
+<li>On some systems the name of your database is prefixed with your username, so it would be like username_wordpress. Could that be the problem?</li>
+</ul>
+<p>If you continue to have connection problems you should contact your host. If all else fails you may find help at the <a href='http://wordpress.org/support/'>WordPress Support Forums</a>.</p>");
 		}
 	}
 
@@ -59,7 +77,7 @@ class wpdb {
 	//	Format a string correctly for safe insert under all PHP conditions
 	
 	function escape($str) {
-		return mysql_escape_string(stripslashes($str));				
+		return addslashes($str);				
 	}
 
 	// ==================================================================
@@ -75,7 +93,7 @@ class wpdb {
 		if ( $this->show_errors ) {
 			// If there is an error then take note of it
 			print "<div id='error'>
-			<p><strong>Database error:</strong> [$str]<br />
+			<p class='wpdberror'><strong>WordPress database error:</strong> [$str]<br />
 			<code>$this->last_query</code></p>
 			</div>";
 		} else {
@@ -118,11 +136,14 @@ class wpdb {
 		$this->last_query = $query;
 
 		// Perform the query via std mysql_query function..
-		$this->result = @mysql_query($query,$this->dbh);
+		if (SAVEQUERIES)
+			$this->timer_start();
+		
+		$this->result = @mysql_query($query, $this->dbh);
 		++$this->num_queries;
-		if (SAVEQUERIES) {
-			$this->savedqueries[] = $query;
-		}
+
+		if (SAVEQUERIES)
+			$this->queries[] = array( $query, $this->timer_stop() );
 
 		// If there is an error then take note of it..
 		if ( mysql_error() ) {
@@ -261,8 +282,77 @@ class wpdb {
 			}
 		}
 	}
+
+	function timer_start() {
+		$mtime = microtime();
+		$mtime = explode(' ', $mtime);
+		$this->time_start = $mtime[1] + $mtime[0];
+		return true;
+	}
+	
+	function timer_stop($precision = 3) {
+		$mtime = microtime();
+		$mtime = explode(' ', $mtime);
+		$time_end = $mtime[1] + $mtime[0];
+		$time_total = $time_end - $this->time_start;
+		return $time_total;
+	}
+
+	function bail($message) { // Just wraps errors in a nice header and footer
+	if ( !$this->show_errors )
+		return false;
+	echo <<<HEAD
+	<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+	<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+		<title>WordPress &rsaquo; Error</title>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+		<style media="screen" type="text/css">
+		<!--
+		html {
+			background: #eee;
+		}
+		body {
+			background: #fff;
+			color: #000;
+			font-family: Georgia, "Times New Roman", Times, serif;
+			margin-left: 25%;
+			margin-right: 25%;
+			padding: .2em 2em;
+		}
+		
+		h1 {
+			color: #006;
+			font-size: 18px;
+			font-weight: lighter;
+		}
+		
+		h2 {
+			font-size: 16px;
+		}
+		
+		p, li, dt {
+			line-height: 140%;
+			padding-bottom: 2px;
+		}
+	
+		ul, ol {
+			padding: 5px 5px 5px 20px;
+		}
+		#logo {
+			margin-bottom: 2em;
+		}
+		-->
+		</style>
+	</head>
+	<body>
+	<h1 id="logo"><img alt="WordPress" src="http://static.wordpress.org/logo.png" /></h1>
+HEAD;
+	echo $message;
+	echo "</body></html>";
+	die();
+	}
 }
 
 $wpdb = new wpdb(DB_USER, DB_PASSWORD, DB_NAME, DB_HOST);
-
 ?>

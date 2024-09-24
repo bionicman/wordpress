@@ -2,8 +2,7 @@
 // Links
 // Copyright (C) 2002 Mike Little -- mike@zed1.com
 
-require_once('../wp-config.php');
-
+require_once('admin.php');
 $parent_file = 'link-manager.php';
 $title = __('Import Blogroll');
 $this_file = 'link-import.php';
@@ -15,20 +14,12 @@ if (!$step) $step = 0;
 switch ($step) {
     case 0:
     {
-        $standalone = 0;
         include_once('admin-header.php');
-        if ($user_level < get_settings('links_minadminlevel'))
+        if ($user_level < 5)
             die (__("Cheatin&#8217; uh?"));
 
         $opmltype = 'blogrolling'; // default.
 ?>
-
-<ul id="adminmenu2">
-        <li><a href="link-manager.php" ><?php _e('Manage Links') ?></a></li>
-	<li><a href="link-add.php"><?php _e('Add Link') ?></a></li>
-	<li><a href="link-categories.php"><?php _e('Link Categories') ?></a></li>
-	<li class="last"><a href="link-import.php"  class="current"><?php _e('Import Blogroll') ?></a></li>
-</ul>
 
 <div class="wrap">
 
@@ -40,14 +31,14 @@ switch ($step) {
     <li><?php _e('Go to <a href="http://www.blogrolling.com">Blogrolling.com</a>
     and sign in. Once you&#8217;ve done that, click on <strong>Get Code</strong>, and then
     look for the <strong><abbr title="Outline Processor Markup Language">OPML</abbr>
-    code</strong>') ?><?php echo gethelp_link($this_file,'opml_code');?>.</li>
+    code</strong>') ?>.</li>
     <li><?php _e('Or go to <a href="http://blo.gs">Blo.gs</a> and sign in. Once you&#8217;ve done
     that in the \'Welcome Back\' box on the right, click on <strong>share</strong>, and then
     look for the <strong><abbr title="Outline Processor Markup Language">OPML</abbr>
-    link</strong> (favorites.opml).') ?><?php echo gethelp_link($this_file,'opml_code');?></li>
+    link</strong> (favorites.opml).') ?></li>
     <li><?php _e('Select that text and copy it or copy the link/shortcut into the box below.') ?><br />
        <input type="hidden" name="step" value="1" />
-       <?php _e('Your OPML URL:') ?><?php echo gethelp_link($this_file,'opml_code');?> <input type="text" name="opml_url" size="65" />
+       <?php _e('Your OPML URL:') ?> <input type="text" name="opml_url" size="65" />
 	</li>
     <li>
 	   <?php _e('<strong>or</strong> you can upload an OPML file from your desktop aggregator:') ?><br />
@@ -56,9 +47,9 @@ switch ($step) {
     </li>
 
     <li><?php _e('Now select a category you want to put these links in.') ?><br />
-	<?php _e('Category:') ?> <?php echo gethelp_link($this_file,'link_category');?><select name="cat_id">
+	<?php _e('Category:') ?> <select name="cat_id">
 <?php
-	$categories = $wpdb->get_results("SELECT cat_id, cat_name, auto_toggle FROM $tablelinkcategories ORDER BY cat_id");
+	$categories = $wpdb->get_results("SELECT cat_id, cat_name, auto_toggle FROM $wpdb->linkcategories ORDER BY cat_id");
 	foreach ($categories as $category) {
 ?>
     <option value="<?php echo $category->cat_id; ?>"><?php echo $category->cat_id.': '.$category->cat_name; ?></option>
@@ -69,7 +60,7 @@ switch ($step) {
 
 	</li>
 
-    <li><input type="submit" name="submit" value="<?php _e('Import!') ?>" /><?php echo gethelp_link($this_file,'import');?></li>
+    <li><input type="submit" name="submit" value="<?php _e('Import!') ?>" /></li>
 	</ol>
     </form>
 
@@ -79,9 +70,8 @@ switch ($step) {
             } // end case 0
 
     case 1: {
-                $standalone = 0;
                 include_once('admin-header.php');
-                if ($user_level < get_settings('links_minadminlevel'))
+                if ($user_level < 5)
                     die (__("Cheatin' uh ?"));
 ?>
 <div class="wrap">
@@ -122,7 +112,7 @@ switch ($step) {
                             $titles[$i] = '';
                         if ('http' == substr($titles[$i], 0, 4))
                             $titles[$i] = '';
-                        $query = "INSERT INTO $tablelinks (link_url, link_name, link_target, link_category, link_description, link_owner, link_rss)
+                        $query = "INSERT INTO $wpdb->links (link_url, link_name, link_target, link_category, link_description, link_owner, link_rss)
                                 VALUES('{$urls[$i]}', '".addslashes($names[$i])."', '', $cat_id, '".addslashes($descriptions[$i])."', $user_ID, '{$feeds[$i]}')\n";
                         $result = $wpdb->query($query);
                         echo sprintf(__("<p>Inserted <strong>%s</strong></p>"), $names[$i]);
@@ -137,11 +127,11 @@ switch ($step) {
                 } // end else
 
 ?>
+</div>
 <?php
                 break;
             } // end case 1
 } // end switch
 ?>
-</div>
 </body>
 </html>

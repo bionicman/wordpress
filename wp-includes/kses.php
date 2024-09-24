@@ -15,38 +15,37 @@ if (!defined('CUSTOM_TAGS'))
 // You can override this in your my-hacks.php file
 if (!CUSTOM_TAGS) {
 $allowedtags = array(
-				'a' => array(
-					'href' => array(),
-					'title' => array(),
-					'rel' => array()),
-				'abbr' => array('title' => array()),
-				'acronym' => array('title' => array()),
-				'b' => array(),
-				'blockquote' => array('cite' => array()),
-//				'br' => array(),
-				'code' => array(),
-//				'del' => array('datetime' => array()),
-//				'dd' => array(),
-//				'dl' => array(),
-//				'dt' => array(),
-				'em' => array(),
-				'i' => array(),
-//				'ins' => array('datetime' => array(), 'cite' => array()),
-//				'li' => array(),
-//				'ol' => array(),
-//				'p' => array(),
-//				'q' => array(),
-				'strike' => array(),
-				'strong' => array(),
-//				'sub' => array(),
-//				'sup' => array(),
-//				'u' => array(),
-//				'ul' => array(),
-				);
+	'a' => array(
+		'href' => array(),
+		'title' => array()
+		),
+	'abbr' => array('title' => array()),
+	'acronym' => array('title' => array()),
+	'b' => array(),
+	'blockquote' => array('cite' => array()),
+//	'br' => array(),
+	'code' => array(),
+//	'del' => array('datetime' => array()),
+//	'dd' => array(),
+//	'dl' => array(),
+//	'dt' => array(),
+	'em' => array(),
+	'i' => array(),
+//	'ins' => array('datetime' => array(), 'cite' => array()),
+//	'li' => array(),
+//	'ol' => array(),
+//	'p' => array(),
+//	'q' => array(),
+	'strike' => array(),
+	'strong' => array(),
+//	'sub' => array(),
+//	'sup' => array(),
+//	'u' => array(),
+//	'ul' => array(),
+	);
 }
 function wp_kses($string, $allowed_html, $allowed_protocols =
-               array('http', 'https', 'ftp', 'news', 'nntp', 'telnet',
-                     'gopher', 'mailto'))
+               array('http', 'https', 'ftp', 'news', 'nntp', 'feed', 'gopher', 'mailto'))
 ###############################################################################
 # This function makes sure that only the allowed HTML element names, attribute
 # names and attribute values plus only sane HTML entities will occur in
@@ -556,13 +555,9 @@ function wp_kses_decode_entities($string)
   return $string;
 } # function wp_kses_decode_entities
 
-function wp_filter_kses($data) {
+function wp_filter_kses( $string ) {
 	global $allowedtags;
-	return wp_kses($data, $allowedtags);
+	return wp_kses($string, $allowedtags);
 }
-
-// Filter untrusted content
-add_filter('comment_author', 'wp_filter_kses');
-add_filter('comment_text', 'wp_filter_kses');
 
 ?>

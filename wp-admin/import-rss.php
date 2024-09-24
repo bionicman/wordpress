@@ -26,7 +26,7 @@ if (!$step) $step = 0;
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
 <title>WordPress &rsaquo; Import from RSS</title>
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 <style media="screen" type="text/css">
 	body {
 		font-family: Georgia, "Times New Roman", Times, serif;
@@ -90,11 +90,13 @@ $title = addslashes( trim($title[1]) );
 $post_name = sanitize_title($title);
 
 preg_match('|<pubdate>(.*?)</pubdate>|is', $post, $date);
-$date = strtotime($date[1]);
 
-if (!$date) : // if we don't already have something from pubDate
+if ($date) :
+	$date = strtotime($date[1]);
+else : // if we don't already have something from pubDate
 	preg_match('|<dc:date>(.*?)</dc:date>|is', $post, $date);
-	$date = preg_replace('|(-[0-9:]+)$|', '', $date[1]);
+	$date = preg_replace('|([-+])([0-9]+):([0-9]+)$|', '\1\2\3', $date[1]);
+	$date = str_replace('T', ' ', $date);
 	$date = strtotime($date);
 endif;
 
@@ -107,6 +109,10 @@ if (!$categories) :
 	preg_match_all('|<dc:subject>(.*?)</dc:subject>|is', $post, $categories);
 	$categories = $categories[1];
 endif;
+
+preg_match('|<guid.+?>(.*?)</guid>|is', $post, $guid);
+if ($guid) $guid = addslashes( trim($guid[1]) );
+else $guid = '';
 
 preg_match('|<content:encoded>(.*?)</content:encoded>|is', $post, $content);
 $content = str_replace( array('<![CDATA[', ']]>'), '', addslashes( trim($content[1]) ) );
@@ -124,9 +130,9 @@ $content = str_replace('<hr>', '<hr />', $content);
 // This can mess up on posts with no titles, but checking content is much slower
 // So we do it as a last resort
 if ('' == $title) : 
-	$dupe = $wpdb->get_var("SELECT ID FROM $tableposts WHERE post_content = '$content' AND post_date = '$post_date'");
+	$dupe = $wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE post_content = '$content' AND post_date = '$post_date'");
 else :
-	$dupe = $wpdb->get_var("SELECT ID FROM $tableposts WHERE post_title = '$title' AND post_date = '$post_date'");
+	$dupe = $wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE post_title = '$title' AND post_date = '$post_date'");
 endif;
 
 // Now lets put it in the DB
@@ -134,29 +140,29 @@ if ($dupe) :
 	echo 'Post already imported';
 else : 
 	
-	$wpdb->query("INSERT INTO $tableposts 
-		(post_author, post_date, post_date_gmt, post_content, post_title,post_status, comment_status, ping_status, post_name)
+	$wpdb->query("INSERT INTO $wpdb->posts 
+		(post_author, post_date, post_date_gmt, post_content, post_title,post_status, comment_status, ping_status, post_name, guid)
 		VALUES 
-		('$post_author', '$post_date', DATE_ADD('$post_date', INTERVAL '$add_hours:$add_minutes' HOUR_MINUTE), '$content', '$title', 'publish', '$comment_status', '$ping_status', '$post_name')");
-	$post_id = $wpdb->get_var("SELECT ID FROM $tableposts WHERE post_title = '$title' AND post_date = '$post_date'");
+		('$post_author', '$post_date', DATE_ADD('$post_date', INTERVAL '$add_hours:$add_minutes' HOUR_MINUTE), '$content', '$title', 'publish', '$comment_status', '$ping_status', '$post_name', '$guid')");
+	$post_id = $wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE post_title = '$title' AND post_date = '$post_date'");
 	if (!$post_id) die("couldn't get post ID");
 	if (0 != count($categories)) :
 		foreach ($categories as $post_category) :
 		$post_category = unhtmlentities($post_category);
 		// See if the category exists yet
-		$cat_id = $wpdb->get_var("SELECT cat_ID from $tablecategories WHERE cat_name = '$post_category'");
+		$cat_id = $wpdb->get_var("SELECT cat_ID from $wpdb->categories WHERE cat_name = '$post_category'");
 		if (!$cat_id && '' != trim($post_category)) {
 			$cat_nicename = sanitize_title($post_category);
-			$wpdb->query("INSERT INTO $tablecategories (cat_name, category_nicename) VALUES ('$post_category', '$cat_nicename')");
-			$cat_id = $wpdb->get_var("SELECT cat_ID from $tablecategories WHERE cat_name = '$post_category'");
+			$wpdb->query("INSERT INTO $wpdb->categories (cat_name, category_nicename) VALUES ('$post_category', '$cat_nicename')");
+			$cat_id = $wpdb->get_var("SELECT cat_ID from $wpdb->categories WHERE cat_name = '$post_category'");
 		}
 		if ('' == trim($post_category)) $cat_id = 1;
 		// Double check it's not there already
-		$exists = $wpdb->get_row("SELECT * FROM $tablepost2cat WHERE post_id = $post_id AND category_id = $cat_id");
+		$exists = $wpdb->get_row("SELECT * FROM $wpdb->post2cat WHERE post_id = $post_id AND category_id = $cat_id");
 	
 		 if (!$exists) { 
 			$wpdb->query("
-			INSERT INTO $tablepost2cat
+			INSERT INTO $wpdb->post2cat
 			(post_id, category_id)
 			VALUES
 			($post_id, $cat_id)
@@ -164,8 +170,8 @@ else :
 			}
 	endforeach;
 	else:
-		$exists = $wpdb->get_row("SELECT * FROM $tablepost2cat WHERE post_id = $post_id AND category_id = 1");
-		if (!$exists) $wpdb->query("INSERT INTO $tablepost2cat (post_id, category_id) VALUES ($post_id, 1) ");
+		$exists = $wpdb->get_row("SELECT * FROM $wpdb->post2cat WHERE post_id = $post_id AND category_id = 1");
+		if (!$exists) $wpdb->query("INSERT INTO $wpdb->post2cat (post_id, category_id) VALUES ($post_id, 1) ");
 	endif;
 	echo 'Done!</li>';
 endif;

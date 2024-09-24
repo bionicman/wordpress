@@ -1,147 +1,116 @@
 <?php
-require_once('../wp-includes/wp-l10n.php');
+require_once('admin.php');
 
 $title = __('Permalink Options');
 $parent_file = 'options-general.php';
 
-$wpvarstoreset = array('action','standalone', 'option_group_id');
-for ($i=0; $i<count($wpvarstoreset); $i += 1) {
-	$wpvar = $wpvarstoreset[$i];
-	if (!isset($$wpvar)) {
-		if (empty($_POST["$wpvar"])) {
-			if (empty($_GET["$wpvar"])) {
-				$$wpvar = '';
-			} else {
-				$$wpvar = $_GET["$wpvar"];
-			}
-		} else {
-			$$wpvar = $_POST["$wpvar"];
-		}
+include('admin-header.php');
+
+$home_path = get_home_path();
+
+if ( isset($_POST) ) {
+	if ( isset($_POST['permalink_structure']) ) {
+		$permalink_structure = $_POST['permalink_structure'];
+		if (! empty($permalink_structure) )
+			$permalink_structure = preg_replace('#/+#', '/', '/' . $_POST['permalink_structure']);
+		$wp_rewrite->set_permalink_structure($permalink_structure);
+	}
+	
+	if ( isset($_POST['category_base']) ) {
+		$category_base = $_POST['category_base'];
+		if (! empty($category_base) )
+			$category_base = preg_replace('#/+#', '/', '/' . $_POST['category_base']);
+		$wp_rewrite->set_category_base($category_base);
 	}
 }
+	
+$permalink_structure = get_settings('permalink_structure');
+$category_base = get_settings('category_base');
 
-require_once('./optionhandler.php');
+generate_page_rewrite_rules();
 
-if (isset($_POST['submit'])) {
-	update_option('permalink_structure', $_POST['permalink_structure']);
-	$permalink_structure = $_POST['permalink_structure'];
+if ( (!file_exists($home_path.'.htaccess') && is_writable($home_path)) || is_writable($home_path.'.htaccess') )
+	$writable = true;
+else
+	$writable = false;
 
-	update_option('category_base', $_POST['category_base']);
-	$category_base = $_POST['category_base'];
-} else {
-	$permalink_structure = get_settings('permalink_structure');
-	$category_base = get_settings('category_base');
-}
+if ($wp_rewrite->using_index_permalinks())
+	$usingpi = true;
+else
+	$usingpi = false;
 
-
-
-	require_once('admin-header.php');
-	if ($user_level <= 6) {
-		die(__("You have do not have sufficient permissions to edit the options for this blog."));
-	}
-	require('./options-head.php');
+save_mod_rewrite_rules();
 ?>
+
 <?php if (isset($_POST['submit'])) : ?>
-<div class="updated"><p><?php _e('Permalink structure updated.'); ?></p></div>
+<div class="updated"><p><?php
+if ($writable)
+	_e('Permalink structure updated.');
+else
+	_e('You should update your .htaccess now.'); 
+?></p></div>
 <?php endif; ?>
+
 <div class="wrap"> 
   <h2><?php _e('Edit Permalink Structure') ?></h2> 
-  <?php _e('<p>WordPress offers you the ability to create a custom URI structure for your permalinks and archives. The following &#8220;tags&#8221; are available:</p>')?> 
+  <p><?php _e('By default WordPress uses web URIs which have question marks and lots of numbers in them, however WordPress offers you the ability to create a custom URI structure for your permalinks and archives. This can improve the aesthetics, usability, and longevity of your links. A <a href="http://codex.wordpress.org/Using_Permalinks">number of tags are available</a>, and here are some examples to get you started.'); ?></p>
 
+<?php if ($is_apache) : ?>
 <dl>
-	<dt><code>%year%</code></dt>
-	<dd>
-		<?php _e('The year of the post, 4 digits, for example <code>2004</code>') ?>
-	</dd>
-	<dt><code>%monthnum%</code></dt>
-	<dd>
-		<?php _e('Month of the year, for example <code>05</code>') ?>
-	</dd>
-	<dt><code>%day%</code></dt>
-	<dd>
-		<?php _e('Day of the month, for example <code>28</code>') ?>
-	</dd>
-	<dt><code>%hour%</code></dt>
-	<dd>
-		<?php _e('Hour of the day, for example <code>15</code>') ?>
-	</dd>
-	<dt><code>%minute%</code></dt>
-	<dd>
-		<?php _e('Minute of the hour, for example <code>43</code>') ?>
-	</dd>
-	<dt><code>%second%</code></dt>
-	<dd>
-		<?php _e('Second of the minute, for example <code>33</code>') ?>
-	</dd>
-	<dt><code>%postname%</code></dt>
-	<dd>
-		<?php _e('A sanitized version of the title of the post. So &#8220;This Is A Great Post!&#8221; becomes &#8220;<code>this-is-a-great-post</code>&#8221; in the URI') ?>
-	</dd>
-	<dt><code>%post_id%</code></dt>
-	<dd>
-		<?php _e('The unique ID # of the post, for example <code>423</code>') ?>
-	</dd>
+<dt><?php _e('Structure'); ?>: <code>/%year%/%monthnum%/%day%/%postname%/</code></dt>
+	<strong>
+	<dd><?php _e('Result'); ?>: <code><?php echo get_settings('home') . '/' . date('Y') . '/' . date('m') . '/' . date('d') . '/sample-post/'; ?></code></dd>
+	</strong>
+	<dt><?php _e('Structure'); ?>: <code>/archives/%post_id%</code></dt>
+	<strong>
+	<dd><?php _e('Result'); ?>: <code><?php echo get_settings('home'); ?>/archives/123</code></dd>
+	</strong>
+	<dt></dt>
 </dl>
 
-  <?php _e('<p>So for example a value like:</p>
-  <p><code>/archives/%year%/%monthnum%/%day%/%postname%/</code> </p>
-  <p>would give you a permalink like:</p>
-  <p><code>/archives/2003/05/23/my-cheese-sandwich/</code></p>
-  <p> In general for this you must use mod_rewrite, however if you put a filename at the beginning WordPress will attempt to use that to pass the arguments, for example:</p>
-  <p><code>/index.php/archives/%year%/%monthnum%/%day%/%postname%/</code> </p>
-  <p>If you use this option you can ignore the mod_rewrite rules. </p>') ?>
+<p><?php _e('For the above to work you must have something called <code>mod_rewrite</code> installed on your server. (Ask your host.) If that isn&#8217;t available, you can prefix the structure with <code>/index.php/</code> . This is the recommend method if you are on any web server but Apache.'); ?></p>
+
+<?php else : ?>
+<dl>
+<dt><?php _e('Structure'); ?>: <code>/index.php/%year%/%monthnum%/%day%/%postname%/</code></dt>
+	<strong>
+	<dd><?php _e('Result'); ?>: <code><?php echo get_settings('home') . '/index.php/' . date('Y') . '/' . date('m') . '/' . date('d') . '/sample-post/'; ?></code></dd>
+	</strong>
+	<dt><?php _e('Structure'); ?>: <code>/index.php/archives/%post_id%</code></dt>
+	<strong>
+	<dd><?php _e('Result'); ?>: <code><?php echo get_settings('home'); ?>/index.php/archives/123</code></dd>
+	</strong>
+	<dt></dt>
+</dl>
+<?php endif; ?>
+
   <form name="form" action="options-permalink.php" method="post"> 
     <p><?php _e('Use the template tags above to create a virtual site structure:') ?></p>
     <p> 
-      <input name="permalink_structure" type="text" style="width: 98%;" value="<?php echo $permalink_structure; ?>" /> 
+      <?php _e('Structure'); ?>: <input name="permalink_structure" type="text" class="code" style="width: 60%;" value="<?php echo $permalink_structure; ?>" size="50" /> 
     </p> 
-	<p><?php _e('If you like, you may enter a custom prefix for your category URIs here. For example, <code>/taxonomy/categorias</code> would make your category links like <code>http://example.org/taxonomy/categorias/general/</code>. If you leave this blank the default will be used.') ?></p>
+<?php if ($is_apache) : ?>
+	<p><?php _e('If you like, you may enter a custom prefix for your category URIs here. For example, <code>/taxonomy/categorias</code> would make your category links like <code>http://example.org/taxonomy/categorias/uncategorized/</code>. If you leave this blank the default will be used.') ?></p>
+<?php else : ?>
+	<p><?php _e('If you like, you may enter a custom prefix for your category URIs here. For example, <code>/index.php/taxonomy/categorias</code> would make your category links like <code>http://example.org/index.php/taxonomy/categorias/uncategorized/</code>. If you leave this blank the default will be used.') ?></p>
+<?php endif; ?>
 	<p> 
-  <input name="category_base" type="text" style="width: 98%;" value="<?php echo $category_base; ?>" /> 
+  <?php _e('Category base'); ?>: <input name="category_base" type="text" class="code"  value="<?php echo $category_base; ?>" size="30" /> 
      </p> 
     <p class="submit"> 
-      <input type="submit" name="submit" value="<?php _e('Update Permalink Structure &raquo;') ?>"> 
+      <input type="submit" name="submit" value="<?php _e('Update Permalink Structure &raquo;') ?>" /> 
     </p> 
   </form> 
-<?php
- if ($permalink_structure) {
-?>
-  <p><?php printf(__('Using the permalink structure value you currently have, <code>%s</code>, these are the mod_rewrite rules you should have in your <code>.htaccess</code> file. Click in the field and press <kbd>CTRL + a</kbd> to select all.'), $permalink_structure) ?></p>
-  <?php
-$site_root = str_replace('http://', '', trim(get_settings('siteurl')));
-$site_root = preg_replace('|([^/]*)(.*)|i', '$2', $site_root);
-if ('/' != substr($site_root, -1)) $site_root = $site_root . '/';
-
-$home_root = str_replace('http://', '', trim(get_settings('home')));
-$home_root = preg_replace('|([^/]*)(.*)|i', '$2', $home_root);
-if ('/' != substr($home_root, -1)) $home_root = $home_root . '/';
-
-?> 
-<form action="">
-    <p>
-    	<textarea rows="5" style="width: 98%;">RewriteEngine On
-RewriteBase <?php echo $home_root; ?> 
-<?php
-$rewrite = rewrite_rules('', $permalink_structure);
-foreach ($rewrite as $match => $query) {
-	if (strstr($query, 'index.php')) echo 'RewriteRule ^' . $match . ' ' . $home_root . $query . " [QSA]\n";
-    else echo 'RewriteRule ^' . $match . ' ' . $site_root . $query . " [QSA]\n";
-}
-?>
-    </textarea>
+<?php if ( $permalink_structure && !$usingpi && !$writable ) : ?>
+  <p><?php _e('If your <code>.htaccess</code> was <a href="http://codex.wordpress.org/Make_a_Directory_Writable">writable</a> we could do this automatically, but it isn&#8217;t so these are the mod_rewrite rules you should have in your <code>.htaccess</code> file. Click in the field and press <kbd>CTRL + a</kbd> to select all.') ?></p>
+<form action="options-permalink.php" method="post">
+   <p>
+<textarea rows="5" style="width: 98%;" name="rules"><?php echo $wp_rewrite->mod_rewrite_rules(); ?>
+</textarea>
     </p>
-    <?php printf(__('<p>If your <code>.htaccess</code> file is writable by WordPress, you can <a href="%s">edit it through your template interface</a>.</p>'), 'templates.php?file=.htaccess') ?>
 </form>
-</div> 
-<?php
-} else {
-?>
-<p>
-<?php _e('You are not currently using customized permalinks. No special mod_rewrite rules are needed.') ?>
-</p>
-<?php } ?>
+<?php endif; ?>
+
 </div>
 
-<?php
-require('./admin-footer.php');
-?>
+<?php require('./admin-footer.php'); ?>

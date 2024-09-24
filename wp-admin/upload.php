@@ -1,5 +1,5 @@
 <?php
-require_once('../wp-includes/wp-l10n.php');
+require_once('admin.php');
 
 $title = 'Upload Image or File';
 
@@ -10,6 +10,9 @@ if ($user_level == 0) //Checks to see if user has logged in
 
 if (!get_settings('use_fileupload')) //Checks if file upload is enabled in the config
 	die (__("The admin disabled this function"));
+
+if ( !get_settings('fileupload_minlevel') )
+	die (__("You are not allowed to upload files"));
 
 $allowed_types = explode(' ', trim(strtolower(get_settings('fileupload_allowedtypes'))));
 
@@ -77,25 +80,20 @@ case '':
 break;
 case 'upload':
 
-//Makes sure they choose a file
+	$imgalt = basename( (isset($_POST['imgalt'])) ? $_POST['imgalt'] : '' );
 
-//print_r($_FILES);
-//die();
+	$img1_name = (strlen($imgalt)) ? $imgalt : basename( $_FILES['img1']['name'] );
+	$img1_name = preg_replace('/[^a-z0-9_.]/i', '', $img1_name); 
+	$img1_size = $_POST['img1_size'] ? intval($_POST['img1_size']) : intval($_FILES['img1']['size']);
 
+	$img1_type = (strlen($imgalt)) ? $_POST['img1_type'] : $_FILES['img1']['type'];
+	$imgdesc = htmlentities2($_POST['imgdesc']);
 
-    $imgalt = basename( (isset($_POST['imgalt'])) ? $_POST['imgalt'] : '' );
-  
-    $img1_name = (strlen($imgalt)) ? $imgalt : basename( $_FILES['img1']['name'] );
-	 $img1_name = preg_replace('/[^a-z0-9.]/i', '', strtolower($img1_name));
-    $img1_type = (strlen($imgalt)) ? $_POST['img1_type'] : $_FILES['img1']['type'];
-    $imgdesc = htmlentities2($imgdesc);
+	$pi = pathinfo($img1_name);
+	$imgtype = strtolower($pi['extension']);
 
-    $pi = pathinfo($img1_name);
-    $imgtype = strtolower($pi['extension']);
-
-    if (in_array($imgtype, $allowed_types) == false) {
-        die(sprintf(__('File %1$s of type %2$s is not allowed.') , $img1_name, $imgtype));
-    }
+	if (in_array($imgtype, $allowed_types) == false)
+		die(sprintf(__('File %1$s of type %2$s is not allowed.') , $img1_name, $imgtype));
 
     if (strlen($imgalt)) {
         $pathtofile = get_settings('fileupload_realpath')."/".$imgalt;
@@ -111,8 +109,8 @@ case 'upload':
     $tmppathtofile = $pathtofile2;
     $img2_name = $img1_name;
 
-    while (file_exists($pathtofile2)) {
-        $pos = strpos($tmppathtofile, '.'.trim($imgtype));
+    while ( file_exists($pathtofile2) ) {
+        $pos = strpos( strtolower($tmppathtofile), '.' . trim($imgtype) );
         $pathtofile_start = substr($tmppathtofile, 0, $pos);
         $pathtofile2 = $pathtofile_start.'_'.zeroise($i++, 2).'.'.trim($imgtype);
         $img2_name = explode('/', $pathtofile2);
@@ -201,14 +199,12 @@ die();
         }
     }
 
+if ( ereg('image/',$img1_type) )
+	$piece_of_code = "<img src='" . get_settings('fileupload_url') ."/$img1_name' alt='$imgdesc' />";
+else
+	$piece_of_code = "<a href='". get_settings('fileupload_url') . "/$img1_name' title='$imgdesc'>$imgdesc</a>";
 
-
-if ( ereg('image/',$img1_type)) {
-    $piece_of_code = "&lt;img src=&quot;". get_settings('fileupload_url') ."/$img1_name&quot; alt=&quot;$imgdesc&quot; /&gt;";
-} else {
-    $piece_of_code = "&lt;a href=&quot;". get_settings('fileupload_url') . "/$img1_name&quot; title=&quot;$imgdesc&quot; /&gt;$imgdesc&lt;/a&gt;";
-};
-
+$piece_of_code = htmlspecialchars( $piece_of_code );
 ?>
 
 <h3><?php _e('File uploaded!') ?></h3>

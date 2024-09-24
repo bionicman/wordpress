@@ -1,28 +1,10 @@
 <?php
-require_once('../wp-includes/wp-l10n.php');
+require_once('admin.php');
 
 $title = __('Moderate comments');
 $parent_file = 'edit.php';
-/* <Moderation> */
 
-function add_magic_quotes($array) {
-	foreach ($array as $k => $v) {
-		if (is_array($v)) {
-			$array[$k] = add_magic_quotes($v);
-		} else {
-			$array[$k] = addslashes($v);
-		}
-	}
-	return $array;
-} 
-
-if (!get_magic_quotes_gpc()) {
-	$_GET    = add_magic_quotes($_GET);
-	$_POST   = add_magic_quotes($_POST);
-	$_COOKIE = add_magic_quotes($_COOKIE);
-}
-
-$wpvarstoreset = array('action','item_ignored','item_deleted','item_approved');
+$wpvarstoreset = array('action', 'item_ignored', 'item_deleted', 'item_approved', 'item_spam', 'feelinglucky');
 for ($i=0; $i<count($wpvarstoreset); $i += 1) {
 	$wpvar = $wpvarstoreset[$i];
 	if (!isset($$wpvar)) {
@@ -49,9 +31,6 @@ switch($action) {
 
 case 'update':
 
-	$standalone = 1;
-	require_once('admin-header.php');
-
 	if ($user_level < 3) {
 		die(__('<p>Your level is not high enough to moderate comments.</p>'));
 	}
@@ -59,23 +38,28 @@ case 'update':
 	$item_ignored = 0;
 	$item_deleted = 0;
 	$item_approved = 0;
-	
+	$item_spam = 0;
+
 	foreach($comment as $key => $value) {
+	if ($feelinglucky && 'later' == $value)
+		$value = 'delete';
 	    switch($value) {
 			case 'later':
 				// do nothing with that comment
 				// wp_set_comment_status($key, "hold");
 				++$item_ignored;
 				break;
-			
 			case 'delete':
 				wp_set_comment_status($key, 'delete');
 				++$item_deleted;
 				break;
-			
+ 			case 'spam':
+ 				wp_set_comment_status($key, 'spam');
+ 				++$item_spam;
+ 				break;
 			case 'approve':
 				wp_set_comment_status($key, 'approve');
-				if (get_settings('comments_notify') == true) {
+				if ( get_settings('comments_notify') == true ) {
 					wp_notify_postauthor($key);
 				}
 				++$item_approved;
@@ -84,28 +68,21 @@ case 'update':
 	}
 
 	$file = basename(__FILE__);
-	header("Location: $file?ignored=$item_ignored&deleted=$item_deleted&approved=$item_approved");
+	header("Location: $file?ignored=$item_ignored&deleted=$item_deleted&approved=$item_approved&spam=$item_spam");
 	exit();
 
 break;
 
 default:
 
-	require_once('admin-header.php');
+require_once('admin-header.php');
 
-	if ($user_level <= 3) {
-		die(__('<p>Your level is not high enough to moderate comments.</p>'));
-	}
-?>
-<ul id="adminmenu2">
-       <li><a href="edit.php"> <?php _e('Posts') ?></a></li>
-        <li><a href="edit-comments.php"> <?php _e('Comments') ?></a></li>
-	<li class="last"><a href="moderation.php" class="current"><?php _e('Awaiting Moderation') ?></a></li>
-</ul>
-<?php
-
-if (isset($deleted) || isset($approved) || isset($ignored)) {
+if ( isset($_GET['deleted']) || isset($_GET['approved']) || isset($_GET['ignored']) ) {
 	echo "<div class='updated'>\n<p>";
+	$approved = (int) $_GET['approved'];
+	$deleted  = (int) $_GET['deleted'];
+	$ignored  = (int) $_GET['ignored'];
+	$spam     = (int) $_GET['spam'];
 	if ($approved) {
 		if ('1' == $approved) {
 		 echo __("1 comment approved <br />") . "\n";
@@ -120,6 +97,13 @@ if (isset($deleted) || isset($approved) || isset($ignored)) {
 		echo sprintf(__("%s comments deleted <br />"), $deleted) . "\n";
 		}
 	}
+ 	if ($spam) {
+ 		if ('1' == $spam) {
+ 		echo __("1 comment marked as spam <br />") . "\n";
+ 		} else {
+ 		echo sprintf(__("%s comments marked as spam <br />"), $spam) . "\n";
+ 		}
+ 	}
 	if ($ignored) {
 		if ('1' == $ignored) {
 		echo __("1 comment unchanged <br />") . "\n";
@@ -133,44 +117,95 @@ if (isset($deleted) || isset($approved) || isset($ignored)) {
 ?>
 	
 <div class="wrap">
+
 <?php
-$comments = $wpdb->get_results("SELECT * FROM $tablecomments WHERE comment_approved = '0'");
+if ($user_level > 3)
+	$comments = $wpdb->get_results("SELECT * FROM $wpdb->comments WHERE comment_approved = '0'");
+else
+	$comments = '';
 
 if ($comments) {
     // list all comments that are waiting for approval
     $file = basename(__FILE__);
 ?>
-    <?php _e('<p>The following comments are in the moderation queue:</p>') ?>
+    <h2><?php _e('Moderation Queue') ?></h2>
     <form name="approval" action="moderation.php" method="post">
     <input type="hidden" name="action" value="update" />
-    <ol id="comments">
+    <ol id="comments" class="commentlist">
 <?php
+$i = 0;
     foreach($comments as $comment) {
+	++$i;
 	$comment_date = mysql2date(get_settings("date_format") . " @ " . get_settings("time_format"), $comment->comment_date);
-	$post_title = $wpdb->get_var("SELECT post_title FROM $tableposts WHERE ID='$comment->comment_post_ID'");
-	
-	echo "\n\t<li id='comment-$comment->comment_ID'>"; 
+	$post_title = $wpdb->get_var("SELECT post_title FROM $wpdb->posts WHERE ID='$comment->comment_post_ID'");
+	if ($i % 2) $class = 'class="alternate"';
+	else $class = '';
+	echo "\n\t<li id='comment-$comment->comment_ID' $class>"; 
 	?>
-			<p><strong><?php _e('Name:') ?></strong> <?php comment_author() ?> <?php if ($comment->comment_author_email) { ?>| <strong><?php _e('Email:') ?></strong> <?php comment_author_email_link() ?> <?php } if ($comment->comment_author_email) { ?> | <strong><?php _e('URI:') ?></strong> <?php comment_author_url_link() ?> <?php } ?>| <strong><?php _e('IP:') ?></strong> <a href="http://ws.arin.net/cgi-bin/whois.pl?queryinput=<?php comment_author_IP() ?>"><?php comment_author_IP() ?></a></p>
+			<p><strong><?php _e('Name:') ?></strong> <?php comment_author_link() ?> <?php if ($comment->comment_author_email) { ?>| <strong><?php _e('E-mail:') ?></strong> <?php comment_author_email_link() ?> <?php } if ($comment->comment_author_email) { ?> | <strong><?php _e('URI:') ?></strong> <?php comment_author_url_link() ?> <?php } ?>| <strong><?php _e('IP:') ?></strong> <a href="http://ws.arin.net/cgi-bin/whois.pl?queryinput=<?php comment_author_IP() ?>"><?php comment_author_IP() ?></a></p>
 <?php comment_text() ?>
 <p><?php
-echo "<a href=\"post.php?action=editcomment&amp;comment=".$comment->comment_ID."\">" . __('Edit') . "</a>";
-echo " | <a href=\"post.php?action=deletecomment&amp;p=".$comment->comment_post_ID."&amp;comment=".$comment->comment_ID."\" onclick=\"return confirm('" . sprintf(__("You are about to delete this comment by \'%s\'\\n  \'Cancel\' to stop, \'OK\' to delete."), $comment->comment_author) . "')\">" . __('Delete just this comment') . "</a> | "; ?><?php _e('Bulk action:') ?>
+echo '<a href="post.php?action=editcomment&amp;comment='.$comment->comment_ID.'">' . __('Edit') . '</a> | ';?>
+<a href="<?php echo get_permalink($comment->comment_post_ID); ?>"><?php _e('View Post') ?></a> | 
+<?php 
+echo " <a href=\"post.php?action=deletecomment&amp;p=".$comment->comment_post_ID."&amp;comment=".$comment->comment_ID."\" onclick=\"return confirm('" . sprintf(__("You are about to delete this comment by \'%s\'\\n  \'Cancel\' to stop, \'OK\' to delete."), $comment->comment_author) . "')\">" . __('Delete just this comment') . "</a> | "; ?>  <?php _e('Bulk action:') ?>
 	<input type="radio" name="comment[<?php echo $comment->comment_ID; ?>]" id="comment[<?php echo $comment->comment_ID; ?>]-approve" value="approve" /> <label for="comment[<?php echo $comment->comment_ID; ?>]-approve"><?php _e('Approve') ?></label>
+	<input type="radio" name="comment[<?php echo $comment->comment_ID; ?>]" id="comment[<?php echo $comment->comment_ID; ?>]-spam" value="spam" /> <label for="comment[<?php echo $comment->comment_ID; ?>]-spam"><?php _e('Spam') ?></label>
 	<input type="radio" name="comment[<?php echo $comment->comment_ID; ?>]" id="comment[<?php echo $comment->comment_ID; ?>]-delete" value="delete" /> <label for="comment[<?php echo $comment->comment_ID; ?>]-delete"><?php _e('Delete') ?></label>
-	<input type="radio" name="comment[<?php echo $comment->comment_ID; ?>]" id="comment[<?php echo $comment->comment_ID; ?>]-nothing" value="later" checked="checked" /> <label for="comment[<?php echo $comment->comment_ID; ?>]-nothing"><?php _e('Do nothing') ?></label>
+	<input type="radio" name="comment[<?php echo $comment->comment_ID; ?>]" id="comment[<?php echo $comment->comment_ID; ?>]-nothing" value="later" checked="checked" /> <label for="comment[<?php echo $comment->comment_ID; ?>]-nothing"><?php _e('Defer until later') ?></label>
+	</p>
 
 	</li>
 <?php
     }
 ?>
     </ol>
+
     <p class="submit"><input type="submit" name="submit" value="<?php _e('Moderate Comments &raquo;') ?>" /></p>
+<script type="text/javascript">
+// <![CDATA[
+function markAllForDelete() {
+	for (var i=0; i< document.approval.length; i++) {
+		if (document.approval[i].value == "delete") {
+			document.approval[i].checked = true;
+		}
+	}
+}
+function markAllForApprove() {
+	for (var i=0; i< document.approval.length; i++) {
+		if (document.approval[i].value == "approve") {
+			document.approval[i].checked = true;
+		}
+	}
+}
+function markAllForDefer() {
+	for (var i=0; i< document.approval.length; i++) {
+		if (document.approval[i].value == "later") {
+			document.approval[i].checked = true;
+		}
+	}
+}
+function markAllAsSpam() {
+	for (var i=0; i< document.approval.length; i++) {
+		if (document.approval[i].value == "spam") {
+			document.approval[i].checked = true;
+		}
+	}
+}
+document.write('<ul><li><a href="javascript:markAllForApprove()"><?php _e('Mark all for approval'); ?></a></li><li><a href="javascript:markAllAsSpam()"><?php _e('Mark all as spam'); ?></a></li><li><a href="javascript:markAllForDelete()"><?php _e('Mark all for deletion'); ?></a></li><li><a href="javascript:markAllForDefer()"><?php _e('Mark all for later'); ?></a></li></ul>');
+// ]]>
+</script>
+
+<noscript>
+	<p>
+		<input name="feelinglucky" type="checkbox" id="feelinglucky" value="true" /> <label for="feelinglucky"><?php _e('Delete every comment marked "defer." <strong>Warning: This can&#8217;t be undone.</strong>'); ?></label>
+	</p>
+</noscript>
     </form>
 <?php
 } else {
     // nothing to approve
-    echo __("<p>Currently there are no comments to be approved.</p>") . "\n";
+    echo __("<p>Currently there are no comments for you to moderate.</p>") . "\n";
 }
 ?>
 
@@ -181,5 +216,5 @@ echo " | <a href=\"post.php?action=deletecomment&amp;p=".$comment->comment_post_
 break;
 }
 
-/* </Template> */
-include("admin-footer.php") ?>
+
+include('admin-footer.php') ?>
