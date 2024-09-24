@@ -314,6 +314,10 @@ function populate_options() {
 	'embed_autourls' => 1,
 	'embed_size_w' => '',
 	'embed_size_h' => 600,
+
+	// 3.0
+	'page_for_posts' => 0,
+	'page_on_front' => 0,
 	);
 
 	// 3.0 multisite
@@ -738,8 +742,8 @@ Thanks!
 		if ( !$upload_path = get_option( 'upload_path' ) ) {
 			$upload_path = substr( WP_CONTENT_DIR, strlen( ABSPATH ) ) . '/uploads';
 			update_option( 'upload_path', $upload_path );
-			update_option( 'fileupload_url', get_option( 'siteurl' ) . '/' . $upload_path );
 		}
+		update_option( 'fileupload_url', get_option( 'siteurl' ) . '/' . $upload_path );
 	}
 
 	if ( $subdomain_install )

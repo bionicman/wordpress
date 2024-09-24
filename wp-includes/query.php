@@ -1972,7 +1972,7 @@ class WP_Query {
 			$whichcat .= " AND $wpdb->term_taxonomy.taxonomy = 'post_tag' ";
 			$include_tags = "'" . implode("', '", $q['tag__in']) . "'";
 			$whichcat .= " AND $wpdb->term_taxonomy.term_id IN ($include_tags) ";
-			$reqtag = is_term( $q['tag__in'][0], 'post_tag' );
+			$reqtag = term_exists( $q['tag__in'][0], 'post_tag' );
 			if ( !empty($reqtag) )
 				$q['tag_id'] = $reqtag['term_id'];
 		}
@@ -2000,7 +2000,7 @@ class WP_Query {
 			if ( in_array($item, $tagin) && empty($q['cat']) ) continue; // We should already have what we need if categories aren't being used
 
 			if ( $item != 'category__and' ) {
-				$reqtag = is_term( $q[$item][0], 'post_tag' );
+				$reqtag = term_exists( $q[$item][0], 'post_tag' );
 				if ( !empty($reqtag) )
 					$q['tag_id'] = $reqtag['term_id'];
 			}
@@ -2061,8 +2061,6 @@ class WP_Query {
 					} elseif ( in_array('attachment', (array)$post_type) ) {
 						$post_status_join = true;
 					}
-					if ( empty($q['post_status']) )
-						$q['post_status'] = 'publish';
 				} else {
 					$whichcat = " AND 0 ";
 				}

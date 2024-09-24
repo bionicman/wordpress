@@ -66,6 +66,8 @@ case 'promote':
 	$userids = $_REQUEST['users'];
 	$update = 'promote';
 	foreach ( $userids as $id ) {
+		$id = (int) $id;
+
 		if ( ! current_user_can('promote_user', $id) )
 			wp_die(__('You can&#8217;t edit that user.'));
 		// The new role of the current user must also have promote_users caps
@@ -73,6 +75,10 @@ case 'promote':
 			$update = 'err_admin_role';
 			continue;
 		}
+
+		// If the user doesn't already belong to the blog, bail.
+		if ( is_multisite() && !is_user_member_of_blog( $id ) )
+			wp_die(__('Cheatin&#8217; uh?'));
 
 		$user = new WP_User($id);
 		$user->set_role($_REQUEST['new_role']);
@@ -102,6 +108,8 @@ case 'dodelete':
 	$delete_count = 0;
 
 	foreach ( (array) $userids as $id) {
+		$id = (int) $id;
+
 		if ( ! current_user_can( 'delete_user', $id ) )
 			wp_die(__( 'You can&#8217;t delete that user.' ) );
 

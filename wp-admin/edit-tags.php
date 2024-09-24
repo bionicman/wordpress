@@ -14,7 +14,7 @@ wp_reset_vars( array('action', 'tag', 'taxonomy', 'post_type') );
 if ( empty($taxonomy) )
 	$taxonomy = 'post_tag';
 
-if ( !is_taxonomy($taxonomy) )
+if ( !taxonomy_exists($taxonomy) )
 	wp_die(__('Invalid taxonomy'));
 
 $tax = get_taxonomy($taxonomy);
@@ -296,17 +296,16 @@ if ( $page_links )
 </div>
 
 <div class="clear"></div>
-<?php $table_type = ('category' == $taxonomy ? 'categories' : 'edit-tags'); ?>
 <table class="widefat tag fixed" cellspacing="0">
 	<thead>
 	<tr>
-<?php print_column_headers($table_type); ?>
+<?php print_column_headers($current_screen); ?>
 	</tr>
 	</thead>
 
 	<tfoot>
 	<tr>
-<?php print_column_headers($table_type, false); ?>
+<?php print_column_headers($current_screen, false); ?>
 	</tr>
 	</tfoot>
 
@@ -338,9 +337,11 @@ if ( $page_links )
 <?php if ( 'category' == $taxonomy ) : ?>
 <div class="form-wrap">
 <p><?php printf(__('<strong>Note:</strong><br />Deleting a category does not delete the posts in that category. Instead, posts that were only assigned to the deleted category are set to the category <strong>%s</strong>.'), apply_filters('the_category', get_cat_name(get_option('default_category')))) ?></p>
+<?php if ( current_user_can( 'import' ) ) : ?>
 <p><?php printf(__('Categories can be selectively converted to tags using the <a href="%s">category to tag converter</a>.'), 'import.php') ?></p>
+<?php endif; ?>
 </div>
-<?php elseif ( 'post_tag' == $taxonomy ) : ?>
+<?php elseif ( 'post_tag' == $taxonomy && current_user_can( 'import' ) ) : ?>
 <div class="form-wrap">
 <p><?php printf(__('Tags can be selectively converted to categories using the <a href="%s">tag to category converter</a>'), 'import.php') ;?>.</p>
 </div>
@@ -355,19 +356,22 @@ do_action('after-' . $taxonomy . '-table', $taxonomy);
 <div class="col-wrap">
 
 <?php
-if ( current_user_can( $tax->cap->edit_terms ) )
-	$tag_cloud = wp_tag_cloud( array( 'taxonomy' => $taxonomy, 'echo' => false, 'link' => 'edit' ) );
-else
-	$tag_cloud = wp_tag_cloud( array( 'taxonomy' => $taxonomy, 'echo' => false ) );
 
-if ( $tag_cloud ) :
-?>
+if ( !is_taxonomy_hierarchical($taxonomy) ) {
+	if ( current_user_can( $tax->cap->edit_terms ) )
+		$tag_cloud = wp_tag_cloud( array( 'taxonomy' => $taxonomy, 'echo' => false, 'link' => 'edit' ) );
+	else
+		$tag_cloud = wp_tag_cloud( array( 'taxonomy' => $taxonomy, 'echo' => false ) );
+
+	if ( $tag_cloud ) :
+	?>
 <div class="tagcloud">
 <h3><?php echo $tax->labels->popular_items; ?></h3>
 <?php echo $tag_cloud; unset( $tag_cloud ); ?>
 </div>
 <?php
 endif;
+}
 
 if ( current_user_can($tax->cap->edit_terms) ) {
 	if ( 'category' == $taxonomy )
@@ -381,6 +385,7 @@ if ( current_user_can($tax->cap->edit_terms) ) {
 <h3><?php echo $tax->labels->add_new_item; ?></h3>
 <form id="addtag" method="post" action="edit-tags.php" class="validate">
 <input type="hidden" name="action" value="add-tag" />
+<input type="hidden" name="screen" value="<?php echo esc_attr($current_screen->id); ?>" />
 <input type="hidden" name="taxonomy" value="<?php echo esc_attr($taxonomy); ?>" />
 <?php wp_nonce_field('add-tag'); ?>
 

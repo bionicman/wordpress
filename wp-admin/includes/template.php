@@ -396,7 +396,7 @@ function wp_link_category_checklist( $link_id = 0 ) {
  * @return unknown
  */
 function _tag_row( $tag, $level, $taxonomy = 'post_tag' ) {
-		global $post_type;
+		global $post_type, $current_screen;
 		static $row_class = '';
 		$row_class = ($row_class == '' ? ' class="alternate"' : '');
 
@@ -422,8 +422,8 @@ function _tag_row( $tag, $level, $taxonomy = 'post_tag' ) {
 		$out .= '<tr id="tag-' . $tag->term_id . '"' . $row_class . '>';
 
 
-		$columns = get_column_headers('edit-tags');
-		$hidden = get_hidden_columns('edit-tags');
+		$columns = get_column_headers($current_screen);
+		$hidden = get_hidden_columns($current_screen);
 		$default_term = get_option('default_' . $taxonomy);
 		foreach ( $columns as $column_name => $column_display_name ) {
 			$class = "class=\"$column_name column-$column_name\"";
@@ -2965,18 +2965,18 @@ function get_hidden_meta_boxes( $screen ) {
  * Show settings sections in your admin page callback function with do_settings_sections().
  * Add settings fields to your section with add_settings_field()
  *
- * The $callback argument should be the name of a function that echos out any
+ * The $callback argument should be the name of a function that echoes out any
  * content you want to show at the top of the settings section before the actual
  * fields. It can output nothing if you want.
  *
  * @since 2.7.0
  *
  * @global $wp_settings_sections Storage array of all settings sections added to admin pages
-
+ *
  * @param string $id Slug-name to identify the section. Used in the 'id' attribute of tags.
  * @param string $title Formatted title of the section. Shown as the heading for the section.
- * @param string $callback Function that echo's out content for the section heading.
- * @param string $page The slug-name of the settings page on which to show the section (general, reading, writing, ...).
+ * @param string $callback Function that echos out any content at the top of the section (between heading and fields).
+ * @param string $page The slug-name of the settings page on which to show the section. Built-in pages include 'general', 'reading', 'writing', 'discussion', 'media', etc. Create your own using add_options_page();
  */
 function add_settings_section($id, $title, $callback, $page) {
 	global $wp_settings_sections;
@@ -3748,23 +3748,23 @@ function screen_options($screen) {
 			$per_page_label = $post_type_object->labels->name;
 			break;
 		case 'ms-sites':
-			$per_page_label = __('Sites');
+			$per_page_label = _x( 'Sites', 'sites per page (screen options)' );
 			break;
 		case 'ms-users':
-			$per_page_label = __('Users');
+			$per_page_label = _x( 'Users', 'users per page (screen options)' );
 			break;
 		case 'edit-comments':
-			$per_page_label = __('Comments');
+			$per_page_label = _x( 'Comments', 'comments per page (screen options)' );
 			break;
 		case 'upload':
-			$per_page_label = __('Media items');
+			$per_page_label = _x( 'Media items', 'items per page (screen options)' );
 			break;
 		case 'edit-tags':
 			global $tax;
 			$per_page_label = $tax->labels->name;
 			break;
 		case 'plugins':
-			$per_page_label = __('Plugins');
+			$per_page_label = _x( 'Plugins', 'plugins per page (screen options)' );
 			break;
 		default:
 			return '';
@@ -3900,7 +3900,7 @@ function compression_test() {
  * @param string $id Screen id, optional.
  */
 function set_current_screen( $id =  '' ) {
-	global $current_screen, $hook_suffix, $typenow;
+	global $current_screen, $hook_suffix, $typenow, $taxnow;
 
 	if ( empty($id) ) {
 		$current_screen = $hook_suffix;
@@ -3909,8 +3909,15 @@ function set_current_screen( $id =  '' ) {
 		$current_screen = str_replace('-add', '', $current_screen);
 		$current_screen = array('id' => $current_screen, 'base' => $current_screen);
 	} else {
-		if ( false !== strpos($id, '-') )
+		$id = sanitize_key($id);
+		if ( false !== strpos($id, '-') ) {
 			list( $id, $typenow ) = explode('-', $id, 2);
+			if ( is_taxonomy($typenow) ) {
+				$id = 'edit-tags';
+				$taxnow = $typenow;
+				$typenow = '';
+			}
+		}
 		$current_screen = array('id' => $id, 'base' => $id);
 	}
 
@@ -3932,6 +3939,11 @@ function set_current_screen( $id =  '' ) {
 			$typenow = 'post';
 		$current_screen->id = $typenow;
 		$current_screen->post_type = $typenow;
+	} elseif ( 'edit-tags' == $current_screen->id ) {
+		if ( empty($taxnow) )
+			$taxnow = 'post_tag';
+		$current_screen->id = 'edit-' . $taxnow;
+		$current_screen->taxonomy = $taxnow;
 	}
 
 	$current_screen = apply_filters('current_screen', $current_screen);

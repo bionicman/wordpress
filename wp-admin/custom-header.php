@@ -91,9 +91,9 @@ class Custom_Image_Header {
 	function help() {
 		add_contextual_help( $this->page, '<p>' . __( 'You can set a custom image header for your site. Simply upload the image and crop it, and the new header will go live immediately.' ) . '</p>' .
 		'<p>' . __( 'If you want to discard your custom header and go back to the default included in your theme, click on the buttons to remove the custom image and restore the original header image.' ) . '</p>' .
-		'<p>' . __( 'Some themes comes with additional header images bundled. If you see multiple images displayed, select the one you&#8217;d like and click the Save Changes button.' ) . '</p>' .
+		'<p>' . __( 'Some themes come with additional header images bundled. If you see multiple images displayed, select the one you&#8217;d like and click the Save Changes button.' ) . '</p>' .
 		'<p><strong>' . __( 'For more information:' ) . '</strong></p>' .
-		'<p>' . __( '<a href="http://codex.wordpress.org/" target="_blank">Documentation</a>' ) . '</p>' .
+		'<p>' . __( '<a href="http://codex.wordpress.org/Appearance_Header_SubPanel" target="_blank">Documentation on Custom Header</a>' ) . '</p>' .
 		'<p>' . __( '<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>' ) . '</p>' );
 	}
 
@@ -461,7 +461,7 @@ class Custom_Image_Header {
 <th scope="row"><?php _e( 'Upload Image' ); ?></th>
 <td>
 	<p><?php _e( 'You can upload a custom header image to be shown at the top of your site instead of the default one. On the next screen you will be able to crop the image.' ); ?><br />
-	<?php printf( __( 'Images of exactly <strong>%1$d x %2$d pixels</strong> will be used as-is.' ), HEADER_IMAGE_WIDTH, HEADER_IMAGE_HEIGHT ); ?></p>
+	<?php printf( __( 'Images of exactly <strong>%1$d &times; %2$d pixels</strong> will be used as-is.' ), HEADER_IMAGE_WIDTH, HEADER_IMAGE_HEIGHT ); ?></p>
 	<form enctype="multipart/form-data" id="upload-form" method="post" action="<?php echo esc_attr( add_query_arg( 'step', 2 ) ) ?>">
 	<p>
 		<label for="upload"><?php _e( 'Choose an image from your computer:' ); ?></label><br />
@@ -634,7 +634,7 @@ wp_nonce_field( 'custom-header-options', '_wpnonce-custom-header-options' ); ?>
 	<input type="hidden" name="attachment_id" id="attachment_id" value="<?php echo esc_attr( $id ); ?>" />
 	<input type="hidden" name="oitar" id="oitar" value="<?php echo esc_attr( $oitar ); ?>" />
 	<?php wp_nonce_field( 'custom-header-crop-image' ) ?>
-	<input type="submit" value="<?php esc_attr_e( 'Crop Header' ); ?>" />
+	<input type="submit" class="button-primary" value="<?php esc_attr_e( 'Crop and Publish' ); ?>" />
 	</p>
 </form>
 </div>

@@ -442,6 +442,7 @@ switch ( $_GET['action'] ) {
     	if ( is_array( $_POST['theme'] ) ) {
 			$themes = get_themes();
 			reset( $themes );
+			$allowed_themes = array();
 			foreach ( (array) $themes as $key => $theme ) {
 				if ( $_POST['theme'][ esc_html( $theme['Stylesheet'] ) ] == 'enabled' )
 					$allowed_themes[ esc_html( $theme['Stylesheet'] ) ] = true;
@@ -467,9 +468,12 @@ switch ( $_GET['action'] ) {
 				<title><?php _e( 'WordPress &rsaquo; Confirm your action' ); ?></title>
 
 				<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-				<?php wp_admin_css( 'install', true ); ?>
+				<?php
+				wp_admin_css( 'install', true );
+				wp_admin_css( 'ie', true );
+				?>
 			</head>
-			<body id="error-page">
+			<body>
 				<h1 id="logo"><img alt="WordPress" src="<?php echo esc_attr( admin_url( 'images/wordpress-logo.png' ) ); ?>" /></h1>
 				<form action="ms-edit.php?action=<?php echo esc_attr( $_GET['action2'] ) ?>" method="post">
 					<input type="hidden" name="action" value="<?php echo esc_attr( $_GET['action2'] ) ?>" />
@@ -568,7 +572,7 @@ switch ( $_GET['action'] ) {
 		if ( ! current_user_can( 'manage_network_users' ) )
 			wp_die( __( 'You do not have permission to access this page.' ) );
 
-		if ( is_array( $_POST['blog'] ) && ! empty( $_POST['blog'] ) ) {
+		if ( ! empty( $_POST['blog'] ) && is_array( $_POST['blog'] ) ) {
 			foreach ( $_POST['blog'] as $id => $users ) {
 				foreach ( $users as $blogid => $user_id ) {
 					if ( ! empty( $_POST['delete'] ) && 'reassign' == $_POST['delete'][$blogid][$id] )

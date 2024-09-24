@@ -384,12 +384,9 @@ function wp_default_scripts( &$scripts ) {
 			'done' => __( 'Done' )
 		) );
 
-		// Custom Navigation
-		$scripts->add( 'nav-menu', "/wp-admin/js/nav-menu$suffix.js", false, '20100603' );
+		// Navigation Menus
+		$scripts->add( 'nav-menu', "/wp-admin/js/nav-menu$suffix.js", false, '20100611' );
 		$scripts->localize( 'nav-menu', 'navMenuL10n', array(
-			'custom' => _x('Custom', 'menu nav item type'),
-			'thickbox' => _x('Edit Menu Item', 'Thickbox Title'),
-			'edit' => _x('Edit', 'menu item edit text'),
 			'noResultsFound' => _x('No results found.', 'search results'),
 			'warnDeleteMenu' => __( "You are about to permanently delete this menu. \n 'Cancel' to stop, 'OK' to delete." ),
 			'saveAlert' => __('The changes you made will be lost if you navigate away from this page.'),
@@ -433,13 +430,13 @@ function wp_default_styles( &$styles ) {
 	// Any rtl stylesheets that don't have a .dev version for ltr
 	$no_suffix = array( 'farbtastic' );
 
-	$styles->add( 'wp-admin', "/wp-admin/css/wp-admin$suffix.css", array(), '20100531' );
+	$styles->add( 'wp-admin', "/wp-admin/css/wp-admin$suffix.css", array(), '20100611' );
 
-	$styles->add( 'ie', "/wp-admin/css/ie$suffix.css", array(), '20100531' );
+	$styles->add( 'ie', "/wp-admin/css/ie$suffix.css", array(), '20100610' );
 	$styles->add_data( 'ie', 'conditional', 'lte IE 7' );
 
 	// all colors stylesheets need to have the same query strings (cache manifest compat)
-	$colors_version = '20100531';
+	$colors_version = '20100610';
 
 	// Register "meta" stylesheet for admin colors. All colors-* style sheets should have the same version string.
 	$styles->add( 'colors', true, array(), $colors_version );
@@ -451,9 +448,9 @@ function wp_default_styles( &$styles ) {
 	$styles->add( 'ms', "/wp-admin/css/ms$suffix.css", array(), '20100528' );
 	$styles->add( 'global', "/wp-admin/css/global$suffix.css", array(), '20100108' );
 	$styles->add( 'media', "/wp-admin/css/media$suffix.css", array(), '20100519' );
-	$styles->add( 'widgets', "/wp-admin/css/widgets$suffix.css", array(), '20100531' );
+	$styles->add( 'widgets', "/wp-admin/css/widgets$suffix.css", array(), '20100610' );
 	$styles->add( 'dashboard', "/wp-admin/css/dashboard$suffix.css", array(), '20100424' );
-	$styles->add( 'install', "/wp-admin/css/install$suffix.css", array(), '20100313' ); // Readme as well
+	$styles->add( 'install', "/wp-admin/css/install$suffix.css", array(), '20100605' ); // Readme as well
 	$styles->add( 'theme-editor', "/wp-admin/css/theme-editor$suffix.css", array(), '20100514' );
 	$styles->add( 'press-this', "/wp-admin/css/press-this$suffix.css", array(), '20100424' );
 	$styles->add( 'thickbox', '/wp-includes/js/thickbox/thickbox.css', array(), '20090514' );
@@ -463,7 +460,7 @@ function wp_default_styles( &$styles ) {
 	$styles->add( 'farbtastic', '/wp-admin/css/farbtastic.css', array(), '1.2' );
 	$styles->add( 'jcrop', '/wp-includes/js/jcrop/jquery.Jcrop.css', array(), '0.9.8' );
 	$styles->add( 'imgareaselect', '/wp-includes/js/imgareaselect/imgareaselect.css', array(), '0.9.1' );
-	$styles->add( 'nav-menu', "/wp-admin/css/nav-menu$suffix.css", array(), '20100603' );
+	$styles->add( 'nav-menu', "/wp-admin/css/nav-menu$suffix.css", array(), '20100611' );
 
 	foreach ( $rtl_styles as $rtl_style ) {
 		$styles->add_data( $rtl_style, 'rtl', true );

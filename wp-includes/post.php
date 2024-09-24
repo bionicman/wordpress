@@ -369,10 +369,13 @@ function &get_post(&$post, $output = OBJECT, $filter = 'raw') {
 		wp_cache_add($post->ID, $_post, 'posts');
 	} else {
 		if ( is_object($post) )
-			$post = $post->ID;
-		$post = (int) $post;
-		if ( ! $_post = wp_cache_get($post, 'posts') ) {
-			$_post = $wpdb->get_row($wpdb->prepare("SELECT * FROM $wpdb->posts WHERE ID = %d LIMIT 1", $post));
+			$post_id = $post->ID;
+		else
+			$post_id = $post;
+
+		$post_id = (int) $post_id;
+		if ( ! $_post = wp_cache_get($post_id, 'posts') ) {
+			$_post = $wpdb->get_row($wpdb->prepare("SELECT * FROM $wpdb->posts WHERE ID = %d LIMIT 1", $post_id));
 			if ( ! $_post )
 				return $null;
 			_get_post_ancestors($_post);
@@ -670,7 +673,7 @@ function get_post_stati( $args = array(), $output = 'names', $operator = 'and' )
  * @return bool Whether post type is hierarchical.
  */
 function is_post_type_hierarchical( $post_type ) {
-	if ( ! is_post_type( $post_type ) )
+	if ( ! post_type_exists( $post_type ) )
 		return false;
 
 	$post_type = get_post_type_object( $post_type );
@@ -681,12 +684,12 @@ function is_post_type_hierarchical( $post_type ) {
  * Checks if a post type is registered.
  *
  * @since 3.0.0
- * @uses get_post_type()
+ * @uses get_post_type_object()
  *
  * @param string Post type name
  * @return bool Whether post type is registered.
  */
-function is_post_type( $post_type ) {
+function post_type_exists( $post_type ) {
 	return (bool) get_post_type_object( $post_type );
 }
 
@@ -785,7 +788,7 @@ function get_post_types( $args = array(), $output = 'names', $operator = 'and' )
  * - taxonomies - An array of taxonomy identifiers that will be registered for the post type.  Default is no taxonomies. Taxonomies can be registered later with register_taxonomy() or register_taxonomy_for_object_type().
  * - labels - An array of labels for this post type. You can see accepted values in {@link get_post_type_labels()}. By default post labels are used for non-hierarchical types and page labels for hierarchical ones.
  * - permalink_epmask - The default rewrite endpoint bitmasks.
- * - rewrite - false to prevent rewrite, or array('slug'=>$slug) to customize permastruct; default will use $taxonomy as slug.
+ * - rewrite - false to prevent rewrite, or array('slug'=>$slug) to customize permastruct; default will use $post_type as slug.
  * - query_var - false to prevent queries, or string to value of the query var to use for this post type
  * - can_export - true allows this post type to be exported.
  * - show_in_nav_menus - true makes this post type available for selection in navigation menus.
@@ -963,13 +966,11 @@ function get_post_type_labels( $post_type_object ) {
  */
 function _get_custom_object_labels( $object, $nohier_vs_hier_defaults ) {
 
-	if ( isset( $object->label ) ) {
+	if ( isset( $object->label ) && empty( $object->labels['name'] ) )
 		$object->labels['name'] = $object->label;
-	}
 
-	if ( !isset( $object->labels['singular_name'] ) && isset( $object->labels['name'] ) ) {
+	if ( !isset( $object->labels['singular_name'] ) && isset( $object->labels['name'] ) )
 		$object->labels['singular_name'] = $object->labels['name'];
-	}
 
 	$defaults = array_map( create_function( '$x', $object->hierarchical? 'return $x[1];' : 'return $x[0];' ), $nohier_vs_hier_defaults );
 	$labels = array_merge( $defaults, $object->labels );
@@ -2865,17 +2866,7 @@ function get_all_page_ids() {
  * @return mixed Page data.
  */
 function &get_page(&$page, $output = OBJECT, $filter = 'raw') {
-	if ( empty($page) ) {
-		if ( isset( $GLOBALS['post'] ) && isset( $GLOBALS['post']->ID ) ) {
-			return get_post($GLOBALS['post'], $output, $filter);
-		} else {
-			$page = null;
-			return $page;
-		}
-	}
-
-	$the_page = get_post($page, $output, $filter);
-	return $the_page;
+	return get_post($page, $output, $filter);
 }
 
 /**

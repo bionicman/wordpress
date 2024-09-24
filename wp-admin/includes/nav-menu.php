@@ -38,6 +38,9 @@ class Walker_Nav_Menu_Edit extends Walker_Nav_Menu  {
 	 * @param object $args
 	 */
 	function start_el(&$output, $item, $depth, $args) {
+		global $_wp_nav_menu_max_depth;
+		$_wp_nav_menu_max_depth = $depth > $_wp_nav_menu_max_depth ? $depth : $_wp_nav_menu_max_depth;
+
 		$indent = ( $depth ) ? str_repeat( "\t", $depth ) : '';
 
 		ob_start();
@@ -68,8 +71,12 @@ class Walker_Nav_Menu_Edit extends Walker_Nav_Menu  {
 		$title = $item->title;
 
 		if ( isset( $item->post_status ) && 'draft' == $item->post_status ) {
-			$classes[] = 'pending';
+			$classes[] = 'draft';
 			/* translators: %s: title of menu item in draft status */
+			$title = sprintf( __('%s (Draft)'), $item->title );
+		} elseif ( isset( $item->post_status ) && 'pending' == $item->post_status ) {
+			$classes[] = 'pending';
+			/* translators: %s: title of menu item in pending status */
 			$title = sprintf( __('%s (Pending)'), $item->title );
 		}
 
@@ -191,6 +198,7 @@ class Walker_Nav_Menu_Edit extends Walker_Nav_Menu  {
 				<input class="menu-item-data-object" type="hidden" name="menu-item-object[<?php echo $item_id; ?>]" value="<?php echo esc_attr( $item->object ); ?>" />
 				<input class="menu-item-data-parent-id" type="hidden" name="menu-item-parent-id[<?php echo $item_id; ?>]" value="<?php echo esc_attr( $item->menu_item_parent ); ?>" />
 				<input class="menu-item-data-position" type="hidden" name="menu-item-position[<?php echo $item_id; ?>]" value="<?php echo esc_attr( $item->menu_order ); ?>" />
+				<input class="menu-item-data-status" type="hidden" name="menu-item-status[<?php echo $item_id; ?>]" value="<?php echo esc_attr( $item->post_status ); ?>" />
 				<input class="menu-item-data-type" type="hidden" name="menu-item-type[<?php echo $item_id; ?>]" value="<?php echo esc_attr( $item->type ); ?>" />
 			</div><!-- .menu-item-settings-->
 			<ul class="menu-item-transport"></ul>
@@ -271,7 +279,7 @@ function _wp_ajax_menu_quick_search( $request = array() ) {
 	}
 
 	if ( 'get-post-item' == $type ) {
-		if ( get_post_type_object( $object_type ) ) {
+		if ( post_type_exists( $object_type ) ) {
 			if ( isset( $request['ID'] ) ) {
 				$object_id = (int) $request['ID'];
 				if ( 'markup' == $response_format ) {
@@ -288,7 +296,7 @@ function _wp_ajax_menu_quick_search( $request = array() ) {
 					echo "\n";
 				}
 			}
-		} elseif ( is_taxonomy( $object_type ) ) {
+		} elseif ( taxonomy_exists( $object_type ) ) {
 			if ( isset( $request['ID'] ) ) {
 				$object_id = (int) $request['ID'];
 				if ( 'markup' == $response_format ) {
@@ -365,7 +373,7 @@ function _wp_ajax_menu_quick_search( $request = array() ) {
  **/
 function wp_nav_menu_setup() {
 	// Register meta boxes
-	if ( get_registered_nav_menus() && wp_get_nav_menus() )
+	if ( wp_get_nav_menus() )
 		add_meta_box( 'nav-menu-theme-locations', __( 'Theme Locations' ), 'wp_nav_menu_locations_meta_box' , 'nav-menus', 'side', 'default' );
 	add_meta_box( 'add-custom-links', __('Custom Links'), 'wp_nav_menu_item_link_meta_box', 'nav-menus', 'side', 'default' );
 	wp_nav_menu_post_type_meta_boxes();
@@ -460,6 +468,13 @@ function wp_nav_menu_taxonomy_meta_boxes() {
  */
 function wp_nav_menu_locations_meta_box() {
 	global $nav_menu_selected_id;
+
+	if ( ! current_theme_supports( 'menus' ) ) {
+		// We must only support widgets. Leave a message and bail.
+		echo '<p class="howto">' . __('The current theme does not natively support menus, but you can use the &#8220;Custom Menu&#8221; widget to add any menus you create here to the theme&#8217;s sidebar.') . '</p>';
+		return;
+	}
+
 	$locations = get_registered_nav_menus();
 	$menus = wp_get_nav_menus();
 	$menu_locations = get_nav_menu_locations();
@@ -937,7 +952,7 @@ function wp_nav_menu_item_taxonomy_meta_box( $object, $taxonomy ) {
  *
  * @since 3.0.0
  *
- * @param int $menu_id The menu ID for which to save this item. $menu_id of 0 makes a draft, orphaned menu item.
+ * @param int $menu_id The menu ID for which to save this item. $menu_id of 0 makes a pending, orphaned menu item.
  * @param array $menu_data The unsanitized posted menu item data.
  * @return array The database IDs of the items saved
  */
@@ -1069,7 +1084,7 @@ function wp_get_nav_menu_to_edit( $menu_id = 0 ) {
 
 		$some_pending_menu_items = false;
 		foreach( (array) $menu_items as $menu_item ) {
-			if ( isset( $menu_item->post_status ) && 'draft' == $menu_item->post_status )
+			if ( isset( $menu_item->post_status ) && 'pending' == $menu_item->post_status )
 				$some_pending_menu_items = true;
 		}
 
@@ -1107,23 +1122,23 @@ function wp_nav_menu_manage_columns() {
 }
 
 /**
- * Deletes orphaned draft menu items
+ * Deletes orphaned pending menu items
  *
  * @access private
  * @since 3.0.0
  *
  */
-function _wp_delete_orphaned_draft_menu_items() {
+function _wp_delete_orphaned_pending_menu_items() {
 	global $wpdb;
 	$delete_timestamp = time() - (60*60*24*EMPTY_TRASH_DAYS);
 
-	// delete orphaned draft menu items
-	$menu_items_to_delete = $wpdb->get_col($wpdb->prepare("SELECT ID FROM $wpdb->posts AS p LEFT JOIN $wpdb->postmeta AS m ON p.ID = m.post_id WHERE post_type = 'nav_menu_item' AND post_status = 'draft' AND meta_key = '_menu_item_orphaned' AND meta_value < '%d'", $delete_timestamp ) );
+	// delete orphaned pending menu items
+	$menu_items_to_delete = $wpdb->get_col($wpdb->prepare("SELECT ID FROM $wpdb->posts AS p LEFT JOIN $wpdb->postmeta AS m ON p.ID = m.post_id WHERE post_type = 'nav_menu_item' AND post_status = 'pending' AND meta_key = '_menu_item_orphaned' AND meta_value < '%d'", $delete_timestamp ) );
 
 	foreach( (array) $menu_items_to_delete as $menu_item_id )
 		wp_delete_post( $menu_item_id, true );
 }
 
-add_action('admin_head-nav-menus.php', '_wp_delete_orphaned_draft_menu_items');
+add_action('admin_head-nav-menus.php', '_wp_delete_orphaned_pending_menu_items');
 
 ?>

@@ -162,8 +162,8 @@ function wp_nav_menu( $args = array() ) {
 	if ( $menu && ! is_wp_error($menu) && !isset($menu_items) )
 		$menu_items = wp_get_nav_menu_items( $menu->term_id );
 
-	// If no menu was found or if the menu has no items, call the fallback_cb if it exists
-	if ( ( !$menu || is_wp_error($menu) || ( isset($menu_items) && empty($menu_items) ) )
+	// If no menu was found or if the menu has no items and no location was requested, call the fallback_cb if it exists
+	if ( ( !$menu || is_wp_error($menu) || ( isset($menu_items) && empty($menu_items) && !$args->theme_location ) )
 		&& ( function_exists($args->fallback_cb) || is_callable( $args->fallback_cb ) ) )
 			return call_user_func( $args->fallback_cb, (array) $args );
 
@@ -250,19 +250,58 @@ function _wp_menu_item_classes_by_context( &$menu_items ) {
 	$active_object = '';
 	$active_parent_item_ids = array();
 	$active_parent_object_ids = array();
+	$possible_taxonomy_ancestors = array();
 	$possible_object_parents = array();
 	$home_page_id = (int) get_option( 'page_for_posts' );
 
 	if ( $wp_query->is_singular && ! empty( $queried_object->post_type ) && ! is_post_type_hierarchical( $queried_object->post_type ) ) {
 		foreach ( (array) get_object_taxonomies( $queried_object->post_type ) as $taxonomy ) {
 			if ( is_taxonomy_hierarchical( $taxonomy ) ) {
+				$term_hierarchy = _get_term_hierarchy( $taxonomy );
 				$terms = wp_get_object_terms( $queried_object_id, $taxonomy, array( 'fields' => 'ids' ) );
-				if ( is_array( $terms ) )
+				if ( is_array( $terms ) ) {
 					$possible_object_parents = array_merge( $possible_object_parents, $terms );
+					$term_to_ancestor = array();
+					foreach ( (array) $term_hierarchy as $anc => $descs ) {
+						foreach ( (array) $descs as $desc )
+							$term_to_ancestor[ $desc ] = $anc;
+					}
+
+					foreach ( $terms as $desc ) {
+						do {
+							$possible_taxonomy_ancestors[ $taxonomy ][] = $desc;
+							if ( isset( $term_to_ancestor[ $desc ] ) ) {
+								$_desc = $term_to_ancestor[ $desc ];
+								unset( $term_to_ancestor[ $desc ] );
+								$desc = $_desc;
+							} else {
+								$desc = 0;
+							}
+						} while ( ! empty( $desc ) );
+					}
+				}
 			}
 		}
 	} elseif ( ! empty( $queried_object->post_type ) && is_post_type_hierarchical( $queried_object->post_type ) ) {
 		_get_post_ancestors( $queried_object );
+	} elseif ( ! empty( $queried_object->taxonomy ) && is_taxonomy_hierarchical( $queried_object->taxonomy ) ) {
+		$term_hierarchy = _get_term_hierarchy( $queried_object->taxonomy );
+		$term_to_ancestor = array();
+		foreach ( (array) $term_hierarchy as $anc => $descs ) {
+			foreach ( (array) $descs as $desc )
+				$term_to_ancestor[ $desc ] = $anc;
+		}
+		$desc = $queried_object->term_id;
+		do {
+			$possible_taxonomy_ancestors[ $queried_object->taxonomy ][] = $desc;
+			if ( isset( $term_to_ancestor[ $desc ] ) ) {
+				$_desc = $term_to_ancestor[ $desc ];
+				unset( $term_to_ancestor[ $desc ] );
+				$desc = $_desc;
+			} else {
+				$desc = 0;
+			}
+		} while ( ! empty( $desc ) );
 	}
 
 	$possible_object_parents = array_filter( $possible_object_parents );
@@ -331,14 +370,27 @@ function _wp_menu_item_classes_by_context( &$menu_items ) {
 
 		if (
 			isset( $parent_item->type ) &&
-			'post_type' == $parent_item->type &&
-			! empty( $queried_object->post_type ) &&
-			is_post_type_hierarchical( $queried_object->post_type ) &&
-			in_array( $parent_item->object_id, $queried_object->ancestors )
+			(
+				// ancestral post object
+				(
+					'post_type' == $parent_item->type &&
+					! empty( $queried_object->post_type ) &&
+					is_post_type_hierarchical( $queried_object->post_type ) &&
+					in_array( $parent_item->object_id, $queried_object->ancestors )
+				) ||
+
+				// ancestral term
+				(
+					'taxonomy' == $parent_item->type &&
+					isset( $possible_taxonomy_ancestors[ $parent_item->object ] ) &&
+					in_array( $parent_item->object_id, $possible_taxonomy_ancestors[ $parent_item->object ] )
+				)
+			)
 		) {
-			$classes[] = 'current-' . $queried_object->post_type . '-ancestor';
+			$classes[] = empty( $queried_object->taxonomy ) ? 'current-' . $queried_object->post_type . '-ancestor' : 'current-' . $queried_object->taxonomy . '-ancestor';
 			$classes[] = 'current-menu-ancestor';
 		}
+
 		if ( in_array( $parent_item->db_id, $active_parent_item_ids ) )
 			$classes[] = 'current-menu-parent';
 		if ( in_array( $parent_item->object_id, $active_parent_object_ids ) )

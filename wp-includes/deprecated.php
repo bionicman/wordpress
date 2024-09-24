@@ -2513,3 +2513,37 @@ function trackback_rdf($deprecated = '') {
 	_deprecated_function( __FUNCTION__, '3.0' );
 	return '';
 }
+
+/**
+ * Checks that the taxonomy name exists.
+ *
+ * @since 2.3.0
+ * @deprecated 3.0.0
+ * @deprecated Use taxonomy_exists()
+ * @see taxonomy_exists()
+ *
+ * @param string $taxonomy Name of taxonomy object
+ * @return bool Whether the taxonomy exists.
+ */
+function is_taxonomy( $taxonomy ) {
+	_deprecated_function( __FUNCTION__, '3.0', 'taxonomy_exists()' );
+	return taxonomy_exists( $taxonomy );
+}
+
+/**
+ * Check if Term exists.
+ *
+ * @since 2.3.0
+ * @deprecated 3.0.0
+ * @deprecated Use term_exists()
+ * @see term_exists()
+ *
+ * @param int|string $term The term to check
+ * @param string $taxonomy The taxonomy name to use
+ * @param int $parent ID of parent term under which to confine the exists search.
+ * @return mixed Get the term id or Term Object, if exists.
+ */
+function is_term( $term, $taxonomy = '', $parent = 0 ) {
+	_deprecated_function( __FUNCTION__, '3.0', 'term_exists()' );
+	return term_exists( $term, $taxonomy, $parent );
+}
