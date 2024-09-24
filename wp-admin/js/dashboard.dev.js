@@ -1,6 +1,27 @@
 var ajaxWidgets, ajaxPopulateWidgets, quickPressLoad;
 
 jQuery(document).ready( function($) {
+	/* Dashboard Welcome Panel */
+	var welcomePanel = $('#welcome-panel'),
+	 	updateWelcomePanel = function( visible ) {
+			$.post( ajaxurl, {
+				action: 'update-welcome-panel',
+				visible: visible,
+				welcomepanelnonce: $('#welcomepanelnonce').val()
+			});
+		};
+
+	$('.welcome-panel-close', welcomePanel).click( function() {
+		welcomePanel.addClass('hidden');
+		updateWelcomePanel( 0 );
+		$('#wp_welcome_panel-hide').prop('checked', false);
+	});
+
+	$('#wp_welcome_panel-hide').click( function() {
+		welcomePanel.toggleClass('hidden', ! this.checked );
+		updateWelcomePanel( this.checked ? 1 : 0 );
+	});
+
 	// These widgets are sometimes populated via ajax
 	ajaxWidgets = [
 		'dashboard_incoming_links',

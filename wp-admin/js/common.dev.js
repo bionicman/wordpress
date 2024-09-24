@@ -187,7 +187,7 @@ $('.contextual-help-tabs').delegate('a', 'click focus', function(e) {
 
 $(document).ready( function() {
 	var lastClicked = false, checks, first, last, checked, menu = $('#adminmenu'),
-		pageInput = $('input.current-page'), currentPage = pageInput.val(), folded, vp = document.getElementById('ipad-viewportmeta');
+		pageInput = $('input.current-page'), currentPage = pageInput.val(), folded;
 
 	// admin menu
 	$('#collapse-menu', menu).click(function(){
@@ -206,6 +206,9 @@ $(document).ready( function() {
 	$('li.wp-has-submenu', menu).hoverIntent({
 		over: function(e){
 			var b, h, o, f, m = $(this).find('.wp-submenu');
+
+			if ( !$(document.body).hasClass('folded') && $(this).hasClass('wp-menu-open') )
+				return;
 
 			b = $(this).offset().top + m.height() + 1; // Bottom offset of the menu
 			h = $('#wpwrap').height(); // Height of the entire page
@@ -357,19 +360,6 @@ $(document).ready( function() {
 
 	}).triggerHandler('resize');
 
-	// iPad orientation scale fix
-	if ( vp ) {
-		document.body.addEventListener('gesturestart', function(){
-			if ( vp.content.indexOf('maximum-scale=1') != -1 )
-				vp.content = 'width=750px, maximum-scale=5, initial-scale=1';
-		}, false);
-		document.body.addEventListener('gestureend', function(){
-			setTimeout(function(){
-				if ( vp.content.indexOf('maximum-scale=1') == -1 )
-					vp.content = 'width=750px, maximum-scale=1, initial-scale=1';
-			}, 2000);
-		}, false);
-	}
 });
 
 // internal use

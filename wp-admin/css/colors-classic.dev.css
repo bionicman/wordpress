@@ -420,7 +420,6 @@ a:focus {
 	color: #d54e21;
 }
 
-#wphead #viewsite a:hover,
 #adminmenu a:hover,
 #adminmenu ul.wp-submenu a:hover,
 #the-comment-list .comment a:hover,
@@ -554,8 +553,6 @@ h3.dashboard-widget-title small a:hover {
 
 a,
 #adminmenu a,
-#poststuff #edButtonPreview,
-#poststuff #edButtonHTML,
 #the-comment-list p.comment-author strong a,
 #media-upload a.del-link,
 #media-items a.delete,
@@ -856,13 +853,6 @@ table.widefat .spam a:hover,
 
 #poststuff .wp-editor-wrap .wp_themeSkin .mceStatusbar * {
 	color: #555;
-}
-
-#poststuff #edButtonPreview,
-#poststuff #edButtonHTML {
-	background-color: #f7fcfe;
-	border-color: #d0dfe9 #d0dfe9 #d0dfe9;
-	color: #999;
 }
 
 #poststuff #editor-toolbar .active {
@@ -1290,6 +1280,11 @@ table.widefat .spam a:hover,
 	border-color: #d1e5ee;
 }
 
+#adminmenu li.menu-top:hover > a {
+	background-color: #e8eff4;
+	text-shadow: 0 1px 0 rgba( 255, 255, 255, 0.4 );
+}
+
 #adminmenu li.wp-has-current-submenu a.wp-has-current-submenu,
 #adminmenu li.current a.menu-top,
 .folded #adminmenu li.wp-has-current-submenu,
@@ -1303,6 +1298,31 @@ table.widefat .spam a:hover,
 	background-image: -webkit-gradient(linear, left bottom, left top, from(#5589AA), to(#5A8FAD)); /* old Webkit */
 	background-image: -webkit-linear-gradient(bottom, #5589AA, #5A8FAD); /* new Webkit */
 	background-image: linear-gradient(bottom, #5589AA, #5A8FAD); /* proposed W3C Markup */
+}
+
+#adminmenu .wp-menu-arrow div {
+	background-color: #5589AA; /* Fallback */
+	background-image: -ms-linear-gradient(right bottom, #5589AA, #5A8FAD); /* IE10 */
+	background-image: -moz-linear-gradient(right bottom, #5589AA, #5A8FAD); /* Firefox */
+	background-image: -o-linear-gradient(right bottom, #5589AA, #5A8FAD); /* Opera */
+	background-image: -webkit-gradient(linear, right bottom, left top, from(#5589AA), to(#5A8FAD)); /* old Webkit */
+	background-image: -webkit-linear-gradient(right bottom, #5589AA, #5A8FAD); /* new Webkit */
+	background-image: linear-gradient(right bottom, #5589AA, #5A8FAD); /* proposed W3C Markup */
+}
+
+#adminmenu li.wp-not-current-submenu .wp-menu-arrow {
+	border-top-color: #fff;
+	border-bottom-color: #D1E5EE;
+	background: #e8eff4;
+}
+
+#adminmenu li.wp-not-current-submenu .wp-menu-arrow div {
+	background: #e8eff4;
+	border-color: #D1E5EE;
+}
+
+.folded #adminmenu li.menu-top li:hover a {
+	background-image: none;
 }
 
 #adminmenu li.wp-has-current-submenu a.wp-has-current-submenu,
@@ -1321,8 +1341,8 @@ table.widefat .spam a:hover,
 }
 
 #adminmenu .wp-submenu a:hover {
-	background-color: #EAF2FA !important;
-	color: #333 !important;
+	background-color: #EAF2FA;
+	color: #333;
 }
 
 #adminmenu .wp-submenu li.current,
@@ -1335,19 +1355,20 @@ table.widefat .spam a:hover,
 	background-color: #fff;
 }
 
-.folded #adminmenu .wp-submenu-wrap,
-.folded #adminmenu .wp-submenu ul {
+#adminmenu .wp-submenu-wrap,
+#adminmenu .wp-submenu ul {
 	border-color: #d0dfe9;
 }
 
-.folded #adminmenu .wp-submenu-wrap {
+#adminmenu .wp-submenu-wrap,
+.folded #adminmenu .wp-has-current-submenu .wp-submenu-wrap {
 	-moz-box-shadow: 2px 2px 5px rgba( 0, 0, 0, 0.4 );
 	-webkit-box-shadow: 2px 2px 5px rgba( 0, 0, 0, 0.4 );
 	box-shadow: 2px 2px 5px rgba( 0, 0, 0, 0.4 );
 }
 
 #adminmenu .wp-submenu .wp-submenu-head {
-	border-right-color: #d0dfe9;
+	border-right-color: #e8eff4;
 	background-color: #EFF8FF;
 }
 
@@ -1591,25 +1612,40 @@ table.diff .diff-addedline ins {
 	color: #D54E21;
 }
 
-#screen-options-wrap,
-#contextual-help-wrap {
-	background-color: #f7fcfe;
-	border-color: #D1e5ee;
+#screen-meta {
+	background-color: #fff;
 }
 
-#screen-options-link-wrap,
-#contextual-help-link-wrap {
-	background-color: #eff8ff; /* Fallback */
-	border-right: 1px solid #D1E5EE;
-	border-left: 1px solid #D1E5EE;
-	border-bottom: 1px solid #D1E5EE;
-	background-image: -ms-linear-gradient(bottom, #eff8ff, #fff); /* IE10 */
-	background-image: -moz-linear-gradient(bottom, #eff8ff, #fff); /* Firefox */
-	background-image: -o-linear-gradient(bottom, #eff8ff, #fff); /* Opera */
-	background-image: -webkit-gradient(linear, left bottom, left top, from(#eff8ff), to(#fff)); /* old Webkit */
-	background-image: -webkit-linear-gradient(bottom, #eff8ff, #fff); /* new Webkit */
-	background-image: linear-gradient(bottom, #eff8ff, #fff); /* proposed W3C Markup */
+#contextual-help-back {
+	background-color: #f1f1f1;
+	border-color: #ccc;
+
+	-webkit-box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.05 );
+	-moz-box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.05 );
+	box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.05 );
 }
+
+.contextual-help-tabs a:hover {
+	background-color: #EAF2FA;
+	color: #333;
+}
+
+.contextual-help-tabs .active {
+	border-color: #ccc;
+}
+
+.contextual-help-tabs .active,
+.contextual-help-tabs .active a,
+.contextual-help-tabs .active a:hover {
+	background: #fff;
+	color: #000;
+}
+
+.contextual-help-tabs-wrap {
+	border-color: #ccc;
+	background-color: #fff;
+}
+
 
 #replyerror {
 	border-color: #ddd;
@@ -1782,38 +1818,6 @@ body.press-this ul.category-tabs li.tabs a {
 #wp_delgallery:hover {
 	border-color: #555;
 	background-color: #ccc;
-}
-
-#favorite-first {
-	border-color: #c0c0c0;
-	background: #f1f1f1; /* fallback color */
-	background:-moz-linear-gradient(bottom,	#e7e7e7, #fff);
-	background:-webkit-gradient(linear, left bottom, left top, from(#e7e7e7), to(#fff));
-}
-
-#favorite-inside {
-	border-color: #c0c0c0;
-	background-color: #fff;
-}
-
-#favorite-toggle {
-	background: transparent url(../images/fav-arrow.gif?ver=20100531) no-repeat 0 -4px;
-	border-color: #d0dfe9;
-	-moz-box-shadow: inset 1px 0 0 #fff;
-	-webkit-box-shadow: inset 1px 0 0 #fff;
-	box-shadow: inset 1px 0 0 #fff;
-}
-
-#favorite-actions a {
-	color: #464646;
-}
-
-#favorite-actions a:hover {
-	color: #000;
-}
-
-#favorite-inside a:hover {
-	text-decoration: underline;
 }
 
 .toggle-arrow {
@@ -2157,10 +2161,6 @@ div.widgets-sortables,
 	border-left-color: #d1e5ee;
 }
 
-.rtl #favorite-toggle {
-	background: transparent url(../images/arrows-vs.png) no-repeat 4px 2px;
-}
-
 .toggle-arrow {
 	background: transparent url(../images/arrows-vs.png) no-repeat left 3px;
 }
@@ -2171,4 +2171,3 @@ div.widgets-sortables,
 .rtl .sidebar-name:hover .sidebar-name-arrow {
 	background: transparent url(../images/arrows-dark-vs.png) no-repeat 5px 9px;
 }
-

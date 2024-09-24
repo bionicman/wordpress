@@ -99,10 +99,10 @@ $post_type_object = get_post_type_object($post_type);
 // All meta boxes should be defined and added before the first do_meta_boxes() call (or potentially during the do_meta_boxes action).
 require_once('./includes/meta-boxes.php');
 
-add_meta_box('submitdiv', __('Publish'), 'post_submit_meta_box', $post_type, 'side', 'core');
+add_meta_box('submitdiv', __('Publish'), 'post_submit_meta_box', null, 'side', 'core');
 
 if ( current_theme_supports( 'post-formats' ) && post_type_supports( $post_type, 'post-formats' ) )
-	add_meta_box( 'formatdiv', _x( 'Format', 'post format' ), 'post_format_meta_box', $post_type, 'side', 'core' );
+	add_meta_box( 'formatdiv', _x( 'Format', 'post format' ), 'post_format_meta_box', null, 'side', 'core' );
 
 // all taxonomies
 foreach ( get_object_taxonomies($post_type) as $tax_name ) {
@@ -113,43 +113,43 @@ foreach ( get_object_taxonomies($post_type) as $tax_name ) {
 	$label = $taxonomy->labels->name;
 
 	if ( !is_taxonomy_hierarchical($tax_name) )
-		add_meta_box('tagsdiv-' . $tax_name, $label, 'post_tags_meta_box', $post_type, 'side', 'core', array( 'taxonomy' => $tax_name ));
+		add_meta_box('tagsdiv-' . $tax_name, $label, 'post_tags_meta_box', null, 'side', 'core', array( 'taxonomy' => $tax_name ));
 	else
-		add_meta_box($tax_name . 'div', $label, 'post_categories_meta_box', $post_type, 'side', 'core', array( 'taxonomy' => $tax_name ));
+		add_meta_box($tax_name . 'div', $label, 'post_categories_meta_box', null, 'side', 'core', array( 'taxonomy' => $tax_name ));
 }
 
 if ( post_type_supports($post_type, 'page-attributes') )
-	add_meta_box('pageparentdiv', 'page' == $post_type ? __('Page Attributes') : __('Attributes'), 'page_attributes_meta_box', $post_type, 'side', 'core');
+	add_meta_box('pageparentdiv', 'page' == $post_type ? __('Page Attributes') : __('Attributes'), 'page_attributes_meta_box', null, 'side', 'core');
 
 if ( current_theme_supports( 'post-thumbnails', $post_type ) && post_type_supports( $post_type, 'thumbnail' ) )
-		add_meta_box('postimagediv', __('Featured Image'), 'post_thumbnail_meta_box', $post_type, 'side', 'low');
+		add_meta_box('postimagediv', __('Featured Image'), 'post_thumbnail_meta_box', null, 'side', 'low');
 
 if ( post_type_supports($post_type, 'excerpt') )
-	add_meta_box('postexcerpt', __('Excerpt'), 'post_excerpt_meta_box', $post_type, 'normal', 'core');
+	add_meta_box('postexcerpt', __('Excerpt'), 'post_excerpt_meta_box', null, 'normal', 'core');
 
 if ( post_type_supports($post_type, 'trackbacks') )
-	add_meta_box('trackbacksdiv', __('Send Trackbacks'), 'post_trackback_meta_box', $post_type, 'normal', 'core');
+	add_meta_box('trackbacksdiv', __('Send Trackbacks'), 'post_trackback_meta_box', null, 'normal', 'core');
 
 if ( post_type_supports($post_type, 'custom-fields') )
-	add_meta_box('postcustom', __('Custom Fields'), 'post_custom_meta_box', $post_type, 'normal', 'core');
+	add_meta_box('postcustom', __('Custom Fields'), 'post_custom_meta_box', null, 'normal', 'core');
 
 do_action('dbx_post_advanced');
 if ( post_type_supports($post_type, 'comments') )
-	add_meta_box('commentstatusdiv', __('Discussion'), 'post_comment_status_meta_box', $post_type, 'normal', 'core');
+	add_meta_box('commentstatusdiv', __('Discussion'), 'post_comment_status_meta_box', null, 'normal', 'core');
 
 if ( ('publish' == $post->post_status || 'private' == $post->post_status) && post_type_supports($post_type, 'comments') )
-	add_meta_box('commentsdiv', __('Comments'), 'post_comment_meta_box', $post_type, 'normal', 'core');
+	add_meta_box('commentsdiv', __('Comments'), 'post_comment_meta_box', null, 'normal', 'core');
 
 if ( !( 'pending' == $post->post_status && !current_user_can( $post_type_object->cap->publish_posts ) ) )
-	add_meta_box('slugdiv', __('Slug'), 'post_slug_meta_box', $post_type, 'normal', 'core');
+	add_meta_box('slugdiv', __('Slug'), 'post_slug_meta_box', null, 'normal', 'core');
 
 if ( post_type_supports($post_type, 'author') ) {
 	if ( is_super_admin() || current_user_can( $post_type_object->cap->edit_others_posts ) )
-		add_meta_box('authordiv', __('Author'), 'post_author_meta_box', $post_type, 'normal', 'core');
+		add_meta_box('authordiv', __('Author'), 'post_author_meta_box', null, 'normal', 'core');
 }
 
 if ( post_type_supports($post_type, 'revisions') && 0 < $post_ID && wp_get_post_revisions( $post_ID ) )
-	add_meta_box('revisionsdiv', __('Revisions'), 'post_revisions_meta_box', $post_type, 'normal', 'core');
+	add_meta_box('revisionsdiv', __('Revisions'), 'post_revisions_meta_box', null, 'normal', 'core');
 
 do_action('add_meta_boxes', $post_type, $post);
 do_action('add_meta_boxes_' . $post_type, $post);
@@ -189,6 +189,7 @@ if ( 'post' == $post_type ) {
 	}
 
 	$current_screen->add_help_tab( array(
+		'id'      => 'publish-box',
 		'title'   => __('Publish Box'),
 		'content' => $publish_box,
 	) );
@@ -197,6 +198,7 @@ if ( 'post' == $post_type ) {
 	$discussion_settings .= '<p>' . __('<strong>Discussion</strong> - You can turn comments and pings on or off, and if there are comments on the post, you can see them here and moderate them.') . '</p>';
 
 	$current_screen->add_help_tab( array(
+		'id'      => 'discussion-settings',
 		'title'   => __('Discussion Settings'),
 		'content' => $discussion_settings,
 	) );
@@ -208,12 +210,25 @@ if ( 'post' == $post_type ) {
 			'<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
 	);
 } elseif ( 'page' == $post_type ) {
-	$current_screen->add_help_tab( 'about-pages', __('About Pages'), '<p>' . __('Pages are similar to Posts in that they have a title, body text, and associated metadata, but they are different in that they are not part of the chronological blog stream, kind of like permanent posts. Pages are not categorized or tagged, but can have a hierarchy. You can nest Pages under other Pages by making one the &#8220;Parent&#8221; of the other, creating a group of Pages.') . '</p>' .
-				'<p>' . __('Creating a Page is very similar to creating a Post, and the screens can be customized in the same way using drag and drop, the Screen Options tab, and expanding/collapsing boxes as you choose. This screen also has the new in 3.2 distraction-free writing space, available in both the Visual and HTML modes via the Fullscreen buttons. The Page editor mostly works the same as the Post editor, but there are some Page-specific features in the Page Attributes box:') . '</p>' );
-	$current_screen->add_help_tab('page-attributes', ('Page Attributes'),
-				'<p>' . __('<strong>Parent</strong> - You can arrange your pages in hierarchies. For example, you could have an &#8220;About&#8221; page that has &#8220;Life Story&#8221; and &#8220;My Dog&#8221; pages under it. There are no limits to how many levels you can nest pages.') . '</p>' .
-				'<p>' . __('<strong>Template</strong> - Some themes have custom templates you can use for certain pages that might have additional features or custom layouts. If so, you&#8217;ll see them in this dropdown menu.') . '</p>' .
-				'<p>' . __('<strong>Order</strong> - Pages are usually ordered alphabetically, but you can choose your own order by entering a number (1 for first, etc.) in this field.') . '</p>' );
+	$about_pages = '<p>' . __('Pages are similar to Posts in that they have a title, body text, and associated metadata, but they are different in that they are not part of the chronological blog stream, kind of like permanent posts. Pages are not categorized or tagged, but can have a hierarchy. You can nest Pages under other Pages by making one the &#8220;Parent&#8221; of the other, creating a group of Pages.') . '</p>' .
+		'<p>' . __('Creating a Page is very similar to creating a Post, and the screens can be customized in the same way using drag and drop, the Screen Options tab, and expanding/collapsing boxes as you choose. This screen also has the new in 3.2 distraction-free writing space, available in both the Visual and HTML modes via the Fullscreen buttons. The Page editor mostly works the same as the Post editor, but there are some Page-specific features in the Page Attributes box:') . '</p>';
+	
+	$current_screen->add_help_tab( array(
+		'id'      => 'about-pages',
+		'title'   => __('About Pages'),
+		'content' => $about_pages,
+	) );
+	
+	$page_attributes = '<p>' . __('<strong>Parent</strong> - You can arrange your pages in hierarchies. For example, you could have an &#8220;About&#8221; page that has &#8220;Life Story&#8221; and &#8220;My Dog&#8221; pages under it. There are no limits to how many levels you can nest pages.') . '</p>' .
+		'<p>' . __('<strong>Template</strong> - Some themes have custom templates you can use for certain pages that might have additional features or custom layouts. If so, you&#8217;ll see them in this dropdown menu.') . '</p>' .
+		'<p>' . __('<strong>Order</strong> - Pages are usually ordered alphabetically, but you can choose your own order by entering a number (1 for first, etc.) in this field.') . '</p>';
+	
+	$current_screen->add_help_tab( array(
+		'id' => 'page-attributes',
+		'title' => __('Page Attributes'),
+		'content' => $page_attributes,
+	) );
+	
 	$current_screen->add_help_sidebar(
 			'<p><strong>' . __('For more information:') . '</strong></p>' .
 			'<p>' . __('<a href="http://codex.wordpress.org/Pages_Add_New_Screen" target="_blank">Documentation on Adding New Pages</a>') . '</p>' .
@@ -332,11 +347,11 @@ if ( 1 == $screen_layout_columns ) {
 	$side_meta_boxes = do_meta_boxes($post_type, 'side', $post);
 }
 
-do_meta_boxes($post_type, 'normal', $post);
+do_meta_boxes(null, 'normal', $post);
 
 ( 'page' == $post_type ) ? do_action('edit_page_form') : do_action('edit_form_advanced');
 
-do_meta_boxes($post_type, 'advanced', $post);
+do_meta_boxes(null, 'advanced', $post);
 
 do_action('dbx_post_sidebar'); ?>
 

@@ -309,11 +309,8 @@ function media_handle_sideload($file_array, $post_id, $desc = null, $post_data =
  * @param unknown_type $content_func
  */
 function wp_iframe($content_func /* ... */) {
+	_wp_admin_html_begin();
 ?>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" <?php do_action('admin_xml_ns'); ?> <?php language_attributes(); ?>>
-<head>
-<meta http-equiv="Content-Type" content="<?php bloginfo('html_type'); ?>; charset=<?php echo get_option('blog_charset'); ?>" />
 <title><?php bloginfo('name') ?> &rsaquo; <?php _e('Uploads'); ?> &#8212; <?php _e('WordPress'); ?></title>
 <?php
 
@@ -515,29 +512,29 @@ function wp_media_upload_handler() {
 	}
 
 	if ( !empty($_POST['insertonlybutton']) ) {
-		$src = $_POST['insertonly']['src'];
+		$src = $_POST['src'];
 		if ( !empty($src) && !strpos($src, '://') )
 			$src = "http://$src";
 
 		if ( isset( $_POST['media_type'] ) && 'image' != $_POST['media_type'] ) {
-			$title = esc_attr($_POST['insertonly']['title']);
-			if ( empty($title) )
-				$title = esc_attr( basename($src) );
+			$title = esc_html( stripslashes( $_POST['title'] ) );
+			if ( empty( $title ) )
+				$title = esc_html( basename( $src ) );
 
-			if ( !empty($title) && !empty($src) )
+			if ( $title && $src )
 				$html = "<a href='" . esc_url($src) . "' >$title</a>";
 
 			$type = 'file';
-			if ( $ext = preg_replace( '/^.+?\.([^.]+)$/', '$1', $src ) && $ext_type = wp_ext2type( $ext )
+			if ( ( $ext = preg_replace( '/^.+?\.([^.]+)$/', '$1', $src ) ) && ( $ext_type = wp_ext2type( $ext ) )
 				&& ( 'audio' == $ext_type || 'video' == $ext_type ) )
 					$type = $ext_type;
 
 			$html = apply_filters( $type . '_send_to_editor_url', $html, esc_url_raw( $src ), $title );
 		} else {
 			$align = '';
-			$alt = esc_attr($_POST['insertonly']['alt']);
-			if ( isset($_POST['insertonly']['align']) ) {
-				$align = esc_attr($_POST['insertonly']['align']);
+			$alt = esc_attr( stripslashes( $_POST['alt'] ) );
+			if ( isset($_POST['align']) ) {
+				$align = esc_attr( stripslashes( $_POST['align'] ) );
 				$class = " class='align$align'";
 			}
 			if ( !empty($src) )
@@ -1342,12 +1339,12 @@ resize_width = <?php echo get_option('large_size_w', 1024); ?>,
 wpUploaderInit = <?php echo json_encode($plupload_init); ?>;
 </script>
 
-<div id="plupload-upload-ui" class="hide-if-no-js drag-drop">
+<div id="plupload-upload-ui" class="hide-if-no-js">
 <?php do_action('pre-plupload-upload-ui'); // hook change, old name: 'pre-flash-upload-ui' ?>
 <div id="drag-drop-area">
 	<div class="drag-drop-inside">
-	<p class="dragdrop-info"><?php _e('Drop files here or'); ?></p>
-	<p><input id="plupload-browse-button" type="button" value="<?php esc_attr_e('Select Files'); ?>" class="button" />
+	<p class="drag-drop-info"><?php _e('Drop files here or'); ?></p>
+	<p class="drag-drop-buttons"><input id="plupload-browse-button" type="button" value="<?php esc_attr_e('Select Files'); ?>" class="button" />
 	<input id="cancel-upload" disabled="true" onclick="cancelUpload()" type="button" value="<?php esc_attr_e('Cancel Upload'); ?>" class="button" /></p>
 	</div>
 </div>
@@ -1520,9 +1517,12 @@ var addExtImage = {
 	},
 
 	getImageData : function() {
+		if ( jQuery('table.describe').hasClass('not-image') )
+			return;
+
 		var t = addExtImage, src = document.forms[0].src.value;
 
-		if ( ! src || jQuery('table.describe').hasClass('not-image') ) {
+		if ( ! src ) {
 			t.resetImageData();
 			return false;
 		}

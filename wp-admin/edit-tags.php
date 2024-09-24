@@ -8,8 +8,22 @@
 
 /** WordPress Administration Bootstrap */
 require_once('./admin.php');
-$tax = get_taxonomy( $taxnow );
-if ( !current_user_can( $tax->cap->manage_terms ) )
+
+if ( ! isset( $_GET['taxonomy'] ) )
+	$taxonomy = 'post_tag';
+elseif ( in_array( $_GET['taxonomy'], get_taxonomies() ) )
+	$taxonomy = sanitize_key( $_GET['taxonomy'] );
+else
+	wp_die( __( 'Invalid taxonomy' ) );
+
+$_GET['taxonomy'] = $taxonomy;
+
+$tax = get_taxonomy( $taxonomy );
+
+if ( ! $tax )
+	wp_die( __( 'Invalid taxonomy' ) );
+
+if ( ! current_user_can( $tax->cap->manage_terms ) )
 	wp_die( __( 'Cheatin&#8217; uh?' ) );
 
 $wp_list_table = _get_list_table('WP_Terms_List_Table');
@@ -113,10 +127,12 @@ break;
 case 'edit':
 	$title = $tax->labels->edit_item;
 
-	require_once ( 'admin-header.php' );
 	$tag_ID = (int) $_REQUEST['tag_ID'];
 
 	$tag = get_term( $tag_ID, $taxonomy, OBJECT, 'edit' );
+	if ( ! $tag )
+		wp_die( __( 'You attempted to edit an item that doesn&#8217;t exist. Perhaps it was deleted?' ) );
+	require_once ( 'admin-header.php' );
 	include( './edit-tag-form.php' );
 
 break;
@@ -127,6 +143,10 @@ case 'editedtag':
 
 	if ( !current_user_can( $tax->cap->edit_terms ) )
 		wp_die( __( 'Cheatin&#8217; uh?' ) );
+ 
+	$tag = get_term( $tag_ID, $taxonomy ); 
+	if ( ! $tag )
+		wp_die( __( 'You attempted to edit an item that doesn&#8217;t exist. Perhaps it was deleted?' ) );
 
 	$ret = wp_update_term( $tag_ID, $taxonomy, $_POST );
 

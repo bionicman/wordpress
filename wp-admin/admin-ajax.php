@@ -612,7 +612,7 @@ case 'get-comments' :
 	$x = new WP_Ajax_Response();
 	ob_start();
 	foreach ( $wp_list_table->items as $comment ) {
-		if ( ! current_user_can( 'edit_comment', $comment->comment_ID ) ) 
+		if ( ! current_user_can( 'edit_comment', $comment->comment_ID ) )
 			continue;
 		get_comment( $comment );
 		$wp_list_table->single_row( $comment );
@@ -860,7 +860,7 @@ case 'add-meta' :
 			'supplemental' => array('postid' => $pid)
 		) );
 	} else { // Update?
-		$mid = (int) array_pop( array_keys($_POST['meta']) );
+		$mid = (int) array_pop( $var_by_ref = array_keys($_POST['meta']) );
 		$key = stripslashes( $_POST['meta'][$mid]['key'] );
 		$value = stripslashes( $_POST['meta'][$mid]['value'] );
 		if ( '' == trim($key) )
@@ -1058,6 +1058,19 @@ case 'hidden-columns' :
 
 	if ( is_array($hidden) )
 		update_user_option($user->ID, "manage{$page}columnshidden", $hidden, true);
+
+	die('1');
+	break;
+case 'update-welcome-panel' :
+	check_ajax_referer( 'welcome-panel-nonce', 'welcomepanelnonce' );
+
+	if ( ! current_user_can( 'edit_theme_options' ) )
+		die('-1');
+
+	if ( empty( $_POST['visible'] ) )
+		delete_user_option( get_current_user_id(), 'show_welcome_panel' );
+	else
+		update_user_option( get_current_user_id(), 'show_welcome_panel', 1 );
 
 	die('1');
 	break;

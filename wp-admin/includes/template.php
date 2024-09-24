@@ -839,12 +839,19 @@ function wp_import_upload_form( $action ) {
  * @param string $id String for use in the 'id' attribute of tags.
  * @param string $title Title of the meta box.
  * @param string $callback Function that fills the box with the desired content. The function should echo its output.
- * @param string $page The type of edit page on which to show the box (post, page, link).
- * @param string $context The context within the page where the boxes should show ('normal', 'advanced').
- * @param string $priority The priority within the context where the boxes should show ('high', 'low').
+ * @param string|object Optional. $screen The screen on which to show the box (post, page, link). Defaults to current screen.
+ * @param string $context Optional. The context within the page where the boxes should show ('normal', 'advanced').
+ * @param string $priority Optional. The priority within the context where the boxes should show ('high', 'low').
  */
-function add_meta_box($id, $title, $callback, $page, $context = 'advanced', $priority = 'default', $callback_args=null) {
+function add_meta_box( $id, $title, $callback, $screen = null, $context = 'advanced', $priority = 'default', $callback_args = null ) {
 	global $wp_meta_boxes;
+
+	if ( empty( $screen ) )
+		$screen = get_current_screen();
+	elseif ( is_string( $screen ) )
+		$screen = convert_to_screen( $screen );
+
+	$page = $screen->id;
 
 	if ( !isset($wp_meta_boxes) )
 		$wp_meta_boxes = array();
@@ -899,16 +906,23 @@ function add_meta_box($id, $title, $callback, $page, $context = 'advanced', $pri
  *
  * @since 2.5.0
  *
- * @param string $page page identifier, also known as screen identifier
+ * @param string|object $screen Screen identifier
  * @param string $context box context
  * @param mixed $object gets passed to the box callback function as first parameter
  * @return int number of meta_boxes
  */
-function do_meta_boxes($page, $context, $object) {
+function do_meta_boxes( $screen, $context, $object ) {
 	global $wp_meta_boxes;
 	static $already_sorted = false;
 
-	$hidden = get_hidden_meta_boxes($page);
+	if ( empty( $screen ) )
+		$screen = get_current_screen();
+	elseif ( is_string( $screen ) )
+		$screen = convert_to_screen( $screen );
+
+	$page = $screen->id;
+
+	$hidden = get_hidden_meta_boxes( $screen );
 
 	printf('<div id="%s-sortables" class="meta-box-sortables">', htmlspecialchars($context));
 
@@ -919,7 +933,7 @@ function do_meta_boxes($page, $context, $object) {
 			foreach ( $sorted as $box_context => $ids ) {
 				foreach ( explode(',', $ids ) as $id ) {
 					if ( $id && 'dashboard_browser_nag' !== $id )
-						add_meta_box( $id, null, null, $page, $box_context, 'sorted' );
+						add_meta_box( $id, null, null, $screen, $box_context, 'sorted' );
 				}
 			}
 		}
@@ -961,11 +975,18 @@ function do_meta_boxes($page, $context, $object) {
  * @since 2.6.0
  *
  * @param string $id String for use in the 'id' attribute of tags.
- * @param string $page The type of edit page on which to show the box (post, page, link).
+ * @param string|object $screen The screen on which to show the box (post, page, link).
  * @param string $context The context within the page where the boxes should show ('normal', 'advanced').
  */
-function remove_meta_box($id, $page, $context) {
+function remove_meta_box($id, $screen, $context) {
 	global $wp_meta_boxes;
+
+	if ( empty( $screen ) )
+		$screen = get_current_screen();
+	elseif ( is_string( $screen ) )
+		$screen = convert_to_screen( $screen );
+
+	$page = $screen->id;
 
 	if ( !isset($wp_meta_boxes) )
 		$wp_meta_boxes = array();
@@ -1352,10 +1373,8 @@ function iframe_header( $title = '', $limit_styles = false ) {
 	global $hook_suffix, $current_screen, $current_user, $admin_body_class, $wp_locale;
 	$admin_body_class = preg_replace('/[^a-z0-9_-]+/i', '-', $hook_suffix);
 
-?><!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" <?php do_action('admin_xml_ns'); ?> <?php language_attributes(); ?>>
-<head>
-<meta http-equiv="Content-Type" content="<?php bloginfo('html_type'); ?>; charset=<?php echo get_option('blog_charset'); ?>" />
+	_wp_admin_html_begin();
+?>
 <title><?php bloginfo('name') ?> &rsaquo; <?php echo $title ?> &#8212; <?php _e('WordPress'); ?></title>
 <?php
 wp_enqueue_style( 'colors' );
@@ -1629,6 +1648,20 @@ function get_submit_button( $text = NULL, $type = 'primary', $name = 'submit', $
 	return $button;
 }
 
+function _wp_admin_html_begin() {
+?>
+<!DOCTYPE html>
+<!--[if IE 8]>
+<html xmlns="http://www.w3.org/1999/xhtml" class="ie8" <?php do_action('admin_xml_ns'); ?> <?php language_attributes(); ?>>
+<![endif]-->
+<!--[if !(IE 8) ]><!-->
+<html xmlns="http://www.w3.org/1999/xhtml" <?php do_action('admin_xml_ns'); ?> <?php language_attributes(); ?>>
+<!--<![endif]-->
+<head>
+<meta http-equiv="Content-Type" content="<?php bloginfo('html_type'); ?>; charset=<?php echo get_option('blog_charset'); ?>" />
+<?php
+}
+
 /**
  * Initializes the new feature pointers.
  *
@@ -1642,7 +1675,7 @@ function wp_pointer_enqueue( $hook_suffix ) {
 
 	$dismissed = explode( ',', (string) get_user_meta( get_current_user_id(), 'dismissed_wp_pointers', true ) );
 
-	if ( ! in_array( 'wp330-admin-bar', $dismissed ) && apply_filters( 'show_wp_pointer_admin_bar', true ) ) {
+	if ( ! in_array( 'wp330-admin-bar', $dismissed ) ) {
 		$enqueue = true;
 		add_action( 'admin_print_footer_scripts', '_wp_pointer_print_admin_bar' );
 	}
@@ -1650,7 +1683,6 @@ function wp_pointer_enqueue( $hook_suffix ) {
 	if ( $enqueue ) {
 		wp_enqueue_style( 'wp-pointer' );
 		wp_enqueue_script( 'wp-pointer' );
-		wp_enqueue_script( 'utils' );
 	}
 }
 add_action( 'admin_enqueue_scripts', 'wp_pointer_enqueue' );
@@ -1664,13 +1696,9 @@ function _wp_pointer_print_admin_bar() {
 <script type="text/javascript">
 //<![CDATA[
 jQuery(document).ready( function($) {
-	$('#wpadminbar').pointer({
+	$('#wp-admin-bar-help').pointer({
 		content: '<?php echo $pointer_content; ?>',
-		position: {
-			my: 'left top',
-			at: 'center bottom',
-			offset: '-25 0'
-		},
+		position: 'top',
 		close: function() {
 			$.post( ajaxurl, {
 					pointer: 'wp330-admin-bar',
