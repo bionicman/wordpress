@@ -13,7 +13,7 @@ require(dirname(__FILE__) . '/wp-load.php');
 /** Get the POP3 class with which to access the mailbox. */
 require_once( ABSPATH . WPINC . '/class-pop3.php' );
 
-$time_difference = absint(get_option('gmt_offset')) * 3600;
+$time_difference = get_option('gmt_offset') * 3600;
 
 $phone_delim = '::';
 
@@ -23,7 +23,7 @@ if ( ! $pop3->connect(get_option('mailserver_url'), get_option('mailserver_port'
 	! $pop3->user(get_option('mailserver_login')) ||
 	( ! $count = $pop3->pass(get_option('mailserver_pass')) ) ) {
 		$pop3->quit();
-		wp_die( ( 0 === $count ) ? __("There doesn't seem to be any new mail.") : wp_specialchars($pop3->ERROR) );
+		wp_die( ( 0 === $count ) ? __('There doesn&#8217;t seem to be any new mail.') : wp_specialchars($pop3->ERROR) );
 }
 
 for ( $i = 1; $i <= $count; $i++ ) {
@@ -155,6 +155,10 @@ for ( $i = 1; $i <= $count; $i++ ) {
 		$content = strip_tags($content, '<img><p><br><i><b><u><em><strong><strike><font><span><div>');
 	}
 	$content = trim($content);
+
+	//Give Post-By-Email extending plugins full access to the content
+	//Either the raw content or the content of the last quoted-printable section
+	$content = apply_filters('wp_mail_original_content', $content);
 
 	if ( false !== stripos($content_transfer_encoding, "quoted-printable") ) {
 		$content = quoted_printable_decode($content);
