@@ -9,8 +9,10 @@
 /** WordPress Administration Bootstrap */
 require_once( './admin.php' );
 
+if ( !current_user_can('upload_files') )
+	wp_die( __( 'You do not have permission to upload files.' ) );
+
 $wp_list_table = get_list_table('WP_Media_List_Table');
-$wp_list_table->check_permissions();
 
 // Handle bulk actions
 $doaction = $wp_list_table->current_action();
@@ -204,25 +206,15 @@ if ( !empty($message) ) { ?>
 
 <form id="posts-filter" action="" method="post">
 
-<?php if ( $wp_list_table->has_items() ) : ?>
-
-<p class="search-box">
-	<label class="screen-reader-text" for="media-search-input"><?php _e( 'Search Media' ); ?>:</label>
-	<input type="text" id="media-search-input" name="s" value="<?php the_search_query(); ?>" />
-	<?php submit_button( __( 'Search Media' ), 'button', 'submit', false ); ?>
-</p>
-
-<?php endif; ?>
+<?php $wp_list_table->search_box( __( 'Search Media' ), 'media' ); ?>
 
 <?php $wp_list_table->display(); ?>
 
 <div id="ajax-response"></div>
 <?php find_posts_div(); ?>
 <br class="clear" />
-</div>
-</form>
-<br class="clear" />
 
+</form>
 </div>
 
 <?php

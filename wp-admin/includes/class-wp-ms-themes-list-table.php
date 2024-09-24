@@ -32,24 +32,25 @@ class WP_MS_Themes_List_Table extends WP_List_Table {
 			$this->site_id = isset( $_REQUEST['id'] ) ? intval( $_REQUEST['id'] ) : 0;
 
 		parent::WP_List_Table( array(
-			'plural' => 'plugins', // @todo replace with themes and add css
+			'plural' => 'themes'
 		) );
 	}
 
-	function check_permissions() {
-		if ( is_multisite() ) {
-			$menu_perms = get_site_option( 'menu_items', array() );
+	function get_table_classes() {
+		return array( 'widefat', 'fixed', 'plugins' );	// todo: remove and add CSS for .themes
+	}
 
-			if ( empty( $menu_perms['themes'] ) ) {
-				if ( !is_super_admin() )
-					wp_die( __( 'Cheatin&#8217; uh?' ) );
-			}
-		}
+	function ajax_user_can() {
+		$menu_perms = get_site_option( 'menu_items', array() );
+
+		if ( empty( $menu_perms['themes'] ) && ! is_super_admin() )
+			return false;
 
 		if ( $this->is_site_themes && !current_user_can('manage_sites') )
-			wp_die( __( 'You do not have sufficient permissions to manage themes for this site.' ) );
-		else if ( !$this->is_site_themes && !current_user_can('manage_network_themes') )
-			wp_die( __( 'You do not have sufficient permissions to manage network themes.' ) );
+			return false;
+		elseif ( !$this->is_site_themes && !current_user_can('manage_network_themes') )
+			return false;
+		return true;
 	}
 
 	function prepare_items() {
@@ -77,7 +78,7 @@ class WP_MS_Themes_List_Table extends WP_List_Table {
 		$current = get_site_transient( 'update_themes' );
 
 		foreach ( (array) $themes['all'] as $key => $theme ) {
-			$theme_key = esc_html( $theme['Stylesheet'] );
+			$theme_key = $theme['Stylesheet'];
 
 			if ( isset( $allowed_themes [ $theme_key ] ) )  {
 				$themes['all'][$key]['enabled'] = true;
@@ -207,9 +208,6 @@ class WP_MS_Themes_List_Table extends WP_List_Table {
 				case 'upgrade':
 					$text = _n( 'Update Available <span class="count">(%s)</span>', 'Update Available <span class="count">(%s)</span>', $count );
 					break;
-				case 'search':
-					$text = _n( 'Search Results <span class="count">(%s)</span>', 'Search Results <span class="count">(%s)</span>', $count );
-					break;
 			}
 
 			if ( $this->is_site_themes )
@@ -217,11 +215,13 @@ class WP_MS_Themes_List_Table extends WP_List_Table {
 			else
 				$url = 'themes.php';
 
-			$status_links[$type] = sprintf( "<a href='%s' %s>%s</a>",
-				add_query_arg('theme_status', $type, $url),
-				( $type == $status ) ? ' class="current"' : '',
-				sprintf( $text, number_format_i18n( $count ) )
-			);
+			if ( 'search' != $type ) {
+				$status_links[$type] = sprintf( "<a href='%s' %s>%s</a>",
+					esc_url( add_query_arg('theme_status', $type, $url) ),
+					( $type == $status ) ? ' class="current"' : '',
+					sprintf( $text, number_format_i18n( $count ) )
+				);
+			}
 		}
 
 		return $status_links;
@@ -235,9 +235,12 @@ class WP_MS_Themes_List_Table extends WP_List_Table {
 			$actions['enable-selected'] = $this->is_site_themes ? __( 'Enable' ) : __( 'Network Enable' );
 		if ( 'disabled' != $status )
 			$actions['disable-selected'] = $this->is_site_themes ? __( 'Disable' ) : __( 'Network Disable' );
-		if ( current_user_can( 'update_themes' ) && !$this->is_site_themes )
-			$actions['update-selected'] = __( 'Update' );
-
+		if ( ! $this->is_site_themes ) {
+			if ( current_user_can( 'delete_themes' ) )
+				$actions['delete-selected'] = __( 'Delete' );
+			if ( current_user_can( 'update_themes' ) )
+				$actions['update-selected'] = __( 'Update' );
+		}
 		return $actions;
 	}
 
@@ -269,24 +272,28 @@ class WP_MS_Themes_List_Table extends WP_List_Table {
 		$actions = array(
 			'enable' => '',
 			'disable' => '',
-			'edit' => ''
+			'edit' => '',
+			'delete' => ''
 		);
 
-		$theme_key = esc_html( $theme['Stylesheet'] );
+		$theme_key = $theme['Stylesheet'];
 
 		if ( empty( $theme['enabled'] ) )
-			$actions['enable'] = '<a href="' . wp_nonce_url($url . 'action=enable&amp;theme=' . $theme_key . '&amp;paged=' . $page . '&amp;s=' . $s, 'enable-theme_' . $theme_key) . '" title="' . __('Enable this theme') . '" class="edit">' . ( $this->is_site_themes ? __( 'Enable' ) : __( 'Network Enable' ) ) . '</a>';
+			$actions['enable'] = '<a href="' . esc_url( wp_nonce_url($url . 'action=enable&amp;theme=' . $theme_key . '&amp;paged=' . $page . '&amp;s=' . $s, 'enable-theme_' . $theme_key) ) . '" title="' . esc_attr__('Enable this theme') . '" class="edit">' . ( $this->is_site_themes ? __( 'Enable' ) : __( 'Network Enable' ) ) . '</a>';
 		else
-			$actions['disable'] = '<a href="' . wp_nonce_url($url . 'action=disable&amp;theme=' . $theme_key . '&amp;paged=' . $page . '&amp;s=' . $s, 'disable-theme_' . $theme_key) . '" title="' . __('Disable this theme') . '">' . ( $this->is_site_themes ? __( 'Disable' ) : __( 'Network Disable' ) ) . '</a>';
+			$actions['disable'] = '<a href="' . esc_url( wp_nonce_url($url . 'action=disable&amp;theme=' . $theme_key . '&amp;paged=' . $page . '&amp;s=' . $s, 'disable-theme_' . $theme_key) ) . '" title="' . esc_attr__('Disable this theme') . '">' . ( $this->is_site_themes ? __( 'Disable' ) : __( 'Network Disable' ) ) . '</a>';
 
 		if ( current_user_can('edit_themes') )
-			$actions['edit'] = '<a href="theme-editor.php?theme=' . $theme['Name'] . '" title="' . __('Open this theme in the Theme Editor') . '" class="edit">' . __('Edit') . '</a>';
+			$actions['edit'] = '<a href="' . esc_url('theme-editor.php?theme=' . $theme['Name'] ) . '" title="' . esc_attr__('Open this theme in the Theme Editor') . '" class="edit">' . __('Edit') . '</a>';
+
+		if ( empty( $theme['enabled'] ) && current_user_can( 'delete_themes' ) && ! $this->is_site_themes && $theme_key != get_option( 'stylesheet' ) && $theme_key != get_option( 'template' ) )
+			$actions['delete'] = '<a href="' . esc_url( wp_nonce_url( 'themes.php?action=delete-selected&amp;checked[]=' . $theme_key . '&amp;theme_status=' . $context . '&amp;paged=' . $page . '&amp;s=' . $s, 'bulk-themes' ) ) . '" title="' . esc_attr__( 'Delete this theme' ) . '" class="delete">' . __( 'Delete' ) . '</a>';
 
 		$actions = apply_filters( 'theme_action_links', array_filter( $actions ), $theme_key, $theme, $context );
 		$actions = apply_filters( "theme_action_links_$theme_key", $actions, $theme_key, $theme, $context );
-
+ 
 		$class = empty( $theme['enabled'] ) ? 'inactive' : 'active';
-		$checkbox_id = md5($theme['Name']) . "_checkbox";
+		$checkbox_id = "checkbox_" . md5($theme['Name']);
 		$checkbox = "<input type='checkbox' name='checked[]' value='" . esc_attr( $theme_key ) . "' id='" . $checkbox_id . "' /><label class='screen-reader-text' for='" . $checkbox_id . "' >" . __('Select') . " " . $theme['Name'] . "</label>";
 
 		$description = '<p>' . $theme['Description'] . '</p>';
@@ -318,16 +325,15 @@ class WP_MS_Themes_List_Table extends WP_List_Table {
 						<div class='$class second theme-version-author-uri'>";
 
 					$theme_meta = array();
+
 					if ( !empty( $theme['Version'] ) )
 						$theme_meta[] = sprintf( __( 'Version %s' ), $theme['Version'] );
-					if ( !empty( $theme['Author'] ) ) {
-						$author = $theme['Author'];
-						if ( !empty( $theme['Author URI'] ) )
-							$author = '<a href="' . $theme['Author URI'] . '" title="' . __( 'Visit author homepage' ) . '">' . $theme['Author'] . '</a>';
-						$theme_meta[] = sprintf( __( 'By %s' ), $author );
-					}
+
+					if ( !empty( $theme['Author'] ) )
+						$theme_meta[] = sprintf( __( 'By %s' ), $theme['Author'] );
+
 					if ( !empty( $theme['Theme URI'] ) )
-						$theme_meta[] = '<a href="' . $theme['Theme URI'] . '" title="' . __( 'Visit theme homepage' ) . '">' . __( 'Visit Theme Site' ) . '</a>';
+						$theme_meta[] = '<a href="' . $theme['Theme URI'] . '" title="' . esc_attr__( 'Visit theme homepage' ) . '">' . __( 'Visit Theme Site' ) . '</a>';
 
 					$theme_meta = apply_filters( 'theme_row_meta', $theme_meta, $theme_key, $theme, $status );
 					echo implode( ' | ', $theme_meta );

@@ -105,8 +105,8 @@ class WP_List_Table {
 	 * @since 3.1.0
 	 * @access public
 	 */
-	function check_permissions() {
-		die( 'function WP_List_Table::check_permissions() must be over-ridden in a sub-class.' );
+	function ajax_user_can() {
+		die( 'function WP_List_Table::ajax_user_can() must be over-ridden in a sub-class.' );
 	}
 
 	/**
@@ -179,6 +179,31 @@ class WP_List_Table {
 	}
 
 	/**
+	 * Display the search box.
+	 *
+	 * @since 3.1.0
+	 * @access public
+	 *
+	 * @param string $text The search button text
+	 * @param string $input_id The search input id 
+	 */
+	function search_box( $text, $input_id ) {
+		if ( empty( $_REQUEST['s'] ) && !$this->has_items() )
+			return;
+
+		$input_id = $input_id . '-search-input';
+
+?>
+<p class="search-box">
+	<label class="screen-reader-text" for="<?php echo $input_id ?>"><?php echo $text; ?>:</label>
+	<input type="text" id="<?php echo $input_id ?>" name="s" value="<?php _admin_search_query(); ?>" />
+	<?php submit_button( $text, 'button', 'submit', false ); ?>
+</p>
+<img src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" class="ajax-loading list-ajax-loading" alt="" />
+<?php
+	}
+
+	/**
 	 * Get an associative array ( id => link ) with the list
 	 * of views available on this table.
 	 *
@@ -208,7 +233,7 @@ class WP_List_Table {
 
 		echo "<ul class='subsubsub'>\n";
 		foreach ( $views as $class => $view ) {
-			 $views[ $class ] = "\t<li class='$class'>$view";
+			$views[ $class ] = "\t<li class='$class'>$view";
 		}
 		echo implode( " |</li>\n", $views ) . "</li>\n";
 		echo "</ul>";
@@ -462,14 +487,14 @@ class WP_List_Table {
 			'first-page',
 			esc_attr__( 'Go to the first page' ),
 			esc_url( remove_query_arg( 'paged', $current_url ) ),
-			'&laquo;&laquo;'
+			is_rtl() ? '&raquo;' : '&laquo;'
 		);
 
 		$page_links[] = sprintf( "<a class='%s' title='%s' href='%s'>%s</a>",
 			'prev-page',
 			esc_attr__( 'Go to the previous page' ),
 			esc_url( add_query_arg( 'paged', max( 1, $current-1 ), $current_url ) ),
-			'&laquo;'
+			is_rtl() ? '&rsaquo;' : '&lsaquo;'
 		);
 
 		$html_current_page = sprintf( "<input class='current-page' title='%s' type='text' name='%s' value='%s' size='%d' />",
@@ -479,23 +504,26 @@ class WP_List_Table {
 			strlen( $total_pages )
 		);
 		$html_total_pages = sprintf( "<span class='total-pages'>%s</span>", number_format_i18n( $total_pages ) );
-		$page_links[] = sprintf( _x( '%s of %s', 'paging' ), $html_current_page, $html_total_pages );
+		$page_links[] = '<span class="paging-input">' . sprintf( _x( '%1$s of %2$s', 'paging' ), $html_current_page, $html_total_pages ) . '</span>';
 
 		$page_links[] = sprintf( "<a class='%s' title='%s' href='%s'>%s</a>",
 			'next-page',
 			esc_attr__( 'Go to the next page' ),
 			esc_url( add_query_arg( 'paged', min( $total_pages, $current+1 ), $current_url ) ),
-			'&raquo;'
+			is_rtl() ? '&lsaquo;' : '&rsaquo;'
 		);
 
 		$page_links[] = sprintf( "<a class='%s' title='%s' href='%s'>%s</a>",
 			'last-page',
 			esc_attr__( 'Go to the last page' ),
 			esc_url( add_query_arg( 'paged', $total_pages, $current_url ) ),
-			'&raquo;&raquo;'
+			is_rtl() ? '&laquo;' : '&raquo;'
 		);
 
-		$output .= join( "\n", $page_links );
+		if ( is_rtl() )
+			$page_links = array_reverse( $page_links );
+
+		$output .= "\n" . join( "\n", $page_links );
 
 		$this->_pagination = "<div class='tablenav-pages'>$output</div>";
 
@@ -647,41 +675,12 @@ class WP_List_Table {
 	}
 
 	/**
-	 * Display the table or a message if there are no items
+	 * Display the table
 	 *
 	 * @since 3.1.0
 	 * @access public
 	 */
 	function display() {
-		if ( $this->has_items() ) {
-			$this->display_table();
-		} else {
-?>
-		<br class="clear" />
-		<p><?php $this->no_items(); ?></p>
-<?php
-		}
-	}
-
-	/**
-	 * Get a list of CSS classes for the <table> tag
-	 *
-	 * @since 3.1.0
-	 * @access protected
-	 *
-	 * @return array
-	 */
-	function get_table_classes() {
-		return array( 'widefat', 'fixed', $this->_args['plural'] );
-	}
-
-	/**
-	 * Display the full table
-	 *
-	 * @since 3.1.0
-	 * @access public
-	 */
-	function display_table() {
 		extract( $this->_args );
 
 		$this->display_tablenav( 'top' );
@@ -701,12 +700,23 @@ class WP_List_Table {
 	</tfoot>
 
 	<tbody id="the-list"<?php if ( $singular ) echo " class='list:$singular'"; ?>>
-		<?php $this->display_rows(); ?>
+		<?php $this->display_rows_or_placeholder(); ?>
 	</tbody>
 </table>
 <?php
-
 		$this->display_tablenav( 'bottom' );
+	}
+
+	/**
+	 * Get a list of CSS classes for the <table> tag
+	 *
+	 * @since 3.1.0
+	 * @access protected
+	 *
+	 * @return array
+	 */
+	function get_table_classes() {
+		return array( 'widefat', 'fixed', $this->_args['plural'] );
 	}
 
 	/**
@@ -724,11 +734,14 @@ class WP_List_Table {
 		<div class="alignleft actions">
 			<?php $this->bulk_actions( $which ); ?>
 		</div>
-
-	<?php
+<?php
 		$this->extra_tablenav( $which );
 		$this->pagination( $which );
-	?>
+
+if ( 'bottom' == $which ) {
+?>
+<img src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" class="ajax-loading list-ajax-loading" alt="" />
+<?php } ?>
 
 		<br class="clear" />
 	</div>
@@ -745,6 +758,22 @@ class WP_List_Table {
 
 	/**
 	 * Generate the <tbody> part of the table
+	 *
+	 * @since 3.1.0
+	 * @access protected
+	 */
+	function display_rows_or_placeholder() {
+		if ( $this->has_items() ) {
+			$this->display_rows();
+		} else {
+			echo '<tr class="no-items"><td colspan="2">';
+			$this->no_items();
+			echo '</td></tr>';
+		}
+	}
+
+	/**
+	 * Generate the table rows
 	 *
 	 * @since 3.1.0
 	 * @access protected
@@ -816,14 +845,17 @@ class WP_List_Table {
 	 * @access public
 	 */
 	function ajax_response() {
-		$this->check_permissions();
 		$this->prepare_items();
 
 		extract( $this->_args );
 		extract( $this->_pagination_args );
 
 		ob_start();
-		$this->display_rows();
+		if ( ! empty( $_REQUEST['no_placeholder'] ) )
+			$this->display_rows();
+		else
+			$this->display_rows_or_placeholder();
+
 		$rows = ob_get_clean();
 
 		$response = array( 'rows' => $rows );

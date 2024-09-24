@@ -8,8 +8,22 @@
 
 /** WordPress Administration Bootstrap */
 require_once( './admin.php' );
+
+if ( !isset($_GET['post_type']) )
+	$post_type = 'post';
+elseif ( in_array( $_GET['post_type'], get_post_types( array('show_ui' => true ) ) ) )
+	$post_type = $_GET['post_type'];
+else
+	wp_die( __('Invalid post type') );
+
+$_GET['post_type'] = $post_type;
+
+$post_type_object = get_post_type_object( $post_type );
+
+if ( !current_user_can($post_type_object->cap->edit_posts) )
+	wp_die(__('Cheatin&#8217; uh?'));
+
 $wp_list_table = get_list_table('WP_Posts_List_Table');
-$wp_list_table->check_permissions();
 $pagenum = $wp_list_table->get_pagenum();
 
 // Back-compat for viewing comments of an entry
@@ -156,7 +170,7 @@ if ( 'post' == $post_type ) {
 	'</ul>' .
 	'<p>' . __('You can also edit multiple posts at once. Select the posts you want to edit using the checkboxes, select Edit from the Bulk Actions menu and click Apply. You will be able to change the metadata (categories, author, etc.) for all selected posts at once. To remove a post from the grouping, just click the x next to its name in the Bulk Edit area that appears.') . '</p>' .
 	'<p><strong>' . __('For more information:') . '</strong></p>' .
-	'<p>' . __('<a href="http://codex.wordpress.org/Posts_Edit_SubPanel" target="_blank">Edit Posts Documentation</a>') . '</p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Posts_Posts_SubPanel" target="_blank">Documentation on Managing Posts</a>') . '</p>' .
 	'<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
 	);
 } elseif ( 'page' == $post_type ) {
@@ -165,7 +179,7 @@ if ( 'post' == $post_type ) {
 	'<p>' . __('Managing Pages is very similar to managing Posts, and the screens can be customized in the same way.') . '</p>' .
 	'<p>' . __('You can also perform the same types of actions, including narrowing the list by using the filters, acting on a Page using the action links that appear when you hover over a row, or using the Bulk Actions menu to edit the metadata for multiple Pages at once.') . '</p>' .
 	'<p><strong>' . __('For more information:') . '</strong></p>' .
-	'<p>' . __('<a href="http://codex.wordpress.org/Pages_Edit_SubPanel" target="_blank">Page Management Documentation</a>') . '</p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Pages_Pages_SubPanel" target="_blank">Documentation on Managing Pages</a>') . '</p>' .
 	'<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
 	);
 }
@@ -228,15 +242,7 @@ $_SERVER['REQUEST_URI'] = remove_query_arg( array('locked', 'skipped', 'updated'
 
 <form id="posts-filter" action="" method="get">
 
-<?php if ( $wp_list_table->has_items() ) : ?>
-
-<p class="search-box">
-	<label class="screen-reader-text" for="post-search-input"><?php echo $post_type_object->labels->search_items; ?>:</label>
-	<input type="text" id="post-search-input" name="s" value="<?php the_search_query(); ?>" />
-	<?php submit_button( $post_type_object->labels->search_items, 'button', 'submit', false ); ?>
-</p>
-
-<?php endif; ?>
+<?php $wp_list_table->search_box( $post_type_object->labels->search_items, 'post' ); ?>
 
 <input type="hidden" name="post_status" class="post_status_page" value="<?php echo !empty($_REQUEST['post_status']) ? esc_attr($_REQUEST['post_status']) : 'all'; ?>" />
 <input type="hidden" name="post_type" class="post_type_page" value="<?php echo $post_type; ?>" />

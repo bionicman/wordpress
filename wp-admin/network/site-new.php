@@ -13,8 +13,16 @@ require_once( './admin.php' );
 if ( ! is_multisite() )
 	wp_die( __( 'Multisite support is not enabled.' ) );
 
-if ( ! current_user_can('manage_sites') )
-	wp_die(__('You do not have sufficient permissions to add sites to this network.'));
+if ( ! current_user_can( 'manage_sites' ) )
+	wp_die( __( 'You do not have sufficient permissions to add sites to this network.' ) );
+
+add_contextual_help($current_screen,
+	'<p>' . __('This screen is for Super Admins to add new sites to the network. This is not affected by the registration settings.') . '</p>' .
+	'<p>' . __('If the admin email for the new site does not exist in the database, a new user will also be created.') . '</p>' .
+	'<p><strong>' . __('For more information:') . '</strong></p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Network_Admin_Sites_Screens" target="_blank">Documentation on Site Management</a>') . '</p>' .
+	'<p>' . __('<a href="http://wordpress.org/support/forum/multisite/" target="_blank">Support Forums</a>') . '</p>'
+);
 
 if ( isset($_REQUEST['action']) && 'add-site' == $_REQUEST['action'] ) {
 	check_admin_referer( 'add-blog', '_wpnonce_add-blog' );
@@ -22,7 +30,7 @@ if ( isset($_REQUEST['action']) && 'add-site' == $_REQUEST['action'] ) {
 	if ( ! current_user_can( 'manage_sites' ) )
 		wp_die( __( 'You do not have permission to access this page.' ) );
 
-	if ( is_array( $_POST['blog'] ) == false )
+	if ( ! is_array( $_POST['blog'] ) )
 		wp_die( __( 'Can&#8217;t create an empty site.' ) );
 	$blog = $_POST['blog'];
 	$domain = '';

@@ -52,14 +52,14 @@ function confirm_delete_users( $users ) {
 				<br /><fieldset><p><legend><?php printf( __( "What should be done with posts and links owned by <em>%s</em>?" ), $delete_user->user_login ); ?></legend></p>
 				<?php
 				foreach ( (array) $blogs as $key => $details ) {
-					$blog_users = get_users_of_blog( $details->userblog_id );
+					$blog_users = get_users( array( 'blog_id' => $details->userblog_id ) );
 					if ( is_array( $blog_users ) && !empty( $blog_users ) ) {
 						$user_site = "<a href='" . esc_url( get_home_url( $details->userblog_id ) ) . "'>{$details->blogname}</a>";
 						$user_dropdown = "<select name='blog[$val][{$key}]'>";
 						$user_list = '';
 						foreach ( $blog_users as $user ) {
-							if ( ! in_array( $user->id, $allusers ) )
-								$user_list .= "<option value='{$user->id}'>{$user->user_login}</option>";
+							if ( ! in_array( $user->ID, $allusers ) )
+								$user_list .= "<option value='{$user->ID}'>{$user->user_login}</option>";
 						}
 						if ( '' == $user_list )
 							$user_list = $admin_out;
@@ -174,7 +174,7 @@ switch ( $_GET['action'] ) {
 		if ( ! ( current_user_can( 'manage_sites' ) && current_user_can( 'delete_sites' ) ) )
 			wp_die( __( 'You do not have permission to access this page.' ) );
 
-		if ( $id != '0' && $id != $current_site->blog_id && current_user_can ( 'delete_site', $id ) ) {
+		if ( $id != '0' && $id != $current_site->blog_id && current_user_can( 'delete_site', $id ) ) {
 			wpmu_delete_blog( $id, true );
 			wp_redirect( add_query_arg( array( 'updated' => 'true', 'action' => 'delete' ), wp_get_referer() ) );
 		} else {
@@ -185,7 +185,7 @@ switch ( $_GET['action'] ) {
 	break;
 
 	case 'allblogs':
-		if ( isset( $_POST['doaction']) || isset($_POST['doaction2'] ) ) {
+		if ( ( isset( $_POST['doaction'] ) || isset( $_POST['doaction2'] ) ) && isset( $_POST['allblogs'] ) ) {
 			check_admin_referer( 'bulk-sites' );
 
 			if ( ! current_user_can( 'manage_sites' ) )
@@ -194,6 +194,7 @@ switch ( $_GET['action'] ) {
 			if ( $_GET['action'] != -1 || $_POST['action2'] != -1 )
 				$doaction = $_POST['action'] != -1 ? $_POST['action'] : $_POST['action2'];
 
+			$blogfunction = '';
 
 			foreach ( (array) $_POST['allblogs'] as $key => $val ) {
 				if ( $val != '0' && $val != $current_site->blog_id ) {
@@ -374,11 +375,13 @@ switch ( $_GET['action'] ) {
 		if ( !current_user_can( 'manage_network_users' ) )
 			wp_die( __( 'You do not have permission to access this page.' ) );
 
-		if ( isset( $_POST['doaction']) || isset($_POST['doaction2'] ) ) {
+		if ( ( isset( $_POST['doaction']) || isset($_POST['doaction2'] ) ) && isset( $_POST['allusers'] ) ) {
 			check_admin_referer( 'bulk-users-network' );
 
 			if ( $_GET['action'] != -1 || $_POST['action2'] != -1 )
 				$doaction = $_POST['action'] != -1 ? $_POST['action'] : $_POST['action2'];
+
+			$userfunction = '';
 
 			foreach ( (array) $_POST['allusers'] as $key => $val ) {
 				if ( !empty( $val ) ) {

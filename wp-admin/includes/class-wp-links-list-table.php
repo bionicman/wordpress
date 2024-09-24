@@ -14,9 +14,8 @@ class WP_Links_List_Table extends WP_List_Table {
 		) );
 	}
 
-	function check_permissions() {
-		if ( ! current_user_can( 'manage_links' ) )
-			wp_die( __( 'You do not have sufficient permissions to edit the links for this site.' ) );
+	function ajax_user_can() {
+		return current_user_can( 'manage_links' );
 	}
 
 	function prepare_items() {
@@ -143,7 +142,7 @@ class WP_Links_List_Table extends WP_List_Table {
 						echo '</td>';
 						break;
 					case 'url':
-						echo "<td $attributes><a href='$link->link_url' title='".sprintf( __( 'Visit %s' ), $link->link_name )."'>$short_url</a></td>";
+						echo "<td $attributes><a href='$link->link_url' title='". esc_attr( sprintf( __( 'Visit %s' ), $link->link_name ) )."'>$short_url</a></td>";
 						break;
 					case 'categories':
 						?><td <?php echo $attributes ?>><?php

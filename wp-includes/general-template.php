@@ -755,8 +755,8 @@ function single_term_title( $prefix = '', $display = true ) {
 
 	if ( $display )
 		echo $prefix . $term_name;
-
-	return $term_name;
+	else
+		return $term_name;
 }
 
 /**
@@ -1177,7 +1177,7 @@ function get_calendar($initial = true, $echo = true) {
 	<tr>';
 
 	if ( $previous ) {
-		$calendar_output .= "\n\t\t".'<td colspan="3" id="prev"><a href="' . get_month_link($previous->year, $previous->month) . '" title="' . sprintf(__('View posts for %1$s %2$s'), $wp_locale->get_month($previous->month), date('Y', mktime(0, 0 , 0, $previous->month, 1, $previous->year))) . '">&laquo; ' . $wp_locale->get_month_abbrev($wp_locale->get_month($previous->month)) . '</a></td>';
+		$calendar_output .= "\n\t\t".'<td colspan="3" id="prev"><a href="' . get_month_link($previous->year, $previous->month) . '" title="' . esc_attr( sprintf(__('View posts for %1$s %2$s'), $wp_locale->get_month($previous->month), date('Y', mktime(0, 0 , 0, $previous->month, 1, $previous->year)))) . '">&laquo; ' . $wp_locale->get_month_abbrev($wp_locale->get_month($previous->month)) . '</a></td>';
 	} else {
 		$calendar_output .= "\n\t\t".'<td colspan="3" id="prev" class="pad">&nbsp;</td>';
 	}
@@ -2154,6 +2154,9 @@ function wp_admin_css( $file = 'wp-admin', $force_echo = false ) {
 function add_thickbox() {
 	wp_enqueue_script( 'thickbox' );
 	wp_enqueue_style( 'thickbox' );
+
+	if ( is_network_admin() )
+		add_action( 'admin_head', '_thickbox_path_admin_subfolder' );
 }
 
 /**

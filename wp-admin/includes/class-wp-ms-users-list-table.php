@@ -8,12 +8,8 @@
  */
 class WP_MS_Users_List_Table extends WP_List_Table {
 
-	function check_permissions() {
-		if ( !is_multisite() )
-			wp_die( __( 'Multisite support is not enabled.' ) );
-
-		if ( ! current_user_can( 'manage_network_users' ) )
-			wp_die( __( 'You do not have permission to access this page.' ) );
+	function ajax_user_can() {
+		return current_user_can( 'manage_network_users' );
 	}
 
 	function prepare_items() {
@@ -31,7 +27,8 @@ class WP_MS_Users_List_Table extends WP_List_Table {
 			'number' => $users_per_page,
 			'offset' => ( $paged-1 ) * $users_per_page,
 			'search' => $usersearch,
-			'blog_id' => 0
+			'blog_id' => 0,
+			'fields' => 'all_with_meta'
 		);
 
 		if ( $role == 'super' ) {
@@ -190,7 +187,6 @@ class WP_MS_Users_List_Table extends WP_List_Table {
 
 								echo $this->row_actions( $actions );
 							?>
-							</div>
 						</td>
 					<?php
 					break;
@@ -248,7 +244,7 @@ class WP_MS_Users_List_Table extends WP_List_Table {
 										( $i == $action_count ) ? $sep = '' : $sep = ' | ';
 										echo "<span class='$action'>$link$sep</span>";
 									}
-									echo '</span></small><br/>';
+									echo '</small></span><br/>';
 								}
 							}
 							?>

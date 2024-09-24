@@ -17,10 +17,20 @@ if ( ! current_user_can('manage_sites') )
 	wp_die(__('You do not have sufficient permissions to edit this site.'));
 
 $wp_list_table = get_list_table('WP_Users_List_Table');
-$wp_list_table->check_permissions();
 $wp_list_table->prepare_items();
 
 $action = $wp_list_table->current_action();
+
+add_contextual_help($current_screen,
+	'<p>' . __('The menu is for editing information specific to individual sites, particularly if the admin area of a site is unavailable.') . '</p>' .
+	'<p>' . __('<strong>Info</strong> - The domain and path are rarely edited as this can cause the site to not work properly. The Registered date and Last Updated date are displayed. Network admins can mark a site as archived, spam, deleted and mature, to remove from public listings or disable.') . '</p>' .
+	'<p>' . __('<strong>Users</strong> - This displays the users associated with this site. You can also change their role, reset their password, or remove them from the site. Removing the user from the site does not remove the user from the network.') . '</p>' .
+	'<p>' . sprintf( __('<strong>Themes</strong> - This area shows themes that are not already enabled across the network. Enabling a theme in this menu makes it accessible to this site. It does not activate the theme, but allows it to show in the site&#8217;s Appearance menu. To enable a theme for the entire network, see the <a href="%s">Network Themes</a> screen.' ), network_admin_url( 'themes.php' ) ) . '</p>' .
+	'<p>' . __('<strong>Settings</strong> - This page shows a list of all settings associated with this site. Some are created by WordPress and others are created by plugins you activate. Note that some fields are grayed out and say Serialized Data. You cannot modify these values due to the way the setting is stored in the database.') . '</p>' .
+	'<p><strong>' . __('For more information:') . '</strong></p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Network_Admin_Sites_Screens" target="_blank">Documentation on Site Management</a>') . '</p>' .
+	'<p>' . __('<a href="http://wordpress.org/support/forum/multisite/" target="_blank">Support Forums</a>') . '</p>'
+);
 
 $id = isset( $_REQUEST['id'] ) ? intval( $_REQUEST['id'] ) : 0;
 
@@ -43,6 +53,7 @@ if ( ! empty($wp_roles->use_db) ) {
 	// Roles are stored in memory, not the DB.
 	$editblog_roles = $wp_roles->roles;
 }
+$default_role = get_blog_option( $id, 'default_role' );
 
 $action = $wp_list_table->current_action();
 
@@ -51,6 +62,7 @@ if ( $action ) {
 	
 	switch ( $action ) {
 		case 'newuser':
+			check_admin_referer( 'add-user', '_wpnonce_add-new-user' );
 			$user = $_POST['user'];
 			if ( !is_array( $_POST['user'] ) || empty( $user['username'] ) || empty( $user['email'] ) ) {
 				$update = 'err_new';
@@ -69,6 +81,7 @@ if ( $action ) {
 			break;
 
 		case 'adduser':
+			check_admin_referer( 'add-user', '_wpnonce_add-user' );
 			if ( !empty( $_POST['newuser'] ) ) {
 				$update = 'adduser';
 				$newuser = $_POST['newuser'];				
@@ -90,7 +103,8 @@ if ( $action ) {
 		case 'remove':
 			if ( !current_user_can('remove_users')  )
 				die(__('You can&#8217;t remove users.'));
-				
+			check_admin_referer( 'bulk-users' );
+			
 			$update = 'remove';
 			if ( isset( $_REQUEST['users'] ) ) {
 				$userids = $_REQUEST['users'];
@@ -107,6 +121,7 @@ if ( $action ) {
 			break;
 
 		case 'promote':
+			check_admin_referer( 'bulk-users' );
 			$editable_roles = get_editable_roles();
 			if ( empty( $editable_roles[$_REQUEST['new_role']] ) )
 				wp_die(__('You can&#8217;t give users that role.'));
@@ -153,8 +168,12 @@ require('../admin-header.php'); ?>
 <h2 id="edit-site"><?php echo $title ?></h2>
 <h3 class="nav-tab-wrapper">
 <?php
-$tabs = array( 'site-info' => array( 'label' => __('Info'), 'url' => 'site-info.php'),  'site-options' => array( 'label' => __('Options'), 'url' => 'site-options.php'),
-			  'site-users' => array( 'label' => __('Users'), 'url' => 'site-users.php'),  'site-themes' => array( 'label' => __('Themes'), 'url' => 'site-themes.php'));
+$tabs = array(
+	'site-info'     => array( 'label' => __( 'Info' ),     'url' => 'site-info.php'     ),
+	'site-users'    => array( 'label' => __( 'Users' ),    'url' => 'site-users.php'    ),
+	'site-themes'   => array( 'label' => __( 'Themes' ),   'url' => 'site-themes.php'   ),
+	'site-settings' => array( 'label' => __( 'Settings' ), 'url' => 'site-settings.php' ),
+);
 foreach ( $tabs as $tab_id => $tab ) {
 	$class = ( $tab['url'] == $pagenow ) ? ' nav-tab-active' : '';
 	echo '<a href="' . $tab['url'] . '?id=' . $id .'" class="nav-tab' . $class . '">' .  esc_html( $tab['label'] ) . '</a>';
@@ -198,11 +217,7 @@ if ( isset($_GET['update']) ) :
 endif; ?>
 
 <form class="search-form" action="" method="get">
-<p class="search-box">
-	<label class="screen-reader-text" for="user-search-input"><?php _e( 'Search Users' ); ?>:</label>
-	<input type="text" id="user-search-input" name="s" value="<?php echo esc_attr($usersearch); ?>" />
-	<?php submit_button( __( 'Search Users' ), 'button', 'submit', false ); ?>
-</p>
+<?php $wp_list_table->search_box( __( 'Search Users' ), 'user' ); ?>
 </form>
 
 <?php $wp_list_table->views(); ?>
@@ -237,7 +252,6 @@ endif; ?>
 			<th scope="row"><?php _e( 'Role'); ?></th>
 			<td><select name="new_role" id="new_role_0">
 			<?php
-			$default_role = $wpdb->get_var( "SELECT `option_value` FROM {$blog_prefix}options WHERE option_name = 'default_role'" );
 			reset( $editblog_roles );
 			foreach ( $editblog_roles as $role => $role_assoc ){
 				$name = translate_user_role( $role_assoc['name'] );
@@ -248,6 +262,7 @@ endif; ?>
 			</select></td>
 		</tr>
 	</table>
+	<?php wp_nonce_field( 'add-user', '_wpnonce_add-user' ) ?>
 	<?php submit_button( __('Add User'), 'primary', 'add-user' ); ?>
 </form>
 <?php endif; ?>
@@ -283,10 +298,10 @@ endif; ?>
 			<td colspan="2"><?php _e( 'Username and password will be mailed to the above email address.' ) ?></td>
 		</tr>
 	</table>
-	<?php wp_nonce_field( 'add-user', '_wpnonce_add-user' ) ?>
+	<?php wp_nonce_field( 'add-user', '_wpnonce_add-new-user' ) ?>
 	<?php submit_button( __('Add New User'), 'primary', 'add-user' ); ?>
 </form>
-</div>
 <?php endif; ?>
+</div>
 <?php
 require('../admin-footer.php');

@@ -239,7 +239,7 @@ function get_theme_data( $theme_file ) {
 		if ( empty( $theme_data['AuthorURI'] ) ) {
 			$theme_data['Author'] = $theme_data['AuthorName'];
 		} else {
-			$theme_data['Author'] = sprintf( '<a href="%1$s" title="%2$s">%3$s</a>', $theme_data['AuthorURI'], __( 'Visit author homepage' ), $theme_data['AuthorName'] );
+			$theme_data['Author'] = sprintf( '<a href="%1$s" title="%2$s">%3$s</a>', $theme_data['AuthorURI'], esc_attr__( 'Visit author homepage' ), $theme_data['AuthorName'] );
 		}
 	}
 
@@ -912,11 +912,7 @@ function get_date_template() {
  * @return string
  */
 function get_home_template() {
-	$template = get_post_meta( get_queried_object_id(), '_wp_page_template', true);
 	$templates = array( 'home.php', 'index.php' );
-
-	if ( ! empty( $template ) )
-		array_unshift( $templates, $template );
 
 	return get_query_template( 'home', $templates );
 }
@@ -1147,6 +1143,10 @@ function preview_theme() {
 	if ( !current_user_can( 'switch_themes' ) )
 		return;
 
+	// Admin Thickbox requests
+	if ( isset( $_GET['preview_iframe'] ) )
+		show_admin_bar( false );
+
 	$_GET['template'] = preg_replace('|[^a-z0-9_./-]|i', '', $_GET['template']);
 
 	if ( validate_file($_GET['template']) )
@@ -1256,6 +1256,10 @@ function switch_theme($template, $stylesheet) {
 	}
 	delete_option('current_theme');
 	$theme = get_current_theme();
+	if ( is_admin() && false === get_option( "theme_mods_$stylesheet" ) ) {
+		$default_theme_mods = (array) get_option( "mods_$theme" );
+		add_option( "theme_mods_$stylesheet", $default_theme_mods );
+	}
 	do_action('switch_theme', $theme);
 }
 

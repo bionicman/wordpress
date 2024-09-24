@@ -65,12 +65,12 @@ function wpmu_delete_blog( $blog_id, $drop = false ) {
 
 	do_action( 'delete_blog', $blog_id, $drop );
 
-	$users = get_users_of_blog( $blog_id );
+	$users = get_users( array( 'blog_id' => $blog_id, 'fields' => 'ids' ) );
 
 	// Remove users from this blog.
 	if ( ! empty( $users ) ) {
-		foreach ( $users as $user ) {
-			remove_user_from_blog( $user->ID, $blog_id) ;
+		foreach ( $users as $user_id ) {
+			remove_user_from_blog( $user_id, $blog_id) ;
 		}
 	}
 
@@ -340,13 +340,16 @@ function is_upload_space_available() {
 	return true;
 }
 
-/*
+/**
  * @since 3.0.0
  *
  * @return int of upload size limit in bytes
  */
 function upload_size_limit_filter( $size ) {
 	$fileupload_maxk = 1024 * get_site_option( 'fileupload_maxk', 1500 );
+	if ( get_site_option( 'upload_space_check_disabled' ) )
+		return min( $size, $fileupload_maxk );
+		
 	return min( $size, $fileupload_maxk, get_upload_space_available() );
 }
 /**
@@ -436,7 +439,7 @@ function update_user_status( $id, $pref, $value, $deprecated = null ) {
 	global $wpdb;
 
 	if ( null !== $deprecated  )
-		_deprecated_argument( __FUNCTION__, '3.1.0' );
+		_deprecated_argument( __FUNCTION__, '3.1' );
 
 	$wpdb->update( $wpdb->users, array( $pref => $value ), array( 'ID' => $id ) );
 
@@ -719,6 +722,7 @@ function revoke_super_admin( $user_id ) {
 	}
 	return false;
 }
+
 /**
  * Whether or not we can edit this network from this page
  *
@@ -737,4 +741,22 @@ function can_edit_network( $site_id ) {
 
 	return apply_filters( 'can_edit_network', $result, $site_id );
 }
+
+/**
+ * Thickbox image paths for Network Admin.
+ *
+ * @since 3.1.0
+ * @access private
+ */
+function _thickbox_path_admin_subfolder() {
+?>
+<script type="text/javascript">
+//<![CDATA[
+var tb_pathToImage = "../../wp-includes/js/thickbox/loadingAnimation.gif";
+var tb_closeImage = "../../wp-includes/js/thickbox/tb-close.png";
+//]]>
+</script>
+<?php
+}
+
 ?>

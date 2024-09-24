@@ -185,11 +185,11 @@ function get_post_permalink( $id = 0, $leavename = false, $sample = false ) {
 
 	$slug = $post->post_name;
 
-	$draft_or_pending = in_array( $post->post_status, array( 'draft', 'pending', 'auto-draft' ) );
+	$draft_or_pending = isset($post->post_status) && in_array( $post->post_status, array( 'draft', 'pending', 'auto-draft' ) );
 
 	$post_type = get_post_type_object($post->post_type);
 
-	if ( !empty($post_link) && ( ( isset($post->post_status) && !$draft_or_pending ) || $sample ) ) {
+	if ( !empty($post_link) && ( !$draft_or_pending || $sample ) ) {
 		if ( ! $leavename ) {
 			if ( $post_type->hierarchical )
 				$slug = get_page_uri($id);
@@ -271,11 +271,15 @@ function _get_page_link( $id = false, $leavename = false, $sample = false ) {
 	else
 		$post = &get_post($id);
 
-	$link = $wp_rewrite->get_page_permastruct();
+	$draft_or_pending = in_array( $post->post_status, array( 'draft', 'pending', 'auto-draft' ) );
 
-	if ( '' != $link && ( ( isset($post->post_status) && 'draft' != $post->post_status && 'pending' != $post->post_status ) || $sample ) ) {
-		if ( ! $leavename )
+	$link = $wp_rewrite->get_page_permastruct();
+		
+	if ( !empty($link) && ( ( isset($post->post_status) && !$draft_or_pending ) || $sample ) ) {	
+		if ( ! $leavename ) {
 			$link = str_replace('%pagename%', get_page_uri($id), $link);
+		}
+
 		$link = home_url($link);
 		$link = user_trailingslashit($link, 'page');
 	} else {
@@ -950,7 +954,7 @@ function edit_post_link( $link = null, $before = '', $after = '', $id = 0 ) {
  */
 function get_delete_post_link( $id = 0, $deprecated = '', $force_delete = false ) {
 	if ( ! empty( $deprecated ) )
-		_deprecated_argument( __FUNCTION__, '3.0.0' );
+		_deprecated_argument( __FUNCTION__, '3.0' );
 
 	if ( !$post = &get_post( $id ) )
 		return;
@@ -1006,7 +1010,7 @@ function edit_comment_link( $link = null, $before = '', $after = '' ) {
 	if ( null === $link )
 		$link = __('Edit This');
 
-	$link = '<a class="comment-edit-link" href="' . get_edit_comment_link( $comment->comment_ID ) . '" title="' . __( 'Edit comment' ) . '">' . $link . '</a>';
+	$link = '<a class="comment-edit-link" href="' . get_edit_comment_link( $comment->comment_ID ) . '" title="' . esc_attr__( 'Edit comment' ) . '">' . $link . '</a>';
 	echo $before . apply_filters( 'edit_comment_link', $link, $comment->comment_ID ) . $after;
 }
 
@@ -1047,49 +1051,49 @@ function edit_bookmark_link( $link = '', $before = '', $after = '', $bookmark = 
 	if ( empty($link) )
 		$link = __('Edit This');
 
-	$link = '<a href="' . get_edit_bookmark_link( $bookmark ) . '" title="' . __( 'Edit Link' ) . '">' . $link . '</a>';
+	$link = '<a href="' . get_edit_bookmark_link( $bookmark ) . '" title="' . esc_attr__( 'Edit Link' ) . '">' . $link . '</a>';
 	echo $before . apply_filters( 'edit_bookmark_link', $link, $bookmark->link_id ) . $after;
 }
 
 // Navigation links
 
 /**
- * Retrieve previous post link that is adjacent to current post.
+ * Retrieve previous post that is adjacent to current post.
  *
  * @since 1.5.0
  *
- * @param bool $in_same_cat Optional. Whether link should be in same category.
+ * @param bool $in_same_cat Optional. Whether post should be in same category.
  * @param string $excluded_categories Optional. Excluded categories IDs.
- * @return string
+ * @return mixed Post object if successful. Null if global $post is not set. Empty string if no corresponding post exists.
  */
 function get_previous_post($in_same_cat = false, $excluded_categories = '') {
 	return get_adjacent_post($in_same_cat, $excluded_categories);
 }
 
 /**
- * Retrieve next post link that is adjacent to current post.
+ * Retrieve next post that is adjacent to current post.
  *
  * @since 1.5.0
  *
- * @param bool $in_same_cat Optional. Whether link should be in same category.
+ * @param bool $in_same_cat Optional. Whether post should be in same category.
  * @param string $excluded_categories Optional. Excluded categories IDs.
- * @return string
+ * @return mixed Post object if successful. Null if global $post is not set. Empty string if no corresponding post exists.
  */
 function get_next_post($in_same_cat = false, $excluded_categories = '') {
 	return get_adjacent_post($in_same_cat, $excluded_categories, false);
 }
 
 /**
- * Retrieve adjacent post link.
+ * Retrieve adjacent post.
  *
- * Can either be next or previous post link.
+ * Can either be next or previous post.
  *
  * @since 2.5.0
  *
- * @param bool $in_same_cat Optional. Whether link should be in same category.
+ * @param bool $in_same_cat Optional. Whether post should be in same category.
  * @param string $excluded_categories Optional. Excluded categories IDs.
  * @param bool $previous Optional. Whether to retrieve previous post.
- * @return string
+ * @return mixed Post object if successful. Null if global $post is not set. Empty string if no corresponding post exists.
  */
 function get_adjacent_post($in_same_cat = false, $excluded_categories = '', $previous = true) {
 	global $post, $wpdb;
@@ -2223,6 +2227,9 @@ function network_home_url( $path = '', $scheme = null ) {
  * @return string Admin url link with optional path appended
 */
 function network_admin_url( $path = '', $scheme = 'admin' ) {
+	if ( ! is_multisite() )
+		return admin_url( $path, $scheme );
+
 	$url = network_site_url('wp-admin/network/', $scheme);
 
 	if ( !empty($path) && is_string($path) && strpos($path, '..') === false )

@@ -32,12 +32,10 @@ class WP_Terms_List_Table extends WP_List_Table {
 		) );
 	}
 
-	function check_permissions( $type = '' ) {
+	function ajax_user_can() {
 		global $tax;
 
-		$cap = 'edit' == $type ? $tax->cap->edit_terms : $tax->cap->manage_terms;
-		if ( !current_user_can( $cap ) )
-			wp_die( __( 'Cheatin&#8217; uh?' ) );
+		return current_user_can( $tax->cap->manage_terms );
 	}
 
 	function prepare_items() {
@@ -72,6 +70,11 @@ class WP_Terms_List_Table extends WP_List_Table {
 			'total_items' => wp_count_terms( $taxonomy, compact( 'search' ) ),
 			'per_page' => $tags_per_page,
 		) );
+	}
+	
+	function has_items() {
+		// todo: populate $this->items in prepare_items()
+		return true;
 	}
 
 	function get_bulk_actions() {
@@ -119,7 +122,7 @@ class WP_Terms_List_Table extends WP_List_Table {
 		);
 	}
 
-	function display_rows() {
+	function display_rows_or_placeholder() {
 		global $taxonomy;
 
 		$args = wp_parse_args( $this->callback_args, array(
@@ -136,6 +139,9 @@ class WP_Terms_List_Table extends WP_List_Table {
 		// convert it to table rows
 		$out = '';
 		$count = 0;
+		
+		$terms = array();
+
 		if ( is_taxonomy_hierarchical( $taxonomy ) && !isset( $orderby ) ) {
 			// We'll need the full set of terms then.
 			$args['number'] = $args['offset'] = 0;
@@ -154,8 +160,14 @@ class WP_Terms_List_Table extends WP_List_Table {
 				$out .= $this->single_row( $term, 0, $taxonomy );
 			$count = $number; // Only displaying a single page.
 		}
-
-		echo $out;
+		
+		if ( empty( $terms ) ) {
+			echo '<tr class="no-items"><td colspan="2">';
+			$this->no_items();
+			echo '</td></tr>';
+		} else {
+			echo $out;
+		}
 	}
 
 	function _rows( $taxonomy, $terms, &$children, $start = 0, $per_page = 20, &$count, $parent = 0, $level = 0 ) {
@@ -338,7 +350,8 @@ class WP_Terms_List_Table extends WP_List_Table {
 		foreach ( $columns as $column_name => $column_display_name ) {
 			if ( isset( $core_columns[$column_name] ) )
 				continue;
-			do_action( 'quick_edit_custom_box', $column_name, $type, $tax->taxonomy );
+
+			do_action( 'quick_edit_custom_box', $column_name, $tax->name );
 		}
 
 	?>

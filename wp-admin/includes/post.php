@@ -192,13 +192,23 @@ function edit_post( $post_data = null ) {
 
 	// Meta Stuff
 	if ( isset($post_data['meta']) && $post_data['meta'] ) {
-		foreach ( $post_data['meta'] as $key => $value )
+		foreach ( $post_data['meta'] as $key => $value ) {
+			if ( !$meta = get_post_meta_by_id( $key ) )
+				continue;
+			if ( $meta->post_id != $post_ID )
+				continue;
 			update_meta( $key, $value['key'], $value['value'] );
+		}
 	}
 
 	if ( isset($post_data['deletemeta']) && $post_data['deletemeta'] ) {
-		foreach ( $post_data['deletemeta'] as $key => $value )
+		foreach ( $post_data['deletemeta'] as $key => $value ) {
+			if ( !$meta = get_post_meta_by_id( $key ) )
+				continue;
+			if ( $meta->post_id != $post_ID )
+				continue;
 			delete_meta( $key );
+		}
 	}
 
 	add_meta( $post_ID );
@@ -364,7 +374,7 @@ function bulk_edit_posts( $post_data = null ) {
 /**
  * Default post information to use when populating the "Write Post" form.
  *
- * @since unknown
+ * @since 2.0.0
  *
  * @param string $post_type A post type string, defaults to 'post'.
  * @return object stdClass object containing all the default post data as attributes
@@ -391,6 +401,8 @@ function get_default_post_to_edit( $post_type = 'post', $create_in_db = false ) 
 			wp_delete_post( $delete, true ); // Force delete
 		$post_id = wp_insert_post( array( 'post_title' => __( 'Auto Draft' ), 'post_type' => $post_type, 'post_status' => 'auto-draft' ) );
 		$post = get_post( $post_id );
+		if ( current_theme_supports( 'post-formats' ) && post_type_supports( $post->post_type, 'post-formats' ) && get_option( 'default_post_format' ) )
+			set_post_format( $post, get_option( 'default_post_format' ) );
 	} else {
 		$post->ID = 0;
 		$post->post_author = '';

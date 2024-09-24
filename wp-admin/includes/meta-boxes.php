@@ -258,6 +258,9 @@ function post_format_meta_box( $post, $box ) {
 		<?php foreach ( $post_formats[0] as $format ) : ?>
 		<br /><input type="radio" name="post_format" class="post-format" id="post-format-<?php echo esc_attr( $format ); ?>" value="<?php echo esc_attr( $format ); ?>" <?php checked( $post_format, $format ); ?> /> <label for="post-format-<?php echo esc_attr( $format ); ?>"><?php echo esc_html( get_post_format_string( $format ) ); ?></label>
 		<?php endforeach; ?><br />
+		<?php if ( 'post' == $post->post_type ) : ?>
+		<p class="howto"><?php _e( 'Need help? Use the Help tab in the upper right of your screen.' ); ?></p>
+		<?php endif; ?>
 	</div>
 	<?php endif; endif;
 }
@@ -285,7 +288,7 @@ function post_tags_meta_box($post, $box) {
 	<div class="jaxtag">
 	<div class="nojs-tags hide-if-js">
 	<p><?php echo $taxonomy->labels->add_or_remove_items; ?></p>
-	<textarea name="<?php echo "tax_input[$tax_name]"; ?>" rows="3" cols="20" class="the-tags" id="tax-input-<?php echo $tax_name; ?>" <?php echo $disabled; ?>><?php echo esc_textarea( get_terms_to_edit( $post->ID, $tax_name ) ); ?></textarea></div>
+	<textarea name="<?php echo "tax_input[$tax_name]"; ?>" rows="3" cols="20" class="the-tags" id="tax-input-<?php echo $tax_name; ?>" <?php echo $disabled; ?>><?php echo get_terms_to_edit( $post->ID, $tax_name ); // textarea_escaped by esc_attr() ?></textarea></div>
  	<?php if ( current_user_can($taxonomy->cap->assign_terms) ) : ?>
 	<div class="ajaxtag hide-if-no-js">
 		<label class="screen-reader-text" for="new-tag-<?php echo $tax_name; ?>"><?php echo $box['title']; ?></label>
@@ -380,7 +383,7 @@ function post_categories_meta_box( $post, $box ) {
  */
 function post_excerpt_meta_box($post) {
 ?>
-<label class="screen-reader-text" for="excerpt"><?php _e('Excerpt') ?></label><textarea rows="1" cols="40" name="excerpt" tabindex="6" id="excerpt"><?php echo $post->post_excerpt; ?></textarea>
+<label class="screen-reader-text" for="excerpt"><?php _e('Excerpt') ?></label><textarea rows="1" cols="40" name="excerpt" tabindex="6" id="excerpt"><?php echo $post->post_excerpt; // textarea_escaped ?></textarea>
 <p><?php _e('Excerpts are optional hand-crafted summaries of your content that can be used in your theme. <a href="http://codex.wordpress.org/Excerpt" target="_blank">Learn more about manual excerpts.</a>'); ?></p>
 <?php
 }
@@ -485,14 +488,8 @@ function post_comment_meta_box($post) {
 	wp_nonce_field( 'get-comments', 'add_comment_nonce', false );
 
 	$wp_list_table = get_list_table('WP_Post_Comments_List_Table');
+	$wp_list_table->display( true );
 ?>
-
-<table class="widefat comments-box fixed" cellspacing="0" style="display:none;">
-<thead><tr>
-	<?php $wp_list_table->print_column_headers(); ?>
-</tr></thead>
-<tbody id="the-comment-list" class="list:comment"></tbody>
-</table>
 <p class="hide-if-no-js"><a href="#commentstatusdiv" id="show-comments" onclick="commentsBox.get(<?php echo $total; ?>);return false;"><?php _e('Show comments'); ?></a> <img class="waiting" style="display:none;" src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" alt="" /></p>
 <?php
 	$hidden = get_hidden_meta_boxes('post');
@@ -527,11 +524,11 @@ function post_slug_meta_box($post) {
  */
 function post_author_meta_box($post) {
 	global $user_ID;
-
 ?>
 <label class="screen-reader-text" for="post_author_override"><?php _e('Author'); ?></label>
 <?php
 	wp_dropdown_users( array(
+		'who' => 'authors',
 		'name' => 'post_author_override',
 		'selected' => empty($post->ID) ? $user_ID : $post->post_author
 	) );
@@ -889,7 +886,7 @@ function link_advanced_meta_box($link) {
 	</tr>
 	<tr class="form-field">
 		<th valign="top"  scope="row"><label for="link_notes"><?php _e('Notes') ?></label></th>
-		<td><textarea name="link_notes" id="link_notes" cols="50" rows="10" style="width: 95%"><?php echo esc_textarea( ( isset( $link->link_notes ) ? $link->link_notes : '') ); ?></textarea></td>
+		<td><textarea name="link_notes" id="link_notes" cols="50" rows="10" style="width: 95%"><?php echo ( isset( $link->link_notes ) ? $link->link_notes : ''); // textarea_escaped ?></textarea></td>
 	</tr>
 	<tr class="form-field">
 		<th valign="top"  scope="row"><label for="link_rating"><?php _e('Rating') ?></label></th>

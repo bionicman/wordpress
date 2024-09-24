@@ -9,11 +9,17 @@
 /** WordPress Administration Bootstrap */
 require_once('./admin.php');
 
+if ( is_multisite() ) {
+	$menu_perms = get_site_option( 'menu_items', array() );
+
+	if ( empty( $menu_perms['plugins'] ) && ! is_super_admin() )
+		wp_die( __( 'Cheatin&#8217; uh?' ) );
+}
+
 if ( !current_user_can('activate_plugins') )
 	wp_die( __( 'You do not have sufficient permissions to manage plugins for this site.' ) );
 
 $wp_list_table = get_list_table('WP_Plugins_List_Table');
-$wp_list_table->check_permissions();
 
 $action = $wp_list_table->current_action();
 
@@ -189,9 +195,14 @@ if ( $action ) {
 
 			//$_POST = from the plugin form; $_GET = from the FTP details screen.
 			$plugins = isset( $_REQUEST['checked'] ) ? (array) $_REQUEST['checked'] : array();
-			$plugins = array_filter($plugins, 'is_plugin_inactive'); // Do not allow to delete Activated plugins.
-			if ( empty($plugins) ) {
+			if ( empty( $plugins ) ) {
 				wp_redirect( self_admin_url("plugins.php?plugin_status=$status&paged=$page&s=$s") );
+				exit;
+			}
+
+			$plugins = array_filter($plugins, 'is_plugin_inactive'); // Do not allow to delete Activated plugins.
+			if ( empty( $plugins ) ) {
+				wp_redirect( self_admin_url( "plugins.php?error=true&main=true&plugin_status=$status&paged=$page&s=$s" ) );
 				exit;
 			}
 
@@ -206,12 +217,15 @@ if ( $action ) {
 			<div class="wrap">
 				<?php
 					$files_to_delete = $plugin_info = array();
+					$have_non_network_plugins = false;
 					foreach ( (array) $plugins as $plugin ) {
 						if ( '.' == dirname($plugin) ) {
 							$files_to_delete[] = WP_PLUGIN_DIR . '/' . $plugin;
 							if( $data = get_plugin_data(WP_PLUGIN_DIR . '/' . $plugin) ) {
 								$plugin_info[ $plugin ] = $data;
 								$plugin_info[ $plugin ]['is_uninstallable'] = is_uninstallable_plugin( $plugin );
+								if ( ! $plugin_info[ $plugin ]['Network'] )
+									$have_non_network_plugins = true;
 							}
 						} else {
 							// Locate all the files in that folder
@@ -220,10 +234,12 @@ if ( $action ) {
 								$files_to_delete = array_merge($files_to_delete, $files);
 							}
 							// Get plugins list from that folder
-							if ( $plugins['folder'] = get_plugins( '/' . dirname($plugin)) ) {
-								foreach( $plugins['folder'] as $plugin_file => $data ) {
-									$plugin_info[ $plugin_file ] = $data;
+							if ( $folder_plugins = get_plugins( '/' . dirname($plugin)) ) {
+								foreach( $folder_plugins as $plugin_file => $data ) {
+									$plugin_info[ $plugin_file ] = _get_plugin_data_markup_translate( $plugin_file, $data );
 									$plugin_info[ $plugin_file ]['is_uninstallable'] = is_uninstallable_plugin( $plugin );
+									if ( ! $plugin_info[ $plugin_file ]['Network'] )
+										$have_non_network_plugins = true;
 								}
 							}
 						}
@@ -232,6 +248,9 @@ if ( $action ) {
 					$plugins_to_delete = count( $plugin_info );
 					echo '<h2>' . _n( 'Delete Plugin', 'Delete Plugins', $plugins_to_delete ) . '</h2>';
 				?>
+				<?php if ( $have_non_network_plugins && is_network_admin() ) : ?>
+				<div class="error"><p><strong><?php _e( 'Caution:' ); ?></strong> <?php echo _n( 'This plugin may be active on other sites in the network.', 'These plugins may be active on other sites in the network.', $plugins_to_delete ); ?></p></div>
+				<?php endif; ?>
 				<p><?php echo _n( 'You are about to remove the following plugin:', 'You are about to remove the following plugins:', $plugins_to_delete ); ?></p>
 					<ul class="ul-disc">
 						<?php
@@ -324,14 +343,16 @@ if ( !empty($invalid) )
 
 <?php if ( isset($_GET['error']) ) :
 
-	if ( isset($_GET['charsout']) )
+	if ( isset( $_GET['main'] ) )
+		$errmsg = __( 'You cannot delete a plugin while it is active on the main site.' );
+	elseif ( isset($_GET['charsout']) )
 		$errmsg = sprintf(__('The plugin generated %d characters of <strong>unexpected output</strong> during activation.  If you notice &#8220;headers already sent&#8221; messages, problems with syndication feeds or other issues, try deactivating or removing this plugin.'), $_GET['charsout']);
 	else
 		$errmsg = __('Plugin could not be activated because it triggered a <strong>fatal error</strong>.');
 	?>
 	<div id="message" class="updated"><p><?php echo $errmsg; ?></p>
 	<?php
-		if ( !isset($_GET['charsout']) && wp_verify_nonce($_GET['_error_nonce'], 'plugin-activation-error_' . $plugin) ) { ?>
+		if ( !isset( $_GET['main'] ) && !isset($_GET['charsout']) && wp_verify_nonce($_GET['_error_nonce'], 'plugin-activation-error_' . $plugin) ) { ?>
 	<iframe style="border:0" width="100%" height="70px" src="<?php echo 'plugins.php?action=error_scrape&amp;plugin=' . esc_attr($plugin) . '&amp;_wpnonce=' . esc_attr($_GET['_error_nonce']); ?>"></iframe>
 	<?php
 		}
@@ -363,7 +384,10 @@ if ( !empty($invalid) )
 <h2><?php echo esc_html( $title );
 if ( ( ! is_multisite() || is_network_admin() ) && current_user_can('install_plugins') ) { ?>
 <a href="<?php echo self_admin_url( 'plugin-install.php' ); ?>" class="button add-new-h2"><?php echo esc_html_x('Add New', 'plugin'); ?></a>
-<?php } ?></h2>
+<?php }
+if ( $s )
+	printf( '<span class="subtitle">' . __('Search results for &#8220;%s&#8221;') . '</span>', esc_html( $s ) ); ?>
+</h2>
 
 <?php do_action( 'pre_current_active_plugins', $plugins['all'] ) ?>
 
@@ -371,15 +395,7 @@ if ( ( ! is_multisite() || is_network_admin() ) && current_user_can('install_plu
 
 <form method="post" action="">
 
-<?php if ( $wp_list_table->has_items() ) : ?>
-
-<p class="search-box">
-	<label class="screen-reader-text" for="plugin-search-input"><?php _e( 'Search Plugins' ); ?>:</label>
-	<input type="text" id="plugin-search-input" name="s" value="<?php _admin_search_query(); ?>" />
-	<?php submit_button( __( 'Search Installed Plugins' ), 'button', '', false ); ?>
-</p>
-
-<?php endif; ?>
+<?php $wp_list_table->search_box( __( 'Search Plugins' ), 'plugin' ); ?>
 
 <input type="hidden" name="plugin_status" value="<?php echo esc_attr($status) ?>" />
 <input type="hidden" name="paged" value="<?php echo esc_attr($page) ?>" />

@@ -14,9 +14,8 @@ class WP_MS_Sites_List_Table extends WP_List_Table {
 		) );
 	}
 
-	function check_permissions() {
-		if ( ! current_user_can( 'manage_sites' ) )
-			wp_die( __( 'You do not have permission to access this page.' ) );
+	function ajax_user_can() {
+		return current_user_can( 'manage_sites' );
 	}
 
 	function prepare_items() {
@@ -268,7 +267,7 @@ class WP_MS_Sites_List_Table extends WP_List_Table {
 					break;
 
 					case 'lastupdated':
-						echo "<td valign='top'class='$column_name column-$column_name'$style>";
+						echo "<td valign='top' class='$column_name column-$column_name'$style>";
 							if ( 'list' == $mode )
 								$date = 'Y/m/d';
 							else
@@ -278,7 +277,7 @@ class WP_MS_Sites_List_Table extends WP_List_Table {
 					<?php
 					break;
 				case 'registered':
-						echo "<td valign='top'class='$column_name column-$column_name'$style>";
+						echo "<td valign='top' class='$column_name column-$column_name'$style>";
 						if ( $blog['registered'] == '0000-00-00 00:00:00' )
 							echo '&#x2014;';
 						else
@@ -288,7 +287,7 @@ class WP_MS_Sites_List_Table extends WP_List_Table {
 					<?php
 					break;
 				case 'users':
-						echo "<td valign='top'class='$column_name column-$column_name'$style>";
+						echo "<td valign='top' class='$column_name column-$column_name'$style>";
 							$blogusers = get_users( array( 'blog_id' => $blog['blog_id'], 'number' => 6) );
 							if ( is_array( $blogusers ) ) {
 								$blogusers_warning = '';

@@ -305,10 +305,13 @@ class WP_Comment_Query {
 			$where .= $wpdb->prepare( ' AND comment_author_email = %s', $author_email );
 		if ( '' !== $karma )
 			$where .= $wpdb->prepare( ' AND comment_karma = %d', $karma );
-		if ( 'comment' == $type )
+		if ( 'comment' == $type ) {
 			$where .= " AND comment_type = ''";
-		elseif ( ! empty( $type ) )
+		} elseif( 'pings' == $type ) {
+			$where .= ' AND comment_type IN ("pingback", "trackback")';
+		} elseif ( ! empty( $type ) ) {
 			$where .= $wpdb->prepare( ' AND comment_type = %s', $type );
+		}
 		if ( '' !== $parent )
 			$where .= $wpdb->prepare( ' AND comment_parent = %d', $parent );
 		if ( '' !== $user_id )
@@ -345,7 +348,7 @@ class WP_Comment_Query {
 	 * @return string
 	 */
 	function get_search_sql( $string, $cols ) {
-		$string = esc_sql( $string );
+		$string = esc_sql( like_escape( $string ) );
 
 		$searches = array();
 		foreach ( $cols as $col )

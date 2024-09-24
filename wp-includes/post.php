@@ -476,7 +476,7 @@ function get_post_mime_type($ID = '') {
 }
 
 /**
- * Retrieve the format for a post
+ * Retrieve the format slug for a post
  *
  * @since 3.1.0
  *
@@ -494,7 +494,7 @@ function get_post_format( $post = null ) {
 
 	$format = array_shift( $_format );
 
-	return ( str_replace('post-format-', '', $format->name ) );
+	return ( str_replace('post-format-', '', $format->slug ) );
 }
 
 /**
@@ -2772,7 +2772,7 @@ function wp_unique_post_slug( $slug, $post_ID, $post_status, $post_type, $post_p
 		$check_sql = "SELECT post_name FROM $wpdb->posts WHERE post_name = %s AND ID != %d LIMIT 1";
 		$post_name_check = $wpdb->get_var( $wpdb->prepare( $check_sql, $slug, $post_ID ) );
 
-		if ( $post_name_check || in_array( $slug, $feeds ) ) {
+		if ( $post_name_check || in_array( $slug, $feeds ) || apply_filters( 'wp_unique_post_slug_is_bad_attachment_slug', false, $slug ) ) {
 			$suffix = 2;
 			do {
 				$alt_post_name = substr ($slug, 0, 200 - ( strlen( $suffix ) + 1 ) ) . "-$suffix";
@@ -2787,7 +2787,7 @@ function wp_unique_post_slug( $slug, $post_ID, $post_status, $post_type, $post_p
 		$check_sql = "SELECT post_name FROM $wpdb->posts WHERE post_name = %s AND post_type IN ( '" . implode( "', '", esc_sql( $hierarchical_post_types ) ) . "' ) AND ID != %d AND post_parent = %d LIMIT 1";
 		$post_name_check = $wpdb->get_var( $wpdb->prepare( $check_sql, $slug, $post_ID, $post_parent ) );
 
-		if ( $post_name_check || in_array( $slug, $feeds ) || preg_match( "@^($wp_rewrite->pagination_base)?\d+$@", $slug ) ) {
+		if ( $post_name_check || in_array( $slug, $feeds ) || preg_match( "@^($wp_rewrite->pagination_base)?\d+$@", $slug )  || apply_filters( 'wp_unique_post_slug_is_bad_hierarchical_slug', false, $slug, $post_type, $post_parent ) ) {
 			$suffix = 2;
 			do {
 				$alt_post_name = substr( $slug, 0, 200 - ( strlen( $suffix ) + 1 ) ) . "-$suffix";
@@ -2801,7 +2801,7 @@ function wp_unique_post_slug( $slug, $post_ID, $post_status, $post_type, $post_p
 		$check_sql = "SELECT post_name FROM $wpdb->posts WHERE post_name = %s AND post_type = %s AND ID != %d LIMIT 1";
 		$post_name_check = $wpdb->get_var( $wpdb->prepare( $check_sql, $slug, $post_type, $post_ID ) );
 
-		if ( $post_name_check || in_array( $slug, $feeds ) ) {
+		if ( $post_name_check || in_array( $slug, $feeds ) || apply_filters( 'wp_unique_post_slug_is_bad_flat_slug', false, $slug, $post_type ) ) {
 			$suffix = 2;
 			do {
 				$alt_post_name = substr( $slug, 0, 200 - ( strlen( $suffix ) + 1 ) ) . "-$suffix";
@@ -5061,6 +5061,14 @@ function get_post_format_strings() {
 	return $strings;
 }
 
+/**
+ * Retrieves an array of (translated and sanitized) post format slugs.
+ *
+ * @since 3.1.0
+ *
+ * @uses sanitize_title_with_dashes()
+ * @return array The array of (translated and sanitized) post format slugs.
+ */
 function get_post_format_slugs() {
 	$slugs = array(
 		'standard' => _x( 'standard', 'Post format slug' ),
@@ -5166,5 +5174,59 @@ function _post_format_link( $link, $term, $taxonomy ) {
 	}
 }
 add_filter( 'term_link', '_post_format_link', 10, 3 );
+
+/**
+ * Remove the post format prefix from the name property of the term object created by get_term().
+ *
+ * @access private
+ * @since 3.1.0
+ */
+function _post_format_get_term( $term ) {
+	if ( isset( $term->slug ) ) {
+		$term->name = get_post_format_string( str_replace( 'post-format-', '', $term->slug ) );
+	}
+	return $term;
+}
+add_filter( 'get_post_format', '_post_format_get_term' );
+
+/**
+ * Remove the post format prefix from the name property of the term objects created by get_terms().
+ *
+ * @access private
+ * @since 3.1.0
+ */
+function _post_format_get_terms( $terms, $taxonomies, $args ) {
+	if ( in_array( 'post_format', (array) $taxonomies ) ) {
+		if ( isset( $args['fields'] ) && 'names' == $args['fields'] ) {
+			foreach( $terms as $order => $name ) {
+				$terms[$order] = get_post_format_string( str_replace( 'post-format-', '', $name ) );
+			}
+		} else {
+			foreach ( (array) $terms as $order => $term ) {
+				if ( isset( $term->taxonomy ) && 'post_format' == $term->taxonomy ) {
+					$terms[$order]->name = get_post_format_string( str_replace( 'post-format-', '', $term->slug ) );
+				}
+			}
+		}
+	}
+	return $terms;
+}
+add_filter( 'get_terms', '_post_format_get_terms', 10, 3 );
+
+/**
+ * Remove the post format prefix from the name property of the term objects created by wp_get_object_terms().
+ *
+ * @access private
+ * @since 3.1.0
+ */
+function _post_format_wp_get_object_terms( $terms ) {
+	foreach ( (array) $terms as $order => $term ) {
+		if ( isset( $term->taxonomy ) && 'post_format' == $term->taxonomy ) {
+			$terms[$order]->name = get_post_format_string( str_replace( 'post-format-', '', $term->slug ) );
+		}
+	}
+	return $terms;
+}
+add_filter( 'wp_get_object_terms', '_post_format_wp_get_object_terms' );
 
 ?>

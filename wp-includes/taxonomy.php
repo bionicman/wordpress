@@ -505,7 +505,7 @@ function get_objects_in_term( $term_ids, $taxonomies, $args = array() ) {
 	return $object_ids;
 }
 
-/*
+/**
  * Given a taxonomy query, generates SQL to be appended to a main query.
  *
  * @since 3.1.0
@@ -1237,7 +1237,7 @@ function &get_terms($taxonomies, $args = '') {
 	}
 
 	if ( !empty($name__like) )
-		$where .= " AND t.name LIKE '{$name__like}%'";
+		$where .= " AND t.name LIKE '" . like_escape( $name__like ) . "%'";
 
 	if ( '' !== $parent ) {
 		$parent = (int) $parent;
@@ -1521,7 +1521,7 @@ function sanitize_term_field($field, $value, $term_id, $taxonomy, $context) {
 		$value = apply_filters("edit_term_{$field}", $value, $term_id, $taxonomy);
 		$value = apply_filters("edit_{$taxonomy}_{$field}", $value, $term_id);
 		if ( 'description' == $field )
-			$value = format_to_edit($value);
+			$value = esc_html($value); // textarea_escaped
 		else
 			$value = esc_attr($value);
 	} else if ( 'db' == $context ) {
@@ -1715,7 +1715,7 @@ function wp_delete_term( $term, $taxonomy, $args = array() ) {
 	return true;
 }
 
-/*
+/**
  * Deletes one existing category.
  *
  * @since 2.0.0
@@ -2889,7 +2889,7 @@ function the_taxonomies($args = array()) {
 	$r = wp_parse_args( $args, $defaults );
 	extract( $r, EXTR_SKIP );
 
-	echo $before . join($sep, get_the_taxonomies($post, $template)) . $after;
+	echo $before . join($sep, get_the_taxonomies($post, $r)) . $after;
 }
 
 /**
@@ -2901,14 +2901,19 @@ function the_taxonomies($args = array()) {
  * @since 2.5.0
  *
  * @param int $post Optional. Post ID or will use Global Post ID (in loop).
- * @param string $template Optional. The template to use for displaying the taxonomy terms.
+ * @param array $args Override the defaults.
  * @return array
  */
-function get_the_taxonomies($post = 0, $template = '%s: %l.') {
+function get_the_taxonomies($post = 0, $args = array() ) {
 	if ( is_int($post) )
 		$post =& get_post($post);
 	elseif ( !is_object($post) )
 		$post =& $GLOBALS['post'];
+
+	$args = wp_parse_args( $args, array(
+		'template' => '%s: %l.',
+	) );	
+	extract( $args, EXTR_SKIP );
 
 	$taxonomies = array();
 

@@ -19,7 +19,7 @@ add_contextual_help($current_screen,
 	'<p>' . __('You can submit content in several different ways; this screen holds the settings for all of them. The top section controls the editor within these administration screens, while the rest control external publishing methods. For more information on any of these methods, use the documentation links below.') . '</p>' .
 	'<p>' . __('You must click the Save Changes button at the bottom of the screen for new settings to take effect.') . '</p>' .
 	'<p><strong>' . __('For more information:') . '</strong></p>' .
-	'<p>' . __('<a href="http://codex.wordpress.org/Settings_Writing_SubPanel" target="_blank">Writing Settings Documentation</a>') . '</p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Settings_Writing_SubPanel" target="_blank">Documentation on Writing Settings</a>') . '</p>' .
 	'<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
 );
 
@@ -56,6 +56,23 @@ wp_dropdown_categories(array('hide_empty' => 0, 'name' => 'default_category', 'o
 ?>
 </td>
 </tr>
+<?php
+if ( current_theme_supports( 'post-formats' ) ) :
+	$post_formats = get_theme_support( 'post-formats' );
+	if ( is_array( $post_formats[0] ) ) :
+?>
+<tr valign="top">
+<th scope="row"><label for="default_post_format"><?php _e('Default Post Format') ?></label></th>
+<td>
+	<select name="default_post_format" id="default_post_format">
+		<option value="0"><?php _e('Standard'); ?></option>
+<?php foreach ( $post_formats[0] as $format ): ?>
+		<option<?php selected( get_option('default_post_format'), $format ); ?> value="<?php echo esc_attr( $format ); ?>"><?php echo esc_html( get_post_format_string( $format ) ); ?></option>
+<?php endforeach; ?>
+	</select></label>
+</td>
+</tr>
+<?php endif; endif; ?>
 <tr valign="top">
 <th scope="row"><label for="default_link_category"><?php _e('Default Link Category') ?></label></th>
 <td>

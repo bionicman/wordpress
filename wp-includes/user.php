@@ -351,7 +351,8 @@ class WP_User_Query {
 	 */
 	var $total_users = 0;
 
-	// SQL pieces
+	// SQL clauses
+	var $query_fields;
 	var $query_from;
 	var $query_where;
 	var $query_orderby;
@@ -388,6 +389,7 @@ class WP_User_Query {
 				'offset' => '', 'number' => '',
 				'count_total' => true,
 				'fields' => 'all',
+				'who' => ''
 			) );
 
 			$this->prepare_query();
@@ -406,15 +408,31 @@ class WP_User_Query {
 
 		$qv = &$this->query_vars;
 
-		$this->query_from = " FROM $wpdb->users";
-		$this->query_where = " WHERE 1=1";
+		if ( is_array( $qv['fields'] ) ) {
+			$qv['fields'] = array_unique( $qv['fields'] );
+
+			$this->query_fields = array();
+			foreach ( $qv['fields'] as $field )
+				$this->query_fields[] = $wpdb->users . '.' . esc_sql( $field );
+			$this->query_fields = implode( ',', $this->query_fields );
+		} elseif ( 'all' == $qv['fields'] ) {
+			$this->query_fields = "$wpdb->users.*";
+		} else {
+			$this->query_fields = "$wpdb->users.ID";
+		}
+
+		$this->query_from = "FROM $wpdb->users";
+		$this->query_where = "WHERE 1=1";
 
 		// sorting
-		if ( in_array( $qv['orderby'], array('email', 'url', 'registered') ) ) {
+		if ( in_array( $qv['orderby'], array('nicename', 'email', 'url', 'registered') ) ) {
 			$orderby = 'user_' . $qv['orderby'];
+		} elseif ( in_array( $qv['orderby'], array('user_nicename', 'user_email', 'user_url', 'user_registered') ) ) {
+			$orderby = $qv['orderby'];
 		} elseif ( 'name' == $qv['orderby'] || 'display_name' == $qv['orderby'] ) {
 			$orderby = 'display_name';
 		} elseif ( 'post_count' == $qv['orderby'] ) {
+			// todo: avoid the JOIN
 			$where = get_posts_by_author_sql('post');
 			$this->query_from .= " LEFT OUTER JOIN (
 				SELECT post_author, COUNT(*) as post_count
@@ -424,7 +442,7 @@ class WP_User_Query {
 			) p ON ({$wpdb->users}.ID = p.post_author)
 			";
 			$orderby = 'post_count';
-		} elseif ( 'id' == $qv['orderby'] ) {
+		} elseif ( 'ID' == $qv['orderby'] || 'id' == $qv['orderby'] ) {
 			$orderby = 'ID';
 		} else {
 			$orderby = 'user_login';
@@ -435,14 +453,14 @@ class WP_User_Query {
 			$order = 'ASC';
 		else
 			$order = 'DESC';
-		$this->query_orderby = " ORDER BY $orderby $order";
+		$this->query_orderby = "ORDER BY $orderby $order";
 
 		// limit
 		if ( $qv['number'] ) {
 			if ( $qv['offset'] )
-				$this->query_limit = $wpdb->prepare(" LIMIT %d, %d", $qv['offset'], $qv['number']);
+				$this->query_limit = $wpdb->prepare("LIMIT %d, %d", $qv['offset'], $qv['number']);
 			else
-				$this->query_limit = $wpdb->prepare(" LIMIT %d", $qv['number']);
+				$this->query_limit = $wpdb->prepare("LIMIT %d", $qv['number']);
 		}
 
 		$search = trim( $qv['search'] );
@@ -464,10 +482,18 @@ class WP_User_Query {
 			$this->query_where .= $this->get_search_sql( $search, $search_columns, $wild );
 		}
 
+		$blog_id = absint( $qv['blog_id'] );
+
+		if ( 'authors' == $qv['who'] && $blog_id ) {
+			$qv['meta_key'] = $wpdb->get_blog_prefix( $blog_id ) . 'user_level';
+			$qv['meta_value'] = '_wp_zero_value'; // Hack to pass '0'
+			$qv['meta_compare'] = '!=';
+			$qv['blog_id'] = $blog_id = 0; // Prevent extra meta query
+		}
+
 		_parse_meta_query( $qv );
 
 		$role = trim( $qv['role'] );
-		$blog_id = absint( $qv['blog_id'] );
 
 		if ( $blog_id && ( $role || is_multisite() ) ) {
 			$cap_meta_query = array();
@@ -490,8 +516,7 @@ class WP_User_Query {
 		if ( !empty( $qv['include'] ) ) {
 			$ids = implode( ',', wp_parse_id_list( $qv['include'] ) );
 			$this->query_where .= " AND $wpdb->users.ID IN ($ids)";
-		}
-		elseif ( !empty($qv['exclude']) ) {
+		} elseif ( !empty($qv['exclude']) ) {
 			$ids = implode( ',', wp_parse_id_list( $qv['exclude'] ) );
 			$this->query_where .= " AND $wpdb->users.ID NOT IN ($ids)";
 		}
@@ -508,16 +533,20 @@ class WP_User_Query {
 	function query() {
 		global $wpdb;
 
-		$this->results = $wpdb->get_col("SELECT $wpdb->users.ID" . $this->query_from . $this->query_where . $this->query_orderby . $this->query_limit);
+		if ( is_array( $this->query_vars['fields'] ) || 'all' == $this->query_vars['fields'] ) {
+			$this->results = $wpdb->get_results("SELECT $this->query_fields $this->query_from $this->query_where $this->query_orderby $this->query_limit");
+		} else {
+			$this->results = $wpdb->get_col("SELECT $this->query_fields $this->query_from $this->query_where $this->query_orderby $this->query_limit");
+		}
 
 		if ( !$this->results )
 			return;
 
 		if ( $this->query_vars['count_total'] )
-			$this->total_users = $wpdb->get_var("SELECT COUNT($wpdb->users.ID)" . $this->query_from . $this->query_where);
+			$this->total_users = $wpdb->get_var("SELECT COUNT(*) $this->query_from $this->query_where");
 
-		if ( 'all' == $this->query_vars['fields'] ) {
-			cache_users($this->results);
+		if ( 'all_with_meta' == $this->query_vars['fields'] ) {
+			cache_users( $this->results );
 
 			$r = array();
 			foreach ( $this->results as $userid )
@@ -596,26 +625,6 @@ function get_users( $args = array() ) {
 	$user_search = new WP_User_Query($args);
 
 	return (array) $user_search->get_results();
-}
-
-/**
- * Get users for the blog.
- *
- * For setups that use the multi-blog feature. Can be used outside of the
- * multi-blog feature.
- *
- * @since 2.2.0
- * @uses get_users() for queries
- * @uses $blog_id The Blog id of the blog for those that use more than one blog
- *
- * @param int $id Blog ID.
- * @return array List of users that are part of that Blog ID
- */
-function get_users_of_blog( $id = '' ) {
-	if ( empty( $id ) )
-		$id = get_current_blog_id();
-
-	return get_users( array( 'blog_id' => $id ) );
 }
 
 /**
@@ -929,6 +938,7 @@ function setup_userdata($for_user_id = '') {
  * <ol>
  * <li>show_option_all - Text to show all and whether HTML option exists.</li>
  * <li>show_option_none - Text for show none and whether HTML option exists.</li>
+ * <li>hide_if_only_one_author - Don't create the dropdown if there is only one user.</li>
  * <li>orderby - SQL order by clause for what order the users appear. Default is 'display_name'.</li>
  * <li>order - Default is 'ASC'. Can also be 'DESC'.</li>
  * <li>include - User IDs to include.</li>
@@ -941,6 +951,7 @@ function setup_userdata($for_user_id = '') {
  * <li>id - Default is the value of the 'name' parameter. ID attribute of select element.</li>
  * <li>class - Class attribute of select element.</li>
  * <li>blog_id - ID of blog (Multisite only). Defaults to ID of current blog.</li>
+ * <li>who - Which users to query.  Currently only 'authors' is supported. Default is all users.</li>
  * </ol>
  *
  * @since 2.3.0
@@ -950,14 +961,13 @@ function setup_userdata($for_user_id = '') {
  * @return string|null Null on display. String of HTML content on retrieve.
  */
 function wp_dropdown_users( $args = '' ) {
-	global $wpdb;
 	$defaults = array(
-		'show_option_all' => '', 'show_option_none' => '',
+		'show_option_all' => '', 'show_option_none' => '', 'hide_if_only_one_author' => '',
 		'orderby' => 'display_name', 'order' => 'ASC',
 		'include' => '', 'exclude' => '', 'multi' => 0,
 		'show' => 'display_name', 'echo' => 1,
-		'selected' => 0, 'name' => 'user', 'class' => '', 'blog_id' => $GLOBALS['blog_id'],
-		'id' => '',
+		'selected' => 0, 'name' => 'user', 'class' => '', 'id' => '',
+		'blog_id' => $GLOBALS['blog_id'], 'who' => ''
 	);
 
 	$defaults['selected'] = is_author() ? get_query_var( 'author' ) : 0;
@@ -965,10 +975,12 @@ function wp_dropdown_users( $args = '' ) {
 	$r = wp_parse_args( $args, $defaults );
 	extract( $r, EXTR_SKIP );
 
-	$users = get_users( wp_array_slice_assoc( $r, array( 'blog_id', 'include', 'exclude', 'orderby', 'order' ) ) );
+	$query_args = wp_array_slice_assoc( $r, array( 'blog_id', 'include', 'exclude', 'orderby', 'order', 'who' ) );
+	$query_args['fields'] = array( 'ID', $show );
+	$users = get_users( $query_args );
 
 	$output = '';
-	if ( !empty($users) ) {
+	if ( !empty($users) && ( empty($hide_if_only_one_author) || count($users) > 1 ) ) {
 		$name = esc_attr( $name );
 		if ( $multi && ! $id )
 			$id = '';
@@ -1190,7 +1202,7 @@ function sanitize_user_field($field, $value, $user_id, $context) {
 		}
 
 		if ( 'description' == $field )
-			$value = esc_html($value);
+			$value = esc_html( $value ); // textarea_escaped?
 		else
 			$value = esc_attr($value);
 	} else if ( 'db' == $context ) {
@@ -1422,6 +1434,12 @@ function wp_insert_user($userdata) {
 
 	if ( empty($user_registered) )
 		$user_registered = gmdate('Y-m-d H:i:s');
+		
+	if ( empty($show_admin_bar_front) )
+		$show_admin_bar_front = 'true';
+			
+	if ( empty($show_admin_bar_admin) )
+		$show_admin_bar_admin = is_multisite() ? 'true' : 'false';
 
 	$user_nicename_check = $wpdb->get_var( $wpdb->prepare("SELECT ID FROM $wpdb->users WHERE user_nicename = %s AND user_login != %s LIMIT 1" , $user_nicename, $user_login));
 
@@ -1446,14 +1464,16 @@ function wp_insert_user($userdata) {
 		$user_id = (int) $wpdb->insert_id;
 	}
 
-	update_user_meta( $user_id, 'first_name', $first_name);
-	update_user_meta( $user_id, 'last_name', $last_name);
+	update_user_meta( $user_id, 'first_name', $first_name );
+	update_user_meta( $user_id, 'last_name', $last_name );
 	update_user_meta( $user_id, 'nickname', $nickname );
 	update_user_meta( $user_id, 'description', $description );
-	update_user_meta( $user_id, 'rich_editing', $rich_editing);
-	update_user_meta( $user_id, 'comment_shortcuts', $comment_shortcuts);
-	update_user_meta( $user_id, 'admin_color', $admin_color);
-	update_user_meta( $user_id, 'use_ssl', $use_ssl);
+	update_user_meta( $user_id, 'rich_editing', $rich_editing );
+	update_user_meta( $user_id, 'comment_shortcuts', $comment_shortcuts );
+	update_user_meta( $user_id, 'admin_color', $admin_color );
+	update_user_meta( $user_id, 'use_ssl', $use_ssl );
+	update_user_meta( $user_id, 'show_admin_bar_front', $show_admin_bar_front );
+	update_user_meta( $user_id, 'show_admin_bar_admin', $show_admin_bar_admin );
 
 	$user = new WP_User($user_id);
 

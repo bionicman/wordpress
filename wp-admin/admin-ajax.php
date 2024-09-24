@@ -57,9 +57,15 @@ case 'fetch-list' :
 	$current_screen->is_network = 'false' === $current_screen->is_network ? false : true;
 	$current_screen->is_user = 'false' === $current_screen->is_user ? false : true;
 
+	define( 'WP_NETWORK_ADMIN', $current_screen->is_network );
+	define( 'WP_USER_ADMIN', $current_screen->is_user );
+
 	$wp_list_table = get_list_table( $_GET['list_args']['class'] );
 	if ( ! $wp_list_table )
 		die( '0' );
+
+	if ( ! $wp_list_table->ajax_user_can() )
+		die( '-1' );
 
 	$wp_list_table->ajax_response();
 
@@ -619,9 +625,6 @@ case 'replyto-comment' :
 
 	set_current_screen( 'edit-comments' );
 
-	$wp_list_table = get_list_table('WP_Comments_List_Table');
-	$wp_list_table->checkbox = ( isset($_POST['checkbox']) && true == $_POST['checkbox'] ) ? 1 : 0;
-
 	$comment_post_ID = (int) $_POST['comment_post_ID'];
 	if ( !current_user_can( 'edit_post', $comment_post_ID ) )
 		die('-1');
@@ -668,6 +671,11 @@ case 'replyto-comment' :
 			require_once( ABSPATH . 'wp-admin/includes/dashboard.php' );
 			_wp_dashboard_recent_comments_row( $comment );
 		} else {
+			if ( 'single' == $_REQUEST['mode'] ) {
+				$wp_list_table = get_list_table('WP_Post_Comments_List_Table');
+			} else {				
+				$wp_list_table = get_list_table('WP_Comments_List_Table');
+			}
 			$wp_list_table->single_row( $comment );
 		}
 		$comment_list_item = ob_get_contents();
@@ -1199,11 +1207,17 @@ case 'inline-save':
 case 'inline-save-tax':
 	check_ajax_referer( 'taxinlineeditnonce', '_inline_edit' );
 
-	set_current_screen( 'edit-' . $_POST['taxonomy'] );
+	$taxonomy = sanitize_key( $_POST['taxonomy'] );
+	$tax = get_taxonomy( $taxonomy );
+	if ( ! $tax )
+		die( '0' );
+
+	if ( ! current_user_can( $tax->cap->edit_terms ) )
+		die( '-1' );
+
+	set_current_screen( 'edit-' . $taxonomy );
 
 	$wp_list_table = get_list_table('WP_Terms_List_Table');
-
-	$wp_list_table->check_permissions('edit');
 
 	if ( ! isset($_POST['tax_ID']) || ! ( $id = (int) $_POST['tax_ID'] ) )
 		die(-1);
@@ -1246,11 +1260,11 @@ case 'find_posts':
 
 	$searchand = $search = '';
 	foreach ( (array) $search_terms as $term ) {
-		$term = addslashes_gpc($term);
+		$term = esc_sql( like_escape( $term ) );
 		$search .= "{$searchand}(($wpdb->posts.post_title LIKE '%{$term}%') OR ($wpdb->posts.post_content LIKE '%{$term}%'))";
 		$searchand = ' AND ';
 	}
-	$term = $wpdb->escape($s);
+	$term = esc_sql( like_escape( $s ) );
 	if ( count($search_terms) > 1 && $search_terms[0] != $s )
 		$search .= " OR ($wpdb->posts.post_title LIKE '%{$term}%') OR ($wpdb->posts.post_content LIKE '%{$term}%')";
 

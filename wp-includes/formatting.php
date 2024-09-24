@@ -1114,8 +1114,8 @@ function force_balance_tags( $text ) {
  * Acts on text which is about to be edited.
  *
  * Unless $richedit is set, it is simply a holder for the 'format_to_edit'
- * filter. If $richedit is set true htmlspecialchars() will be run on the
- * content, converting special characters to HTMl entities.
+ * filter. If $richedit is set true htmlspecialchars(), through esc_textarea(),
+ * will be run on the content, converting special characters to HTML entities.
  *
  * @since 0.71
  *
@@ -1123,10 +1123,10 @@ function force_balance_tags( $text ) {
  * @param bool $richedit Whether the $content should pass through htmlspecialchars(). Default false.
  * @return string The text after the filter (and possibly htmlspecialchars()) has been run.
  */
-function format_to_edit($content, $richedit = false) {
-	$content = apply_filters('format_to_edit', $content);
-	if (! $richedit )
-		$content = htmlspecialchars($content);
+function format_to_edit( $content, $richedit = false ) {
+	$content = apply_filters( 'format_to_edit', $content );
+	if ( ! $richedit )
+		$content = esc_textarea( $content );
 	return $content;
 }
 
@@ -1312,12 +1312,19 @@ function antispambot($emailaddy, $mailto=0) {
  */
 function _make_url_clickable_cb($matches) {
 	$url = $matches[2];
+	$suffix = '';
+	
+	/** Include parentheses in the URL only if paired **/
+	while ( substr_count( $url, '(' ) < substr_count( $url, ')' ) ) {
+		$suffix = strrchr( $url, ')' ) . $suffix; 
+		$url = substr( $url, 0, strrpos( $url, ')' ) ); 
+	}
 
 	$url = esc_url($url);
 	if ( empty($url) )
 		return $matches[0];
 
-	return $matches[1] . "<a href=\"$url\" rel=\"nofollow\">$url</a>";
+	return $matches[1] . "<a href=\"$url\" rel=\"nofollow\">$url</a>" . $suffix;
 }
 
 /**
@@ -1379,7 +1386,7 @@ function _make_email_clickable_cb($matches) {
 function make_clickable($ret) {
 	$ret = ' ' . $ret;
 	// in testing, using arrays here was found to be faster
-	$ret = preg_replace_callback('#(?<=[\s>])(\()?([\w]+?://(?:[\w\\x80-\\xff\#$%&~/=?@\[\](!+-]|[.,;:](?![\s<]|(\))?([\s]|$))|(?(1)\)(?![\s<.,;:]|$)|\)))+)#is', '_make_url_clickable_cb', $ret);
+	$ret = preg_replace_callback('#(?<!=[\'"])(?<=[*\')+.,;:!&$\s>])(\()?([\w]+?://(?:[\w\\x80-\\xff\#%~/?@\[\]-]|[\'*(+.,;:!=&$](?![\b\)]|(\))?([\s]|$))|(?(1)\)(?![\s<.,;:]|$)|\)))+)#is', '_make_url_clickable_cb', $ret);
 	$ret = preg_replace_callback('#([\s>])((www|ftp)\.[\w\\x80-\\xff\#$%&~/.\-;:=,?@\[\]+]+)#is', '_make_web_ftp_clickable_cb', $ret);
 	$ret = preg_replace_callback('#([\s>])([.0-9a-z_+-]+)@(([0-9a-z-]+\.)+[0-9a-z]{2,})#i', '_make_email_clickable_cb', $ret);
 	// this one is not in an array because we need it to run last, for cleanup of accidental links within links
@@ -2361,7 +2368,7 @@ function esc_attr( $text ) {
  * @return string
  */
 function esc_textarea( $text ) {
-	$safe_text = htmlspecialchars( $text );
+	$safe_text = htmlspecialchars( $text, ENT_QUOTES );
 	return apply_filters( 'esc_textarea', $safe_text, $text );
 }
 

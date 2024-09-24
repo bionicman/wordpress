@@ -234,11 +234,17 @@ function redirect_canonical( $requested_url = null, $do_redirect = true ) {
 	// tack on any additional query vars
 	$redirect['query'] = preg_replace( '#^\??&*?#', '', $redirect['query'] );
 	if ( $redirect_url && !empty($redirect['query']) ) {
-		if ( strpos($redirect_url, '?') !== false )
-			$redirect_url .= '&';
-		else
-			$redirect_url .= '?';
-		$redirect_url .= $redirect['query'];
+		parse_str( $redirect['query'], $_parsed_query );
+		$redirect = @parse_url($redirect_url);
+
+		if ( ! empty( $_parsed_query['name'] ) && ! empty( $redirect['query'] ) ) {
+			parse_str( $redirect['query'], $_parsed_redirect_query );
+
+			if ( empty( $_parsed_redirect_query['name'] ) )
+				unset( $_parsed_query['name'] );
+		}
+
+		$redirect_url = add_query_arg( $_parsed_query, $redirect_url );
 	}
 
 	if ( $redirect_url )
@@ -385,7 +391,7 @@ function redirect_guess_404_permalink() {
 	if ( !get_query_var('name') )
 		return false;
 
-	$where = $wpdb->prepare("post_name LIKE %s", get_query_var('name') . '%');
+	$where = $wpdb->prepare("post_name LIKE %s", like_escape( get_query_var('name') ) . '%');
 
 	// if any of post_type, year, monthnum, or day are set, use them to refine the query
 	if ( get_query_var('post_type') )

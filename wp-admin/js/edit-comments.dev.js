@@ -204,7 +204,8 @@ setCommentsList = function() {
 			}
 		}
 
-		if ( theExtraList.size() == 0 || theExtraList.children().size() == 0 || untrash ) {
+
+		if ( ! theExtraList || theExtraList.size() == 0 || theExtraList.children().size() == 0 || untrash || unspam ) {
 			return;
 		}
 
@@ -228,6 +229,8 @@ setCommentsList = function() {
 			args.offset = per_page - 1; // fetch only the last item of the next page
 		}
 		
+		args.no_placeholder = true;
+
 		args.paged ++;
 
 		listTable.fetch_list(args, function(response) {
@@ -274,7 +277,10 @@ commentReply = {
 		});
 
 		this.comments_listing = $('#comments-form > input[name="comment_status"]').val() || '';
-
+		
+		$(listTable).bind('beforeChangePage', function(){
+			commentReply.close();
+		});
 	},
 
 	addEvents : function(r) {
@@ -332,7 +338,6 @@ commentReply = {
 		t.close();
 		t.cid = id;
 
-		$('td', '#replyrow').attr('colspan', $('table.widefat thead th:visible').length);
 		editRow = $('#replyrow');
 		rowData = $('#inline-'+id);
 		act = t.act = (a == 'edit') ? 'edit-comment' : 'replyto-comment';
@@ -403,6 +408,7 @@ commentReply = {
 	send : function() {
 		var post = {};
 
+		$('#replysubmit .error').hide();
 		$('#replysubmit .waiting').show();
 
 		$('#replyrow input').each(function() {
@@ -456,7 +462,7 @@ commentReply = {
 			.animate( { 'backgroundColor':'#CCEEBB' }, 600 )
 			.animate( { 'backgroundColor': bg }, 600 );
 
-		$.fn.wpList.process($(id))
+		$.fn.wpList.process($(id));
 	},
 
 	error : function(r) {

@@ -796,6 +796,7 @@ form.upgrade .hint {
 }
 
 .metabox-prefs label {
+	display: inline-block;
 	padding-right: 15px;
 	white-space: nowrap;
 	line-height: 30px;
@@ -1372,17 +1373,55 @@ table.fixed {
 #comments-form .fixed .column-author {
 	width: 20%;
 }
-
+#commentsdiv.postbox .inside {
+	line-height:1.4em;
+	margin:0;
+}
+#commentsdiv.postbox .inside .row-actions {
+	line-height:18px;
+}
+#commentsdiv.postbox .inside td {
+	padding:1em 10px;
+}
+#commentsdiv.postbox .inside .column-comment p {
+}
+#commentsdiv.postbox .inside .column-author {
+	width:33%;
+}
+#commentsdiv.postbox .inside p {
+	margin:6px 10px 8px;
+}
+#commentsdiv.postbox .column-comment p {
+	margin:0.6em 0;
+}
+#commentsdiv.postbox #replyrow td {
+	padding:0;
+}
 .sorting-indicator {
 	display: none;
-	width: 21px;
+	width: 7px;
 	height: 4px;
 	margin-top: 5px;
+	margin-left: 7px;
+	background-image: url(../images/sort.gif);
+	background-repeat: no-repeat;
+}
+.fixed .column-comments .sorting-indicator {
+	margin-top: 3px;
+}
+.widefat th.sortable,
+.widefat th.sorted {
+	padding: 0;
 }
 th.sortable a,
 th.sorted a {
 	display: block;
 	overflow: hidden;
+	padding: 7px 7px 8px;
+}
+.fixed .column-comments.sortable a,
+.fixed .column-comments.sorted a {
+	padding: 8px 0;
 }
 th.sortable a span,
 th.sorted a span {
@@ -1392,12 +1431,12 @@ th.sorted a span {
 th.sorted.asc .sorting-indicator,
 th.desc:hover span.sorting-indicator {
 	display: block;
-	background: url(../images/sort_asc.gif) no-repeat scroll 0 0;
+	background-position: 0 0;
 }
 th.sorted.desc .sorting-indicator,
 th.asc:hover span.sorting-indicator {
 	display: block;
-	background: url(../images/sort_desc.gif) no-repeat scroll 0 0;
+	background-position: -7px 0;
 }
 
 /* Bulk Actions */
@@ -2183,10 +2222,6 @@ td.post-title strong, td.plugin-title strong {
 
 td.post-title p, td.plugin-title p {
 	margin: 6px 0;
-}
-
-td.plugin-title {
-	white-space: nowrap;
 }
 
 /* Global classes */
@@ -3410,6 +3445,7 @@ span.imgedit-scale-warn {
 #replysubmit {
 	margin: 0;
 	padding: 3px 7px;
+	text-align:center;
 }
 
 #replysubmit img.waiting,
@@ -3421,6 +3457,13 @@ span.imgedit-scale-warn {
 
 #replysubmit .button {
 	margin-right: 5px;
+}
+
+#replysubmit .error {
+	color:red;
+	line-height:21px;
+	text-align:center;
+	vertical-align:center;
 }
 
 #replyrow #editor-toolbar {
@@ -3760,10 +3803,6 @@ input.button-highlighted,
 	list-style-type: disc;
 }
 
-.plugins .action-links {
-	white-space: nowrap;
-}
-
 .plugins .row-actions-visible {
 	padding: 0;
 }
@@ -4038,9 +4077,6 @@ td.post-title strong, td.plugin-title strong {
 td.post-title p, td.plugin-title p {
 	margin: 6px 0;
 }
-td.plugin-title {
-	white-space: nowrap;
-}
 
 
 .wp-hidden-children .wp-hidden-child,
@@ -4135,7 +4171,7 @@ table .column-rating {
 }
 
 /* Scrollbar fix for bulk upgrade iframe */
-body.update-php {
+body.iframe {
 	height: 98%;
 }
 
@@ -4191,15 +4227,14 @@ td.media-icon img {
 	width: 3em;
 }
 * html #template div {margin-right: 0;}
-#save {width: 15em;}
-#loading-items {
-	position: absolute;
-	z-index: 9999;
-	padding: 10px 0;
-	background-color: #fff;
-	font-weight: bold;
-	text-align: center;
-	opacity: 0.5;
+
+.list-ajax-loading {
+	float: right;
+	margin-right: 9px;
+	margin-top: -1px;
+}
+.tablenav .list-ajax-loading {
+	margin-top: 7px;
 }
 #howto {
 	font-size: 11px;

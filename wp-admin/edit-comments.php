@@ -12,7 +12,6 @@ if ( !current_user_can('edit_posts') )
 	wp_die(__('Cheatin&#8217; uh?'));
 
 $wp_list_table = get_list_table('WP_Comments_List_Table');
-$wp_list_table->check_permissions();
 $pagenum = $wp_list_table->get_pagenum();
 
 $doaction = $wp_list_table->current_action();
@@ -221,15 +220,7 @@ if ( isset($_REQUEST['approved']) || isset($_REQUEST['deleted']) || isset($_REQU
 
 <form id="comments-form" action="" method="post">
 
-<?php if ( $wp_list_table->has_items() ) : ?>
-
-<p class="search-box">
-	<label class="screen-reader-text" for="comment-search-input"><?php _e( 'Search Comments' ); ?>:</label>
-	<input type="text" id="comment-search-input" name="s" value="<?php _admin_search_query(); ?>" />
-	<?php submit_button( __( 'Search Comments' ), 'button', 'submit', false ); ?>
-</p>
-
-<?php endif; ?>
+<?php $wp_list_table->search_box( __( 'Search Comments' ), 'comment' ); ?>
 
 <?php if ( $post_id ) : ?>
 <input type="hidden" name="p" value="<?php echo esc_attr( intval( $post_id ) ); ?>" />
@@ -246,8 +237,8 @@ if ( isset($_REQUEST['approved']) || isset($_REQUEST['deleted']) || isset($_REQU
 <?php } ?>
 
 <?php $wp_list_table->display(); ?>
-</div>
 </form>
+</div>
 
 <div id="ajax-response"></div>
 

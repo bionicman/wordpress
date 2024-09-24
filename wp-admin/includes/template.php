@@ -330,8 +330,12 @@ function wp_comment_reply($position = '1', $checkbox = false, $mode = 'single', 
 		echo $content;
 		return;
 	}
-
-	$wp_list_table = get_list_table('WP_Comments_List_Table');
+	
+	if ( $mode == 'single' ) {
+		$wp_list_table = get_list_table('WP_Post_Comments_List_Table');
+	} else {
+		$wp_list_table = get_list_table('WP_Comments_List_Table');
+	}
 
 ?>
 <form method="get" action="">
@@ -953,7 +957,7 @@ function do_meta_boxes($page, $context, $object) {
 					$style = '';
 					$hidden_class = in_array($box['id'], $hidden) ? ' hide-if-js' : '';
 					echo '<div id="' . $box['id'] . '" class="postbox ' . postbox_classes($box['id'], $page) . $hidden_class . '" ' . '>' . "\n";
-					echo '<div class="handlediv" title="' . __('Click to toggle') . '"><br /></div>';
+					echo '<div class="handlediv" title="' . esc_attr__('Click to toggle') . '"><br /></div>';
 					echo "<h3 class='hndle'><span>{$box['title']}</span></h3>\n";
 					echo '<div class="inside">' . "\n";
 					call_user_func($box['callback'], $object, $box);
@@ -1538,6 +1542,7 @@ function iframe_header( $title = '', $limit_styles = false ) {
 	show_admin_bar( false );
 	global $hook_suffix, $current_screen, $current_user, $admin_body_class, $wp_locale;
 	$admin_body_class = preg_replace('/[^a-z0-9_-]+/i', '-', $hook_suffix);
+	$admin_body_class .= ' iframe';
 
 ?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" <?php do_action('admin_xml_ns'); ?> <?php language_attributes(); ?>>
@@ -1628,7 +1633,7 @@ function _post_states($post) {
 		$post_states[] = _x('Pending', 'post state');
 	if ( is_sticky($post->ID) )
 		$post_states[] = __('Sticky');
-	if ( current_theme_supports('post-formats') && get_post_format( $post->ID ) )
+	if ( get_post_format( $post->ID ) )
 		$post_states[] = '<span>[</span>' . get_post_format_string( get_post_format( $post->ID ) ) . '<span>]</span>';
 
 	$post_states = apply_filters( 'display_post_states', $post_states );
@@ -1893,10 +1898,14 @@ function screen_options($screen) {
 	else
 		$per_page = apply_filters( $option, $per_page );
 
+	// Back compat
+	if ( isset( $screen->post_type ) )
+		$per_page = apply_filters( 'edit_posts_per_page', $per_page, $screen->post_type );
+
 	$return = "<div class='screen-options'>\n";
 	if ( !empty($per_page_label) )
 		$return .= "<input type='text' class='screen-per-page' name='wp_screen_options[value]' id='$option' maxlength='3' value='$per_page' /> <label for='$option'>$per_page_label</label>\n";
-	$return .= get_submit_button( __( 'Apply' ), 'button', '', false );
+	$return .= get_submit_button( __( 'Apply' ), 'button', 'screen-options-apply', false );
 	$return .= "<input type='hidden' name='wp_screen_options[option]' value='" . esc_attr($option) . "' />";
 	$return .= "</div>\n";
 	return $return;

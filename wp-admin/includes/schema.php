@@ -318,6 +318,9 @@ function populate_options() {
 	// 3.0
 	'page_for_posts' => 0,
 	'page_on_front' => 0,
+
+	// 3.1
+	'default_post_format' => 0,
 	);
 
 	// 3.0 multisite
@@ -667,7 +670,7 @@ function populate_network( $network_id = 1, $domain = '', $email = '', $site_nam
 
 	if ( !is_multisite() ) {
 		$site_admins = array( $site_user->user_login );
-		$users = get_users();
+		$users = get_users( array( 'fields' => array( 'ID', 'user_login' ) ) );
 		if ( $users ) {
 			foreach ( $users as $user ) {
 				if ( is_super_admin( $user->ID ) && !in_array( $user->user_login, $site_admins ) )

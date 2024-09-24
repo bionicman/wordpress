@@ -108,7 +108,7 @@ if ( isset($_REQUEST['action']) && 'adduser' == $_REQUEST['action'] ) {
 				add_filter( 'wpmu_signup_user_notification', '__return_false' ); // Disable confirmation email
 			}
 			wpmu_signup_user( $new_user_login, $_REQUEST[ 'email' ], array( 'add_to_blog' => $wpdb->blogid, 'new_role' => $_REQUEST[ 'role' ] ) );
-			if ( isset( $_POST[ 'adduser' ] ) && isset( $_POST[ 'noconfirmation' ] ) && is_super_admin() ) {
+			if ( isset( $_POST[ 'noconfirmation' ] ) && is_super_admin() ) {
 				$key = $wpdb->get_var( $wpdb->prepare( "SELECT activation_key FROM {$wpdb->signups} WHERE user_login = %s AND user_email = %s", $new_user_login, $_REQUEST[ 'email' ] ) );
 				wpmu_activate_signup( $key );
 				$redirect = add_query_arg( array('update' => 'addnoconfirmation'), 'user-new.php' );
@@ -182,7 +182,13 @@ if ( isset($_GET['update']) ) {
 ?>
 <div class="wrap">
 <?php screen_icon(); ?>
-<h2 id="add-new-user"><?php _e('Add New User') ?></h2>
+<h2 id="add-new-user"> <?php
+if ( current_user_can( 'create_users' ) ) {
+	echo _x( 'Add New User', 'user' );
+} elseif ( current_user_can( 'promote_users' ) ) {
+	echo _x( 'Add Existing User', 'user' );
+} ?>
+</h2>
 
 <?php if ( isset($errors) && is_wp_error( $errors ) ) : ?>
 	<div class="error">
@@ -245,14 +251,14 @@ if ( is_multisite() ) {
 	</tr>
 <?php } ?>
 </table>
-<?php submit_button( __( 'Add User '), 'primary', 'adduser', true, array( 'id' => 'addusersub' ) ); ?>
+<?php submit_button( __( 'Add Existing User '), 'primary', 'adduser', true, array( 'id' => 'addusersub' ) ); ?>
 </form>
 <?php
 } // is_multisite()
 
 if ( current_user_can( 'create_users') ) {
 	if ( $do_both )
-		echo '<h3 id="create-new-user">' . __( 'Create New User' ) . '</h3>';
+		echo '<h3 id="create-new-user">' . __( 'Add New User' ) . '</h3>';
 ?>
 <p><?php _e('Create a brand new user and add it to this site.'); ?></p>
 <form action="" method="post" name="createuser" id="createuser" class="add:users: validate"<?php do_action('user_new_form_tag');?>>
@@ -330,7 +336,7 @@ foreach ( array( 'user_login' => 'login', 'first_name' => 'firstname', 'last_nam
 	<?php } ?>
 </table>
 
-<?php submit_button( __( 'Add User '), 'primary', 'createuser', true, array( 'id' => 'createusersub' ) ); ?>
+<?php submit_button( __( 'Add New User '), 'primary', 'createuser', true, array( 'id' => 'createusersub' ) ); ?>
 
 </form>
 <?php } // current_user_can('create_users') ?>

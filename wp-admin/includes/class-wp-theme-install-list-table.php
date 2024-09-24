@@ -8,9 +8,8 @@
  */
 class WP_Theme_Install_List_Table extends WP_List_Table {
 
-	function check_permissions() {
-		if ( ! current_user_can('install_themes') )
-			wp_die( __( 'You do not have sufficient permissions to install themes on this site.' ) );
+	function ajax_user_can() {
+		return current_user_can('install_themes');
 	}
 
 	function prepare_items() {
@@ -126,13 +125,14 @@ class WP_Theme_Install_List_Table extends WP_List_Table {
 		return array();
 	}
 
-	function display_table() {
+	function display() {
 ?>
-		<div class="tablenav">
+		<div class="tablenav top">
 			<div class="alignleft actions">
 				<?php do_action( 'install_themes_table_header' ); ?>
 			</div>
 			<?php $this->pagination( 'top' ); ?>
+			<img src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" class="ajax-loading list-ajax-loading" alt="" />
 			<br class="clear" />
 		</div>
 
@@ -142,8 +142,9 @@ class WP_Theme_Install_List_Table extends WP_List_Table {
 			</tbody>
 		</table>
 
-		<div class="tablenav">
+		<div class="tablenav bottom">
 			<?php $this->pagination( 'bottom' ); ?>
+			<img src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" class="ajax-loading list-ajax-loading" alt="" />
 			<br class="clear" />
 		</div>
 <?php

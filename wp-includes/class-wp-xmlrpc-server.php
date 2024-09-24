@@ -780,11 +780,11 @@ class wp_xmlrpc_server extends IXR_Server {
 		do_action('xmlrpc_call', 'wp.getAuthors');
 
 		$authors = array();
-		foreach ( get_users() as $user_id => $user_object ) {
+		foreach ( get_users( array( 'fields' => array('ID','user_login','display_name') ) ) as $user ) {
 			$authors[] = array(
-				"user_id"       => $user_id,
-				"user_login"    => $user_object->user_login,
-				"display_name"  => $user_object->display_name
+				"user_id"       => $user->ID,
+				"user_login"    => $user->user_login,
+				"display_name"  => $user->display_name
 			);
 		}
 
@@ -3367,7 +3367,7 @@ class wp_xmlrpc_server extends IXR_Server {
 			} elseif ( is_string($urltest['fragment']) ) {
 				// ...or a string #title, a little more complicated
 				$title = preg_replace('/[^a-z0-9]/i', '.', $urltest['fragment']);
-				$sql = $wpdb->prepare("SELECT ID FROM $wpdb->posts WHERE post_title RLIKE %s", $title);
+				$sql = $wpdb->prepare("SELECT ID FROM $wpdb->posts WHERE post_title RLIKE %s", like_escape( $title ) );
 				if (! ($post_ID = $wpdb->get_var($sql)) ) {
 					// returning unknown error '0' is better than die()ing
 			  		return new IXR_Error(0, '');

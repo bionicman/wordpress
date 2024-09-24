@@ -14,11 +14,6 @@ window.listTable = {
 		this.set_total_pages();
 
 		this.$tbody = $('#the-list, #the-comment-list');
-
-		this.$overlay = $('<div id="loading-items">')
-			.html(listTableL10n.loading)
-			.hide()
-			.prependTo($('body'));
 	},
 
 	// paging
@@ -53,7 +48,7 @@ window.listTable = {
 		if ( !different )
 			return false;
 
-		this.show_overlay();
+		this.start_loading();
 
 		if ( reset_paging )
 			$.query.SET('paged', 1);
@@ -96,7 +91,9 @@ window.listTable = {
 		if ( 'object' != typeof response ) {
 			this.handle_error();
 		} else {
-			this.hide_overlay();
+			this.stop_loading();
+
+			$('div.updated, div.error').not('.persistent, .inline').remove();
 
 			this.$tbody.html(response.rows);
 
@@ -119,28 +116,23 @@ window.listTable = {
 	},
 
 	handle_error: function() {
-		this.hide_overlay();
+		this.stop_loading();
 
 		$('h2').after('<div class="error ajax below-h2"><p>' + listTableL10n.error + '</p></div>');
 	},
 
-	show_overlay: function() {
+	start_loading: function() {
 		this.loading = true;
 
 		$('.error.ajax').remove();
 
-		this.$overlay
-			.css({
-				width: this.$tbody.width() + 'px',
-				height: this.$tbody.height() - 20 + 'px'
-			})
-			.css(this.$tbody.offset())
-			.show();
+		$('.list-ajax-loading').css('visibility', 'visible');
 	},
 
-	hide_overlay: function() {
+	stop_loading: function() {
 		this.loading = false;
-		this.$overlay.hide();
+
+		$('.list-ajax-loading').css('visibility', 'hidden');
 	}
 }
 
@@ -155,6 +147,7 @@ listTable.init();
 		if ( paged > listTable.get_total_pages() )
 			paged = listTable.get_total_pages();
 
+		$(listTable).trigger('beforeChangePage');
 		listTable.update_rows({'paged': paged}, false, function() {
 			if ( $el.parents('.tablenav.bottom').length )
 				scrollTo(0, 0);
@@ -254,12 +247,21 @@ listTable.init();
 			if ( $('h2.nav-tab-wrapper').length )
 				return;
 
-			$('h2 .subtitle').remove();
+			if ( 'site-users-network' == pagenow || 'site-themes-network' == pagenow ) { 
+				$('h4.search-text').remove();
 
-			if ( data.s )
-				$('h2').append($('<span class="subtitle">').html(
-					listTableL10n.search.replace('%s', this.htmlencode(data.s))
-				));
+				if ( data.s )
+					$('ul.subsubsub').after($('<h4 class="clear search-text">').html( 
+						listTableL10n.search.replace('%s', this.htmlencode(data.s)) 
+					));
+			} else { 
+				$('h2 .subtitle').remove();
+
+				if ( data.s ) 
+					$('h2').append($('<span class="subtitle">').html( 
+						listTableL10n.search.replace('%s', this.htmlencode(data.s)) 
+					)); 
+			}
 		});
 	}
 	$('.search-box :submit').click(change_search);

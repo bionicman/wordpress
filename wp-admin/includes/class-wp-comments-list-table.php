@@ -29,13 +29,13 @@ class WP_Comments_List_Table extends WP_List_Table {
 			add_filter( 'comment_author', 'floated_admin_avatar' );
 
 		parent::WP_List_Table( array(
-			'plural' => 'comments'
+			'plural' => 'comments',
+			'singular' => 'comment',
 		) );
 	}
 
-	function check_permissions() {
-		if ( !current_user_can('edit_posts') )
-			wp_die(__('Cheatin&#8217; uh?'));
+	function ajax_user_can() {
+		return current_user_can('edit_posts');
 	}
 
 	function prepare_items() {
@@ -67,8 +67,12 @@ class WP_Comments_List_Table extends WP_List_Table {
 		}
 
 		$page = $this->get_pagenum();
-
-		$start = ( $page - 1 ) * $comments_per_page;
+		
+		if ( isset( $_REQUEST['start'] ) ) {
+			$start = $_REQUEST['start'];
+		} else {
+			$start = ( $page - 1 ) * $comments_per_page;
+		}
 		
 		if ( $doing_ajax && isset( $_REQUEST['offset'] ) ) {
 			$start += $_REQUEST['offset'];
@@ -254,7 +258,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 		);
 	}
 
-	function display_table() {
+	function display() {
 		extract( $this->_args );
 
 		$this->display_tablenav( 'top' );
@@ -274,7 +278,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 	</tfoot>
 
 	<tbody id="the-comment-list" class="list:comment">
-		<?php $this->display_rows(); ?>
+		<?php $this->display_rows_or_placeholder(); ?>
 	</tbody>
 
 	<tbody id="the-extra-comment-list" class="list:comment" style="display: none;">
@@ -503,15 +507,34 @@ class WP_Comments_List_Table extends WP_List_Table {
  */
 class WP_Post_Comments_List_Table extends WP_Comments_List_Table {
 
-	function get_columns() {
-		return array(
+	function get_column_info() {
+		$this->_column_headers = array( 
+			array(
 			'author'   => __( 'Author' ),
 			'comment'  => _x( 'Comment', 'column name' ),
+			),
+			array(),
+			array(),
 		);
+		
+		return $this->_column_headers;
 	}
-
-	function get_sortable_columns() {
-		return array();
+	
+	function get_table_classes() {
+		$classes = parent::get_table_classes();
+		$classes[] = 'comments-box';
+		return $classes;
+	}
+	
+	function display( $output_empty = false ) {
+		extract( $this->_args );
+?>
+<table class="<?php echo implode( ' ', $this->get_table_classes() ); ?>" cellspacing="0" style="display:none;">
+	<tbody id="the-comment-list"<?php if ( $singular ) echo " class='list:$singular'"; ?>>
+		<?php if ( ! $output_empty ) $this->display_rows_or_placeholder(); ?>
+	</tbody>
+</table>
+<?php
 	}
 }
 

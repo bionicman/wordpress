@@ -8,9 +8,8 @@
  */
 class WP_Plugin_Install_List_Table extends WP_List_Table {
 
-	function check_permissions() {
-		if ( ! current_user_can('install_plugins') )
-			wp_die(__('You do not have sufficient permissions to install plugins on this site.'));
+	function ajax_user_can() {
+		return current_user_can('install_plugins');
 	}
 
 	function prepare_items() {
@@ -112,16 +111,18 @@ class WP_Plugin_Install_List_Table extends WP_List_Table {
 
 	function display_tablenav( $which ) {
 		if ( 'top' ==  $which ) { ?>
-			<div class="tablenav">
+			<div class="tablenav top">
 				<div class="alignleft actions">
 					<?php do_action( 'install_plugins_table_header' ); ?>
 				</div>
 				<?php $this->pagination( $which ); ?>
+				<img src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" class="ajax-loading list-ajax-loading" alt="" />
 				<br class="clear" />
 			</div>
 		<?php } else { ?>
-			<div class="tablenav">
+			<div class="tablenav bottom">
 				<?php $this->pagination( $which ); ?>
+				<img src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" class="ajax-loading list-ajax-loading" alt="" />
 				<br class="clear" />
 			</div>
 		<?php

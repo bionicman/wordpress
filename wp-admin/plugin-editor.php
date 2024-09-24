@@ -70,6 +70,7 @@ case 'update':
 			update_option('recently_activated', array($file => time()) + (array)get_option('recently_activated'));
 
 			wp_redirect(add_query_arg('_wpnonce', wp_create_nonce('edit-plugin-test_' . $file), "plugin-editor.php?file=$file&liveupdate=1&scrollto=$scrollto&networkwide=" . $network_wide));
+			exit;
 		}
 		wp_redirect( self_admin_url("plugin-editor.php?file=$file&a=te&scrollto=$scrollto") );
 	} else {
@@ -115,9 +116,11 @@ default:
 		'<p>' . __('You can use the editor to make changes to any of your plugins&#8217; individual PHP files. Be aware that if you make changes, plugins updates will overwrite your customizations.') . '</p>' .
 		'<p>' . __('Choose a plugin to edit from the menu in the upper right and click the Select button. Click once on any file name to load it in the editor, and make your changes. Don&#8217;t forget to save your changes (Update File) when you&#8217;re finished.') . '</p>' .
 		'<p>' . __('The Documentation menu below the editor lists the PHP functions recognized in the plugin file. Clicking Lookup takes you to a web page about that particular function.') . '</p>' .
-		'<p>' . __('If you want to make changes but don&#8217;t want them to be overwritten when the plugin is updated, you may be ready to think about writing your own plugin. For information on how to edit a plugin or start from scratch, check out the links below.') . '</p>' .
+		'<p>' . __('If you want to make changes but don&#8217;t want them to be overwritten when the plugin is updated, you may be ready to think about writing your own plugin. For information on how to edit plugins, write your own from scratch, or just better understand their anatomy, check out the links below.') . '</p>' .
+		( is_network_admin() ? '<p>' . __('Any edits to files from this screen will be reflected on all sites in the network.') . '</p>' : '' ) .
 		'<p><strong>' . __('For more information:') . '</strong></p>' .
 		'<p>' . __('<a href="http://codex.wordpress.org/Plugins_Editor_SubPanel" target="_blank">Documentation on Editing Plugins</a>') . '</p>' .
+		'<p>' . __('<a href="http://codex.wordpress.org/Writing_a_Plugin" target="_blank">Documentation on Writing Plugins</a>') . '</p>' .
 		'<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
 	);
 

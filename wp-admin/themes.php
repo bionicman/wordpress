@@ -8,11 +8,11 @@
 
 /** WordPress Administration Bootstrap */
 require_once('./admin.php');
+
 if ( !current_user_can('switch_themes') && !current_user_can('edit_theme_options') )
 	wp_die( __( 'Cheatin&#8217; uh?' ) );
 
 $wp_list_table = get_list_table('WP_Themes_List_Table');
-$wp_list_table->check_permissions();
 
 if ( current_user_can( 'switch_themes' ) && isset($_GET['action'] ) ) {
 	if ( 'activate' == $_GET['action'] ) {
@@ -146,7 +146,7 @@ if ( ! current_user_can( 'switch_themes' ) ) {
 
 <h3><?php _e('Available Themes'); ?></h3>
 
-<?php if ( $wp_list_table->has_items() ) : ?>
+<?php if ( !empty( $_REQUEST['s'] ) || $wp_list_table->has_items() ) : ?>
 
 <form class="search-form filter-form" action="" method="get">
 
@@ -210,7 +210,7 @@ $broken_themes = get_broken_themes();
 if ( current_user_can('edit_themes') && count( $broken_themes ) ) {
 ?>
 
-<h2><?php _e('Broken Themes'); ?> <?php if ( is_multisite() ) _e( '(Site admin only)' ); ?></h2>
+<h2><?php _e('Broken Themes'); ?></h2>
 <p><?php _e('The following themes are installed but incomplete. Themes must have a stylesheet and a template.'); ?></p>
 
 <table id="broken-themes">

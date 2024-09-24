@@ -211,10 +211,19 @@ if ( !( IS_PROFILE_PAGE && !$user_can_edit ) ) : ?>
 <th scope="row"><?php _e( 'Keyboard Shortcuts' ); ?></th>
 <td><label for="comment_shortcuts"><input type="checkbox" name="comment_shortcuts" id="comment_shortcuts" value="true" <?php if ( !empty($profileuser->comment_shortcuts) ) checked('true', $profileuser->comment_shortcuts); ?> /> <?php _e('Enable keyboard shortcuts for comment moderation.'); ?></label> <?php _e('<a href="http://codex.wordpress.org/Keyboard_Shortcuts" target="_blank">More information</a>'); ?></td>
 </tr>
-<?php
-endif;
-do_action('personal_options', $profileuser);
-?>
+<?php endif; ?>
+<tr>
+<th scope="row"><?php _e('Show Admin Bar')?></th>
+<td><fieldset><legend class="screen-reader-text"><span><?php _e('Show Admin Bar') ?></span></legend>
+<label for="admin_bar_front">
+<input name="admin_bar_front" type="checkbox" id="admin_bar_front" value="1" <?php checked( _get_admin_bar_pref( 'front', $profileuser->ID ) ); ?> />
+<?php /* translators: Show admin bar when viewing site */ _e( 'when viewing site' ); ?></label><br />
+<label for="admin_bar_admin">
+<input name="admin_bar_admin" type="checkbox" id="admin_bar_admin" value="1" <?php checked( _get_admin_bar_pref( 'admin', $profileuser->ID ) ); ?> />
+<?php /* translators: Show admin bar in dashboard */ _e( 'in dashboard' ); ?></label>
+</td>
+</tr>
+<?php do_action('personal_options', $profileuser); ?>
 </table>
 <?php
 	if ( IS_PROFILE_PAGE )
@@ -345,7 +354,7 @@ if ( is_multisite() && is_network_admin() && ! IS_PROFILE_PAGE && current_user_c
 <table class="form-table">
 <tr>
 	<th><label for="description"><?php _e('Biographical Info'); ?></label></th>
-	<td><textarea name="description" id="description" rows="5" cols="30"><?php echo $profileuser->description; // escaped ?></textarea><br />
+	<td><textarea name="description" id="description" rows="5" cols="30"><?php echo $profileuser->description; // textarea_escaped ?></textarea><br />
 	<span class="description"><?php _e('Share a little biographical information to fill out your profile. This may be shown publicly.'); ?></span></td>
 </tr>
 

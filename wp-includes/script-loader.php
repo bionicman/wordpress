@@ -91,7 +91,7 @@ function wp_default_scripts( &$scripts ) {
 
 	$scripts->add( 'colorpicker', "/wp-includes/js/colorpicker$suffix.js", array('prototype'), '3517m' );
 
-	$scripts->add( 'editor', "/wp-admin/js/editor$suffix.js", false, '20091124' );
+	$scripts->add( 'editor', "/wp-admin/js/editor$suffix.js", array('utils','jquery'), '20091124' );
 
 	$scripts->add( 'prototype', '/wp-includes/js/prototype.js', false, '1.6.1');
 
@@ -106,7 +106,7 @@ function wp_default_scripts( &$scripts ) {
 	$scripts->add( 'autosave', "/wp-includes/js/autosave$suffix.js", array('schedule', 'wp-ajax-response'), '20101004' );
 	$scripts->add_data( 'autosave', 'group', 1 );
 
-	$scripts->add( 'wp-lists', "/wp-includes/js/wp-lists$suffix.js", array('wp-ajax-response'), '20101119' );
+	$scripts->add( 'wp-lists', "/wp-includes/js/wp-lists$suffix.js", array('wp-ajax-response'), '20101222' );
 	$scripts->add_data( 'wp-lists', 'group', 1 );
 
 	$scripts->add( 'scriptaculous-root', '/wp-includes/js/scriptaculous/wp-scriptaculous.js', array('prototype'), '1.8.3');
@@ -270,10 +270,10 @@ function wp_default_scripts( &$scripts ) {
 		'l10n_print_after' => 'try{convertEntities(adminBarL10n);}catch(e){};',
 	) );
 
-	$scripts->add( 'wplink', "/wp-includes/js/tinymce/plugins/wplink/js/wplink$suffix.js", array('jquery'), '20101214' );
+	$scripts->add( 'wplink', "/wp-includes/js/tinymce/plugins/wplink/js/wplink$suffix.js", array('jquery'), '20101223' );
 	$scripts->localize( 'wplink', 'wpLinkL10n', array(
 		'update' => __('Update'),
-		'save' => __('Save Link'),
+		'save' => __('Add Link'),
 		'noTitle' => __('(no title)'),
 		'noMatchesFound' => __('No matches found.'),
 		'l10n_print_after' => 'try{convertEntities(wpLinkL10n);}catch(e){};',
@@ -293,7 +293,7 @@ function wp_default_scripts( &$scripts ) {
 		$scripts->add( 'admin-categories', "/wp-admin/js/categories$suffix.js", array('wp-lists'), '20091201' );
 		$scripts->add_data( 'admin-categories', 'group', 1 );
 
-		$scripts->add( 'admin-tags', "/wp-admin/js/tags$suffix.js", array('jquery', 'wp-ajax-response'), '20100213' );
+		$scripts->add( 'admin-tags', "/wp-admin/js/tags$suffix.js", array('jquery', 'wp-ajax-response'), '20101216' );
 		$scripts->add_data( 'admin-tags', 'group', 1 );
 		$scripts->localize( 'admin-tags', 'tagsl10n', array(
 			'noPerm' => __('You do not have permission to do that.'),
@@ -304,16 +304,15 @@ function wp_default_scripts( &$scripts ) {
 		$scripts->add( 'admin-custom-fields', "/wp-admin/js/custom-fields$suffix.js", array('wp-lists'), '20090106' );
 		$scripts->add_data( 'admin-custom-fields', 'group', 1 );
 
-		$scripts->add( 'list-table', "/wp-admin/js/list-table$suffix.js", array( 'jquery-query', 'jquery-serialize-object' ), '20101214' );
+		$scripts->add( 'list-table', "/wp-admin/js/list-table$suffix.js", array( 'jquery-query', 'jquery-serialize-object' ), '20101224' );
 		$scripts->add_data( 'list-table', 'group', 1 );
 		$scripts->localize( 'list-table', 'listTableL10n', array(
-			'loading' => __('Loading...'),
 			'error' => __('An error has occurred while loading the items.'),
 			'search' => __('Search results for &#8220;%s&#8221;'),
 			'l10n_print_after' => 'try{convertEntities(listTableL10n);}catch(e){};'
 		) );
 
-		$scripts->add( 'admin-comments', "/wp-admin/js/edit-comments$suffix.js", array('wp-lists', 'list-table', 'jquery-ui-resizable', 'quicktags'), '20101214' );
+		$scripts->add( 'admin-comments', "/wp-admin/js/edit-comments$suffix.js", array('wp-lists', 'list-table', 'jquery-ui-resizable', 'quicktags'), '20101223' );
 		$scripts->add_data( 'admin-comments', 'group', 1 );
 		$scripts->localize( 'admin-comments', 'adminCommentsL10n', array(
 			'hotkeys_highlight_first' => isset($_GET['hotkeys_highlight_first']),
@@ -326,7 +325,7 @@ function wp_default_scripts( &$scripts ) {
 		$scripts->add( 'postbox', "/wp-admin/js/postbox$suffix.js", array('jquery-ui-sortable'), '20091012' );
 		$scripts->add_data( 'postbox', 'group', 1 );
 
-		$scripts->add( 'post', "/wp-admin/js/post$suffix.js", array('suggest', 'wp-lists', 'postbox'), '20101201' );
+		$scripts->add( 'post', "/wp-admin/js/post$suffix.js", array('suggest', 'wp-lists', 'postbox'), '20101222' );
 		$scripts->add_data( 'post', 'group', 1 );
 		$scripts->localize( 'post', 'postL10n', array(
 			'tagsUsed' =>  __('Tags used on this post:'),
@@ -404,7 +403,7 @@ function wp_default_scripts( &$scripts ) {
 			'l10n_print_after' => 'try{convertEntities(inlineEditL10n);}catch(e){};'
 		) );
 
-		$scripts->add( 'plugin-install', "/wp-admin/js/plugin-install$suffix.js", array( 'jquery', 'thickbox' ), '20100407' );
+		$scripts->add( 'plugin-install', "/wp-admin/js/plugin-install$suffix.js", array( 'jquery', 'thickbox' ), '20101220' );
 		$scripts->add_data( 'plugin-install', 'group', 1 );
 		$scripts->localize( 'plugin-install', 'plugininstallL10n', array(
 			'plugin_information' => __('Plugin Information:'),
@@ -481,17 +480,17 @@ function wp_default_styles( &$styles ) {
 
 	$suffix = defined('SCRIPT_DEBUG') && SCRIPT_DEBUG ? '.dev' : '';
 
-	$rtl_styles = array( 'wp-admin', 'global', 'colors', 'colors-fresh', 'colors-classic', 'dashboard', 'ie', 'install', 'login', 'media', 'theme-editor', 'upload', 'widgets', 'press-this', 'plugin-install', 'nav-menu', 'farbtastic', 'admin-bar' );
+	$rtl_styles = array( 'wp-admin', 'global', 'colors', 'colors-fresh', 'colors-classic', 'dashboard', 'ie', 'install', 'login', 'media', 'theme-editor', 'upload', 'widgets', 'press-this', 'plugin-install', 'nav-menu', 'farbtastic', 'admin-bar', 'wplink' );
 	// Any rtl stylesheets that don't have a .dev version for ltr
 	$no_suffix = array( 'farbtastic' );
 
-	$styles->add( 'wp-admin', "/wp-admin/css/wp-admin$suffix.css", array(), '20101214' );
+	$styles->add( 'wp-admin', "/wp-admin/css/wp-admin$suffix.css", array(), '20101225' );
 
 	$styles->add( 'ie', "/wp-admin/css/ie$suffix.css", array(), '20101102' );
 	$styles->add_data( 'ie', 'conditional', 'lte IE 7' );
 
 	// all colors stylesheets need to have the same query strings (cache manifest compat)
-	$colors_version = '20101214';
+	$colors_version = '20101224';
 
 	// Register "meta" stylesheet for admin colors. All colors-* style sheets should have the same version string.
 	$styles->add( 'colors', true, array(), $colors_version );
@@ -501,13 +500,13 @@ function wp_default_styles( &$styles ) {
 	$styles->add( 'colors-classic', "/wp-admin/css/colors-classic$suffix.css", array(), $colors_version );
 
 	$styles->add( 'ms', "/wp-admin/css/ms$suffix.css", array(), '20101213' );
-	$styles->add( 'global', "/wp-admin/css/global$suffix.css", array(), '20101105' );
+	$styles->add( 'global', "/wp-admin/css/global$suffix.css", array(), '20101216' );
 	$styles->add( 'media', "/wp-admin/css/media$suffix.css", array(), '20101020' );
 	$styles->add( 'widgets', "/wp-admin/css/widgets$suffix.css", array(), '20100610' );
-	$styles->add( 'dashboard', "/wp-admin/css/dashboard$suffix.css", array(), '20101204' );
+	$styles->add( 'dashboard', "/wp-admin/css/dashboard$suffix.css", array(), '20101215' );
 	$styles->add( 'install', "/wp-admin/css/install$suffix.css", array(), '20101020' ); // Readme as well
 	$styles->add( 'theme-editor', "/wp-admin/css/theme-editor$suffix.css", array(), '20101203' );
-	$styles->add( 'press-this', "/wp-admin/css/press-this$suffix.css", array(), '20101020' );
+	$styles->add( 'press-this', "/wp-admin/css/press-this$suffix.css", array(), '20101224' );
 	$styles->add( 'thickbox', '/wp-includes/js/thickbox/thickbox.css', array(), '20090514' );
 	$styles->add( 'login', "/wp-admin/css/login$suffix.css", array(), '20101020' );
 	$styles->add( 'plugin-install', "/wp-admin/css/plugin-install$suffix.css", array(), '20100402' );
@@ -516,9 +515,9 @@ function wp_default_styles( &$styles ) {
 	$styles->add( 'jcrop', '/wp-includes/js/jcrop/jquery.Jcrop.css', array(), '0.9.8' );
 	$styles->add( 'imgareaselect', '/wp-includes/js/imgareaselect/imgareaselect.css', array(), '0.9.1' );
 	$styles->add( 'nav-menu', "/wp-admin/css/nav-menu$suffix.css", array(), '20100907' );
-	$styles->add( 'admin-bar', "/wp-includes/css/admin-bar$suffix.css", array(), '20101214' );
-	$styles->add( 'wp-jquery-ui-dialog', "/wp-includes/css/jquery-ui-dialog$suffix.css", array(), '20101119' );
-	$styles->add( 'wplink', "/wp-includes/js/tinymce/plugins/wplink/css/wplink$suffix.css", array(), '20101214' );
+	$styles->add( 'admin-bar', "/wp-includes/css/admin-bar$suffix.css", array(), '20101219' );
+	$styles->add( 'wp-jquery-ui-dialog', "/wp-includes/css/jquery-ui-dialog$suffix.css", array(), '20101224' );
+	$styles->add( 'wplink', "/wp-includes/js/tinymce/plugins/wplink/css/wplink$suffix.css", array(), '20101224' );
 
 	foreach ( $rtl_styles as $rtl_style ) {
 		$styles->add_data( $rtl_style, 'rtl', true );

@@ -13,8 +13,10 @@ require_once( './admin.php' );
 if ( ! is_multisite() )
 	wp_die( __( 'Multisite support is not enabled.' ) );
 
+if ( ! current_user_can( 'manage_sites' ) )
+	wp_die( __( 'You do not have permission to access this page.' ) );
+
 $wp_list_table = get_list_table('WP_MS_Sites_List_Table');
-$wp_list_table->check_permissions();
 
 $title = __( 'Sites' );
 $parent_file = 'sites.php';
@@ -32,10 +34,9 @@ add_contextual_help($current_screen,
 	'<li>' . __('Visit to go to the frontend site live.') . '</li></ul>' .
 	'<p>' . __('The site ID is used internally, and is not shown on the front end of the site or to users/viewers.') . '</p>' .
 	'<p>' . __('Clicking on bold settings can re-sort this table. The upper right icons switch between list and excerpt views.') . '</p>' .
-	'<p>' . __('If the admin email for the new site does not exist in the database, a new user will also be created.') . '</p>' .
 	'<p><strong>' . __('For more information:') . '</strong></p>' .
-	'<p>' . __('<a href="http://codex.wordpress.org/Super_Admin_Sites_SubPanel" target="_blank">Documentation on Sites</a>') . '</p>' .
-	'<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
+	'<p>' . __('<a href="http://codex.wordpress.org/Network_Admin_Sites_Screens" target="_blank">Documentation on Site Management</a>') . '</p>' .
+	'<p>' . __('<a href="http://wordpress.org/support/forum/multisite/" target="_blank">Support Forums</a>') . '</p>'
 );
 
 $id = isset( $_REQUEST['id'] ) ? intval( $_REQUEST['id'] ) : 0;
@@ -103,11 +104,8 @@ require_once( '../admin-header.php' );
 </h2>
 
 <form action="" method="get" id="ms-search">
-<p class="search-box">
+<?php $wp_list_table->search_box( __( 'Search Sites' ), 'site' ); ?>
 <input type="hidden" name="action" value="blogs" />
-<input type="text" name="s" value="<?php echo esc_attr( $s ); ?>" />
-<?php submit_button( __( 'Search Sites' ), 'button', 'submit', false ); ?>
-</p>
 </form>
 
 <form id="form-site-list" action="edit.php?action=allblogs" method="post">

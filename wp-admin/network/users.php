@@ -13,8 +13,10 @@ require_once( './admin.php' );
 if ( ! is_multisite() )
 	wp_die( __( 'Multisite support is not enabled.' ) );
 
+if ( ! current_user_can( 'manage_network_users' ) )
+	wp_die( __( 'You do not have permission to access this page.' ) );
+
 $wp_list_table = get_list_table('WP_MS_Users_List_Table');
-$wp_list_table->check_permissions();
 $wp_list_table->prepare_items();
 
 $title = __( 'Users' );
@@ -28,12 +30,10 @@ add_contextual_help($current_screen,
 	'<p>' . __('You can also go to the user&#8217;s profile page by clicking on the individual username.') . '</p>' .
 	'<p>' . __('You can sort the table by clicking on any of the bold headings and switch between list and excerpt views by using the icons in the upper right.') . '</p>' .
 	'<p>' . __('The bulk action will permanently delete selected users, or mark/unmark those selected as spam. Spam users will have posts removed and will be unable to sign up again with the same email addresses.') . '</p>' .
-	'<p>' . __('Add User will add that person to this table and send them an email.') . '</p>' .
-	'<p>' . __('Users who are signed up to the network without a site are added as subscribers to the main or primary dashboard site, giving them profile pages to manage their accounts. These users will only see Dashboard and My Sites in the main navigation until a site is created for them.') . '</p>' .
 	'<p>' . __('You can make an existing user an additional super admin by going to the Edit User profile page and checking the box to grant that privilege.') . '</p>' .
 	'<p><strong>' . __('For more information:') . '</strong></p>' .
-	'<p>' . __('<a href="http://codex.wordpress.org/Super_Admin_Users_SubPanel" target="_blank">Network Users Documentation</a>') . '</p>' .
-	'<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
+	'<p>' . __('<a href="http://codex.wordpress.org/Network_Admin_Users_Screen" target="_blank">Documentation on Network Users</a>') . '</p>' .
+	'<p>' . __('<a href="http://wordpress.org/support/forum/multisite/" target="_blank">Support Forums</a>') . '</p>'
 );
 
 require_once( '../admin-header.php' );
@@ -79,10 +79,7 @@ if ( isset( $_REQUEST['updated'] ) && $_REQUEST['updated'] == 'true' && ! empty(
 	<?php $wp_list_table->views(); ?>
 
 	<form action="" method="get" class="search-form">
-		<p class="search-box">
-		<input type="text" name="s" value="<?php echo esc_attr( $usersearch ); ?>" class="search-input" id="user-search-input" />
-		<?php submit_button( __( 'Search Users' ), 'button', 'post-query-submit', false ); ?>
-		</p>
+		<?php $wp_list_table->search_box( __( 'Search Users' ), 'user' ); ?>
 	</form>
 
 	<form id="form-user-list" action='edit.php?action=allusers' method='post'>

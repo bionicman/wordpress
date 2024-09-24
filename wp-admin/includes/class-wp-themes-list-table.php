@@ -11,9 +11,9 @@ class WP_Themes_List_Table extends WP_List_Table {
 	var $search = array();
 	var $features = array();
 
-	function check_permissions() {
-		if ( !current_user_can('switch_themes') && !current_user_can('edit_theme_options') )
-			wp_die( __( 'Cheatin&#8217; uh?' ) );
+	function ajax_user_can() {
+		// Do not check edit_theme_options here. AJAX calls for available themes require switch_themes.
+		return current_user_can('switch_themes');
 	}
 
 	function prepare_items() {
@@ -83,10 +83,11 @@ class WP_Themes_List_Table extends WP_List_Table {
 		printf( __( 'Only the current theme is available to you. Contact the %s administrator for information about accessing additional themes.' ), get_site_option( 'site_name' ) );
 	}
 
-	function display_table() {
+	function display() {
 ?>
-		<div class="tablenav">
+		<div class="tablenav top">
 			<?php $this->pagination( 'top' ); ?>
+			<img src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" class="ajax-loading list-ajax-loading" alt="" />
 			<br class="clear" />
 		</div>
 
@@ -96,8 +97,9 @@ class WP_Themes_List_Table extends WP_List_Table {
 			</tbody>
 		</table>
 
-		<div class="tablenav">
+		<div class="tablenav bottom">
 			<?php $this->pagination( 'bottom' ); ?>
+			<img src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" class="ajax-loading list-ajax-loading" alt="" />
 			<br class="clear" />
 		</div>
 <?php
@@ -146,7 +148,7 @@ foreach ( $cols as $col => $theme_name ) {
 	$preview_link = esc_url( get_option( 'home' ) . '/' );
 	if ( is_ssl() )
 		$preview_link = str_replace( 'http://', 'https://', $preview_link );
-	$preview_link = htmlspecialchars( add_query_arg( array( 'preview' => 1, 'template' => $template, 'stylesheet' => $stylesheet, 'TB_iframe' => 'true' ), $preview_link ) );
+	$preview_link = htmlspecialchars( add_query_arg( array( 'preview' => 1, 'template' => $template, 'stylesheet' => $stylesheet, 'preview_iframe' => true, 'TB_iframe' => 'true' ), $preview_link ) );
 	$preview_text = esc_attr( sprintf( __( 'Preview of &#8220;%s&#8221;' ), $title ) );
 	$tags = $themes[$theme_name]['Tags'];
 	$thickbox_class = 'thickbox thickbox-preview';

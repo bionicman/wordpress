@@ -1206,7 +1206,7 @@ function do_enclose( $content, $post_ID ) {
 
 	foreach ( $pung as $link_test ) {
 		if ( !in_array( $link_test, $post_links_temp[0] ) ) { // link no longer in post
-			$mid = $wpdb->get_col( $wpdb->prepare("SELECT meta_id FROM $wpdb->postmeta WHERE post_id = %d AND meta_key = 'enclosure' AND meta_value LIKE (%s)", $post_ID, $link_test . '%') );
+			$mid = $wpdb->get_col( $wpdb->prepare("SELECT meta_id FROM $wpdb->postmeta WHERE post_id = %d AND meta_key = 'enclosure' AND meta_value LIKE (%s)", $post_ID, like_escape( $link_test ) . '%') );
 			do_action( 'delete_postmeta', $mid );
 			$wpdb->query( $wpdb->prepare("DELETE FROM $wpdb->postmeta WHERE meta_id IN(%s)", implode( ',', $mid ) ) );
 			do_action( 'deleted_postmeta', $mid );
@@ -1226,7 +1226,7 @@ function do_enclose( $content, $post_ID ) {
 	}
 
 	foreach ( (array) $post_links as $url ) {
-		if ( $url != '' && !$wpdb->get_var( $wpdb->prepare( "SELECT post_id FROM $wpdb->postmeta WHERE post_id = %d AND meta_key = 'enclosure' AND meta_value LIKE (%s)", $post_ID, $url . '%' ) ) ) {
+		if ( $url != '' && !$wpdb->get_var( $wpdb->prepare( "SELECT post_id FROM $wpdb->postmeta WHERE post_id = %d AND meta_key = 'enclosure' AND meta_value LIKE (%s)", $post_ID, like_escape( $url ) . '%' ) ) ) {
 
 			if ( $headers = wp_get_http_headers( $url) ) {
 				$len = (int) $headers['content-length'];
@@ -3264,9 +3264,9 @@ function atom_service_url_filter($url)
  * to get the backtrace up to what file and function called the deprecated
  * function.
  *
- * The current behavior is to trigger an user error if WP_DEBUG is true.
+ * The current behavior is to trigger a user error if WP_DEBUG is true.
  *
- * This function is to be used in every function in depreceated.php
+ * This function is to be used in every function that is deprecated.
  *
  * @package WordPress
  * @subpackage Debug
@@ -3302,9 +3302,9 @@ function _deprecated_function( $function, $version, $replacement=null ) {
  * to get the backtrace up to what file and function included the deprecated
  * file.
  *
- * The current behavior is to trigger an user error if WP_DEBUG is true.
+ * The current behavior is to trigger a user error if WP_DEBUG is true.
  *
- * This function is to be used in every file that is depreceated
+ * This function is to be used in every file that is deprecated.
  *
  * @package WordPress
  * @subpackage Debug
@@ -3350,7 +3350,7 @@ function _deprecated_file( $file, $version, $replacement = null, $message = '' )
  * to get the backtrace up to what file and function used the deprecated
  * argument.
  *
- * The current behavior is to trigger an user error if WP_DEBUG is true.
+ * The current behavior is to trigger a user error if WP_DEBUG is true.
  *
  * @package WordPress
  * @subpackage Debug
@@ -3376,6 +3376,39 @@ function _deprecated_argument( $function, $version, $message = null ) {
 			trigger_error( sprintf( __('%1$s was called with an argument that is <strong>deprecated</strong> since version %2$s! %3$s'), $function, $version, $message ) );
 		else
 			trigger_error( sprintf( __('%1$s was called with an argument that is <strong>deprecated</strong> since version %2$s with no alternative available.'), $function, $version ) );
+	}
+}
+
+/**
+ * Marks something as being incorrectly called.
+ *
+ * There is a hook doing_it_wrong_run that will be called that can be used
+ * to get the backtrace up to what file and function called the deprecated
+ * function.
+ *
+ * The current behavior is to trigger a user error if WP_DEBUG is true.
+ *
+ * @package WordPress
+ * @subpackage Debug
+ * @since 3.1.0
+ * @access private
+ *
+ * @uses do_action() Calls 'doing_it_wrong_run' and passes the function arguments.
+ * @uses apply_filters() Calls 'doing_it_wrong_trigger_error' and expects boolean value of true to do
+ *   trigger or false to not trigger error.
+ *
+ * @param string $function The function that was called.
+ * @param string $message A message explaining what has been done incorrectly.
+ * @param string $version The version of WordPress where the message was added.
+ */
+function _doing_it_wrong( $function, $message, $version ) {
+
+	do_action( 'doing_it_wrong_run', $function, $message, $version );
+
+	// Allow plugin to filter the output error trigger
+	if ( WP_DEBUG && apply_filters( 'doing_it_wrong_trigger_error', true ) ) {
+		$version = is_null( $version ) ? '' : sprintf( __( '(This message was added in version %s.)' ), $version );
+		trigger_error( sprintf( __( '%1$s was called <strong>incorrectly</strong>. %2$s %3$s' ), $function, $message, $version ) );
 	}
 }
 
@@ -4270,7 +4303,7 @@ function get_file_data( $file, $default_headers, $context = '' ) {
 	return $file_data;
 }
 
-/*
+/**
  * Used internally to tidy up the search terms
  *
  * @access private
@@ -4438,18 +4471,4 @@ function wp_find_hierarchy_loop_tortoise_hare( $callback, $start, $override = ar
 	return false;
 }
 
-/**
- * Set the display status of the admin bar
- *
- * This can be called immediately upon plugin load.  It does not need to be called from a function hooked to the init action.
- *
- * @since 3.1.0
- *
- * @param bool $show Whether to allow the admin bar to show.
- * @return void
- */
-function show_admin_bar( $show ) {
-	global $show_admin_bar;
-	$show_admin_bar = (bool) $show;
-}
-
+?>
