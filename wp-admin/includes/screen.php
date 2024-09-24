@@ -108,25 +108,6 @@ function get_hidden_meta_boxes( $screen ) {
 }
 
 /**
- * Add contextual help text for a page.
- *
- * Creates a 'Screen Info' help tab.
- *
- * @since 2.7.0
- *
- * @param string    $screen The handle for the screen to add help to.  This is usually the hook name returned by the add_*_page() functions.
- * @param string    $help   The content of a 'Screen Info' help tab.
- *
- * @todo: deprecate?
- */
-function add_contextual_help( $screen, $help ) {
-	if ( is_string( $screen ) )
-		$screen = convert_to_screen( $screen );
-
-	WP_Screen::add_old_compat_help( $screen, $help );
-}
-
-/**
  * Register and configure an admin screen option
  *
  * @since 3.1.0
@@ -233,7 +214,7 @@ final class WP_Screen {
 	 * @var string
 	 * @access public
 	 */
-	public $action = '';
+	public $action;
 
 	/**
 	 * The base type of the screen.  This is typically the same as $id but with any post types and taxonomies stripped.
@@ -387,40 +368,47 @@ final class WP_Screen {
 		if ( is_a( $hook_name, 'WP_Screen' ) )
 			return $hook_name;
 
-		$action = $post_type = $taxonomy = null;
+		$post_type = $taxonomy = null;
 		$is_network = $is_user = false;
+		$action = '';
 
 		if ( $hook_name )
 			$id = $hook_name;
 		else
 			$id = $GLOBALS['hook_suffix'];
 
-		$id = str_replace( '.php', '', $id );
-		if ( in_array( substr( $id, -4 ), array( '-add', '-new' ) ) )
-			$action = 'add';
-		$id = str_replace( array( '-new', '-add' ), '', $id );
+		// For those pesky meta boxes.
+		if ( $hook_name && post_type_exists( $hook_name ) ) {
+			$post_type = $id;
+			$id = 'post'; // changes later. ends up being $base.
+		} else {
+			if ( '.php' == substr( $id, -4 ) )
+				$id = substr( $id, 0, -4 );
 
-		if ( $hook_name ) {
+			if ( 'post-new' == $id || 'link-add' == $id || 'media-new' == $id || 'user-new' == $id ) {
+				$id = substr( $id, 0, -4 );
+				$action = 'add';
+			}
+		}
+
+		if ( ! $post_type && $hook_name ) {
 			if ( '-network' == substr( $id, -8 ) ) {
-				$id = str_replace( '-network', '', $id );
+				$id = substr( $id, 0, -8 );
 				$is_network = true;
 			} elseif ( '-user' == substr( $id, -5 ) ) {
-				$id = str_replace( '-user', '', $id );
+				$id = substr( $id, 0, -5 );
 				$is_user = true;
 			}
 
 			$id = sanitize_key( $id );
-			if ( post_type_exists( $id ) ) {
-				$post_type = $id;
-				$id = 'post'; // changes later. ends up being $base.
-			} elseif ( false !== strpos( $id, '-' ) ) {
-				list( $first, $second ) = explode( '-', $id, 2 );
-				if ( taxonomy_exists( $second ) ) {
+			if ( 'edit-comments' != $id && 'edit-tags' != $id && 'edit-' == substr( $id, 0, 5 ) ) {
+				$maybe = substr( $id, 5 );
+				if ( taxonomy_exists( $maybe ) ) {
  					$id = 'edit-tags';
-					$taxonomy = $second;
-				} elseif ( post_type_exists( $second ) ) {
-					$id = $first;
-					$post_type = $second;
+					$taxonomy = $maybe;
+				} elseif ( post_type_exists( $maybe ) ) {
+					$id = 'edit';
+					$post_type = $maybe;
 				}
  			}
 		} else {
@@ -478,10 +466,6 @@ final class WP_Screen {
 					$taxonomy = 'post_tag';
 				$id = 'edit-' . $taxonomy;
 				break;
-			case 'upload' :
-				if ( null === $post_type )
-					$post_type = 'attachment';
-				break;
 		}
 
 		if ( $is_network ) {
@@ -524,7 +508,7 @@ final class WP_Screen {
 		$current_screen = $this;
 		$taxnow = $this->taxonomy;
 		$typenow = $this->post_type;
-		$current_screen = apply_filters( 'current_screen', $current_screen );
+		do_action( 'current_screen', $current_screen );
 	}
 
 	/**
@@ -682,7 +666,7 @@ final class WP_Screen {
 		if ( $old_help ) {
 			$this->add_help_tab( array(
 				'id'      => 'contextual-help',
-				'title'   => __('Screen Info'),
+				'title'   => __('Overview'),
 				'content' => $old_help,
 			) );
 		}
