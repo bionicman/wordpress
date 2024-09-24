@@ -35,16 +35,27 @@ do_action( 'sidebar_admin_setup' );
 $title = __( 'Widgets' );
 $parent_file = 'themes.php';
 
-$help = '
-	<p>' . __('Widgets are independent sections of content that can be placed into any widgetized area provided by your theme (commonly called sidebars). To populate your sidebars/widget areas with individual widgets, drag and drop the title bars into the desired area. By default, only the first widget area is expanded. To populate additional widget areas, click on their title bars to expand them.') . '</p>
-	<p>' . __('The Available Widgets section contains all the widgets you can choose from. Once you drag a widget into a sidebar, it will open to allow you to configure its settings. When you are happy with the widget settings, click the Save button and the widget will go live on your site. If you click Delete, it will remove the widget.') . '</p>
-	<p>' . __('If you want to remove the widget but save its setting for possible future use, just drag it into the Inactive Widgets area. You can add them back anytime from there. This is especially helpful when you switch to a theme with fewer or different widget areas.') . '</p>
+get_current_screen()->add_help_tab( array(
+'id'		=> 'overview',
+'title'		=> __('Overview'),
+'content'	=> 	
+	'<p>' . __('Widgets are independent sections of content that can be placed into any widgetized area provided by your theme (commonly called sidebars). To populate your sidebars/widget areas with individual widgets, drag and drop the title bars into the desired area. By default, only the first widget area is expanded. To populate additional widget areas, click on their title bars to expand them.') . '</p>
+	<p>' . __('The Available Widgets section contains all the widgets you can choose from. Once you drag a widget into a sidebar, it will open to allow you to configure its settings. When you are happy with the widget settings, click the Save button and the widget will go live on your site. If you click Delete, it will remove the widget.') . '</p>'
+) );
+get_current_screen()->add_help_tab( array(
+'id'		=> 'removing-reusing',
+'title'		=> __('Removing and Reusing'),
+'content'	=> 	
+	'<p>' . __('If you want to remove the widget but save its setting for possible future use, just drag it into the Inactive Widgets area. You can add them back anytime from there. This is especially helpful when you switch to a theme with fewer or different widget areas.') . '</p>
 	<p>' . __('Widgets may be used multiple times. You can give each widget a title, to display on your site, but it&#8217;s not required.') . '</p>
-	<p>' . __('Enabling Accessibility Mode, via Screen Options, allows you to use Add and Edit buttons instead of using drag and drop.') . '</p>
-	<p>' . __('Many themes show some sidebar widgets by default until you edit your sidebars, but they are not automatically displayed in your sidebar management tool. After you make your first widget change, you can re-add the default widgets by adding them from the Available Widgets area.') . '</p>
-';
-
-add_contextual_help($current_screen, $help);
+	<p>' . __('Enabling Accessibility Mode, via Screen Options, allows you to use Add and Edit buttons instead of using drag and drop.') . '</p>'
+) );
+get_current_screen()->add_help_tab( array(
+'id'		=> 'missing-widgets',
+'title'		=> __('Missing Widgets'),
+'content'	=> 	
+	'<p>' . __('Many themes show some sidebar widgets by default until you edit your sidebars, but they are not automatically displayed in your sidebar management tool. After you make your first widget change, you can re-add the default widgets by adding them from the Available Widgets area.') . '</p>' 
+) );
 
 get_current_screen()->set_help_sidebar(
 	'<p><strong>' . __('For more information:') . '</strong></p>' .
@@ -62,18 +73,21 @@ foreach ( $sidebars_widgets as $sidebar_id => $widgets ) {
 	if ( 'wp_inactive_widgets' == $sidebar_id )
 		continue;
 
-	if ( empty( $wp_registered_sidebars[ $sidebar_id ] ) && ! empty( $widgets ) ) {
-		// register the inactive_widgets area as sidebar
-		register_sidebar(array(
-			'name' => __( 'Inactive Sidebar (from previous theme)' ),
-			'id' => $sidebar_id,
-			'class' => 'inactive-sidebar orphan-sidebar',
-			'description' => __( 'This is a left over sidebar from an old theme and does not show anywhere on your site' ),
-			'before_widget' => '',
-			'after_widget' => '',
-			'before_title' => '',
-			'after_title' => '',
-		));
+	if ( !isset( $wp_registered_sidebars[ $sidebar_id ] ) ) {
+		if ( ! empty( $widgets ) ) { // register the inactive_widgets area as sidebar
+			register_sidebar(array(
+				'name' => __( 'Inactive Sidebar (from previous theme)' ),
+				'id' => $sidebar_id,
+				'class' => 'inactive-sidebar orphan-sidebar',
+				'description' => __( 'This is a left over sidebar from an old theme and does not show anywhere on your site' ),
+				'before_widget' => '',
+				'after_widget' => '',
+				'before_title' => '',
+				'after_title' => '',
+			));
+		} else {
+			unset( $sidebars_widgets[ $sidebar_id ] );
+		}
 	}
 }
 

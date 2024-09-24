@@ -68,7 +68,14 @@ ol {
 
 .icon32 {
 	float: right;
-	margin: 7px 0 0 8px;
+	margin-right: 0;
+	margin-left: 8px;
+}
+
+.icon16 {
+	float: right;
+	margin-right: -8px;
+	margin-left: 0;
 }
 
 .howto {
@@ -172,10 +179,6 @@ th.action-links {
 /*------------------------------------------------------------------------------
   4.0 - Notifications
 ------------------------------------------------------------------------------*/
-
-.plugin-update .update-message {
-	margin: 0 31px 8px 10px;
-}
 
 form.upgrade .hint {
 	font-style: normal;
@@ -360,6 +363,23 @@ form.upgrade .hint {
 	margin-right: -4px;
 }
 
+#contextual-help-back {
+	left: 170px;
+	right: 150px;
+}
+
+#contextual-help-wrap.no-sidebar #contextual-help-back {
+	left: 0;
+	right: 150px;
+
+	border-right-width: 1px;
+	border-left-width: 0;
+	-webkit-border-bottom-right-radius: 0;
+	border-bottom-right-radius: 0;
+	-webkit-border-bottom-left-radius: 2px;
+	border-bottom-left-radius: 2px;
+}
+
 .contextual-help-tabs {
 	float: right;
 }
@@ -380,11 +400,6 @@ form.upgrade .hint {
 	border-right-width: 1px;
 }
 
-.contextual-help-tabs-wrap {
-	border-right-width: 1px;
-	border-right-style: solid;
-}
-
 .help-tab-content {
 	margin-right: 0;
 	margin-left: 22px;
@@ -399,53 +414,134 @@ form.upgrade .hint {
 	float: left;
 	padding-right: 12px;
 	padding-left: 8px;
-	border-left: 0;
-	border-right-width: 1px;
 }
 
 /*------------------------------------------------------------------------------
   7.0 - Main Navigation (Right Menu) (RTL: Left Menu)
 ------------------------------------------------------------------------------*/
 
+#adminmenuback,
+#adminmenuwrap {
+	border-width: 0 0 0 1px;
+}
+
 #adminmenushadow {
 	right: auto;
 	left: 0;
+}
+
+#adminmenu li .wp-submenu,
+.folded #adminmenu .wp-has-current-submenu .wp-submenu {
+	left: auto;
+	right: 146px;
+}
+
+.folded #adminmenu .wp-submenu,
+.folded #adminmenu .wp-has-current-submenu .wp-submenu {
+	left: auto;
+	right: 26px;
+}
+
+#adminmenu .wp-submenu.sub-open,
+#adminmenu li.focused.wp-not-current-submenu .wp-submenu,
+.folded #adminmenu li.focused.wp-has-current-submenu .wp-submenu,
+.folded #adminmenu .wp-has-current-submenu .wp-submenu.sub-open,
+.no-js #adminmenu .wp-has-submenu:hover .wp-submenu,
+.no-js.folded #adminmenu .wp-has-current-submenu:hover .wp-submenu {
+	padding: 0 0 8px 8px;
 }
 
 #adminmenu div.wp-menu-image {
 	float: right;
 }
 
-#adminmenu .wp-submenu a {
+#adminmenu li li {
+	margin-left: 0;
+	margin-right: 8px
+}
+
+#adminmenu .wp-submenu a,
+#adminmenu li li a,
+.folded #adminmenu .wp-not-current-submenu li a {
 	padding-left: 0;
 	padding-right: 12px;
 }
 
+#adminmenu .wp-not-current-submenu li a {
+	padding-left: 0;
+	padding-right: 18px;
+}
+
+.folded #adminmenu li li {
+	margin-left: inherit;
+	margin-right: 0
+}
+
+.folded #adminmenu li li a {
+	padding-left: inherit;
+	padding-right: 0
+}
+
+.wp-menu-arrow {
+	right: 0;
+
+	-moz-transform:    translate( -139px );
+	-webkit-transform: translate( -139px );
+	-o-transform:      translate( -139px );
+	-ms-transform:     translate( -139px );
+	transform:         translate( -139px );
+}
+
+.ie8 .wp-menu-arrow {
+	right: -20px;
+}
+
 #adminmenu .wp-menu-arrow div {
 	left: -8px;
-	top: 7px;
 	width: 16px;
+}
+
+#adminmenu li.wp-not-current-submenu .wp-menu-arrow {
+	-moz-transform:    translate( -138px );
+	-webkit-transform: translate( -138px );
+	-o-transform:      translate( -138px );
+	-ms-transform:     translate( -138px );
+	transform:         translate( -138px );
+}
+
+.folded .wp-menu-arrow {
+	-moz-transform:    translate( -27px );
+	-webkit-transform: translate( -27px );
+	-o-transform:      translate( -27px );
+	-ms-transform:     translate( -27px );
+	transform:         translate( -27px );
+}
+
+#adminmenu .wp-not-current-submenu .wp-menu-arrow div {
+    border-style: solid solid none none;
+    border-width: 1px 1px 0 0;
 }
 
 #adminmenu .wp-menu-image img {
 	float: right;
-}
-
-.folded #adminmenu .wp-submenu {
-	left: auto;
-	right: 26px;
-}
-
-.folded #adminmenu .wp-submenu.sub-open {
-	padding: 0 0 8px 8px;
+	padding: 5px 2px 0 0;
 }
 
 #adminmenu .wp-submenu .wp-submenu-head {
 	padding: 6px 10px 5px 4px;
 }
 
-.folded #adminmenu .wp-submenu-wrap {
-	border-width: 0 0 1px 1px;
+#adminmenu li .wp-submenu-wrap {
+	border-width: 1px 0 1px 1px;
+	border-style: solid none solid solid;
+	-webkit-border-bottom-right-radius: 0;
+	-webkit-border-bottom-left-radius: 3px;
+	-webkit-border-top-right-radius: 0;
+	-webkit-border-top-left-radius: 3px;
+	border-bottom-right-radius: 0;
+	border-bottom-left-radius: 3px;
+	border-top-right-radius: 0;
+	border-top-left-radius: 3px;
 }
 
 .folded #adminmenu .wp-submenu ul {
@@ -468,10 +564,6 @@ form.upgrade .hint {
 	padding: 1px 0 0 2px;
 }
 
-#adminmenu .wp-menu-image img {
-	padding: 6px 1px 0 0;
-}
-
 #adminmenu .awaiting-mod,
 #adminmenu span.update-plugins,
 #sidemenu li a span.update-plugins {
@@ -480,73 +572,12 @@ form.upgrade .hint {
 	margin-right: 7px;
 }
 
-#adminmenu .wp-submenu.sub-open,
-.folded #adminmenu .wp-has-current-submenu .wp-submenu.sub-open,
-.no-js #adminmenu .wp-has-submenu:hover .wp-submenu,
-.no-js.folded #adminmenu .wp-has-current-submenu:hover .wp-submenu {
-	padding: 0 0 8px 8px;
+#collapse-button {
+	float: right;
 }
 
-#adminmenu li .wp-submenu-wrap,
-.folded #adminmenu .wp-submenu-wrap {
-	-webkit-border-bottom-right-radius: 0;
-	-webkit-border-bottom-left-radius: 3px;
-	-webkit-border-top-right-radius: 0;
-	-webkit-border-top-left-radius: 3px;
-	border-radius: 0 3px;
-}
 
-#adminmenu li .wp-submenu-wrap {
-    border-style: solid none solid solid;
-    border-width: 1px 0 1px 1px;
-}
-
-#adminmenu .wp-submenu-wrap,
-.folded #adminmenu .wp-has-current-submenu .wp-submenu-wrap {
-    box-shadow: 1px 2px 5px 2px rgba(0, 0, 0, 0.4);
-}
-
-#adminmenu li .wp-submenu {
-	right: 145px;
-}
-
-.wp-menu-arrow {
-	right: 0;
-}
-
-.ie8 .wp-menu-arrow {
-	right: -20px;
-}
-
-#adminmenu .wp-not-current-submenu .wp-menu-arrow div {
-    border-style: solid solid none none;
-    border-width: 1px 1px 0 0;
-}
-
-.wp-menu-arrow {
-	-moz-transform:    translate( -139px );
-	-webkit-transform: translate( -139px );
-	-o-transform:      translate( -139px );
-	-ms-transform:     translate( -139px );
-	transform:         translate( -139px );
-}
-
-#adminmenu li.wp-not-current-submenu .wp-menu-arrow {
-	-moz-transform:    translate( -138px );
-	-webkit-transform: translate( -138px );
-	-o-transform:      translate( -138px );
-	-ms-transform:     translate( -138px );
-	transform:         translate( -138px );
-}
-
-.folded .wp-menu-arrow {
-	-moz-transform:    translate( -27px );
-	-webkit-transform: translate( -27px );
-	-o-transform:      translate( -27px );
-	-ms-transform:     translate( -27px );
-	transform:         translate( -27px );
-}
-
+/* List table styles */
 .post-com-count-wrapper {
 	font-family: Tahoma, Arial, sans-serif;
 }
@@ -561,9 +592,6 @@ form.upgrade .hint {
 	float: right;
 }
 
-#collapse-button {
-	float: right;
-}
 
 /*------------------------------------------------------------------------------
   8.0 - Layout Blocks
@@ -599,7 +627,52 @@ form.upgrade .hint {
 #dashboard_browser_nag p.browser-update-nag.has-browser-icon {
 	padding-right: 0;
 	padding-left: 125px;
-} 
+}
+
+.welcome-panel .welcome-panel-close {
+	right: auto;
+	left: 20px;
+}
+
+.welcome-panel .wp-badge {
+	float: right;
+}
+
+.welcome-panel-content .about-description, .welcome-panel h3 {
+	margin-left: 0;
+	margin-right: 190px;
+}
+
+.welcome-panel .welcome-panel-column {
+	margin: 0 -25px 0 5%;
+	padding-left: 0;
+	padding-right: 25px;
+	float: right;
+}
+
+.welcome-panel .welcome-panel-column.welcome-panel-last {
+	margin-right: auto;
+	padding-right: 0;
+	margin-left: 0;
+}
+
+.welcome-panel h4 .icon16 {
+	margin-left: 0;
+	margin-right: -32px;
+}
+
+.welcome-panel .welcome-panel-column-container {
+	padding: 0 25px 0 0;
+}
+
+.welcome-panel .welcome-panel-column ul {
+	margin: 1.6em 1.3em 1em 1em;
+}
+
+.welcome-panel .welcome-panel-column li {
+	padding-left: 0;
+	padding-right: 2px;
+}
 
 /*------------------------------------------------------------------------------
   10.0 - List Posts (/Pages/etc)
@@ -998,7 +1071,11 @@ span.description,
 .describe-toggle-off {
 	float: left;
 	margin-right: 0;
-	margin-left: 20px;
+	margin-left: 15px;
+}
+
+.media-item .error-div a.dismiss {
+	padding: 0 15px 0 0;
 }
 
 .media-item .error-div {
@@ -1010,17 +1087,13 @@ span.description,
 	float: right;
 }
 
-.crunching {
-	text-align: left;
-	margin-right: 0;
-	margin-left: 5px;
+.media-item .describe td {
+	padding: 0 0 8px 8px;
 }
 
-.bar {
-	border-right-width: 0;
-	border-left-width: 3px;
-	border-right-style: none;
-	border-left-style: solid;
+.media-item .progress {
+	float: left;
+    margin: 6px 0 0 10px;
 }
 
 /*------------------------------------------------------------------------------
@@ -1250,7 +1323,7 @@ h2 .nav-tab {
 
 #wpcontent,
 #footer {
-	margin-right: 165px;	
+	margin-right: 165px;
 }
 
 /*------------------------------------------------------------------------------
@@ -1268,7 +1341,7 @@ h2 .nav-tab {
 	margin-left: 200px;
 }
 
-.about-wrap h2.nav-tab-wrapper { 
+.about-wrap h2.nav-tab-wrapper {
 	padding-left: 0px;
 	padding-right: 6px;
 }
@@ -1314,6 +1387,15 @@ h2 .nav-tab {
 .about-wrap .feature-section.angled-right .right-feature {
 	margin-left: 0;
 	margin-right: 5%;
+}
+
+.about-wrap .feature-section.images-stagger-right .angled-left,
+.about-wrap .feature-section.images-stagger-left .angled-left {
+	float: left;
+}
+
+.about-wrap .feature-section.three-col img {
+	margin: 0.5em 0 1em 0;
 }
 
 .about-wrap li.wp-person,
@@ -1762,13 +1844,21 @@ body.login {
 	margin-left: 0;
 }
 
+.login form .forgetmenot {
+	float: right;
+}
+
+.login form .submit {
+	float: left;
+}
+
 #login form .submit input {
 	font-family: Tahoma, arial;
 }
 
 .login #nav,
 .login #backtoblog {
-	margin: 0 16px 0 0;	
+	margin: 0 16px 0 0;
 }
 
 #login_error,
@@ -1786,6 +1876,10 @@ body.login {
 
 .login h1 a {
 	text-decoration: none;
+}
+
+.login .button-primary {
+	float: left;
 }
 
 
@@ -2171,8 +2265,8 @@ h3.tb {
 }
 
 #template textarea {
-	direction: ltr; 
-} 
+	direction: ltr;
+}
 
 /* theme-install */
 div.star {
@@ -2266,4 +2360,10 @@ div.sidebar-name h3 {
 .sidebar-name-arrow {
 	float: left;
 }
+
+/* Press This */
+.press-this-sidebar {
+	float: left;
+}
+
 

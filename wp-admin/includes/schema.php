@@ -330,7 +330,7 @@ $wp_queries = wp_get_db_schema( 'all' );
  * @uses $wp_db_version
  */
 function populate_options() {
-	global $wpdb, $wp_db_version, $current_site;
+	global $wpdb, $wp_db_version, $current_site, $wp_current_db_version;
 
 	$guessurl = wp_guess_url();
 
@@ -341,6 +341,15 @@ function populate_options() {
 		$uploads_use_yearmonth_folders = 0;
 	} else {
 		$uploads_use_yearmonth_folders = 1;
+	}
+
+	$template = WP_DEFAULT_THEME;
+	// If default theme is a child theme, we need to get its template
+	foreach ( (array) get_themes() as $theme ) {
+		if ( WP_DEFAULT_THEME == $theme['Stylesheet'] ) {
+			$template = $theme['Template'];
+			break;
+		}
 	}
 
 	$options = array(
@@ -394,7 +403,7 @@ function populate_options() {
 	// 1.5
 	'default_email_category' => 1,
 	'recently_edited' => '',
-	'template' => WP_DEFAULT_THEME,
+	'template' => $template,
 	'stylesheet' => WP_DEFAULT_THEME,
 	'comment_whitelist' => 1,
 	'blacklist_keys' => '',
@@ -470,6 +479,12 @@ function populate_options() {
 	// 3.1
 	'default_post_format' => 0,
 	);
+
+	// 3.3
+	if ( ! is_multisite() ) {
+		$options['initial_db_version'] = ! empty( $wp_current_db_version ) && $wp_current_db_version < $wp_db_version
+			? $wp_current_db_version : $wp_db_version;
+	}
 
 	// 3.0 multisite
 	if ( is_multisite() ) {
@@ -877,7 +892,8 @@ We hope you enjoy your new site. Thanks!
 		'add_new_users' => '0',
 		'upload_space_check_disabled' => '0',
 		'subdomain_install' => intval( $subdomain_install ),
-		'global_terms_enabled' => global_terms_enabled() ? '1' : '0'
+		'global_terms_enabled' => global_terms_enabled() ? '1' : '0',
+		'initial_db_version' => get_option( 'initial_db_version' ),
 	);
 	if ( ! $subdomain_install )
 		$sitemeta['illegal_names'][] = 'blog';

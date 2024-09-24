@@ -12,7 +12,7 @@ if ( ! defined( 'WP_ADMIN' ) )
 
 // In case admin-header.php is included in a function.
 global $title, $hook_suffix, $current_screen, $wp_locale, $pagenow, $wp_version, $is_iphone,
-	$user_identity, $current_site, $update_title, $total_update_count, $parent_file;
+	$current_site, $update_title, $total_update_count, $parent_file;
 
 get_admin_page_title();
 $title = esc_html( strip_tags( $title ) );
@@ -53,7 +53,7 @@ var userSettings = {
 	},
 	ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>',
 	pagenow = '<?php echo $current_screen->id; ?>',
-	typenow = '<?php if ( isset($current_screen->post_type) ) echo $current_screen->post_type; ?>',
+	typenow = '<?php echo $current_screen->post_type; ?>',
 	adminpage = '<?php echo $admin_body_class; ?>',
 	thousandsSeparator = '<?php echo addslashes( $wp_locale->number_format['thousands_sep'] ); ?>',
 	decimalPoint = '<?php echo addslashes( $wp_locale->number_format['decimal_point'] ); ?>',

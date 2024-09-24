@@ -1849,7 +1849,7 @@ function do_robots() {
 
 	$output = "User-agent: *\n";
 	$public = get_option( 'blog_public' );
-	if ( '0' ==  $public ) {
+	if ( '0' == $public ) {
 		$output .= "Disallow: /\n";
 	} else {
 		$site_url = parse_url( site_url() );
@@ -2037,7 +2037,8 @@ function wp_original_referer_field( $echo = true, $jump_back_to = 'current' ) {
 }
 
 /**
- * Retrieve referer from '_wp_http_referer', HTTP referer, or current page respectively.
+ * Retrieve referer from '_wp_http_referer' or HTTP referer. If it's the same
+ * as the current request URL, will return false.
  *
  * @package WordPress
  * @subpackage Security
@@ -2046,13 +2047,13 @@ function wp_original_referer_field( $echo = true, $jump_back_to = 'current' ) {
  * @return string|bool False on failure. Referer URL on success.
  */
 function wp_get_referer() {
-	$ref = '';
+	$ref = false;
 	if ( ! empty( $_REQUEST['_wp_http_referer'] ) )
 		$ref = $_REQUEST['_wp_http_referer'];
 	else if ( ! empty( $_SERVER['HTTP_REFERER'] ) )
 		$ref = $_SERVER['HTTP_REFERER'];
 
-	if ( $ref !== $_SERVER['REQUEST_URI'] )
+	if ( $ref && $ref !== $_SERVER['REQUEST_URI'] )
 		return $ref;
 	return false;
 }
@@ -2850,27 +2851,67 @@ function _default_wp_die_handler( $message, $title = '', $args = array() ) {
 		body {
 			background: #fff;
 			color: #333;
-			font-family: "Lucida Grande", Verdana, Arial, "Bitstream Vera Sans", sans-serif;
+			font-family: sans-serif;
 			margin: 2em auto;
-			width: 700px;
 			padding: 1em 2em;
-			-webkit-border-radius: 11px;
-			border-radius: 11px;
+			-webkit-border-radius: 3px;
+			border-radius: 3px;
 			border: 1px solid #dfdfdf;
+			max-width: 700px;
 		}
 		#error-page {
 			margin-top: 50px;
 		}
 		#error-page p {
-			font-size: 12px;
-			line-height: 18px;
+			font-size: 14px;
+			line-height: 1.5;
 			margin: 25px 0 20px;
 		}
 		#error-page code {
 			font-family: Consolas, Monaco, monospace;
 		}
+		ul li {
+			margin-bottom: 10px;
+			font-size: 14px ;
+		}
+		a {
+			color: #21759B;
+			text-decoration: none;
+		}
+		a:hover {
+			color: #D54E21;
+		}
+
+		.button {
+			font-family: sans-serif;
+			text-decoration: none;
+			font-size: 14px !important;
+			line-height: 16px;
+			padding: 6px 12px;
+			cursor: pointer;
+			border: 1px solid #bbb;
+			color: #464646;
+			-webkit-border-radius: 15px;
+			border-radius: 15px;
+			-moz-box-sizing: content-box;
+			-webkit-box-sizing: content-box;
+			box-sizing: content-box;
+		}
+
+		.button:hover {
+			color: #000;
+			border-color: #666;
+		}
+
+		.button {
+			background: #f2f2f2 url(<?php echo wp_guess_url(); ?>/wp-admin/images/white-grad.png) repeat-x scroll left top;
+		}
+
+		.button:active {
+			background: #eee url(<?php echo wp_guess_url(); ?>/wp-admin/images/white-grad-active.png) repeat-x scroll left top;
+		}
 		<?php if ( 'rtl' == $text_direction ) : ?>
-		body { font-family: Tahoma, arial; }
+		body { font-family: Tahoma, Arial; }
 		<?php endif; ?>
 	</style>
 </head>

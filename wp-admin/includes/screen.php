@@ -108,18 +108,6 @@ function get_hidden_meta_boxes( $screen ) {
 }
 
 /**
- * Convert a screen string to a screen object
- *
- * @since 3.0.0
- *
- * @param string $hook_name The hook name (also known as the hook suffix) used to determine the screen.
- * @return WP_Screen Screen object.
- */
-function convert_to_screen( $hook_name ) {
-	return WP_Screen::get( $hook_name );
-}
-
-/**
  * Add contextual help text for a page.
  *
  * Creates a 'Screen Info' help tab.
@@ -399,7 +387,7 @@ final class WP_Screen {
 		if ( is_a( $hook_name, 'WP_Screen' ) )
 			return $hook_name;
 
-		$action = $post_type = $taxonomy = '';
+		$action = $post_type = $taxonomy = null;
 		$is_network = $is_user = false;
 
 		if ( $hook_name )
@@ -447,10 +435,10 @@ final class WP_Screen {
 
 		// If this is the current screen, see if we can be more accurate for post types and taxonomies.
 		if ( ! $hook_name ) {
-			if ( isset( $_REQUEST['post_type'] ) && post_type_exists( $_REQUEST['post_type'] ) )
-				$post_type = $_REQUEST['post_type'];
-			if ( isset( $_REQUEST['taxonomy'] ) && taxonomy_exists( $_REQUEST['taxonomy'] ) )
-				$taxonomy = $_REQUEST['taxonomy'];
+			if ( isset( $_REQUEST['post_type'] ) )
+				$post_type = post_type_exists( $_REQUEST['post_type'] ) ? $_REQUEST['post_type'] : false;
+			if ( isset( $_REQUEST['taxonomy'] ) )
+				$taxonomy = taxonomy_exists( $_REQUEST['taxonomy'] ) ? $_REQUEST['taxonomy'] : false;
 
 			switch ( $base ) {
 				case 'post' :
@@ -468,7 +456,7 @@ final class WP_Screen {
 					}
 					break;
 				case 'edit-tags' :
-					if ( ! $post_type && is_object_in_taxonomy( 'post', $taxonomy ? $taxonomy : 'post_tag' ) )
+					if ( null === $post_type && is_object_in_taxonomy( 'post', $taxonomy ? $taxonomy : 'post_tag' ) )
 						$post_type = 'post';
 					break;
 			}
@@ -476,19 +464,23 @@ final class WP_Screen {
 
 		switch ( $base ) {
 			case 'post' :
-				if ( ! $post_type )
+				if ( null === $post_type )
 					$post_type = 'post';
 				$id = $post_type;
 				break;
 			case 'edit' :
-				if ( ! $post_type )
+				if ( null === $post_type )
 					$post_type = 'post';
 				$id .= '-' . $post_type;
 				break;
 			case 'edit-tags' :
-				if ( ! $taxonomy )
+				if ( null === $taxonomy )
 					$taxonomy = 'post_tag';
 				$id = 'edit-' . $taxonomy;
+				break;
+			case 'upload' :
+				if ( null === $post_type )
+					$post_type = 'attachment';
 				break;
 		}
 
@@ -511,8 +503,8 @@ final class WP_Screen {
 
 		$screen->base       = $base;
 		$screen->action     = $action;
-		$screen->post_type  = $post_type;
-		$screen->taxonomy   = $taxonomy;
+		$screen->post_type  = (string) $post_type;
+		$screen->taxonomy   = (string) $taxonomy;
 		$screen->is_user    = $is_user;
 		$screen->is_network = $is_network;
 
@@ -695,51 +687,61 @@ final class WP_Screen {
 			) );
 		}
 
+		$has_sidebar = ! empty( $this->_help_sidebar );
+
+		$help_class = 'hidden';
+		if ( ! $has_sidebar )
+			$help_class .= ' no-sidebar';
+
 		// Time to render!
 		?>
 		<div id="screen-meta" class="metabox-prefs">
-			<div id="contextual-help-wrap" class="hidden">
-				<div class="contextual-help-tabs">
-					<ul>
-					<?php foreach ( $this->_help_tabs as $i => $tab ):
-						$link_id  = "tab-link-{$tab['id']}";
-						$panel_id = "tab-panel-{$tab['id']}";
-						$classes  = ( $i == 0 ) ? 'active' : '';
-						?>
 
-						<li id="<?php echo esc_attr( $link_id ); ?>" class="<?php echo esc_attr( $classes ); ?>">
-							<a href="<?php echo esc_url( "#$panel_id" ); ?>">
-								<?php echo esc_html( $tab['title'] ); ?>
-							</a>
-						</li>
-					<?php endforeach; ?>
-					</ul>
-				</div>
-
-				<?php if ( ! empty( $this->_help_sidebar ) ) : ?>
-				<div class="contextual-help-sidebar">
-					<?php echo self::$this->_help_sidebar; ?>
-				</div>
-				<?php endif; ?>
-
-				<div class="contextual-help-tabs-wrap">
-					<?php foreach ( $this->_help_tabs as $i => $tab ):
-						$panel_id = "tab-panel-{$tab['id']}";
-						$classes  = ( $i == 0 ) ? 'active' : '';
-						$classes .= ' help-tab-content';
-						?>
-
-						<div id="<?php echo esc_attr( $panel_id ); ?>" class="<?php echo esc_attr( $classes ); ?>">
-							<?php
-							// Print tab content.
-							echo $tab['content'];
-
-							// If it exists, fire tab callback.
-							if ( ! empty( $tab['callback'] ) )
-								call_user_func_array( $tab['callback'], array( $this, $tab ) );
+			<div id="contextual-help-wrap" class="<?php echo esc_attr( $help_class ); ?>">
+				<div id="contextual-help-back"></div>
+				<div id="contextual-help-columns">
+					<div class="contextual-help-tabs">
+						<ul>
+						<?php foreach ( $this->_help_tabs as $i => $tab ):
+							$link_id  = "tab-link-{$tab['id']}";
+							$panel_id = "tab-panel-{$tab['id']}";
+							$classes  = ( $i == 0 ) ? 'active' : '';
 							?>
-						</div>
-					<?php endforeach; ?>
+
+							<li id="<?php echo esc_attr( $link_id ); ?>" class="<?php echo esc_attr( $classes ); ?>">
+								<a href="<?php echo esc_url( "#$panel_id" ); ?>">
+									<?php echo esc_html( $tab['title'] ); ?>
+								</a>
+							</li>
+						<?php endforeach; ?>
+						</ul>
+					</div>
+
+					<?php if ( $has_sidebar ) : ?>
+					<div class="contextual-help-sidebar">
+						<?php echo self::$this->_help_sidebar; ?>
+					</div>
+					<?php endif; ?>
+
+					<div class="contextual-help-tabs-wrap">
+						<?php foreach ( $this->_help_tabs as $i => $tab ):
+							$panel_id = "tab-panel-{$tab['id']}";
+							$classes  = ( $i == 0 ) ? 'active' : '';
+							$classes .= ' help-tab-content';
+							?>
+
+							<div id="<?php echo esc_attr( $panel_id ); ?>" class="<?php echo esc_attr( $classes ); ?>">
+								<?php
+								// Print tab content.
+								echo $tab['content'];
+
+								// If it exists, fire tab callback.
+								if ( ! empty( $tab['callback'] ) )
+									call_user_func_array( $tab['callback'], array( $this, $tab ) );
+								?>
+							</div>
+						<?php endforeach; ?>
+					</div>
 				</div>
 			</div>
 		<?php
@@ -816,8 +818,16 @@ final class WP_Screen {
 					meta_box_prefs( $this );
 
 					if ( 'dashboard' === $this->id && current_user_can( 'edit_theme_options' ) ) {
+						if ( isset( $_GET['welcome'] ) ) {
+							$welcome_checked = empty( $_GET['welcome'] ) ? 0 : 1;
+							update_user_meta( get_current_user_id(), 'show_welcome_panel', $welcome_checked );
+						} else {
+							$welcome_checked = get_user_meta( get_current_user_id(), 'show_welcome_panel', true );
+							if ( 2 == $welcome_checked && wp_get_current_user()->user_email != get_option( 'admin_email' ) )
+								$welcome_checked = false;
+						}
 						echo '<label for="wp_welcome_panel-hide">';
-						echo '<input type="checkbox" id="wp_welcome_panel-hide"' . checked( (bool) get_user_option( 'show_welcome_panel' ), true, false )  . ' />';
+						echo '<input type="checkbox" id="wp_welcome_panel-hide"' . checked( (bool) $welcome_checked, true, false )  . ' />';
 						echo __( 'Welcome' ) . "</label>\n";
 					}
 				?>

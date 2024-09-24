@@ -1064,10 +1064,7 @@ case 'update-welcome-panel' :
 	if ( ! current_user_can( 'edit_theme_options' ) )
 		die('-1');
 
-	if ( empty( $_POST['visible'] ) )
-		delete_user_option( get_current_user_id(), 'show_welcome_panel' );
-	else
-		update_user_option( get_current_user_id(), 'show_welcome_panel', 1 );
+	update_user_meta( get_current_user_id(), 'show_welcome_panel', empty( $_POST['visible'] ) ? 0 : 1 );
 
 	die('1');
 	break;
@@ -1130,7 +1127,7 @@ case 'wp-link-ajax':
 	$args['pagenum'] = ! empty( $_POST['page'] ) ? absint( $_POST['page'] ) : 1;
 
 	require(ABSPATH . WPINC . '/class-wp-editor.php');
-	$results = WP_Editor::wp_link_query( $args );
+	$results = _WP_Editors::wp_link_query( $args );
 
 	if ( ! isset( $results ) )
 		die( '0' );
@@ -1575,7 +1572,7 @@ case 'dismiss-wp-pointer' :
 
 //	check_ajax_referer( 'dismiss-pointer_' . $pointer );
 
-	$dismissed = explode( ',', (string) get_user_meta( get_current_user_id(), 'dismissed_wp_pointers', true ) );
+	$dismissed = array_filter( explode( ',', (string) get_user_meta( get_current_user_id(), 'dismissed_wp_pointers', true ) ) );
 
 	if ( in_array( $pointer, $dismissed ) )
 		die( '0' );

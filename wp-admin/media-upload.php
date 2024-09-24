@@ -60,24 +60,42 @@ if ( isset($_GET['inline']) ) {
 
 	$title = __('Upload New Media');
 	$parent_file = 'upload.php';
-
-	add_contextual_help( $current_screen,
-'<p>' . __('You can upload media files here without creating a post first. This allows you to upload files to use with posts and pages later and/or to get a web link for a particular file that you can share.') . '</p>' .
-		'<p>' . __('There are two options for uploading files: <em>Select Files</em> will open the Flash-based uploader (multiple file upload allowed), or you can use the <em>Browser Uploader</em>. Clicking <em>Select Files</em> opens a navigation window showing you files in your operating system. Selecting <em>Open</em> after clicking on the file you want activates a progress bar on the uploader screen. Basic image editing is available after upload is complete. Make sure you click <em>Save</em> before leaving this screen.') . '</p>'
-	);
-
+	get_current_screen()->add_help_tab( array(
+	'id'		=> 'adding-media',
+	'title'		=> __('Adding Media'),
+	'content'	=>
+		'<p>' . __('You can upload media files here without creating a post first. This allows you to upload files to use with posts and pages later and/or to get a web link for a particular file that you can share.') . '</p>'
+	) );
+	get_current_screen()->add_help_tab( array(
+	'id'		=> 'editing-new-media',
+	'title'		=> __('Editing New Media'),
+	'content'	=>
+		'<p>' . __('There are three options for uploading files:') .  
+		'<ul>' .
+			'<li>' . __('<strong>Drag and drop</strong> your files into the area below. Multiple files are allowed.') . '</li>' .
+			'<li>' . __('<strong>Select Files</strong> will open the multi-file uploader, or you can use the <strong>Browser Uploader</strong>.') . '</li>' .
+			'<li>' . __('Clicking <strong>Select Files</strong> opens a navigation window showing you files in your operating system. Selecting <strong>Open</strong> after clicking on the file you want activates a progress bar on the uploader screen.') . '</li>' .
+		'</ul>' .
+		'<p>' . __('Basic image editing is available after upload is complete. Make sure you click Save before leaving this screen.') . '</p>'	
+	) );
 	get_current_screen()->set_help_sidebar(
 		'<p><strong>' . __('For more information:') . '</strong></p>' .
 		'<p>' . __('<a href="http://codex.wordpress.org/Media_Add_New_Screen" target="_blank">Documentation on Uploading Media Files</a>') . '</p>' .
 		'<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
 	);
 
-	require_once('./admin-header.php'); ?>
+	require_once('./admin-header.php');
+	
+	$form_class = 'media-upload-form type-form validate';
+
+	if ( get_user_setting('uploader') )
+		$form_class .= ' html-uploader';
+	?>
 	<div class="wrap">
 	<?php screen_icon(); ?>
 	<h2><?php echo esc_html( $title ); ?></h2>
 
-	<form enctype="multipart/form-data" method="post" action="<?php echo admin_url('media-upload.php?inline=&amp;upload-page-form='); ?>" class="media-upload-form type-form validate" id="file-form">
+	<form enctype="multipart/form-data" method="post" action="<?php echo admin_url('media-upload.php?inline=&amp;upload-page-form='); ?>" class="<?php echo $form_class; ?>" id="file-form">
 
 	<?php media_upload_form(); ?>
 
@@ -95,7 +113,7 @@ if ( isset($_GET['inline']) ) {
 	<input type="hidden" name="post_id" id="post_id" value="0" />
 	<?php wp_nonce_field('media-form'); ?>
 	<div id="media-items" class="hide-if-no-js"></div>
-	<?php submit_button( __( 'Save all changes' ), 'button savebutton hide-if-no-js', 'save' ); ?>
+	<?php submit_button( __( 'Save all changes' ), 'button savebutton hidden', 'save' ); ?>
 	</form>
 	</div>
 

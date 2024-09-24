@@ -1,4 +1,12 @@
 /* Fixes for IE bugs */
+.welcome-panel .wp-badge {
+	position: absolute;
+}
+
+.welcome-panel .welcome-panel-column {
+	margin: 0 -25px 0 4%;
+}
+
 #wp-fullscreen-title {
 	width: 97%;
 }

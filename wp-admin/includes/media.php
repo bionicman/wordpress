@@ -62,8 +62,15 @@ add_filter('media_upload_tabs', 'update_gallery_tab');
  * @since 2.5.0
  */
 function the_media_upload_tabs() {
-	global $redir_tab;
+	global $redir_tab, $is_iphone;
 	$tabs = media_upload_tabs();
+
+	if ( $is_iphone ) {
+		unset($tabs['type']);
+		$default = 'type_url';
+	} else {
+		$default = 'type';
+	}
 
 	if ( !empty($tabs) ) {
 		echo "<ul id='sidemenu'>\n";
@@ -72,13 +79,15 @@ function the_media_upload_tabs() {
 		elseif ( isset($_GET['tab']) && array_key_exists($_GET['tab'], $tabs) )
 			$current = $_GET['tab'];
 		else
-			$current = apply_filters('media_upload_default_tab', 'type');
+			$current = apply_filters('media_upload_default_tab', $default);
 
 		foreach ( $tabs as $callback => $text ) {
 			$class = '';
+
 			if ( $current == $callback )
 				$class = " class='current'";
-			$href = add_query_arg(array('tab'=>$callback, 's'=>false, 'paged'=>false, 'post_mime_type'=>false, 'm'=>false));
+
+			$href = add_query_arg(array('tab' => $callback, 's' => false, 'paged' => false, 'post_mime_type' => false, 'm' => false));
 			$link = "<a href='" . esc_url($href) . "'$class>$text</a>";
 			echo "\t<li id='" . esc_attr("tab-$callback") . "'>$link</li>\n";
 		}
@@ -344,13 +353,7 @@ if ( is_string($content_func) )
 </head>
 <body<?php if ( isset($GLOBALS['body_id']) ) echo ' id="' . $GLOBALS['body_id'] . '"'; ?> class="no-js">
 <script type="text/javascript">
-//<![CDATA[
-(function(){
-var c = document.body.className;
-c = c.replace(/no-js/, 'js');
-document.body.className = c;
-})();
-//]]>
+document.body.className = document.body.className.replace('no-js', 'js');
 </script>
 <?php
 	$args = func_get_args();
@@ -497,6 +500,8 @@ function media_upload_form_handler() {
  * @return unknown
  */
 function wp_media_upload_handler() {
+	global $is_iphone;
+
 	$errors = array();
 	$id = 0;
 
@@ -522,7 +527,7 @@ function wp_media_upload_handler() {
 				$title = esc_html( basename( $src ) );
 
 			if ( $title && $src )
-				$html = "<a href='" . esc_url($src) . "' >$title</a>";
+				$html = "<a href='" . esc_url($src) . "'>$title</a>";
 
 			$type = 'file';
 			if ( ( $ext = preg_replace( '/^.+?\.([^.]+)$/', '$1', $src ) ) && ( $ext_type = wp_ext2type( $ext ) )
@@ -567,7 +572,10 @@ function wp_media_upload_handler() {
 		return wp_iframe( 'media_upload_type_url_form', $type, $errors, $id );
 	}
 
-	return wp_iframe( 'media_upload_type_form', 'image', $errors, $id );
+	if ( $is_iphone )
+		return wp_iframe( 'media_upload_type_url_form', 'image', $errors, $id );
+	else
+		return wp_iframe( 'media_upload_type_form', 'image', $errors, $id );
 }
 
 /**
@@ -770,7 +778,7 @@ function image_link_input_fields($post, $url_type = '') {
 	<input type='text' class='text urlfield' name='attachments[$post->ID][url]' value='" . esc_attr($url) . "' /><br />
 	<button type='button' class='button urlnone' title=''>" . __('None') . "</button>
 	<button type='button' class='button urlfile' title='" . esc_attr($file) . "'>" . __('File URL') . "</button>
-	<button type='button' class='button urlpost' title='" . esc_attr($link) . "'>" . __('Post URL') . "</button>
+	<button type='button' class='button urlpost' title='" . esc_attr($link) . "'>" . __('Attachment Post URL') . "</button>
 ";
 }
 
@@ -1008,7 +1016,7 @@ function get_media_items( $post_id, $errors ) {
 		if ( $attachment->post_status == 'trash' )
 			continue;
 		if ( $item = get_media_item( $id, array( 'errors' => isset($errors[$id]) ? $errors[$id] : null) ) )
-			$output .= "\n<div id='media-item-$id' class='media-item child-of-$attachment->post_parent preloaded'><div class='progress'><div class='bar'></div></div><div id='media-upload-error-$id'></div><div class='filename'></div>$item\n</div>";
+			$output .= "\n<div id='media-item-$id' class='media-item child-of-$attachment->post_parent preloaded'><div class='progress hidden'><div class='bar'></div></div><div id='media-upload-error-$id' class='hidden'></div><div class='filename hidden'></div>$item\n</div>";
 	}
 
 	return $output;
@@ -1032,8 +1040,9 @@ function get_media_item( $attachment_id, $args = null ) {
 		$thumb_url = false;
 
 	$post = get_post( $attachment_id );
+	$current_post_id = !empty( $_GET['post_id'] ) ? (int) $_GET['post_id'] : 0;
 
-	$default_args = array( 'errors' => null, 'send' => $post->post_parent ? post_type_supports( get_post_type( $post->post_parent ), 'editor' ) : true, 'delete' => true, 'toggle' => true, 'show_title' => true );
+	$default_args = array( 'errors' => null, 'send' => $current_post_id ? post_type_supports( get_post_type( $current_post_id ), 'editor' ) : true, 'delete' => true, 'toggle' => true, 'show_title' => true );
 	$args = wp_parse_args( $args, $default_args );
 	$args = apply_filters( 'get_media_item_args', $args );
 	extract( $args, EXTR_SKIP );
@@ -1063,7 +1072,7 @@ function get_media_item( $attachment_id, $args = null ) {
 	<a class='toggle describe-toggle-on' href='#'>$toggle_on</a>
 	<a class='toggle describe-toggle-off' href='#'>$toggle_off</a>";
 	} else {
-		$class = 'form-table';
+		$class = '';
 		$toggle_links = '';
 	}
 
@@ -1108,7 +1117,7 @@ function get_media_item( $attachment_id, $args = null ) {
 		<thead class='media-item-info' id='media-head-$post->ID'>
 		<tr valign='top'>
 			<td class='A1B1' id='thumbnail-head-$post->ID'>
-			<p><a href='$attachment_url' target='_blank'><img class='thumbnail' src='$thumb_url' alt='' style='margin-top: 3px' /></a></p>
+			<p><a href='$attachment_url' target='_blank'><img class='thumbnail' src='$thumb_url' alt='' /></a></p>
 			<p>$image_edit_button</p>
 			</td>
 			<td>
@@ -1160,7 +1169,8 @@ function get_media_item( $attachment_id, $args = null ) {
 		$calling_post_id = absint( $_GET['post_id'] );
 	elseif ( isset( $_POST ) && count( $_POST ) ) // Like for async-upload where $_GET['post_id'] isn't set
 		$calling_post_id = $post->post_parent;
-	if ( 'image' == $type && $calling_post_id && current_theme_supports( 'post-thumbnails', get_post_type( $calling_post_id ) ) && get_post_thumbnail_id( $calling_post_id ) != $attachment_id ) {
+	if ( 'image' == $type && $calling_post_id && current_theme_supports( 'post-thumbnails', get_post_type( $calling_post_id ) )
+		&& post_type_supports( get_post_type( $calling_post_id ), 'thumbnail' ) && get_post_thumbnail_id( $calling_post_id ) != $attachment_id ) {
 		$ajax_nonce = wp_create_nonce( "set_post_thumbnail-$calling_post_id" );
 		$thumbnail = "<a class='wp-post-thumbnail' id='wp-post-thumbnail-" . $attachment_id . "' href='#' onclick='WPSetAsThumbnail(\"$attachment_id\", \"$ajax_nonce\");return false;'>" . esc_html__( "Use as featured image" ) . "</a>";
 	}
@@ -1262,10 +1272,15 @@ function media_upload_header() {
  * @param unknown_type $errors
  */
 function media_upload_form( $errors = null ) {
-	global $type, $tab, $pagenow;
+	global $type, $tab, $pagenow, $is_IE, $is_opera, $is_iphone;
+
+	if ( $is_iphone )
+		return;
 
 	$upload_action_url = admin_url('async-upload.php');
 	$post_id = isset($_REQUEST['post_id']) ? intval($_REQUEST['post_id']) : 0;
+	$_type = isset($type) ? $type : '';
+	$_tab = isset($tab) ? $tab : '';
 
 	$upload_size_unit = $max_upload_size = wp_max_upload_size();
 	$sizes = array( 'KB', 'MB', 'GB' );
@@ -1306,8 +1321,8 @@ do_action('pre-upload-ui');
 $post_params = array(
 		"post_id" => $post_id,
 		"_wpnonce" => wp_create_nonce('media-form'),
-		"type" => $type,
-		"tab" => $tab,
+		"type" => $_type,
+		"tab" => $_tab,
 		"short" => "1",
 );
 
@@ -1320,7 +1335,7 @@ $plupload_init = array(
 	'drop_element' => 'drag-drop-area',
 	'file_data_name' => 'async-upload',
 	'multiple_queues' => true,
-	'max_file_size' => round( (int) $max_upload_size / 1024 ) . 'kb',
+	'max_file_size' => $max_upload_size . 'b',
 	'url' => $upload_action_url,
 	'flash_swf_url' => includes_url('js/plupload/plupload.flash.swf'),
 	'silverlight_xap_url' => includes_url('js/plupload/plupload.silverlight.xap'),
@@ -1335,8 +1350,7 @@ $plupload_init = apply_filters( 'plupload_init', $plupload_init );
 ?>
 
 <script type="text/javascript">
-var resize_height = <?php echo get_option('large_size_h', 1024); ?>,
-resize_width = <?php echo get_option('large_size_w', 1024); ?>,
+var resize_height = <?php echo get_option('large_size_h', 1024); ?>, resize_width = <?php echo get_option('large_size_w', 1024); ?>,
 wpUploaderInit = <?php echo json_encode($plupload_init); ?>;
 </script>
 
@@ -1364,10 +1378,12 @@ wpUploaderInit = <?php echo json_encode($plupload_init); ?>;
 <?php do_action('post-html-upload-ui'); ?>
 </div>
 
-<p><?php printf( __( 'Maximum upload file size: %d%s.' ), esc_html($upload_size_unit), esc_html($sizes[$u]) );
-echo ' ' . __('After a file has been uploaded, you can add titles and descriptions.'); ?></p>
-
+<span class="max-upload-size"><?php printf( __( 'Maximum upload file size: %d%s.' ), esc_html($upload_size_unit), esc_html($sizes[$u]) ); ?></span>
 <?php
+if ( ($is_IE || $is_opera) && $max_upload_size > 100 * 1024 * 1024 ) { ?>
+	<span class="big-file-warning"><?php _e('Your browser has some limitations uploading large files with the multi-file uploader. Please use the browser uploader for files over 100MB.'); ?></span>
+<?php }
+
 	do_action('post-upload-ui');
 }
 
@@ -1381,15 +1397,24 @@ echo ' ' . __('After a file has been uploaded, you can add titles and descriptio
  * @param unknown_type $id
  */
 function media_upload_type_form($type = 'file', $errors = null, $id = null) {
+	global $is_iphone;
+
+	if ( $is_iphone )
+		return;
+
 	media_upload_header();
 
 	$post_id = isset( $_REQUEST['post_id'] )? intval( $_REQUEST['post_id'] ) : 0;
 
 	$form_action_url = admin_url("media-upload.php?type=$type&tab=type&post_id=$post_id");
 	$form_action_url = apply_filters('media_upload_form_url', $form_action_url, $type);
+	$form_class = 'media-upload-form type-form validate';
+
+	if ( get_user_setting('uploader') )
+		$form_class .= ' html-uploader';
 ?>
 
-<form enctype="multipart/form-data" method="post" action="<?php echo esc_attr($form_action_url); ?>" class="media-upload-form type-form validate" id="<?php echo $type; ?>-form">
+<form enctype="multipart/form-data" method="post" action="<?php echo esc_attr($form_action_url); ?>" class="<?php echo $form_class; ?>" id="<?php echo $type; ?>-form">
 <?php submit_button( '', 'hidden', 'save', false ); ?>
 <input type="hidden" name="post_id" id="post_id" value="<?php echo (int) $post_id; ?>" />
 <?php wp_nonce_field('media-form'); ?>
@@ -1448,9 +1473,13 @@ function media_upload_type_url_form($type = null, $errors = null, $id = null) {
 
 	$form_action_url = admin_url("media-upload.php?type=$type&tab=type&post_id=$post_id");
 	$form_action_url = apply_filters('media_upload_form_url', $form_action_url, $type);
+	$form_class = 'media-upload-form type-form validate';
+
+	if ( get_user_setting('uploader') )
+		$form_class .= ' html-uploader';
 ?>
 
-<form enctype="multipart/form-data" method="post" action="<?php echo esc_attr($form_action_url); ?>" class="media-upload-form type-form validate" id="<?php echo $type; ?>-form">
+<form enctype="multipart/form-data" method="post" action="<?php echo esc_attr($form_action_url); ?>" class="<?php echo $form_class; ?>" id="<?php echo $type; ?>-form">
 <input type="hidden" name="post_id" id="post_id" value="<?php echo (int) $post_id; ?>" />
 <?php wp_nonce_field('media-form'); ?>
 
@@ -1487,8 +1516,10 @@ var addExtImage = {
 
 		html = '<img alt="'+alt+'" src="'+f.src.value+'"'+title+cls+' width="'+t.width+'" height="'+t.height+'" />';
 
-		if ( f.url.value )
-			html = '<a href="'+f.url.value+'">'+html+'</a>';
+		if ( f.url.value ) {
+			url = f.url.value.replace(/'/g, '&#039;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+			html = '<a href="'+url+'">'+html+'</a>';
+		}
 
 		if ( caption )
 			html = '[caption id="" align="'+t.align+'" width="'+t.width+'" caption="'+caption+'"]'+html+'[/caption]';
@@ -1570,6 +1601,10 @@ function media_upload_gallery_form($errors) {
 	$post_id = intval($_REQUEST['post_id']);
 	$form_action_url = admin_url("media-upload.php?type=$type&tab=gallery&post_id=$post_id");
 	$form_action_url = apply_filters('media_upload_form_url', $form_action_url, $type);
+	$form_class = 'media-upload-form validate';
+	
+	if ( get_user_setting('uploader') )
+		$form_class .= ' html-uploader';
 ?>
 
 <script type="text/javascript">
@@ -1594,7 +1629,7 @@ jQuery(function($){
 <a href="#" id="desc"><?php _e('Descending'); ?></a> |
 <a href="#" id="clear"><?php _ex('Clear', 'verb'); ?></a>
 </div>
-<form enctype="multipart/form-data" method="post" action="<?php echo esc_attr($form_action_url); ?>" class="media-upload-form validate" id="gallery-form">
+<form enctype="multipart/form-data" method="post" action="<?php echo esc_attr($form_action_url); ?>" class="<?php echo $form_class; ?>" id="gallery-form">
 <?php wp_nonce_field('media-form'); ?>
 <?php //media_upload_form( $errors ); ?>
 <table class="widefat" cellspacing="0">
@@ -1712,6 +1747,10 @@ function media_upload_library_form($errors) {
 
 	$form_action_url = admin_url("media-upload.php?type=$type&tab=library&post_id=$post_id");
 	$form_action_url = apply_filters('media_upload_form_url', $form_action_url, $type);
+	$form_class = 'media-upload-form validate';
+
+	if ( get_user_setting('uploader') )
+		$form_class .= ' html-uploader';
 
 	$_GET['paged'] = isset( $_GET['paged'] ) ? intval($_GET['paged']) : 0;
 	if ( $_GET['paged'] < 1 )
@@ -1829,7 +1868,7 @@ foreach ($arc_result as $arc_row) {
 </div>
 </form>
 
-<form enctype="multipart/form-data" method="post" action="<?php echo esc_attr($form_action_url); ?>" class="media-upload-form validate" id="library-form">
+<form enctype="multipart/form-data" method="post" action="<?php echo esc_attr($form_action_url); ?>" class="<?php echo $form_class; ?>" id="library-form">
 
 <?php wp_nonce_field('media-form'); ?>
 <?php //media_upload_form( $errors ); ?>
@@ -1982,6 +2021,65 @@ function _insert_into_post_button($type) {
 			</td>
 		</tr>
 	';
+}
+
+/**
+ * {@internal Missing Short Description}}
+ *
+ * @since 2.6.0
+ */
+function media_upload_flash_bypass() {
+	?>
+	<p class="upload-flash-bypass">
+	<?php _e('You are using the multi-file uploader. Problems? Try the <a href="#">browser uploader</a> instead.'); ?>
+	</p>
+	<?php
+}
+add_action('post-plupload-upload-ui', 'media_upload_flash_bypass');
+
+/**
+ * {@internal Missing Short Description}}
+ *
+ * @since 2.6.0
+ */
+function media_upload_html_bypass() {
+	?>
+	<p class="upload-html-bypass hide-if-no-js">
+	<?php _e('You are using the browser&#8217;s built-in file uploader. The new WordPress uploader includes multiple file selection and drag and drop capability. <a href="#">Switch to the new uploader</a>.'); ?>
+	</p>
+	<?php
+}
+add_action('post-html-upload-ui', 'media_upload_html_bypass');
+
+function media_upload_text_after() {
+	?>
+	<span class="after-file-upload"><?php _e('After a file has been uploaded, you can add titles and descriptions.'); ?></span>
+	<?php
+}
+add_action('post-upload-ui', 'media_upload_text_after', 5);
+
+/**
+ * {@internal Missing Short Description}}
+ *
+ * @since 2.6.0
+ */
+function media_upload_max_image_resize() {
+	$checked = get_user_setting('upload_resize') ? ' checked="true"' : '';
+	$a = $end = '';
+
+	if ( current_user_can( 'manage_options' ) ) {
+		$a = '<a href="' . esc_url( admin_url( 'options-media.php' ) ) . '" target="_blank">';
+		$end = '</a>';
+	}
+?>
+<p class="hide-if-no-js"><label>
+<input name="image_resize" type="checkbox" id="image_resize" value="true"<?php echo $checked; ?> />
+<?php
+	/* translators: %1$s is link start tag, %2$s is link end tag, %3$d is width, %4$d is height*/
+	printf( __( 'Scale images to match the large size selected in %1$simage options%2$s (%3$d &times; %4$d).' ), $a, $end, (int) get_option( 'large_size_w', '1024' ), (int) get_option( 'large_size_h', '1024' ) );
+?>
+</label></p>
+<?php
 }
 
 add_filter( 'async_upload_image', 'get_media_item', 10, 2 );

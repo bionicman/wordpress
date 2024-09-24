@@ -283,6 +283,11 @@ As a new WordPress user, you should go to <a href=\"%s\">your dashboard</a> to d
 	update_option( 'widget_meta', array ( 2 => array ( 'title' => '' ), '_multiwidget' => 1 ) );
 	update_option( 'sidebars_widgets', array ( 'wp_inactive_widgets' => array ( ), 'sidebar-1' => array ( 0 => 'search-2', 1 => 'recent-posts-2', 2 => 'recent-comments-2', 3 => 'archives-2', 4 => 'categories-2', 5 => 'meta-2', ), 'sidebar-2' => array ( ), 'sidebar-3' => array ( ), 'sidebar-4' => array ( ), 'sidebar-5' => array ( ), 'array_version' => 3 ) );
 
+	if ( ! is_multisite() )
+		update_user_meta( $user_id, 'show_welcome_panel', 1 );
+	elseif ( ! is_super_admin( $user_id ) && ! metadata_exists( 'user', $user_id, 'show_welcome_panel' ) )
+		update_user_meta( $user_id, 'show_welcome_panel', 2 );
+
 	if ( is_multisite() ) {
 		// Flush rules to pick up the new page.
 		$wp_rewrite->init();
@@ -451,7 +456,7 @@ function upgrade_all() {
 	if ( $wp_current_db_version < 15260 )
 		upgrade_300();
 
-	if ( $wp_current_db_version < 19061 )
+	if ( $wp_current_db_version < 19389 )
 		upgrade_330();
 
 	maybe_disable_automattic_widgets();
@@ -1145,6 +1150,17 @@ function upgrade_330() {
 	if ( $wp_current_db_version < 19061 && is_main_site() && ! defined( 'DO_NOT_UPGRADE_GLOBAL_TABLES' ) ) {
 		$wpdb->query( "DELETE FROM $wpdb->usermeta WHERE meta_key IN ('show_admin_bar_admin', 'plugins_last_view')" );
 	}
+
+	// 3.3-beta. Can remove before release.
+	if ( $wp_current_db_version > 18715 && $wp_current_db_version < 19389
+		&& is_main_site() && ! defined( 'DO_NOT_UPGRADE_GLOBAL_TABLES' ) )
+			delete_metadata( 'user', 0, 'dismissed_wp_pointers', '', true );
+
+	if ( $wp_current_db_version < 19390 && is_main_site() ) {
+		update_site_option( 'initial_db_version', $wp_current_db_version );
+		// populate_options() will handle single-site.
+	}
+
 
 	if ( $wp_current_db_version >= 11548 )
 		return;

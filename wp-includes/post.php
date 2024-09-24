@@ -2439,9 +2439,11 @@ function wp_insert_post($postarr, $wp_error = false) {
 		$previous_status = 'new';
 	}
 
-	if ( ('' == $post_content) && ('' == $post_title) && ('' == $post_excerpt) && ('attachment' != $post_type) ) {
+	$maybe_empty = ! $post_content && ! $post_title && ! $post_excerpt && post_type_supports( $post_type, 'editor' )
+		&& post_type_supports( $post_type, 'title' ) && post_type_supports( $post_type, 'excerpt' );
+	if ( apply_filters( 'wp_insert_post_empty_content', $maybe_empty, $postarr ) ) {
 		if ( $wp_error )
-			return new WP_Error('empty_content', __('Content, title, and excerpt are empty.'));
+			return new WP_Error( 'empty_content', __( 'Content, title, and excerpt are empty.' ) );
 		else
 			return 0;
 	}
@@ -2488,7 +2490,12 @@ function wp_insert_post($postarr, $wp_error = false) {
 		else
 			$post_name = '';
 	} else {
-		$post_name = sanitize_title($post_name);
+		// On updates, we need to check to see if it's using the old, fixed sanitization context.
+		$check_name = sanitize_title( $post_name, '', 'old-save' );
+		if ( $update && strtolower( urlencode( $post_name ) ) == $check_name && get_post_field( 'post_name', $ID ) == $check_name )
+			$post_name = $check_name;
+		else // new post, or slug has changed.
+			$post_name = sanitize_title($post_name);
 	}
 
 	// If the post date is empty (due to having been new or a draft) and status is not 'draft' or 'pending', set date to now
@@ -3151,7 +3158,7 @@ function get_page_by_path($page_path, $output = OBJECT, $post_type = 'page') {
 	$page_path = str_replace('%20', ' ', $page_path);
 	$parts = explode( '/', trim( $page_path, '/' ) );
 	$parts = array_map( 'esc_sql', $parts );
-	$parts = array_map( 'sanitize_title', $parts );
+	$parts = array_map( 'sanitize_title_for_query', $parts );
 
 	$in_string = "'". implode( "','", $parts ) . "'";
 	$post_type_sql = $post_type;
@@ -3181,7 +3188,7 @@ function get_page_by_path($page_path, $output = OBJECT, $post_type = 'page') {
 	}
 
 	if ( $foundid )
-		return get_page($foundid, $output, $post_type);
+		return get_page( $foundid, $output );
 
 	return null;
 }
@@ -3890,6 +3897,9 @@ function wp_get_attachment_url( $post_id = 0 ) {
 	if ( !$post =& get_post( $post_id ) )
 		return false;
 
+	if ( 'attachment' != $post->post_type )
+		return false;
+
 	$url = '';
 	if ( $file = get_post_meta( $post->ID, '_wp_attached_file', true) ) { //Get attached file
 		if ( ($uploads = wp_upload_dir()) && false === $uploads['error'] ) { //Get upload directory
@@ -3907,7 +3917,7 @@ function wp_get_attachment_url( $post_id = 0 ) {
 
 	$url = apply_filters( 'wp_get_attachment_url', $url, $post->ID );
 
-	if ( 'attachment' != $post->post_type || empty( $url ) )
+	if ( empty( $url ) )
 		return false;
 
 	return $url;

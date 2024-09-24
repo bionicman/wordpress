@@ -24,9 +24,15 @@
 function get_header( $name = null ) {
 	do_action( 'get_header', $name );
 
+	$templates = array();
+	if ( isset($name) )
+		$templates[] = "header-{$name}.php";
+
+	$templates[] = 'header.php';
+
 	// Backward compat code will be removed in a future release
-	if ( '' == get_template_part( 'header', $name ) )
-		load_template( ABSPATH . WPINC . '/theme-compat/header.php' );
+	if ('' == locate_template($templates, true))
+		load_template( ABSPATH . WPINC . '/theme-compat/header.php');
 }
 
 /**
@@ -47,9 +53,15 @@ function get_header( $name = null ) {
 function get_footer( $name = null ) {
 	do_action( 'get_footer', $name );
 
+	$templates = array();
+	if ( isset($name) )
+		$templates[] = "footer-{$name}.php";
+
+	$templates[] = 'footer.php';
+
 	// Backward compat code will be removed in a future release
-	if ( '' == get_template_part( 'footer', $name ) )
-		load_template( ABSPATH . WPINC . '/theme-compat/footer.php' );
+	if ('' == locate_template($templates, true))
+		load_template( ABSPATH . WPINC . '/theme-compat/footer.php');
 }
 
 /**
@@ -70,9 +82,15 @@ function get_footer( $name = null ) {
 function get_sidebar( $name = null ) {
 	do_action( 'get_sidebar', $name );
 
+	$templates = array();
+	if ( isset($name) )
+		$templates[] = "sidebar-{$name}.php";
+
+	$templates[] = 'sidebar.php';
+
 	// Backward compat code will be removed in a future release
-	if ( '' == get_template_part( 'sidebar', $name ) )
-		load_template( ABSPATH . WPINC . '/theme-compat/sidebar.php' );
+	if ('' == locate_template($templates, true))
+		load_template( ABSPATH . WPINC . '/theme-compat/sidebar.php');
 }
 
 /**
@@ -107,7 +125,7 @@ function get_template_part( $slug, $name = null ) {
 
 	$templates[] = "{$slug}.php";
 
-	return locate_template($templates, true, false);
+	locate_template($templates, true, false);
 }
 
 /**
@@ -139,7 +157,7 @@ function get_search_form($echo = true) {
 		return;
 	}
 
-	$form = '<form role="search" method="get" id="searchform" action="' . home_url( '/' ) . '" >
+	$form = '<form role="search" method="get" id="searchform" action="' . esc_url( home_url( '/' ) ) . '" >
 	<div><label class="screen-reader-text" for="s">' . __('Search for:') . '</label>
 	<input type="text" value="' . get_search_query() . '" name="s" id="s" />
 	<input type="submit" id="searchsubmit" value="'. esc_attr__('Search') .'" />
@@ -1677,14 +1695,29 @@ function wlwmanifest_link() {
  * Display a noindex meta tag if required by the blog configuration.
  *
  * If a blog is marked as not being public then the noindex meta tag will be
- * output to tell web robots not to index the page content.
+ * output to tell web robots not to index the page content. Add this to the wp_head action.
+ * Typical usage is as a wp_head callback. add_action( 'wp_head', 'noindex' );
+ *
+ * @see wp_no_robots
  *
  * @since 2.1.0
  */
 function noindex() {
 	// If the blog is not public, tell robots to go away.
 	if ( '0' == get_option('blog_public') )
-		echo "<meta name='robots' content='noindex,nofollow' />\n";
+		wp_no_robots();
+}
+
+/**
+ * Display a noindex meta tag.
+ *
+ * Outputs a noindex meta tag that tells web robots not to index the page content.
+ * Typical usage is as a wp_head callback. add_action( 'wp_head', 'wp_no_robots' );
+ *
+ * @since 3.3.0
+ */
+function wp_no_robots() {
+	echo "<meta name='robots' content='noindex,nofollow' />\n";
 }
 
 /**
@@ -1716,10 +1749,10 @@ function rich_edit_exists() {
 function user_can_richedit() {
 	global $wp_rich_edit, $is_gecko, $is_opera, $is_safari, $is_chrome, $is_iphone, $is_IE;
 
-	if ( !isset( $wp_rich_edit) ) {
+	if ( !isset($wp_rich_edit) ) {
 		$wp_rich_edit = false;
 
-		if ( get_user_option( 'rich_editing' ) == 'true' ) {
+		if ( get_user_option( 'rich_editing' ) == 'true' || !is_user_logged_in() ) { // default to 'true' for logged out users
 			if ( $is_safari ) {
 				if ( !$is_iphone || ( preg_match( '!AppleWebKit/(\d+)!', $_SERVER['HTTP_USER_AGENT'], $match ) && intval($match[1]) >= 534 ) )
 					$wp_rich_edit = true;
@@ -1733,24 +1766,48 @@ function user_can_richedit() {
 }
 
 /**
- * Loads and initializes WP_Editor class if needed, passes the settings for an instance of the editor
+ * Find out which editor should be displayed by default.
  *
+ * Works out which of the two editors to display as the current editor for a
+ * user.
+ *
+ * @since 2.5.0
+ *
+ * @return string Either 'tinymce', or 'html', or 'test'
+ */
+function wp_default_editor() {
+	$r = user_can_richedit() ? 'tinymce' : 'html'; // defaults
+	if ( $user = wp_get_current_user() ) { // look for cookie
+		$ed = get_user_setting('editor', 'tinymce');
+		$r = ( in_array($ed, array('tinymce', 'html', 'test') ) ) ? $ed : $r;
+	}
+	return apply_filters( 'wp_default_editor', $r ); // filter
+}
+
+/**
+ * Renders an editor.
+ *
+ * Using this function is the proper way to output all needed components for both TinyMCE and Quicktags.
+ * _WP_Editors should not be used directly. See http://core.trac.wordpress.org/ticket/17144.
+ * 
+ * NOTE: Once initialized the TinyMCE editor cannot be safely moved in the DOM. For that reason
+ * running wp_editor() inside of a metabox is not a good idea unless only Quicktags is used.
+ * On the post edit screen several actions can be used to include additional editors
+ * containing TinyMCE: 'edit_page_form', 'edit_form_advanced' and 'dbx_post_sidebar'.
+ * See http://core.trac.wordpress.org/ticket/19173 for more information.
+ * 
  * @see wp-includes/class-wp-editor.php
  * @since 3.3
  *
  * @param string $content Initial content for the editor.
- * @param string $editor_id HTML ID attribute value for the textarea and TinyMCE.
- * @param array $settings See WP_Editor::editor().
+ * @param string $editor_id HTML ID attribute value for the textarea and TinyMCE. Can only be /[a-z]+/.
+ * @param array $settings See _WP_Editors::editor().
  */
 function wp_editor( $content, $editor_id, $settings = array() ) {
-	global $wp_editor;
-
-	if ( !is_a($wp_editor, 'WP_Editor') ) {
+	if ( ! class_exists( '_WP_Editors' ) )
 		require( ABSPATH . WPINC . '/class-wp-editor.php' );
-		$wp_editor = new WP_Editor;
-	}
 
-	$wp_editor->editor($content, $editor_id, $settings);
+	_WP_Editors::editor($content, $editor_id, $settings);
 }
 
 /**
@@ -1917,7 +1974,7 @@ function paginate_links( $args = '' ) {
 				$page_links[] = "<a class='page-numbers' href='" . esc_url( apply_filters( 'paginate_links', $link ) ) . "'>$n_display</a>";
 				$dots = true;
 			elseif ( $dots && !$show_all ) :
-				$page_links[] = '<span class="page-numbers dots">...</span>';
+				$page_links[] = '<span class="page-numbers dots">' . __( '&hellip;' ) . '</span>';
 				$dots = false;
 			endif;
 		endif;
