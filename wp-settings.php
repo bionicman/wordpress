@@ -103,7 +103,7 @@ else
 $wpdb->prefix = $table_prefix;
 
 if ( preg_match('|[^a-z0-9_]|i', $wpdb->prefix) && !file_exists(ABSPATH . 'wp-content/db.php') )
-	die(__('<strong>ERROR</strong>: <code>$table_prefix</code> in <code>wp-config.php</code> can only contain numbers, letters, and underscores.'));
+	die("<strong>ERROR</strong>: <code>$table_prefix</code> in <code>wp-config.php</code> can only contain numbers, letters, and underscores.");
 
 // Table names
 $wpdb->posts          = $wpdb->prefix . 'posts';
@@ -135,10 +135,8 @@ wp_cache_init();
 require (ABSPATH . WPINC . '/functions.php');
 require (ABSPATH . WPINC . '/plugin.php');
 require (ABSPATH . WPINC . '/default-filters.php');
-if ( defined('WPLANG') && '' != constant('WPLANG') ) {
-	include_once(ABSPATH . WPINC . '/streams.php');
-	include_once(ABSPATH . WPINC . '/gettext.php');
-}
+include_once(ABSPATH . WPINC . '/streams.php');
+include_once(ABSPATH . WPINC . '/gettext.php');
 require_once (ABSPATH . WPINC . '/l10n.php');
 
 if ( !is_blog_installed() && (!strstr($_SERVER['PHP_SELF'], 'install.php') && !defined('WP_INSTALLING')) ) {
@@ -146,7 +144,7 @@ if ( !is_blog_installed() && (!strstr($_SERVER['PHP_SELF'], 'install.php') && !d
 		$link = 'install.php';
 	else
 		$link = 'wp-admin/install.php';
-	wp_die(sprintf(__("It doesn't look like you've installed WP yet. Try running <a href='%s'>install.php</a>."), $link));
+	wp_die(sprintf("It doesn't look like you've installed WP yet. Try running <a href='%s'>install.php</a>.", $link));
 }
 
 require (ABSPATH . WPINC . '/formatting.php');
