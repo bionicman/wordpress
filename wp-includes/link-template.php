@@ -93,8 +93,9 @@ function post_permalink($post_id = 0, $mode = '') { // $mode legacy
 function get_page_link($id = false) {
 	global $post;
 
+	$id = (int) $id;
 	if ( !$id )
-		$id = $post->ID;
+		$id = (int) $post->ID;
 
 	if ( 'page' == get_option('show_on_front') && $id == get_option('page_on_front') )
 		$link = get_option('home');
@@ -109,7 +110,7 @@ function _get_page_link( $id = false ) {
 	global $post, $wp_rewrite;
 
 	if ( !$id )
-		$id = $post->ID;
+		$id = (int) $post->ID;
 
 	$pagestruct = $wp_rewrite->get_page_permastruct();
 
@@ -130,7 +131,7 @@ function get_attachment_link($id = false) {
 	$link = false;
 
 	if (! $id) {
-		$id = $post->ID;
+		$id = (int) $post->ID;
 	}
 
 	$object = get_post($id);
@@ -459,7 +460,7 @@ function get_next_posts_page_link($max_page = 0) {
 }
 
 function next_posts($max_page = 0) {
-	echo attribute_escape(get_next_posts_page_link($max_page));
+	echo clean_url(get_next_posts_page_link($max_page));
 }
 
 function next_posts_link($label='Next Page &raquo;', $max_page=0) {
@@ -489,7 +490,7 @@ function get_previous_posts_page_link() {
 }
 
 function previous_posts() {
-	echo attribute_escape(get_previous_posts_page_link());
+	echo clean_url(get_previous_posts_page_link());
 }
 
 function previous_posts_link($label='&laquo; Previous Page') {

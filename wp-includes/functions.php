@@ -566,7 +566,7 @@ function update_post_category_cache($post_ids) {
 	$post_id_array = (array) explode(',', $post_ids);
 	$count = count( $post_id_array);
 	for ( $i = 0; $i < $count; $i++ ) {
-		$post_id = $post_id_array[ $i ];
+		$post_id = (int) $post_id_array[ $i ];
 		if ( isset( $category_cache[$blog_id][$post_id] ) ) {
 			unset( $post_id_array[ $i ] );
 			continue;
@@ -620,7 +620,7 @@ function update_postmeta_cache($post_id_list = '') {
 	$post_id_array = (array) explode(',', $post_id_list);
 	$count = count( $post_id_array);
 	for ( $i = 0; $i < $count; $i++ ) {
-		$post_id = $post_id_array[ $i ];
+		$post_id = (int) $post_id_array[ $i ];
 		if ( isset( $post_meta_cache[$blog_id][$post_id] ) ) { // If the meta is already cached
 			unset( $post_id_array[ $i ] );
 			continue;
@@ -1192,7 +1192,7 @@ function wp_nonce_ays($action) {
 
 	$adminurl = get_option('siteurl') . '/wp-admin';
 	if ( wp_get_referer() )
-		$adminurl = attribute_escape(wp_get_referer());
+		$adminurl = clean_url(wp_get_referer());
 
 	$title = __('WordPress Confirmation');
 	// Remove extra layer of slashes.
@@ -1209,7 +1209,7 @@ function wp_nonce_ays($action) {
 		$html .= "\t\t<input type='hidden' name='_wpnonce' value='" . wp_create_nonce($action) . "' />\n";
 		$html .= "\t\t<div id='message' class='confirm fade'>\n\t\t<p>" . wp_specialchars(wp_explain_nonce($action)) . "</p>\n\t\t<p><a href='$adminurl'>" . __('No') . "</a> <input type='submit' value='" . __('Yes') . "' /></p>\n\t\t</div>\n\t</form>\n";
 	} else {
-		$html .= "\t<div id='message' class='confirm fade'>\n\t<p>" . wp_specialchars(wp_explain_nonce($action)) . "</p>\n\t<p><a href='$adminurl'>" . __('No') . "</a> <a href='" . attribute_escape(add_query_arg( '_wpnonce', wp_create_nonce($action), $_SERVER['REQUEST_URI'] )) . "'>" . __('Yes') . "</a></p>\n\t</div>\n";
+		$html .= "\t<div id='message' class='confirm fade'>\n\t<p>" . wp_specialchars(wp_explain_nonce($action)) . "</p>\n\t<p><a href='$adminurl'>" . __('No') . "</a> <a href='" . clean_url(add_query_arg( '_wpnonce', wp_create_nonce($action), $_SERVER['REQUEST_URI'] )) . "'>" . __('Yes') . "</a></p>\n\t</div>\n";
 	}
 	$html .= "</body>\n</html>";
 	wp_die($html, $title);
