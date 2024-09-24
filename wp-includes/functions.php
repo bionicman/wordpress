@@ -2167,7 +2167,8 @@ function load_template($_template_file) {
 	global $posts, $post, $wp_did_header, $wp_did_template_redirect, $wp_query,
 		$wp_rewrite, $wpdb;
 
-	extract($wp_query->query_vars, EXTR_SKIP);
+	if ( is_array($wp_query->query_vars) )
+		extract($wp_query->query_vars, EXTR_SKIP);
 
 	require_once($_template_file);
 }
@@ -2186,10 +2187,21 @@ function add_magic_quotes($array) {
 }
 
 function wp_remote_fopen( $uri ) {
+	$timeout = 10;
+	$parsed_url = @parse_url($uri);
+
+	if ( !$parsed_url || !is_array($parsed_url) )
+		return false;
+
+	if ( !isset($parsed_url['scheme']) || !in_array($parsed_url['scheme'], array('http','https')) )
+		$uri = 'http://' . $uri;
+
 	if ( ini_get('allow_url_fopen') ) {
 		$fp = @fopen( $uri, 'r' );
 		if ( !$fp )
 			return false;
+
+		//stream_set_timeout($fp, $timeout); // Requires php 4.3
 		$linea = '';
 		while( $remote_read = fread($fp, 4096) )
 			$linea .= $remote_read;
@@ -2200,6 +2212,7 @@ function wp_remote_fopen( $uri ) {
 		curl_setopt ($handle, CURLOPT_URL, $uri);
 		curl_setopt ($handle, CURLOPT_CONNECTTIMEOUT, 1);
 		curl_setopt ($handle, CURLOPT_RETURNTRANSFER, 1);
+		curl_setopt ($handle, CURLOPT_TIMEOUT, $timeout);
 		$buffer = curl_exec($handle);
 		curl_close($handle);
 		return $buffer;
