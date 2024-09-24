@@ -404,6 +404,7 @@ function get_taxonomy_labels( $tax ) {
 		'parent_item' => array( null, __( 'Parent Category' ) ),
 		'parent_item_colon' => array( null, __( 'Parent Category:' ) ),
 		'edit_item' => array( __( 'Edit Tag' ), __( 'Edit Category' ) ),
+		'view_item' => array( __( 'View Tag' ), __( 'View Category' ) ),
 		'update_item' => array( __( 'Update Tag' ), __( 'Update Category' ) ),
 		'add_new_item' => array( __( 'Add New Tag' ), __( 'Add New Category' ) ),
 		'new_item_name' => array( __( 'New Tag Name' ), __( 'New Category Name' ) ),
@@ -1129,6 +1130,11 @@ function get_term_to_edit( $id, $taxonomy ) {
  * The 'parent' argument is different from 'child_of' in that a term X is considered a 'parent'
  * of term Y only if term X is the father of term Y, not its grandfather or great-grandfather, etc.
  *
+ * The 'cache_domain' argument enables a unique cache key to be produced when this query is stored
+ * in object cache. For instance, if you are using one of this function's filters to modify the
+ * query (such as 'terms_clauses'), setting 'cache_domain' to a unique value will not overwrite
+ * the cache for similar queries. Default value is 'core'.
+ *
  * @package WordPress
  * @subpackage Taxonomy
  * @since 2.3.0
@@ -1161,7 +1167,7 @@ function &get_terms($taxonomies, $args = '') {
 		'hide_empty' => true, 'exclude' => array(), 'exclude_tree' => array(), 'include' => array(),
 		'number' => '', 'fields' => 'all', 'slug' => '', 'parent' => '',
 		'hierarchical' => true, 'child_of' => 0, 'get' => '', 'name__like' => '',
-		'pad_counts' => false, 'offset' => '', 'search' => '');
+		'pad_counts' => false, 'offset' => '', 'search' => '', 'cache_domain' => 'core' );
 	$args = wp_parse_args( $args, $defaults );
 	$args['number'] = absint( $args['number'] );
 	$args['offset'] = absint( $args['offset'] );

@@ -186,6 +186,9 @@
 					}
 				});
 
+				if ( ed.id != 'wp_mce_fullscreen' )
+					ed.dom.addClass(ed.getBody(), 'wp-editor');
+
 				// remove invalid parent paragraphs when pasting HTML and/or switching to the HTML editor and back
 				ed.onBeforeSetContent.add(function(ed, o) {
 					if ( o.content ) {
@@ -209,6 +212,11 @@
 					last = k;
 				});
 			};
+
+			// keep empty paragraphs :(
+			ed.onSaveContent.addToTop(function(ed, o) {
+				o.content = o.content.replace(/<p>(<br ?\/?>|\u00a0|\uFEFF)?<\/p>/g, '<p>&nbsp;</p>');
+			});
 
 			ed.onSaveContent.add(function(ed, o) {
 				if ( typeof(switchEditors) == 'object' ) {

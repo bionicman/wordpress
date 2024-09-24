@@ -59,8 +59,8 @@ function login_header($title = 'Log In', $message = '', $wp_error = '') {
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" <?php language_attributes(); ?>>
 <head>
-	<title><?php bloginfo('name'); ?> &rsaquo; <?php echo $title; ?></title>
 	<meta http-equiv="Content-Type" content="<?php bloginfo('html_type'); ?>; charset=<?php bloginfo('charset'); ?>" />
+	<title><?php bloginfo('name'); ?> &rsaquo; <?php echo $title; ?></title>
 <?php
 	wp_admin_css( 'login', true );
 	wp_admin_css( 'colors-fresh', true );
@@ -123,18 +123,17 @@ function login_header($title = 'Log In', $message = '', $wp_error = '') {
  * @param string $input_id Which input to auto-focus
  */
 function login_footer($input_id = '') {
-	echo "</div>\n";
+	?>
+	<p id="backtoblog"><a href="<?php bloginfo('url'); ?>/" title="<?php esc_attr_e('Are you lost?') ?>"><?php printf(__('&larr; Back to %s'), get_bloginfo('title', 'display' )); ?></a></p>
+	</div>
 
-	if ( !empty($input_id) ) {
-?>
+<?php if ( !empty($input_id) ) : ?>
 <script type="text/javascript">
 try{document.getElementById('<?php echo $input_id; ?>').focus();}catch(e){}
 if(typeof wpOnload=='function')wpOnload();
 </script>
-<?php
-	}
-?>
-<p id="backtoblog"><a href="<?php bloginfo('url'); ?>/" title="<?php esc_attr_e('Are you lost?') ?>"><?php printf(__('&larr; Back to %s'), get_bloginfo('title', 'display' )); ?></a></p>
+<?php endif; ?>
+
 <?php do_action('login_footer'); ?>
 </body>
 </html>
@@ -664,10 +663,6 @@ default:
 <a href="<?php echo site_url('wp-login.php?action=lostpassword', 'login') ?>" title="<?php _e('Password Lost and Found') ?>"><?php _e('Lost your password?') ?></a>
 <?php endif; ?>
 </p>
-</div>
-<p id="backtoblog"><a href="<?php bloginfo('url'); ?>/" title="<?php esc_attr_e('Are you lost?') ?>"><?php printf(__('&larr; Back to %s'), get_bloginfo('title', 'display' )); ?></a></p>
-<?php } else { ?>
-</div>
 <?php } ?>
 
 <script type="text/javascript">
@@ -695,11 +690,9 @@ wp_attempt_focus();
 <?php } ?>
 if(typeof wpOnload=='function')wpOnload();
 </script>
-<?php do_action( 'login_footer' ); ?>
-</body>
-</html>
-<?php
 
+<?php
+login_footer();
 break;
 } // end action switch
 ?>

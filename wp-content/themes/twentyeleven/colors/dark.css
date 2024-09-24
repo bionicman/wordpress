@@ -35,16 +35,19 @@ ins {
 	background: #00063f;
 }
 input[type=text],
+.post-password-required input[type=password],
 textarea {
 	border: 1px solid #222;
 }
 input[type=text]:focus,
 textarea:focus {
 }
+input#s {
+	background-color: #ddd;
+}
 
 /* Links */
 a {
-	color: #e4741f;
 }
 
 
@@ -52,16 +55,20 @@ a {
 ----------------------------------------------- */
 
 #branding {
-	border-top: 2px solid #444;
+	border-top: 2px solid #0a0a0a;
 }
 #site-title a {
 	color: #eee;
+}
+#site-title a:hover,
+#site-title a:focus,
+#site-title a:active {
 }
 #site-description {
 	color: #858585;
 }
 #branding #s {
-	background-color: #fff;
+	background-color: #ddd;
 }
 
 
@@ -69,6 +76,10 @@ a {
 ----------------------------------------------- */
 
 #access {
+	background: #333; /* Show a solid color for older browsers */
+	background: -moz-linear-gradient(#383838, #272727);
+	background: -webkit-gradient(linear, 0% 0%, 0% 100%, from(#383838), to(#272727)); /* older webkit syntax */
+	background: -webkit-linear-gradient(#383838, #272727);
 	border-bottom: 1px solid #222;
 }
 
@@ -88,8 +99,9 @@ a {
 .entry-title a {
 	color: #ddd;
 }
-.entry-title a:hover {
-	color: #e4741f;
+.entry-title a:hover,
+.entry-title a:focus,
+.entry-title a:active {
 }
 .entry-meta {
 	color: #999;
@@ -113,24 +125,64 @@ a {
 	border-color: #222;
 }
 .page-link {
-	background: #0e0e0e;
-	border-color: #222;
-	color: #777;
 }
 .page-link a {
-	background: #272727;
+	background: #242424;
 	color: #bbb;
 }
 .page-link a:hover {
-	background: #888;
+	background: #999;
 	color: #000;
 }
 .entry-meta .edit-link a {
-	background: #555;
+	background: #242424;
+	color: #bbb;
+}
+.entry-meta .edit-link a:hover,
+.entry-meta .edit-link a:focus,
+.entry-meta .edit-link a:active {
+	background: #999;
 	color: #000;
 }
-.entry-meta .edit-link a:hover {
-	background: #888;
+
+/* Images */
+.wp-caption {
+	background: #2c2c2c;
+}
+.wp-caption .wp-caption-text {
+	color: #999;
+}
+.wp-caption .wp-caption-text:before {
+	color: #999;
+}
+
+/* Image borders */
+img[class*="wp-image-"],
+#content .gallery .gallery-icon img {
+	border-color: #2c2c2c;
+}
+.wp-caption img {
+	border-color: #2c2c2c;
+}
+a:focus img[class*="wp-image-"],
+a:hover img[class*="wp-image-"],
+a:active img[class*="wp-image-"] {
+	background: #2c2c2c;
+	border-color: #444;
+}
+.wp-caption a:focus img,
+.wp-caption a:active img,
+.wp-caption a:hover img {
+	background: #0f0f0f;
+	border-color: #2c2c2c;
+}
+
+/* Password Protected Posts */
+.post-password-required input[type=password] {
+	background: #ddd;
+}
+.post-password-required input[type=password]:focus {
+	background: #fff;
 }
 
 /* Author Info */
@@ -153,22 +205,14 @@ a {
 
 /* Comments link */
 .entry-header .comments-link a {
-	background: #111;
+	background: #282828 url(../images/comment-bubble-dark.png) no-repeat;
 	border-color: #222;
 	color: #888;
-}
-.entry-header .comments-link a:hover {
-	background: #888;
-	border-color: #aaa;
-	color: #000;
 }
 
 /* Singular content styles for Posts and Pages */
 .singular .entry-title {
 	color: #fff;
-}
-.singular .entry-meta .edit-link a {
-	color: #000;
 }
 
 
@@ -187,6 +231,20 @@ a {
 
 .format-quote blockquote {
 	color: #aaa;
+}
+
+
+/* =Image
+----------------------------------------------- */
+
+.indexed.format-image .wp-caption {
+	background: #242424;
+}
+.indexed.format-image .entry-meta .edit-link a {
+	color: #ddd;
+}
+.indexed.format-image .entry-meta .edit-link a:hover {
+	color: #fff;
 }
 
 
@@ -240,7 +298,6 @@ article.feature-image.small .entry-summary p a {
 	color: #111;
 }
 article.feature-image.small .entry-summary p a:hover {
-	background: #e4741f;
 	color: #40220c;
 }
 
@@ -248,13 +305,13 @@ article.feature-image.small .entry-summary p a:hover {
 article.feature-image.large .entry-title a {
 	background: #ddd;
 	background: rgba(0,0,0,0.8);
-	color: #000;
+	color: #fff;
 }
 section.feature-image.large:hover .entry-title a,
 section.feature-image.large .entry-title:hover a {
 	background: #111;
 	background: rgba(255,255,255,0.8);
-	color: #ddd;
+	color: #000;
 }
 section.feature-image.large img {
 	border-bottom: 1px solid #222;
@@ -262,10 +319,20 @@ section.feature-image.large img {
 
 /* Featured Slider */
 .featured-posts {
-	border-bottom: 1px solid #171717;
+	border-color: #222;	
 }
 .featured-posts section.featured-post {
 	background: #000;
+}
+.featured-post .feature-text:after,
+.featured-post .feature-image.small:after {
+	background: -moz-linear-gradient(top, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%); /* FF3.6+ */
+	background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(0,0,0,0)), color-stop(100%,rgba(0,0,0,1))); /* Chrome,Safari4+ */
+	background: -webkit-linear-gradient(top, rgba(0,0,0,0) 0%,rgba(0,0,0,1) 100%); /* Chrome10+,Safari5.1+ */
+	background: -o-linear-gradient(top, rgba(0,0,0,0) 0%,rgba(0,0,0,1) 100%); /* Opera11.10+ */
+	background: -ms-linear-gradient(top, rgba(0,0,0,0) 0%,rgba(0,0,0,1) 100%); /* IE10+ */
+	filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#00000000', endColorstr='#000000',GradientType=0 ); /* IE6-9 */
+	background: linear-gradient(top, rgba(0,0,0,0) 0%,rgba(0,0,0,1) 100%); /* W3C */
 }
 .feature-slider a {
 	background: #c3c3c3;
@@ -293,11 +360,10 @@ section.recent-posts .other-recent-posts a[rel="bookmark"] {
 	color: #ccc;
 }
 section.recent-posts .other-recent-posts a[rel="bookmark"]:hover {
-	color: #e4741f;
 }
 section.recent-posts .other-recent-posts .comments-link a,
 section.recent-posts .other-recent-posts .comments-link > span {
-	border-color: #666;
+	border-color: #959595;
 	color: #bbb;
 }
 section.recent-posts .other-recent-posts .comments-link > span {
@@ -305,8 +371,6 @@ section.recent-posts .other-recent-posts .comments-link > span {
 	color: #777;
 }
 section.recent-posts .other-recent-posts .comments-link a:hover {
-	color: #e4741f;
-	border-color: #e4741f;
 }
 
 
@@ -317,19 +381,14 @@ section.recent-posts .other-recent-posts .comments-link a:hover {
 	background: #060606;
 	border-color: #222;
 }
-
-
-/* =Images
------------------------------------------------ */
-
-.wp-caption {
-	background: #0b0d12;
+.image-attachment div.attachment a img {
+	border-color: #060606;
 }
-.wp-caption .wp-caption-text {
-	color: #999;
-}
-.wp-caption .wp-caption-text:before {
-	color: #64759d;
+.image-attachment div.attachment a:focus img,
+.image-attachment div.attachment a:hover img,
+.image-attachment div.attachment a:active img {
+	border-color: #2c2c2c;
+	background: #0f0f0f;
 }
 
 
@@ -353,8 +412,6 @@ section.recent-posts .other-recent-posts .comments-link a:hover {
 	color: #777;
 }
 .widget_search #searchsubmit:active {
-	background: #e4741f;
-	border-color: #f79e5a;
 	-webkit-box-shadow: inset 0px 1px 1px rgba(0, 0, 0, 0.1);
 	-moz-box-shadow: inset 0px 1px 1px rgba(0, 0, 0, 0.1);
 	box-shadow: inset 0px 1px 1px rgba(0, 0, 0, 0.1);
@@ -422,12 +479,14 @@ section.recent-posts .other-recent-posts .comments-link a:hover {
 	background: #222;
 	border-color: #2c2c2c;
 }
+.commentlist > li.bypostauthor .comment-meta {
+	color: #a8a8a8;
+}
 
 /* Comment Form */
 #respond {
 	background: #222;
 	border-color: #2c2c2c;
-	color: #bbb;
 }
 #respond input[type="text"],
 #respond textarea {
@@ -469,7 +528,6 @@ section.recent-posts .other-recent-posts .comments-link a:hover {
 	text-shadow: 0 -1px 0 rgba(0,0,0,0.3);
 }
 #respond input#submit:active {
-	background: #e4741f;
 	color: #40220c;
 }
 #respond #cancel-comment-reply-link {
@@ -498,7 +556,7 @@ section.recent-posts .other-recent-posts .comments-link a:hover {
 /* Site Generator Line */
 #site-generator {
 	background: #060606;
-	border-color: #222;
+	border-color: #000;
 }
 
 
@@ -523,7 +581,7 @@ section.recent-posts .other-recent-posts .comments-link a:hover {
 		color: #333;
 	}
 	.commentlist > li.bypostauthor .comment-meta {
-		color: #666;
+		color: #959595;
 	}
 	.commentlist > li:before {
 		content: none !important;
@@ -536,6 +594,6 @@ section.recent-posts .other-recent-posts .comments-link a:hover {
 	}
 	.commentlist .children > li.bypostauthor > article,
 	.commentlist .children > li.bypostauthor > article .comment-meta {
-		color: #666;
+		color: #959595;
 	}
 }

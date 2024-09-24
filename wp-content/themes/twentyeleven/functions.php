@@ -91,7 +91,7 @@ function twentyeleven_setup() {
 	// Load up our theme options page and related code.
 	require( dirname( __FILE__ ) . '/inc/theme-options.php' );
 
-	// Grab Twenty Eleven's Epherma widget.
+	// Grab Twenty Eleven's Ephemera widget.
 	require( dirname( __FILE__ ) . '/inc/widgets.php' );
 
 	// Add default posts and comments RSS feed links to <head>.
@@ -100,39 +100,35 @@ function twentyeleven_setup() {
 	// This theme uses wp_nav_menu() in one location.
 	register_nav_menu( 'primary', __( 'Primary Menu', 'twentyeleven' ) );
 
-	/**
-	 * Add support for an Aside Post Format
-	 */
+	// Add support for a variety of post formats
 	add_theme_support( 'post-formats', array( 'aside', 'link', 'gallery', 'status', 'quote', 'image' ) );
 
-	/**
-	 * Add support for custom backgrounds
-	 */
+	// Add support for custom backgrounds
 	add_custom_background();
 
-	// This theme uses Feature Images for per-post/per-page Custom Header images
+	// This theme uses Featured Images (also known as post thumbnails) for per-post/per-page Custom Header images
 	add_theme_support( 'post-thumbnails' );
 
-	/**
-	 * Add support for Custom Headers
-	 */
+	// The next four constants set how twentyeleven supports custom headers
+
+	// The default header text color
 	define( 'HEADER_TEXTCOLOR', '000' );
 
-	// No CSS, just an IMG call. The %s is a placeholder for the theme template directory URI.
-	define( 'HEADER_IMAGE', '' ); // Leaving empty for random image rotation.
+	// By leaving empty, we default to random image rotation
+	define( 'HEADER_IMAGE', '' );
 
-	// The height and width of your custom header. You can hook into the theme's own filters to change these values.
+	// The height and width of your custom header.
 	// Add a filter to twentyeleven_header_image_width and twentyeleven_header_image_height to change these values.
 	define( 'HEADER_IMAGE_WIDTH', apply_filters( 'twentyeleven_header_image_width', 1000 ) );
 	define( 'HEADER_IMAGE_HEIGHT', apply_filters( 'twentyeleven_header_image_height', 288 ) );
 
 	// We'll be using post thumbnails for custom header images on posts and pages.
-	// We want them to be 940 pixels wide by 198 pixels tall.
+	// We want them to be the size of the header image that we just defined
 	// Larger images will be auto-cropped to fit, smaller ones will be ignored. See header.php.
 	set_post_thumbnail_size( HEADER_IMAGE_WIDTH, HEADER_IMAGE_HEIGHT, true );
 
 	// Add Twenty Eleven's custom image sizes
-	add_image_size( 'large-feature', HEADER_IMAGE_WIDTH, HEADER_IMAGE_HEIGHT, true ); // Used for large feature images
+	add_image_size( 'large-feature', HEADER_IMAGE_WIDTH, HEADER_IMAGE_HEIGHT, true ); // Used for large feature (header) images
 	add_image_size( 'small-feature', 500, 300 ); // Used for featured posts if a large-feature doesn't exist
 
 	// Add a way for the custom header to be styled in the admin panel that controls
@@ -300,7 +296,7 @@ function twentyeleven_admin_header_image() { ?>
 		else
 			$style = ' style="color:#' . get_theme_mod( 'header_textcolor', HEADER_TEXTCOLOR ) . ';"';
 		?>
-		<h1><a id="name"<?php echo $style; ?> onclick="return false;" href="<?php echo home_url( '/' ); ?>"><?php bloginfo( 'name' ); ?></a></h1>
+		<h1><a id="name"<?php echo $style; ?> onclick="return false;" href="<?php echo esc_url( home_url( '/' ) ); ?>"><?php bloginfo( 'name' ); ?></a></h1>
 		<div id="desc"<?php echo $style; ?>><?php bloginfo( 'description' ); ?></div>
 		<?php $header_image = get_header_image();
 		if ( ! empty( $header_image ) ) : ?>
@@ -325,7 +321,7 @@ add_filter( 'excerpt_length', 'twentyeleven_excerpt_length' );
  * Returns a "Continue Reading" link for excerpts
  */
 function twentyeleven_continue_reading_link() {
-	return ' <a href="'. get_permalink() . '">' . __( 'Continue reading <span class="meta-nav">&rarr;</span>', 'twentyeleven' ) . '</a>';
+	return ' <a href="'. esc_url( get_permalink() ) . '">' . __( 'Continue reading <span class="meta-nav">&rarr;</span>', 'twentyeleven' ) . '</a>';
 }
 
 /**
@@ -352,17 +348,6 @@ function twentyeleven_custom_excerpt_more( $output ) {
 	return $output;
 }
 add_filter( 'get_the_excerpt', 'twentyeleven_custom_excerpt_more' );
-
-/**
- * Add custom body classes
- */
-function twentyeleven_singular_class( $classes ) {
-	if ( is_singular() && ! is_home() && ! is_page_template( 'showcase.php' ) && ! is_page_template( 'sidebar-page.php' ) )
-		$classes[] = 'singular';
-
-	return $classes;
-}
-add_filter( 'body_class', 'twentyeleven_singular_class' );
 
 /**
  * Get our wp_nav_menu() fallback, wp_page_menu(), to show a home link.
@@ -441,7 +426,7 @@ function twentyeleven_content_nav( $nav_id ) {
 
 	if ( $wp_query->max_num_pages > 1 ) : ?>
 		<nav id="<?php echo $nav_id; ?>">
-			<h1 class="section-heading"><?php _e( 'Post navigation', 'twentyeleven' ); ?></h1>
+			<h1 class="assistive-text"><?php _e( 'Post navigation', 'twentyeleven' ); ?></h1>
 			<div class="nav-previous"><?php next_posts_link( __( '<span class="meta-nav">&larr;</span> Older posts', 'twentyeleven' ) ); ?></div>
 			<div class="nav-next"><?php previous_posts_link( __( 'Newer posts <span class="meta-nav">&rarr;</span>', 'twentyeleven' ) ); ?></div>
 		</nav><!-- #nav-above -->
@@ -528,12 +513,15 @@ function twentyeleven_comment( $comment, $args, $depth ) {
 
 						echo get_avatar( $comment, $avatar_size );
 
-						printf( __( '%1$s on %2$s%3$s at %4$s%5$s <span class="says">said:</span>', 'twentyeleven' ),
+						/* translators: 1: comment author, 2: date and time */
+						printf( __( '%1$s on %2$s <span class="says">said:</span>', 'twentyeleven' ),
 							sprintf( '<span class="fn">%s</span>', get_comment_author_link() ),
-							'<a href="' . esc_url( get_comment_link( $comment->comment_ID ) ) . '"><time pubdate datetime="' . get_comment_time( 'c' ) . '">',
-							get_comment_date(),
-							get_comment_time(),
-							'</time></a>'
+							sprintf( '<a href="%1$s"><time pubdate datetime="%2$s">%3$s</time></a>',
+								esc_url( get_comment_link( $comment->comment_ID ) ),
+								get_comment_time( 'c' ),
+								/* translators: 1: date, 2: time */
+								sprintf( __( '%1$s at %2$s', 'twentyeleven' ), get_comment_date(), get_comment_time() )
+							)
 						);
 					?>
 
@@ -559,3 +547,44 @@ function twentyeleven_comment( $comment, $args, $depth ) {
 	endswitch;
 }
 endif; // ends check for twentyeleven_comment()
+
+if ( ! function_exists( 'twentyeleven_posted_on' ) ) :
+/**
+ * Prints HTML with meta information for the current post-date/time and author.
+ * Create your own twentyeleven_posted_on to override in a child theme
+ *
+ * @since Twenty Eleven 1.0
+ */
+function twentyeleven_posted_on() {
+	printf( __( '<span class="sep">Posted on </span><a href="%1$s" title="%2$s" rel="bookmark"><time class="entry-date" datetime="%3$s" pubdate>%4$s</time></a><span class="by-author"> <span class="sep"> by </span> <span class="author vcard"><a class="url fn n" href="%5$s" title="%6$s" rel="author">%7$s</a></span></span>', 'twentyeleven' ),
+		esc_url( get_permalink() ),
+		esc_attr( get_the_time() ),
+		esc_attr( get_the_date( 'c' ) ),
+		esc_html( get_the_date() ),
+		esc_url( get_author_posts_url( get_the_author_meta( 'ID' ) ) ),
+		sprintf( esc_attr__( 'View all posts by %s', 'twentyeleven' ), get_the_author() ),
+		esc_html( get_the_author() )
+	);
+}
+endif;
+
+/**
+ * Adds two classes to the array of body classes.
+ * The first is if the site has only had one author with published posts.
+ * The second is if a singular post being displayed
+ *
+ * @since Twenty Eleven 1.0
+ */
+function twentyeleven_body_classes( $classes ) {
+
+	if ( ! is_multi_author() ) {
+		$classes[] = 'single-author';
+	}
+
+	if ( is_singular() && ! is_home() && ! is_page_template( 'showcase.php' ) && ! is_page_template( 'sidebar-page.php' ) )
+		$classes[] = 'singular';
+
+	return $classes;
+}
+add_filter( 'body_class', 'twentyeleven_body_classes' );
+

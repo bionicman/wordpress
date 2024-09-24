@@ -21,13 +21,17 @@ class WP_Plugins_List_Table extends WP_List_Table {
 		if ( $status != $default_status && 'search' != $status )
 			update_user_meta( get_current_user_id(), 'plugins_last_view', $status );
 
+
+		if ( isset($_REQUEST['s']) )
+			$_SERVER['REQUEST_URI'] = add_query_arg('s', stripslashes($_REQUEST['s']) );
+
 		$page = $this->get_pagenum();
 
 		parent::__construct( array(
 			'plural' => 'plugins',
 		) );
 	}
-	
+
 	function get_table_classes() {
 		return array( 'widefat', $this->_args['plural'] );
 	}

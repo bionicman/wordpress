@@ -14,18 +14,13 @@
  *
  * @since Twenty Eleven 1.0
  *
- * @param string $hook_suffix The action passes the current page to the function. We don't
- * 	do anything if we're not on our theme options page.
  */
 function twentyeleven_admin_enqueue_scripts( $hook_suffix ) {
-	if ( $hook_suffix != 'appearance_page_theme_options' )
-		return;
-
 	wp_enqueue_style( 'twentyeleven-theme-options', get_template_directory_uri() . '/inc/theme-options.css', false, '2011-04-28' );
-	wp_enqueue_script( 'twentyeleven-theme-options', get_template_directory_uri() . '/inc/theme-options.js', array( 'farbtastic' ), '2011-04-28' );
+	wp_enqueue_script( 'twentyeleven-theme-options', get_template_directory_uri() . '/inc/theme-options.js', array( 'farbtastic' ), '2011-06-10' );
 	wp_enqueue_style( 'farbtastic' );
 }
-add_action( 'admin_enqueue_scripts', 'twentyeleven_admin_enqueue_scripts' );
+add_action( 'admin_print_styles-appearance_page_theme_options', 'twentyeleven_admin_enqueue_scripts' );
 
 /**
  * Register the form setting for our twentyeleven_options array.
@@ -74,20 +69,36 @@ function twentyeleven_option_page_capability( $capability ) {
 add_filter( 'option_page_capability_twentyeleven_options', 'twentyeleven_option_page_capability' );
 
 /**
- * Add our theme options page to the admin menu.
+ * Add our theme options page to the admin menu, including some help documentation.
  *
  * This function is attached to the admin_menu action hook.
  *
  * @since Twenty Eleven 1.0
  */
 function twentyeleven_theme_options_add_page() {
-	add_theme_page(
+	$theme_page = add_theme_page(
 		__( 'Theme Options', 'twentyeleven' ), // Name of page
 		__( 'Theme Options', 'twentyeleven' ), // Label in menu
 		'edit_theme_options',                  // Capability required
 		'theme_options',                       // Menu slug, used to uniquely identify the page
 		'theme_options_render_page'            // Function that renders the options page
 	);
+
+	if ( ! $theme_page )
+		return;
+
+	$help = '<p>' . __( 'Some themes provide customization options that are grouped together on a Theme Options screen. If you change themes, options may change or disappear, as they are theme-specific. Your current theme, Twenty Eleven, provides the following Theme Options:', 'twentyeleven' ) . '</p>' .
+			'<ol>' .
+				'<li>' . __( '<strong>Color Scheme</strong>: You can choose a color palette of "Light" (light background with dark text) or "Dark" (dark background with light text) for your site.', 'twentyeleven' ) . '</li>' .
+				'<li>' . __( '<strong>Link Color</strong>: You can choose the color used for text links on your site. You can enter the HTML color or hex code, or you can choose visually by clicking the "Select a Color" button to pick from a color wheel.', 'twentyeleven' ) . '</li>' .
+				'<li>' . __( '<strong>Default Layout</strong>: You can choose if you want your site&#8217;s default layout to have a sidebar on the left, the right, or not at all.', 'twentyeleven' ) . '</li>' .
+			'</ol>' .
+			'<p>' . __( 'Remember to click "Save Changes" to save any changes you have made to the theme options.', 'twentyeleven' ) . '</p>' .
+			'<p><strong>' . __( 'For more information:', 'twentyeleven' ) . '</strong></p>' .
+			'<p>' . __( '<a href="http://codex.wordpress.org/Appearance_Theme_Options_Screen" target="_blank">Documentation on Theme Options</a>', 'twentyeleven' ) . '</p>' .
+			'<p>' . __( '<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>', 'twentyeleven' ) . '</p>';
+
+	add_contextual_help( $theme_page, $help );
 }
 add_action( 'admin_menu', 'twentyeleven_theme_options_add_page' );
 
@@ -102,11 +113,13 @@ function twentyeleven_color_schemes() {
 			'value' => 'light',
 			'label' => __( 'Light', 'twentyeleven' ),
 			'thumbnail' => get_template_directory_uri() . '/inc/images/light.png',
+			'default_link_color' => '#1b8be0',
 		),
 		'dark' => array(
 			'value' => 'dark',
 			'label' => __( 'Dark', 'twentyeleven' ),
 			'thumbnail' => get_template_directory_uri() . '/inc/images/dark.png',
+			'default_link_color' => '#e4741f',
 		),
 	);
 
@@ -132,7 +145,7 @@ function twentyeleven_layouts() {
 		),
 		'content' => array(
 			'value' => 'content',
-			'label' => __( 'One-column, no Sidebar', 'twentyeleven' ),
+			'label' => __( 'One-column, no sidebar', 'twentyeleven' ),
 			'thumbnail' => get_template_directory_uri() . '/inc/images/content.png',
 		),
 	);
@@ -148,11 +161,32 @@ function twentyeleven_layouts() {
 function twentyeleven_get_default_theme_options() {
 	$default_theme_options = array(
 		'color_scheme' => 'light',
-		'link_color'   => '#1b8be0',
+		'link_color'   => twentyeleven_get_default_link_color( 'light' ),
 		'theme_layout' => 'content-sidebar',
 	);
 
 	return apply_filters( 'twentyeleven_default_theme_options', $default_theme_options );
+}
+
+/**
+ * Returns the default link color for Twenty Eleven, based on color scheme.
+ *
+ * @since Twenty Eleven 1.0
+ *
+ * @param $string $color_scheme Color scheme. Defaults to the active color scheme.
+ * @return $string Color.
+*/
+function twentyeleven_get_default_link_color( $color_scheme = null ) {
+	if ( null === $color_scheme ) {
+		$options = twentyeleven_get_theme_options();
+		$color_scheme = $options['color_scheme'];
+	}
+
+	$color_schemes = twentyeleven_color_schemes();
+	if ( ! isset( $color_schemes[ $color_scheme ] ) )
+		return false;
+
+	return $color_schemes[ $color_scheme ]['default_link_color'];
 }
 
 /**
@@ -161,7 +195,7 @@ function twentyeleven_get_default_theme_options() {
  * @since Twenty Eleven 1.0
  */
 function twentyeleven_get_theme_options() {
-	return get_option( 'twentyeleven_theme_options' );
+	return get_option( 'twentyeleven_theme_options', twentyeleven_get_default_theme_options() );
 }
 
 /**
@@ -185,18 +219,19 @@ function theme_options_render_page() {
 
 			<table class="form-table">
 
-				<tr valign="top" class="image-radio-option"><th scope="row"><?php _e( 'Color Scheme', 'twentyeleven' ); ?></th>
+				<tr valign="top" class="image-radio-option color-scheme"><th scope="row"><?php _e( 'Color Scheme', 'twentyeleven' ); ?></th>
 					<td>
 						<fieldset><legend class="screen-reader-text"><span><?php _e( 'Color Scheme', 'twentyeleven' ); ?></span></legend>
 						<?php
-							foreach ( twentyeleven_color_schemes() as $color ) {
+							foreach ( twentyeleven_color_schemes() as $scheme ) {
 								?>
 								<div class="layout">
 								<label class="description">
-									<input type="radio" name="twentyeleven_theme_options[color_scheme]" value="<?php echo esc_attr( $color['value'] ); ?>" <?php checked( $options['color_scheme'], $color['value'] ); ?> />
+									<input type="radio" name="twentyeleven_theme_options[color_scheme]" value="<?php echo esc_attr( $scheme['value'] ); ?>" <?php checked( $options['color_scheme'], $scheme['value'] ); ?> />
+									<input type="hidden" id="default-color-<?php echo esc_attr( $scheme['value'] ); ?>" value="<?php echo esc_attr( $scheme['default_link_color'] ); ?>" />
 									<span>
-										<img src="<?php echo esc_url( $color['thumbnail'] ); ?>" alt=""/>
-										<?php echo $color['label']; ?>
+										<img src="<?php echo esc_url( $scheme['thumbnail'] ); ?>" width="136" height="122" alt="" />
+										<?php echo $scheme['label']; ?>
 									</span>
 								</label>
 								</div>
@@ -215,12 +250,12 @@ function theme_options_render_page() {
 							<input type="button" class="pickcolor button hide-if-no-js" value="<?php esc_attr_e( 'Select a Color', 'twentyeleven' ); ?>" />
 							<div id="colorPickerDiv" style="z-index: 100; background:#eee; border:1px solid #ccc; position:absolute; display:none;"></div>
 							<br />
-							<small class="description"><?php printf( __( 'Default color: %s', 'twentyeleven' ), $default_options['link_color'] ); ?></small>
+							<span><?php printf( __( 'Default color: %s', 'twentyeleven' ), '<span id="default-color">' . twentyeleven_get_default_link_color( $options['color_scheme'] ) . '</span>' ); ?></span>
 						</fieldset>
 					</td>
 				</tr>
 
-				<tr valign="top" class="image-radio-option"><th scope="row"><?php _e( 'Layout', 'twentyeleven' ); ?></th>
+				<tr valign="top" class="image-radio-option theme-layout"><th scope="row"><?php _e( 'Default Layout', 'twentyeleven' ); ?></th>
 					<td>
 						<fieldset><legend class="screen-reader-text"><span><?php _e( 'Color Scheme', 'twentyeleven' ); ?></span></legend>
 						<?php
@@ -230,7 +265,7 @@ function theme_options_render_page() {
 								<label class="description">
 									<input type="radio" name="twentyeleven_theme_options[theme_layout]" value="<?php echo esc_attr( $layout['value'] ); ?>" <?php checked( $options['theme_layout'], $layout['value'] ); ?> />
 									<span>
-										<img src="<?php echo esc_url( $layout['thumbnail'] ); ?>" alt=""/>
+										<img src="<?php echo esc_url( $layout['thumbnail'] ); ?>" width="136" height="122" alt="" />
 										<?php echo $layout['label']; ?>
 									</span>
 								</label>
@@ -264,9 +299,12 @@ function twentyeleven_theme_options_validate( $input ) {
 	if ( isset( $input['color_scheme'] ) && array_key_exists( $input['color_scheme'], twentyeleven_color_schemes() ) )
 		$output['color_scheme'] = $input['color_scheme'];
 
+	// Our defaults for the link color may have changed, based on the color scheme.
+	$output['link_color'] = $defaults['link_color'] = twentyeleven_get_default_link_color( $output['color_scheme'] );
+
 	// Link color must be 3 or 6 hexadecimal characters
 	if ( isset( $input['link_color'] ) && preg_match( '/^#?([a-f0-9]{3}){1,2}$/i', $input['link_color'] ) )
-			$output['link_color'] = '#' . strtolower( ltrim( $input['link_color'], '#' ) );
+		$output['link_color'] = '#' . strtolower( ltrim( $input['link_color'], '#' ) );
 
 	// Theme layout must be in our array of theme layout options
 	if ( isset( $input['theme_layout'] ) && array_key_exists( $input['theme_layout'], twentyeleven_layouts() ) )
@@ -311,7 +349,12 @@ function twentyeleven_print_link_color_style() {
 	<style>
 		/* Link color */
 		a,
+		#site-title a:focus,
+		#site-title a:hover,
+		#site-title a:active,
 		.entry-title a:hover,
+		.entry-title a:focus,
+		.entry-title a:active,
 		.widget_twentyeleven_ephemera .comments-link a:hover,
 		section.recent-posts .other-recent-posts a[rel="bookmark"]:hover,
 		section.recent-posts .other-recent-posts .comments-link a:hover,
@@ -321,7 +364,14 @@ function twentyeleven_print_link_color_style() {
 		}
 		section.recent-posts .other-recent-posts .comments-link a:hover {
 			border-color: <?php echo $link_color; ?>;
-		}		
+		}
+		article.feature-image.small .entry-summary p a:hover,
+		.entry-header .comments-link a:hover,
+		.entry-header .comments-link a:focus,
+		.entry-header .comments-link a:active,
+		.feature-slider a.active {
+			background-color: <?php echo $link_color; ?>;
+		}
 	</style>
 <?php
 }

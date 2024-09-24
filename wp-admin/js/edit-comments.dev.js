@@ -35,7 +35,7 @@ setCommentsList = function() {
 			dif = $('#' + settings.element).is('.' + settings.dimClass) ? 1 : -1;
 			n = n + dif;
 			if ( n < 0 ) { n = 0; }
-			a.closest('#awaiting-mod')[ 0 == n ? 'addClass' : 'removeClass' ]('count-0');
+			a.closest('.awaiting-mod')[ 0 == n ? 'addClass' : 'removeClass' ]('count-0');
 			updateCount(a, n);
 			dashboardTotals();
 		});
@@ -157,7 +157,7 @@ setCommentsList = function() {
 			if ( n < 0 )
 				n = 0;
 
-			a.closest('#awaiting-mod')[ 0 == n ? 'addClass' : 'removeClass' ]('count-0');
+			a.closest('.awaiting-mod')[ 0 == n ? 'addClass' : 'removeClass' ]('count-0');
 			updateCount(a, n);
 			dashboardTotals();
 		});
@@ -500,7 +500,7 @@ commentReply = {
 		if ( r.supplemental.parent_approved ) {
 			pid = $('#comment-' + r.supplemental.parent_approved);
 			updatePending( getCount( $('span.pending-count').eq(0) ) - 1 );
-			
+
 			if ( this.comments_listing == 'moderated' ) {
 				pid.animate( { 'backgroundColor':'#CCEEBB' }, 400, function(){
 					pid.fadeOut();
@@ -513,7 +513,7 @@ commentReply = {
 		$('#replyrow').after(c);
 		id = $(id);
 		t.addEvents(id);
-		bg = id.css('background-color');
+		bg = id.hasClass('unapproved') ? '#FFFFE0' : id.closest('.widefat').css('backgroundColor');
 
 		id.animate( { 'backgroundColor':'#CCEEBB' }, 300 )
 			.animate( { 'backgroundColor': bg }, 300, function() {

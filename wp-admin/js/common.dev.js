@@ -36,7 +36,7 @@ adminMenu = {
 
 	toggle : function(el) {
 		el.slideToggle(150, function() {
-			var id = el.removeAttr('style').parent().toggleClass( 'wp-menu-open' ).attr('id');
+			var id = el.css('display','').parent().toggleClass( 'wp-menu-open' ).attr('id');
 			if ( id ) {
 				$('li.wp-has-submenu', '#adminmenu').each(function(i, e) {
 					if ( id == e.id ) {
@@ -74,7 +74,9 @@ adminMenu = {
 					}
 					m.addClass('sub-open');
 				},
-				out: function(){ $(this).find('.wp-submenu').removeClass('sub-open').css({'marginTop':''}); },
+				out: function(){
+					$(this).find('.wp-submenu').removeClass('sub-open');
+				},
 				timeout: 220,
 				sensitivity: 8,
 				interval: 100
@@ -226,7 +228,8 @@ screenMeta = {
 };
 
 $(document).ready( function() {
-	var lastClicked = false, checks, first, last, checked, dropdown;
+	var lastClicked = false, checks, first, last, checked, dropdown,
+		pageInput = $('input[name="paged"]'), currentPage;
 
 	// Move .updated and .error alert boxes. Don't move boxes designed to be inline.
 	$('div.wrap h2:first').nextAll('div.updated, div.error').addClass('below-h2');
@@ -341,6 +344,27 @@ $(document).ready( function() {
 		if ( this.lastKey && 9 == this.lastKey )
 			this.focus();
 	});
+
+	if ( pageInput.length ) {
+		currentPage = pageInput.val();
+		pageInput.closest('form').submit( function(){
+			// Reset paging var for new filters/searches. See #17685.
+			if ( pageInput.val() == currentPage )
+				pageInput.val('1');
+		});
+	}
+
+});
+
+// internal use
+$(document).bind( 'wp_CloseOnEscape', function( e, data ) {
+	if ( typeof(data.cb) != 'function' )
+		return;
+
+	if ( typeof(data.condition) != 'function' || data.condition() )
+		data.cb();
+
+	return true;
 });
 
 })(jQuery);

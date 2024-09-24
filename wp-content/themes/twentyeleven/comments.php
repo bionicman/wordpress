@@ -37,7 +37,7 @@
 
 		<?php if ( get_comment_pages_count() > 1 && get_option( 'page_comments' ) ) : // are there comments to navigate through ?>
 		<nav id="comment-nav-above">
-			<h1 class="section-heading"><?php _e( 'Comment navigation', 'twentyeleven' ); ?></h1>
+			<h1 class="assistive-text"><?php _e( 'Comment navigation', 'twentyeleven' ); ?></h1>
 			<div class="nav-previous"><?php previous_comments_link( __( '&larr; Older Comments', 'twentyeleven' ) ); ?></div>
 			<div class="nav-next"><?php next_comments_link( __( 'Newer Comments &rarr;', 'twentyeleven' ) ); ?></div>
 		</nav>
@@ -57,30 +57,19 @@
 
 		<?php if ( get_comment_pages_count() > 1 && get_option( 'page_comments' ) ) : // are there comments to navigate through ?>
 		<nav id="comment-nav-below">
-			<h1 class="section-heading"><?php _e( 'Comment navigation', 'twentyeleven' ); ?></h1>
+			<h1 class="assistive-text"><?php _e( 'Comment navigation', 'twentyeleven' ); ?></h1>
 			<div class="nav-previous"><?php previous_comments_link( __( '&larr; Older Comments', 'twentyeleven' ) ); ?></div>
 			<div class="nav-next"><?php next_comments_link( __( 'Newer Comments &rarr;', 'twentyeleven' ) ); ?></div>
 		</nav>
 		<?php endif; // check for comment navigation ?>
 
-	<?php else : // this is displayed if there are no comments so far ?>
-
-		<?php if ( comments_open() ) : // If comments are open, but there are no comments ?>
-
-		<?php else : // or, if we don't have comments:
-
-			/* If there are no comments and comments are closed,
-			 * let's leave a little note, shall we?
-			 * But only on posts! We don't want the note on pages.
-			 */
-			if ( ! comments_open() && ! is_page() ) :
-			?>
-			<p class="nocomments"><?php _e( 'Comments are closed.', 'twentyeleven' ); ?></p>
-			<?php endif; // end ! comments_open() && ! is_page() ?>
-
-
-		<?php endif; ?>
-
+	<?php
+		/* If there are no comments and comments are closed, let's leave a little note, shall we?
+		 * But we don't want the note on pages or post types that do not support comments.
+		 */
+		elseif ( ! comments_open() && ! is_page() && post_type_supports( get_post_type(), 'comments' ) ) :
+	?>
+		<p class="nocomments"><?php _e( 'Comments are closed.', 'twentyeleven' ); ?></p>
 	<?php endif; ?>
 
 	<?php comment_form(); ?>

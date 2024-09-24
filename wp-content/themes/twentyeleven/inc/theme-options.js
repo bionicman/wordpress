@@ -8,6 +8,8 @@ var farbtastic;
 	};
 
 	$(document).ready( function() {
+		$('#default-color').wrapInner('<a href="#" />');
+
 		farbtastic = $.farbtastic('#colorPickerDiv', pickColor);
 
 		pickColor( $('#link-color').val() );
@@ -30,6 +32,21 @@ var farbtastic;
 
 		$(document).mousedown( function() {
 			$('#colorPickerDiv').hide();
+		});
+
+		$('#default-color a').click( function(e) {
+			pickColor( '#' + this.innerHTML.replace(/[^a-fA-F0-9]/, '') );
+			e.preventDefault();
+		});
+
+		$('.image-radio-option.color-scheme input:radio').change( function() {
+			var currentDefault = $('#default-color a'),
+				newDefault = $(this).next().val();
+
+			if ( $('#link-color').val() == currentDefault.text() )
+				pickColor( newDefault );
+
+			currentDefault.text( newDefault );
 		});
 	});
 })(jQuery);

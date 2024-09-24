@@ -242,6 +242,17 @@ $_old_files = array(
 'wp-admin/images/visit-site-button-grad-vs.gif',
 'wp-admin/images/visit-site-button-grad.gif',
 'wp-includes/classes.php',
+// 3.2
+'wp-includes/default-embeds.php',
+'wp-includes/class-json.php',
+'wp-includes/js/tinymce/plugins/wordpress/img/more.gif',
+'wp-includes/js/tinymce/plugins/wordpress/img/toolbars.gif',
+'wp-includes/js/tinymce/plugins/wordpress/img/help.gif',
+'wp-includes/js/tinymce/themes/advanced/img/fm.gif',
+'wp-includes/js/tinymce/themes/advanced/img/sflogo.png',
+'wp-admin/js/list-table.js',
+'wp-admin/js/list-table.dev.js',
+'wp-admin/images/logo-login.gif'
 );
 
 /**
@@ -249,14 +260,14 @@ $_old_files = array(
  *
  * The contents of this array indicate any new bundled plugins/themes which
  * should be installed with the WordPress Upgrade. These items will not be
- * re-installed in future upgrades, this behaviour is controlled by the 
+ * re-installed in future upgrades, this behaviour is controlled by the
  * introduced version present here being older than the current installed version.
  *
  * The content of this array should follow the following format:
  *  Filename (relative to wp-content) => Introduced version
  * Directories should be noted by suffixing it with a trailing slash (/)
  *
- * @since 3.2
+ * @since 3.2.0
  * @global array $_new_bundled_files
  * @var array
  * @name $_new_bundled_files
@@ -343,8 +354,7 @@ function update_core($from, $to) {
 	$distro = '';
 	$roots = array( '/wordpress/', '/wordpress-mu/' );
 	foreach( $roots as $root ) {
-		if ( $wp_filesystem->exists($from . $root . 'wp-settings.php') && $wp_filesystem->exists($from . $root . 'wp-admin/admin.php') &&
-			$wp_filesystem->exists($from . $root . 'wp-includes/functions.php') ) {
+		if ( $wp_filesystem->exists($from . $root . 'readme.html') && $wp_filesystem->exists($from . $root . 'wp-includes/version.php') ) {
 			$distro = $root;
 			break;
 		}
@@ -461,7 +471,7 @@ function update_core($from, $to) {
  * This is a temporary function for the 3.1 -> 3.2 upgrade only and will be removed in 3.3
  *
  * @ignore
- * @since 3.2
+ * @since 3.2.0
  * @see copy_dir()
  *
  * @param string $from source directory

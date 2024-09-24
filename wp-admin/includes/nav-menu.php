@@ -67,7 +67,11 @@ class Walker_Nav_Menu_Edit extends Walker_Nav_Menu  {
 
 		$title = $item->title;
 
-		if ( isset( $item->post_status ) && 'draft' == $item->post_status ) {
+		if ( ! empty( $item->_invalid ) ) {
+			$classes[] = 'menu-item-invalid';
+			/* translators: %s: title of menu item which is invalid */
+			$title = sprintf( __( '%s (Invalid)' ), $item->title );
+		} elseif ( isset( $item->post_status ) && 'draft' == $item->post_status ) {
 			$classes[] = 'pending';
 			/* translators: %s: title of menu item in draft status */
 			$title = sprintf( __('%s (Pending)'), $item->title );
@@ -334,7 +338,7 @@ function _wp_ajax_menu_quick_search( $request = array() ) {
 			while ( have_posts() ) {
 				the_post();
 				if ( 'markup' == $response_format ) {
-					echo walk_nav_menu_tree( array_map('wp_setup_nav_menu_item', array( get_post( $var_by_ref = get_the_ID() ) ) ), 0, (object) $args );
+					echo walk_nav_menu_tree( array_map('wp_setup_nav_menu_item', array( get_post( get_the_ID() ) ) ), 0, (object) $args );
 				} elseif ( 'json' == $response_format ) {
 					echo json_encode(
 						array(
@@ -1099,14 +1103,19 @@ function wp_get_nav_menu_to_edit( $menu_id = 0 ) {
 		else
 			return new WP_Error( 'menu_walker_not_exist', sprintf( __('The Walker class named <strong>%s</strong> does not exist.'), $walker_class_name ) );
 
-		$some_pending_menu_items = false;
+		$some_pending_menu_items = $some_invalid_menu_items = false;
 		foreach( (array) $menu_items as $menu_item ) {
 			if ( isset( $menu_item->post_status ) && 'draft' == $menu_item->post_status )
 				$some_pending_menu_items = true;
+			if ( ! empty( $menu_item->_invalid ) )
+				$some_invalid_menu_items = true;
 		}
 
 		if ( $some_pending_menu_items )
 			$result .= '<div class="updated inline"><p>' . __('Click Save Menu to make pending menu items public.') . '</p></div>';
+
+		if ( $some_invalid_menu_items )
+			$result .= '<div class="error inline"><p>' . __('There are some invalid menu items. Please check or delete them.') . '</p></div>';
 
 		$result .= '<ul class="menu" id="menu-to-edit"> ';
 		$result .= walk_nav_menu_tree( array_map('wp_setup_nav_menu_item', $menu_items), 0, (object) array('walker' => $walker ) );

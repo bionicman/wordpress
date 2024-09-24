@@ -18,6 +18,9 @@
  */
 function create_initial_post_types() {
 	register_post_type( 'post', array(
+		'labels' => array(
+			'name_admin_bar' => _x( 'Post', 'add new on admin bar' ),
+		),
 		'public'  => true,
 		'_builtin' => true, /* internal use only. don't use this when registering your own post type. */
 		'_edit_link' => 'post.php?post=%d', /* internal use only. don't use this when registering your own post type. */
@@ -30,7 +33,11 @@ function create_initial_post_types() {
 	) );
 
 	register_post_type( 'page', array(
+		'labels' => array(
+			'name_admin_bar' => _x( 'Page', 'add new on admin bar' ),
+		),
 		'public' => true,
+		'publicly_queryable' => false,
 		'_builtin' => true, /* internal use only. don't use this when registering your own post type. */
 		'_edit_link' => 'post.php?post=%d', /* internal use only. don't use this when registering your own post type. */
 		'capability_type' => 'page',
@@ -55,6 +62,7 @@ function create_initial_post_types() {
 		'rewrite' => false,
 		'query_var' => false,
 		'show_in_nav_menus' => false,
+		'supports' => array( 'comments' ),
 	) );
 
 	register_post_type( 'revision', array(
@@ -913,7 +921,8 @@ function register_post_type($post_type, $args = array()) {
 		'public' => false, 'rewrite' => true, 'has_archive' => false, 'query_var' => true,
 		'supports' => array(), 'register_meta_box_cb' => null,
 		'taxonomies' => array(), 'show_ui' => null, 'menu_position' => null, 'menu_icon' => null,
-		'permalink_epmask' => EP_PERMALINK, 'can_export' => true, 'show_in_nav_menus' => null, 'show_in_menu' => null,
+		'permalink_epmask' => EP_PERMALINK, 'can_export' => true,
+		'show_in_nav_menus' => null, 'show_in_menu' => null, 'show_in_admin_bar' => null,
 	);
 	$args = wp_parse_args($args, $defaults);
 	$args = (object) $args;
@@ -935,6 +944,10 @@ function register_post_type($post_type, $args = array()) {
 	// If not set, default to the setting for show_ui.
 	if ( null === $args->show_in_menu || ! $args->show_ui )
 		$args->show_in_menu = $args->show_ui;
+
+	// If not set, default to the whether the full UI is shown.
+	if ( null === $args->show_in_admin_bar )
+		$args->show_in_admin_bar = true === $args->show_in_menu;
 
 	// Whether to show this type in nav-menus.php.  Defaults to the setting for public.
 	if ( null === $args->show_in_nav_menus )
@@ -1192,6 +1205,9 @@ function _get_custom_object_labels( $object, $nohier_vs_hier_defaults ) {
 	if ( !isset( $object->labels['singular_name'] ) && isset( $object->labels['name'] ) )
 		$object->labels['singular_name'] = $object->labels['name'];
 
+	if ( ! isset( $object->labels['name_admin_bar'] ) )
+		$object->labels['name_admin_bar'] = isset( $object->labels['singular_name'] ) ? $object->labels['singular_name'] : $object->name;
+
 	if ( !isset( $object->labels['menu_name'] ) && isset( $object->labels['name'] ) )
 		$object->labels['menu_name'] = $object->labels['name'];
 
@@ -1333,7 +1349,7 @@ function set_post_type( $post_id = 0, $post_type = 'post' ) {
  *     'meta_value' - See {@link WP_Query::query()} for more.
  *     'post_type' - Default is 'post'. Can be 'page', or 'attachment' to name a few.
  *     'post_parent' - The parent of the post or post type.
- *     'post_status' - Default is 'published'. Post status to retrieve.
+ *     'post_status' - Default is 'publish'. Post status to retrieve.
  *
  * @since 1.2.0
  * @uses $wpdb
@@ -4203,7 +4219,7 @@ function _get_last_post_time( $timezone, $field ) {
 	if ( !$date ) {
 		$add_seconds_server = date('Z');
 
-		$post_types = get_post_types( array( 'publicly_queryable' => true ) );
+		$post_types = get_post_types( array( 'public' => true ) );
 		array_walk( $post_types, array( &$wpdb, 'escape_by_ref' ) );
 		$post_types = "'" . implode( "', '", $post_types ) . "'";
 
@@ -5089,20 +5105,8 @@ function get_post_format_strings() {
  * @return array The array of post format slugs.
  */
 function get_post_format_slugs() {
-	// 3.2-early: use array_combine() and array_keys( get_post_format_strings() )
-	$slugs = array(
-		'standard' => 'standard', // Special case. any value that evals to false will be considered standard
-		'aside'    => 'aside',
-		'chat'     => 'chat',
-		'gallery'  => 'gallery',
-		'link'     => 'link',
-		'image'    => 'image',
-		'quote'    => 'quote',
-		'status'   => 'status',
-		'video'    => 'video',
-		'audio'    => 'audio',
-	);
-	return $slugs;
+	$slugs = array_keys( get_post_format_strings() );
+	return array_combine( $slugs, $slugs );
 }
 
 /**

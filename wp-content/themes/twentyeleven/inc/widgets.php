@@ -49,7 +49,7 @@ class Twenty_Eleven_Ephemera_Widget extends WP_Widget {
 		ob_start();
 		extract( $args, EXTR_SKIP );
 
-		$title = apply_filters( 'widget_title', empty( $instance['title'] ) ? __( 'Ephemera' ) : $instance['title'], $instance, $this->id_base);
+		$title = apply_filters( 'widget_title', empty( $instance['title'] ) ? __( 'Ephemera', 'twentyeleven' ) : $instance['title'], $instance, $this->id_base);
 
 		if ( ! isset( $instance['number'] ) )
 			$instance['number'] = '10';
@@ -60,7 +60,7 @@ class Twenty_Eleven_Ephemera_Widget extends WP_Widget {
 		$ephemera_args = array(
 			'order' => 'DESC',
 			'posts_per_page' => $number,
-			'nopaging' => 0,
+			'no_found_rows' => true,
 			'post_status' => 'publish',
 			'post__not_in' => get_option( 'sticky_posts' ),
 			'tax_query' => array(
@@ -72,8 +72,7 @@ class Twenty_Eleven_Ephemera_Widget extends WP_Widget {
 				),
 			),
 		);
-		$ephemera = new WP_Query();
-		$ephemera->query( $ephemera_args );
+		$ephemera = new WP_Query( $ephemera_args );
 
 		if ( $ephemera->have_posts() ) :
 

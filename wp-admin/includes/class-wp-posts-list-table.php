@@ -550,7 +550,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 					if ( 'trash' == $post->post_status || !EMPTY_TRASH_DAYS )
 						$actions['delete'] = "<a class='submitdelete' title='" . esc_attr( __( 'Delete this item permanently' ) ) . "' href='" . get_delete_post_link( $post->ID, '', true ) . "'>" . __( 'Delete Permanently' ) . "</a>";
 				}
-				if ( $post_type_object->publicly_queryable ) {
+				if ( $post_type_object->public ) {
 					if ( in_array( $post->post_status, array( 'pending', 'draft' ) ) ) {
 						if ( $can_edit_post )
 							$actions['view'] = '<a href="' . esc_url( add_query_arg( 'preview', 'true', get_permalink( $post->ID ) ) ) . '" title="' . esc_attr( sprintf( __( 'Preview &#8220;%s&#8221;' ), $title ) ) . '" rel="permalink">' . __( 'Preview' ) . '</a>';
@@ -1005,6 +1005,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 			} ?>
 			<input type="hidden" name="post_view" value="<?php echo esc_attr( $m ); ?>" />
 			<input type="hidden" name="screen" value="<?php echo esc_attr( $screen->id ); ?>" />
+			<span class="error" style="display:none"></span>
 			<br class="clear" />
 		</p>
 		</td></tr>

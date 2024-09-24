@@ -89,11 +89,25 @@ function wp_admin_bar_my_account_menu( $wp_admin_bar ) {
 
 		/* Add the "My Account" sub menus */
 		$wp_admin_bar->add_menu( array( 'parent' => $id, 'title' => __( 'Edit My Profile' ), 'href' => get_edit_profile_url( $user_id ) ) );
-		if ( is_multisite() )
-			$wp_admin_bar->add_menu( array( 'parent' => $id, 'title' => __( 'Dashboard' ), 'href' => get_dashboard_url( $user_id ) ) );
-		else
-			$wp_admin_bar->add_menu( array( 'parent' => $id, 'title' => __( 'Dashboard' ), 'href' => admin_url() ) );
 		$wp_admin_bar->add_menu( array( 'parent' => $id, 'title' => __( 'Log Out' ), 'href' => wp_logout_url() ) );
+	}
+}
+
+/**
+ * Add the "Dashboard"/"Visit Site" menu.
+ *
+ * @since 3.2.0
+ */
+function wp_admin_bar_dashboard_view_site_menu( $wp_admin_bar ) {
+	$user_id = get_current_user_id();
+
+	if ( 0 != $user_id ) {
+		if ( is_admin() )
+			$wp_admin_bar->add_menu( array( 'title' => __( 'Visit Site' ), 'href' => home_url() ) );
+		elseif ( is_multisite() )
+			$wp_admin_bar->add_menu( array( 'title' => __( 'Dashboard' ), 'href' => get_dashboard_url( $user_id ) ) );
+		else
+			$wp_admin_bar->add_menu( array( 'title' => __( 'Dashboard' ), 'href' => admin_url() ) );
 	}
 }
 
@@ -160,15 +174,60 @@ function wp_admin_bar_shortlink_menu( $wp_admin_bar ) {
  * @since 3.1.0
  */
 function wp_admin_bar_edit_menu( $wp_admin_bar ) {
-	$current_object = get_queried_object();
+	global $post, $tag;
 
-	if ( empty($current_object) )
-		return;
+	if ( is_admin() ) {
+		$current_screen = get_current_screen();
 
-	if ( ! empty( $current_object->post_type ) && ( $post_type_object = get_post_type_object( $current_object->post_type ) ) && current_user_can( $post_type_object->cap->edit_post, $current_object->ID ) && ( $post_type_object->show_ui || 'attachment' == $current_object->post_type ) ) {
-		$wp_admin_bar->add_menu( array( 'id' => 'edit', 'title' => $post_type_object->labels->edit_item,  'href' => get_edit_post_link( $current_object->ID ) ) );
-	} elseif ( ! empty( $current_object->taxonomy ) &&  ( $tax = get_taxonomy( $current_object->taxonomy ) ) && current_user_can( $tax->cap->edit_terms ) && $tax->show_ui ) {
-		$wp_admin_bar->add_menu( array( 'id' => 'edit', 'title' => $tax->labels->edit_item, 'href' => get_edit_term_link( $current_object->term_id, $current_object->taxonomy ) ) );
+		if ( 'post' == $current_screen->base
+			&& 'add' != $current_screen->action
+			&& ( $post_type_object = get_post_type_object( $post->post_type ) )
+			&& current_user_can( $post_type_object->cap->read_post, $post->ID )
+			&& ( $post_type_object->public ) )
+		{
+			$wp_admin_bar->add_menu( array(
+				'id' => 'view',
+				'title' => $post_type_object->labels->view_item,
+				'href' => get_permalink( $post->ID )
+			) );
+		} elseif ( 'edit-tags' == $current_screen->base
+			&& isset( $tag ) && is_object( $tag )
+			&& ( $tax = get_taxonomy( $tag->taxonomy ) )
+			&& $tax->public )
+		{
+			$wp_admin_bar->add_menu( array(
+				'id' => 'view',
+				'title' => $tax->labels->view_item,
+				'href' => get_term_link( $tag )
+			) );
+		}
+	} else {
+		$current_object = get_queried_object();
+
+		if ( empty($current_object) )
+			return;
+
+		if ( ! empty( $current_object->post_type )
+			&& ( $post_type_object = get_post_type_object( $current_object->post_type ) )
+			&& current_user_can( $post_type_object->cap->edit_post, $current_object->ID )
+			&& ( $post_type_object->show_ui || 'attachment' == $current_object->post_type ) )
+		{
+			$wp_admin_bar->add_menu( array(
+				'id' => 'edit',
+				'title' => $post_type_object->labels->edit_item,
+				'href' => get_edit_post_link( $current_object->ID )
+			) );
+		} elseif ( ! empty( $current_object->taxonomy )
+			&& ( $tax = get_taxonomy( $current_object->taxonomy ) )
+			&& current_user_can( $tax->cap->edit_terms )
+			&& $tax->show_ui )
+		{
+			$wp_admin_bar->add_menu( array(
+				'id' => 'edit',
+				'title' => $tax->labels->edit_item,
+				'href' => get_edit_term_link( $current_object->term_id, $current_object->taxonomy )
+			) );
+		}
 	}
 }
 
@@ -179,28 +238,28 @@ function wp_admin_bar_edit_menu( $wp_admin_bar ) {
  */
 function wp_admin_bar_new_content_menu( $wp_admin_bar ) {
 	$actions = array();
-	foreach ( (array) get_post_types( array( 'show_ui' => true ), 'objects' ) as $ptype_obj ) {
-		if ( true !== $ptype_obj->show_in_menu || ! current_user_can( $ptype_obj->cap->edit_posts ) )
+	foreach ( (array) get_post_types( array( 'show_in_admin_bar' => true ), 'objects' ) as $ptype_obj ) {
+		if ( ! current_user_can( $ptype_obj->cap->edit_posts ) )
 			continue;
 
-		$actions[ 'post-new.php?post_type=' . $ptype_obj->name ] = array( $ptype_obj->labels->singular_name, $ptype_obj->cap->edit_posts, 'new-' . $ptype_obj->name );
+		$actions[ 'post-new.php?post_type=' . $ptype_obj->name ] = array( $ptype_obj->labels->name_admin_bar, $ptype_obj->cap->edit_posts, 'new-' . $ptype_obj->name );
 	}
 
 	if ( current_user_can( 'upload_files' ) )
-		$actions[ 'upload.php' ] = array( __( 'Media' ), 'upload_files', 'new-media' );
+		$actions[ 'media-new.php' ] = array( _x( 'Media', 'add new from admin bar' ), 'upload_files', 'new-media' );
 
 	if ( current_user_can( 'manage_links' ) )
-		$actions[ 'link-add.php' ] = array( __( 'Link' ), 'manage_links', 'new-link' );
+		$actions[ 'link-add.php' ] = array( _x( 'Link', 'add new from admin bar' ), 'manage_links', 'new-link' );
 
 	if ( current_user_can( 'create_users' ) || current_user_can( 'promote_users' ) )
-		$actions[ 'user-new.php' ] = array( __( 'User' ), 'create_users', 'new-user' );
+		$actions[ 'user-new.php' ] = array( _x( 'User', 'add new from admin bar' ), 'create_users', 'new-user' );
 
 	if ( ! is_multisite() && current_user_can( 'install_themes' ) )
-		$actions[ 'theme-install.php' ] = array( __( 'Theme' ), 'install_themes', 'new-theme' );
+		$actions[ 'theme-install.php' ] = array( _x( 'Theme', 'add new from admin bar' ), 'install_themes', 'new-theme' );
 
 	if ( ! is_multisite() && current_user_can( 'install_plugins' ) )
-		$actions[ 'plugin-install.php' ] = array( __( 'Plugin' ), 'install_plugins', 'new-plugin' );
-			
+		$actions[ 'plugin-install.php' ] = array( _x( 'Plugin', 'add new from admin bar' ), 'install_plugins', 'new-plugin' );
+
 	if ( empty( $actions ) )
 		return;
 
@@ -291,7 +350,7 @@ function wp_admin_bar_updates_menu( $wp_admin_bar ) {
 	if ( $plugin_update_count )
 		$update_title[] = sprintf(_n('%d Plugin Update', '%d Plugin Updates', $plugin_update_count), $plugin_update_count);
 	if ( $theme_update_count )
-		$update_title[] = sprintf(_n('%d Theme Update', '%d Themes Updates', $theme_update_count), $theme_update_count);
+		$update_title[] = sprintf(_n('%d Theme Update', '%d Theme Updates', $theme_update_count), $theme_update_count);
 
 	$update_title = !empty($update_title) ? esc_attr(implode(', ', $update_title)) : '';
 
@@ -320,7 +379,7 @@ function wp_admin_bar_header() { ?>
  *
  */
 function _admin_bar_bump_cb() { ?>
-<style type="text/css">
+<style type="text/css" media="screen">
 	html { margin-top: 28px !important; }
 	* html body { margin-top: 28px !important; }
 </style>
@@ -328,7 +387,7 @@ function _admin_bar_bump_cb() { ?>
 }
 
 /**
- * Set the display status of the admin bar
+ * Set the display status of the admin bar.
  *
  * This can be called immediately upon plugin load.  It does not need to be called from a function hooked to the init action.
  *
@@ -376,9 +435,9 @@ function is_admin_bar_showing() {
  * @since 3.1.0
  * @access private
  *
- * @param string $context Context of this preference check, either 'admin' or 'front'
- * @param int $user Optional. ID of the user to check, defaults to 0 for current user
- * @return bool Whether the admin bar should be showing for this user
+ * @param string $context Context of this preference check, either 'admin' or 'front'.
+ * @param int $user Optional. ID of the user to check, defaults to 0 for current user.
+ * @return bool Whether the admin bar should be showing for this user.
  */
 function _get_admin_bar_pref( $context, $user = 0 ) {
 	$pref = get_user_option( "show_admin_bar_{$context}", $user );

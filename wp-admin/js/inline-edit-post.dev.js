@@ -74,9 +74,9 @@ inlineEditPost = {
 			}
 		});
 
-		$('#post-query-submit').click(function(e){
-			if ( $('form#posts-filter tr.inline-editor').length > 0 )
-				t.revert();
+		$('#post-query-submit').mousedown(function(e){
+			t.revert();
+			$('select[name^="action"]').val('-1');
 		});
 	},
 
@@ -119,6 +119,7 @@ inlineEditPost = {
 			tax = 'post_tag';
 			$('tr.inline-editor textarea[name="tags_input"]').suggest( 'admin-ajax.php?action=ajax-tag-search&tax='+tax, { delay: 500, minchars: 2, multiple: true, multipleSep: ", " } );
 		}
+		$('html, body').animate( { scrollTop: 0 }, 'fast' );
 	},
 
 	edit : function(id) {
@@ -248,10 +249,10 @@ inlineEditPost = {
 						$(inlineEditPost.what+id).hide().fadeIn();
 					} else {
 						r = r.replace( /<.[^<>]*?>/g, '' );
-						$('#edit-'+id+' .inline-edit-save').append('<span class="error">'+r+'</span>');
+						$('#edit-'+id+' .inline-edit-save .error').html(r).show();
 					}
 				} else {
-					$('#edit-'+id+' .inline-edit-save').append('<span class="error">'+inlineEditL10n.error+'</span>');
+					$('#edit-'+id+' .inline-edit-save .error').html(inlineEditL10n.error).show();
 				}
 			}
 		, 'html');

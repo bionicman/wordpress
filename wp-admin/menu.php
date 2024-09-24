@@ -58,7 +58,7 @@ if ( ! is_multisite() || is_super_admin() ) {
 	if ( $plugin_update_count )
 		$update_title[] = sprintf(_n('%d Plugin Update', '%d Plugin Updates', $plugin_update_count), $plugin_update_count);
 	if ( $theme_update_count )
-		$update_title[] = sprintf(_n('%d Theme Update', '%d Themes Updates', $theme_update_count), $theme_update_count);
+		$update_title[] = sprintf(_n('%d Theme Update', '%d Theme Updates', $theme_update_count), $theme_update_count);
 
 	$update_title = !empty($update_title) ? esc_attr(implode(', ', $update_title)) : '';
 }
@@ -111,7 +111,7 @@ $menu[20] = array( __('Pages'), 'edit_pages', 'edit.php?post_type=page', '', 'me
 
 $awaiting_mod = wp_count_comments();
 $awaiting_mod = $awaiting_mod->moderated;
-$menu[25] = array( sprintf( __('Comments %s'), "<span id='awaiting-mod' class='count-$awaiting_mod'><span class='pending-count'>" . number_format_i18n($awaiting_mod) . "</span></span>" ), 'edit_posts', 'edit-comments.php', '', 'menu-top menu-icon-comments', 'menu-comments', 'div' );
+$menu[25] = array( sprintf( __('Comments %s'), "<span class='awaiting-mod count-$awaiting_mod'><span class='pending-count'>" . number_format_i18n($awaiting_mod) . "</span></span>" ), 'edit_posts', 'edit-comments.php', '', 'menu-top menu-icon-comments', 'menu-comments', 'div' );
 unset($awaiting_mod);
 
 $submenu[ 'edit-comments.php' ][0] = array( __('All Comments'), 'edit_posts', 'edit-comments.php' );
@@ -174,13 +174,14 @@ function _add_themes_utility_last() {
 	add_submenu_page('themes.php', _x('Editor', 'theme editor'), _x('Editor', 'theme editor'), 'edit_themes', 'theme-editor.php');
 }
 
-$menu_perms = get_site_option('menu_items', array());
+$menu_perms = get_site_option( 'menu_items', array() );
 if ( ! is_multisite() || is_super_admin() || ! empty( $menu_perms['plugins'] ) ) {
-	$count = "<span class='update-plugins count-$plugin_update_count'><span class='plugin-count'>" . number_format_i18n($plugin_update_count) . "</span></span>";
-	if ( is_multisite() || ! current_user_can( 'update_plugins' ) )
-		$count = '';
+	$count = '';
+	if ( ! is_multisite() && current_user_can( 'update_plugins' ) )
+		$count = "<span class='update-plugins count-$plugin_update_count'><span class='plugin-count'>" . number_format_i18n($plugin_update_count) . "</span></span>";
+
 	$menu[65] = array( sprintf( __('Plugins %s'), $count ), 'activate_plugins', 'plugins.php', '', 'menu-top menu-icon-plugins', 'menu-plugins', 'div' );
-	
+
 	$submenu['plugins.php'][5]  = array( __('Installed Plugins'), 'activate_plugins', 'plugins.php' );
 
 		if ( ! is_multisite() ) {
@@ -234,7 +235,7 @@ $menu[80] = array( __('Settings'), 'manage_options', 'options-general.php', '', 
 
 $_wp_last_utility_menu = 80; // The index of the last top-level menu in the utility menu group
 
-$menu[99] = array( '', 'read', 'separator-last', '', 'wp-menu-separator-last' );
+$menu[99] = array( '', 'read', 'separator-last', '', 'wp-menu-separator' );
 
 // Back-compat for old top-levels
 $_wp_real_parent_file['post.php'] = 'edit.php';

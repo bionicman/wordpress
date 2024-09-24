@@ -78,7 +78,8 @@ PubSub.prototype.publish = function( topic, args ) {
 		mode : 'tinymce',
 		editor_id : 'content',
 		title_id : 'title',
-		timer : 0
+		timer : 0,
+		toolbar_shown : false
 	}
 
 	/**
@@ -87,8 +88,21 @@ PubSub.prototype.publish = function( topic, args ) {
 	 * Creates a function that publishes start/stop topics.
 	 * Used to throttle events.
 	 */
-	bounder = function( start, stop, delay ) {
+	bounder = api.bounder = function( start, stop, delay, e ) {
+		var y, top;
+
 		delay = delay || 1250;
+
+		if ( e ) {
+			y = e.pageY || e.clientY || e.offsetY;
+			top = $(document).scrollTop();
+
+			if ( !e.isDefaultPrevented ) // test if e ic jQuery normalized
+				y = 135 + y;
+
+			if ( y - top > 120 )
+				return;
+		}
 
 		if ( block )
 			return;
@@ -243,6 +257,7 @@ PubSub.prototype.publish = function( topic, args ) {
 		s.toolbars.removeClass('fade-1000').addClass('fade-300');
 		api.fade.In( s.toolbars, 300, function(){ ps.publish('toolbarShown'); }, true );
 		$('#wp-fullscreen-body').addClass('wp-fullscreen-focus');
+		s.toolbar_shown = true;
 	});
 
 	ps.subscribe( 'hideToolbar', function() {
@@ -257,6 +272,7 @@ PubSub.prototype.publish = function( topic, args ) {
 
 	ps.subscribe( 'toolbarHidden', function() {
 		s.toolbars.removeClass('fade-1000');
+		s.toolbar_shown = false;
 	});
 
 	ps.subscribe( 'show', function() { // This event occurs before the overlay blocks the UI.
@@ -280,7 +296,7 @@ PubSub.prototype.publish = function( topic, args ) {
 		$( document.body ).addClass( 'fullscreen-active' );
 		api.refresh_buttons();
 
-		$( document ).bind( 'mousemove.fullscreen', function(e) { bounder( 'showToolbar', 'hideToolbar', 2000 ); } );
+		$( document ).bind( 'mousemove.fullscreen', function(e) { bounder( 'showToolbar', 'hideToolbar', 2000, e ); } );
 		bounder( 'showToolbar', 'hideToolbar', 2000 );
 
 		api.bind_resize();
@@ -288,6 +304,9 @@ PubSub.prototype.publish = function( topic, args ) {
 
 		// scroll to top so the user is not disoriented
 		scrollTo(0, 0);
+
+		// needed it for IE7 and compat mode
+		$('#wpadminbar').hide();
 	});
 
 	ps.subscribe( 'shown', function() { // This event occurs after the DFW overlay is shown
@@ -314,7 +333,16 @@ PubSub.prototype.publish = function( topic, args ) {
 
 	ps.subscribe( 'hide', function() { // This event occurs before the overlay blocks DFW.
 
+		// Make sure the correct editor is displaying.
+		if ( s.has_tinymce && s.mode === 'tinymce' && $('#' + s.editor_id).is(':visible') ) {
+			switchEditors.go( s.editor_id, 'tinymce' );
+		} else if ( s.mode === 'html' && $('#' + s.editor_id).is(':hidden') ) {
+			switchEditors.go( s.editor_id, 'html' );
+		}
+
+		// Save content must be after switchEditors or content will be overwritten. See #17229.
 		api.savecontent();
+
 		$( document ).unbind( '.fullscreen' );
 		$(s.textarea_obj).unbind('.grow');
 
@@ -330,15 +358,9 @@ PubSub.prototype.publish = function( topic, args ) {
 
 	ps.subscribe( 'hiding', function() { // This event occurs while the overlay blocks the DFW UI.
 
-		// Make sure the correct editor is displaying.
-		if ( s.has_tinymce && s.mode === 'tinymce' && $('#' + s.editor_id).is(':visible') ) {
-			switchEditors.go( s.editor_id, 'tinymce' );
-		} else if ( s.mode == 'html' && $('#' + s.editor_id).is(':hidden') ) {
-			switchEditors.go( s.editor_id, 'html' );
-		}
-
 		$( document.body ).removeClass( 'fullscreen-active' );
 		scrollTo(0, s.orig_y);
+		$('#wpadminbar').show();
 	});
 
 	ps.subscribe( 'hidden', function() { // This event occurs after DFW is removed.
@@ -476,7 +498,7 @@ PubSub.prototype.publish = function( topic, args ) {
 				wptitlehint('wp-fullscreen-title');
 
 			$(document).keyup(function(e){
-				var c = e.keyCode || e.charCode, a;
+				var c = e.keyCode || e.charCode, a, data;
 
 				if ( !fullscreen.settings.visible )
 					return true;
@@ -486,8 +508,21 @@ PubSub.prototype.publish = function( topic, args ) {
 				else
 					a = e.altKey; // Alt key for Win & Linux
 
-				if ( 27 == c ) // Esc
-					fullscreen.off();
+				if ( 27 == c ) { // Esc
+					data = {
+						event: e,
+						what: 'dfw',
+						cb: fullscreen.off,
+						condition: function(){
+							if ( $('#TB_window').is(':visible') || $('.wp-dialog').is(':visible') )
+								return false;
+							return true;
+						}
+					};
+
+					if ( ! jQuery(document).triggerHandler( 'wp_CloseOnEscape', [data] ) )
+						fullscreen.off();
+				}
 
 				if ( a && (61 == c || 107 == c || 187 == c) ) // +
 					api.dfw_width(25);
@@ -498,7 +533,7 @@ PubSub.prototype.publish = function( topic, args ) {
 				if ( a && 48 == c ) // 0
 					api.dfw_width(0);
 
-				return true;
+				return false;
 			});
 
 			// word count in HTML mode
@@ -527,7 +562,7 @@ PubSub.prototype.publish = function( topic, args ) {
 				s.toolbars.removeClass('fullscreen-make-sticky');
 
 				if ( s.visible )
-					$( document ).bind( 'mousemove.fullscreen', function(e) { bounder( 'showToolbar', 'hideToolbar', 2000 ); } );
+					$( document ).bind( 'mousemove.fullscreen', function(e) { bounder( 'showToolbar', 'hideToolbar', 2000, e ); } );
 			});
 		},
 

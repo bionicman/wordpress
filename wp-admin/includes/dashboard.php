@@ -27,7 +27,7 @@ function wp_dashboard_setup() {
 
 	$response = wp_check_browser_version();
 
-	if ( $response['upgrade'] ) {
+	if ( $response && $response['upgrade'] ) {
 		add_filter( 'postbox_classes_dashboard_dashboard_browser_nag', 'dashboard_browser_nag_class' );
 		if ( $response['insecure'] )
 			wp_add_dashboard_widget( 'dashboard_browser_nag', __( 'You are using an insecure browser!' ), 'wp_dashboard_browser_nag' );
@@ -1031,29 +1031,34 @@ function wp_dashboard_plugins_output() {
  */
 function wp_dashboard_cached_rss_widget( $widget_id, $callback, $check_urls = array() ) {
 	$loading = '<p class="widget-loading hide-if-no-js">' . __( 'Loading&#8230;' ) . '</p><p class="hide-if-js">' . __( 'This widget requires JavaScript.' ) . '</p>';
+	$doing_ajax = ( defined('DOING_AJAX') && DOING_AJAX );
 
 	if ( empty($check_urls) ) {
 		$widgets = get_option( 'dashboard_widget_options' );
-		if ( empty($widgets[$widget_id]['url']) ) {
+		if ( empty($widgets[$widget_id]['url']) && ! $doing_ajax ) {
 			echo $loading;
 			return false;
 		}
 		$check_urls = array( $widgets[$widget_id]['url'] );
 	}
 
-	include_once ABSPATH . WPINC . '/class-feed.php';
-	foreach ( $check_urls as $check_url ) {
-		$cache = new WP_Feed_Cache_Transient('', md5($check_url), '');
-		if ( ! $cache->load() ) {
-			echo $loading;
-			return false;
-		}
+	$cache_key = 'dash_' . md5( $widget_id );
+	if ( false !== ( $output = get_transient( $cache_key ) ) ) {
+		echo $output;
+		return true;
+	}
+
+	if ( ! $doing_ajax ) {
+		echo $loading;
+		return false;
 	}
 
 	if ( $callback && is_callable( $callback ) ) {
 		$args = array_slice( func_get_args(), 2 );
 		array_unshift( $args, $widget_id );
+		ob_start();
 		call_user_func_array( $callback, $args );
+		set_transient( $cache_key, ob_get_flush(), 43200); // Default lifetime in cache of 12 hours (same as the feeds)
 	}
 
 	return true;
@@ -1113,6 +1118,8 @@ function wp_dashboard_rss_control( $widget_id, $form_inputs = array() ) {
 			}
 		}
 		update_option( 'dashboard_widget_options', $widget_options );
+		$cache_key = 'dash_' . md5( $widget_id );
+		delete_transient( $cache_key );
 	}
 
 	wp_widget_rss_form( $widget_options[$widget_id], $form_inputs );
@@ -1162,23 +1169,25 @@ function wp_dashboard_browser_nag() {
 	$notice = '';
 	$response = wp_check_browser_version();
 
-	if ( $response['insecure'] ) {
-		$msg = sprintf( __( 'It looks like you\'re using an insecure version of <a href="%1$s">%2$s</a>. Using an outdated browser makes your computer unsafe.  For the best WordPress experience, please update your browser.' ), esc_attr( $response['update_url'] ), esc_html( $response['name'] ) );
-	} else {
-		$msg = sprintf( __( 'It looks like you\'re using an old version of <a href="%1$s">%2$s</a>. Using an outdated browser makes your computer unsafe.  For the best WordPress experience, please update your browser.' ), esc_attr( $response['update_url'] ), esc_html( $response['name'] ) );
-	}
+	if ( $response ) {
+		if ( $response['insecure'] ) {
+			$msg = sprintf( __( "It looks like you're using an insecure version of <a href='%s'>%s</a>. Using an outdated browser makes your computer unsafe. For the best WordPress experience, please update your browser." ), esc_attr( $response['update_url'] ), esc_html( $response['name'] ) );
+		} else {
+			$msg = sprintf( __( "It looks like you're using an old version of <a href='%s'>%s</a>. For the best WordPress experience, please update your browser." ), esc_attr( $response['update_url'] ), esc_html( $response['name'] ) );
+		}
 
-	$browser_nag_class = '';
-	if ( !empty( $response['img_src'] ) ) {
-		$img_src = ( is_ssl() && ! empty( $response['img_src_ssl'] ) )? $response['img_src_ssl'] : $response['img_src'];
+		$browser_nag_class = '';
+		if ( !empty( $response['img_src'] ) ) {
+			$img_src = ( is_ssl() && ! empty( $response['img_src_ssl'] ) )? $response['img_src_ssl'] : $response['img_src'];
 
-		$notice .= '<div class="alignright browser-icon"><a href="' . esc_attr($response['update_url']) . '"><img src="' . esc_attr( $img_src ) . '" alt="" /></a></div>';
-		$browser_nag_class = ' has-browser-icon';
+			$notice .= '<div class="alignright browser-icon"><a href="' . esc_attr($response['update_url']) . '"><img src="' . esc_attr( $img_src ) . '" alt="" /></a></div>';
+			$browser_nag_class = ' has-browser-icon';
+		}
+		$notice .= "<p class='browser-update-nag{$browser_nag_class}'>{$msg}</p>";
+		$notice .= sprintf( __( '<p><a href="%1$s" class="update-browser-link">Update %2$s</a> or learn how to <a href="%3$s" class="browse-happy-link">browse happy</a></p>' ), esc_attr( $response['update_url'] ), esc_html( $response['name'] ), 'http://browsehappy.com/' );
+		$notice .= '<p class="hide-if-no-js"><a href="" class="dismiss">' . __( 'Dismiss' ) . '</a></p>';
+		$notice .= '<div class="clear"></div>';
 	}
-	$notice .= "<p class='browser-update-nag{$browser_nag_class}'>{$msg}</p>";
-	$notice .= sprintf( __( '<p><a href="%1$s" class="update-browser-link">Update %2$s</a> or learn how to <a href="%3$s" class="browse-happy-link">browse happy</a></p>' ), esc_attr( $response['update_url'] ), esc_html( $response['name'] ), 'http://browsehappy.com/' );
-	$notice .= '<p><a href="" class="dismiss">' . __( 'Dismiss' ) . '</a></p>';
-	$notice .= '<div class="clear"></div>';
 
 	echo apply_filters( 'browse-happy-notice', $notice, $response );
 }
@@ -1186,7 +1195,7 @@ function wp_dashboard_browser_nag() {
 function dashboard_browser_nag_class( $classes ) {
 	$response = wp_check_browser_version();
 
-	if ( $response['insecure'] )
+	if ( $response && $response['insecure'] )
 		$classes[] = 'browser-insecure';
 
 	return $classes;
@@ -1195,9 +1204,14 @@ function dashboard_browser_nag_class( $classes ) {
 /**
  * Check if the user needs a browser update
  *
- * @since 3.2
+ * @since 3.2.0
+ *
+ * @return array|bool False on failure, array of browser data on success.
  */
 function wp_check_browser_version() {
+	if ( empty( $_SERVER['HTTP_USER_AGENT'] ) )
+		return false;
+
 	$key = md5( $_SERVER['HTTP_USER_AGENT'] );
 
 	if ( false === ($response = get_site_transient('browser_' . $key) ) ) {
@@ -1215,7 +1229,7 @@ function wp_check_browser_version() {
 
 		/**
 		 * Response should be an array with:
-		 *  'name' - string- A user friendly browser name
+		 *  'name' - string - A user friendly browser name
 		 *  'version' - string - The most recent version of the browser
 		 *  'current_version' - string - The version of the browser the user is using
 		 *  'upgrade' - boolean - Whether the browser needs an upgrade
@@ -1227,7 +1241,7 @@ function wp_check_browser_version() {
 		$response = unserialize( wp_remote_retrieve_body( $response ) );
 
 		if ( ! $response )
-			return;
+			return false;
 
 		set_site_transient( 'browser_' . $key, $response, 604800 ); // cache for 1 week
 	}

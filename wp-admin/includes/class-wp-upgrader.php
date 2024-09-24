@@ -580,7 +580,7 @@ class Plugin_Upgrader extends WP_Upgrader {
 			return $removed;
 
 		// If plugin is in its own directory, recursively delete the directory.
-		if ( strpos($plugin, '/') && $this_plugin_dir != $plugins_dir ) //base check on if plugin includes directory seperator AND that its not the root plugin folder
+		if ( strpos($plugin, '/') && $this_plugin_dir != $plugins_dir ) //base check on if plugin includes directory separator AND that its not the root plugin folder
 			$deleted = $wp_filesystem->delete($this_plugin_dir, true);
 		else
 			$deleted = $wp_filesystem->delete($plugins_dir . $plugin);
@@ -867,7 +867,7 @@ class Core_Upgrader extends WP_Upgrader {
 	}
 
 	function upgrade($current) {
-		global $wp_filesystem;
+		global $wp_filesystem, $wp_version;
 
 		$this->init();
 		$this->upgrade_strings();
@@ -885,7 +885,21 @@ class Core_Upgrader extends WP_Upgrader {
 
 		$wp_dir = trailingslashit($wp_filesystem->abspath());
 
-		$download = $this->download_package( $current->package );
+		// If partial update is returned from the API, use that, unless we're doing a reinstall.
+		// If we cross the new_bundled version number, then use the new_bundled zip.
+		// Don't though if the constant is set to skip bundled items.
+		// If the API returns a no_content zip, go with it. Finally, default to the full zip.
+		if ( $current->packages->partial && 'reinstall' != $current->response && $wp_version == $current->partial_version )
+			$to_download = 'partial';
+		elseif ( $current->packages->new_bundled && version_compare( $wp_version, $current->new_bundled, '<' )
+			&& ( ! defined( 'CORE_UPGRADE_SKIP_NEW_BUNDLED' ) || ! CORE_UPGRADE_SKIP_NEW_BUNDLED ) )
+			$to_download = 'new_bundled';
+		elseif ( $current->packages->no_content )
+			$to_download = 'no_content';
+		else
+			$to_download = 'full';
+
+		$download = $this->download_package( $current->packages->$to_download );
 		if ( is_wp_error($download) )
 			return $download;
 

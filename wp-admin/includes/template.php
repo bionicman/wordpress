@@ -425,7 +425,7 @@ function list_meta( $meta ) {
 <table id="list-table" style="display: none;">
 	<thead>
 	<tr>
-		<th class="left">' . __( 'Name' ) . '</th>
+		<th class="left">' . _x( 'Name', 'meta name' ) . '</th>
 		<th>' . __( 'Value' ) . '</th>
 	</tr>
 	</thead>
@@ -440,7 +440,7 @@ function list_meta( $meta ) {
 <table id="list-table">
 	<thead>
 	<tr>
-		<th class="left"><?php _e( 'Name' ) ?></th>
+		<th class="left"><?php _ex( 'Name', 'meta name' ) ?></th>
 		<th><?php _e( 'Value' ) ?></th>
 	</tr>
 	</thead>
@@ -535,7 +535,7 @@ function meta_form() {
 <table id="newmeta">
 <thead>
 <tr>
-<th class="left"><label for="metakeyselect"><?php _e( 'Name' ) ?></label></th>
+<th class="left"><label for="metakeyselect"><?php _ex( 'Name', 'meta name' ) ?></label></th>
 <th><label for="metavalue"><?php _e( 'Value' ) ?></label></th>
 </tr>
 </thead>
@@ -942,10 +942,19 @@ function do_meta_boxes($page, $context, $object) {
 	do {
 		// Grab the ones the user has manually sorted. Pull them out of their previous context/priority and into the one the user chose
 		if ( !$already_sorted && $sorted = get_user_option( "meta-box-order_$page" ) ) {
-			foreach ( $sorted as $box_context => $ids )
-				foreach ( explode(',', $ids) as $id )
+			foreach ( $sorted as $box_context => $ids ) {
+				$_ids = explode(',', $ids);
+
+				if ( $k = array_search('dashboard_browser_nag', $_ids, true) ) { // it's ok if this is the first value, i.e. $k == 0
+					unset($_ids[$k]);
+					array_unshift($_ids, 'dashboard_browser_nag');
+				}
+
+				foreach ( $_ids as $id ) {
 					if ( $id )
 						add_meta_box( $id, null, null, $page, $box_context, 'sorted' );
+				}
+			}
 		}
 		$already_sorted = true;
 

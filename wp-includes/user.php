@@ -383,7 +383,8 @@ class WP_User_Query {
 				'search' => '',
 				'orderby' => 'login',
 				'order' => 'ASC',
-				'offset' => '', 'number' => '',
+				'offset' => '',
+				'number' => '',
 				'count_total' => true,
 				'fields' => 'all',
 				'who' => ''
@@ -417,6 +418,9 @@ class WP_User_Query {
 		} else {
 			$this->query_fields = "$wpdb->users.ID";
 		}
+
+		if ( $this->query_vars['count_total'] )
+			$this->query_fields = 'SQL_CALC_FOUND_ROWS ' . $this->query_fields;
 
 		$this->query_from = "FROM $wpdb->users";
 		$this->query_where = "WHERE 1=1";
@@ -517,6 +521,9 @@ class WP_User_Query {
 			$clauses = $meta_query->get_sql( 'user', $wpdb->users, 'ID', $this );
 			$this->query_from .= $clauses['join'];
 			$this->query_where .= $clauses['where'];
+
+			if ( 'OR' == $meta_query->relation )
+				$this->query_fields = 'DISTINCT ' . $this->query_fields;
 		}
 
 		if ( !empty( $qv['include'] ) ) {
@@ -546,7 +553,7 @@ class WP_User_Query {
 		}
 
 		if ( $this->query_vars['count_total'] )
-			$this->total_users = $wpdb->get_var("SELECT COUNT(*) $this->query_from $this->query_where");
+			$this->total_users = $wpdb->get_var( apply_filters( 'found_users_query', 'SELECT FOUND_ROWS()' ) );
 
 		if ( !$this->results )
 			return;
@@ -1351,9 +1358,7 @@ function validate_username( $username ) {
  * 'user_url' - A string containing the user's URL for the user's web site.
  * 'user_email' - A string containing the user's email address.
  * 'display_name' - A string that will be shown on the site. Defaults to user's
- *		username. It is likely that you will want to change this, for both
- *		appearance and security through obscurity (that is if you don't use and
- *		delete the default 'admin' user).
+ *		username. It is likely that you will want to change this, for appearance.
  * 'nickname' - The user's nickname, defaults to the user's username.
  * 'first_name' - The user's first name.
  * 'last_name' - The user's last name.

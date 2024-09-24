@@ -1082,10 +1082,12 @@ class wpdb {
 			return false;
 		}
 
-		if ( preg_match( "/^\\s*(insert|delete|update|replace|alter) /i", $query ) ) {
+		if ( preg_match( '/^\s*(create|alter|truncate|drop) /i', $query ) ) {
+			$return_val = $this->result;
+		} elseif ( preg_match( '/^\s*(insert|delete|update|replace) /i', $query ) ) {
 			$this->rows_affected = mysql_affected_rows( $this->dbh );
 			// Take note of the insert_id
-			if ( preg_match( "/^\\s*(insert|replace) /i", $query ) ) {
+			if ( preg_match( '/^\s*(insert|replace) /i', $query ) ) {
 				$this->insert_id = mysql_insert_id($this->dbh);
 			}
 			// Return number of rows affected
@@ -1363,7 +1365,7 @@ class wpdb {
 			// Return an array of row objects with keys from column 1
 			// (Duplicates are discarded)
 			foreach ( $this->last_result as $row ) {
-				$key = array_shift( $var_by_ref = get_object_vars( $row ) );
+				$key = array_shift( get_object_vars( $row ) );
 				if ( ! isset( $new_array[ $key ] ) )
 					$new_array[ $key ] = $row;
 			}
