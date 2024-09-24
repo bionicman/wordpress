@@ -5,7 +5,7 @@
  * Contains the closing of the id=main div and all content after
  *
  * @package WordPress
- * @subpackage Twenty Eleven
+ * @subpackage Twenty_Eleven
  * @since Twenty Eleven 1.0
  */
 ?>
@@ -22,7 +22,8 @@
 			?>
 
 			<div id="site-generator">
-				<a href="http://wordpress.org/" rel="generator">Proudly powered by WordPress</a><span class="sep"> | </span><?php printf( __( 'Theme: %1$s.', 'twentyeleven' ), 'Twenty Eleven' ); ?>
+				<?php do_action( 'twentyeleven_credits' ); ?>
+				<a href="<?php echo esc_url( __( 'http://wordpress.org/', 'twentyeleven' ) ); ?>" title="<?php esc_attr_e( 'Semantic Personal Publishing Platform', 'twentyeleven' ); ?>" rel="generator"><?php printf( __( 'Proudly powered by %s', 'twentyeleven' ), 'WordPress' ); ?></a>
 			</div>
 	</footer><!-- #colophon -->
 </div><!-- #page -->

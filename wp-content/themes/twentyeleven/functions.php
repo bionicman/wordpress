@@ -34,7 +34,7 @@
  * For more information on hooks, actions, and filters, see http://codex.wordpress.org/Plugin_API.
  *
  * @package WordPress
- * @subpackage Twenty Eleven
+ * @subpackage Twenty_Eleven
  * @since Twenty Eleven 1.0
  */
 
@@ -304,14 +304,14 @@ function twentyeleven_admin_header_image() { ?>
 		<div id="desc"<?php echo $style; ?>><?php bloginfo( 'description' ); ?></div>
 		<?php $header_image = get_header_image();
 		if ( ! empty( $header_image ) ) : ?>
-			<img src="<?php esc_url( $header_image ); ?>" alt="" />
+			<img src="<?php echo esc_url( $header_image ); ?>" alt="" />
 		<?php endif; ?>
 	</div>
 <?php }
 endif; // twentyeleven_admin_header_image
 
 /**
- * Sets the post excerpt length to 40 characters.
+ * Sets the post excerpt length to 40 words.
  *
  * To override this length in a child theme, remove the filter and add your own
  * function tied to the excerpt_length filter hook.
@@ -449,24 +449,16 @@ function twentyeleven_content_nav( $nav_id ) {
 }
 
 /**
- * Grab the first URL from a Link post
+ * Return the URL for the first link found in the post content.
+ *
+ * @since Twenty Eleven 1.0
+ * @return string|bool URL or false when no link is present.
  */
 function twentyeleven_url_grabber() {
-	global $post, $posts;
-
-	$first_url = '';
-
-	ob_start();
-	ob_end_clean();
-
-	$output = preg_match_all('/<a.+href=[\'"]([^\'"]+)[\'"].*>/i', $post->post_content, $matches);
-
-	$first_url = $matches [1] [0];
-
-	if ( empty( $first_url ) )
+	if ( ! preg_match( '/<a\s[^>]*?href=[\'"](.+?)[\'"]/is', get_the_content(), $matches ) )
 		return false;
 
-	return $first_url;
+	return esc_url_raw( $matches[1] );
 }
 
 /**
@@ -537,7 +529,7 @@ function twentyeleven_comment( $comment, $args, $depth ) {
 						echo get_avatar( $comment, $avatar_size );
 
 						printf( __( '%1$s on %2$s%3$s at %4$s%5$s <span class="says">said:</span>', 'twentyeleven' ),
-							sprintf( '<cite class="fn">%s</cite>', get_comment_author_link() ),
+							sprintf( '<span class="fn">%s</span>', get_comment_author_link() ),
 							'<a href="' . esc_url( get_comment_link( $comment->comment_ID ) ) . '"><time pubdate datetime="' . get_comment_time( 'c' ) . '">',
 							get_comment_date(),
 							get_comment_time(),

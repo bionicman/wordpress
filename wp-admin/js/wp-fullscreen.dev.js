@@ -213,6 +213,7 @@ PubSub.prototype.publish = function( topic, args ) {
 		}
 
 		$('#' + s.editor_id).val( content );
+		$(document).triggerHandler('wpcountwords', [ content ]);
 	}
 
 	set_title_hint = function( title ) {
@@ -276,8 +277,6 @@ PubSub.prototype.publish = function( topic, args ) {
 	});
 
 	ps.subscribe( 'showing', function() { // This event occurs while the DFW overlay blocks the UI.
-		var scrollY = s.mode === 'html' ? 220 + s._edCanvas.scrollTop : 140 + tinyMCE.get(s.editor_id).getBody().scrollTop;
-		
 		$( document.body ).addClass( 'fullscreen-active' );
 		api.refresh_buttons();
 
@@ -287,10 +286,8 @@ PubSub.prototype.publish = function( topic, args ) {
 		api.bind_resize();
 		setTimeout( api.resize_textarea, 200 );
 
-		if ( scrollY < 171 )
-			scrollY = 0;
-
-		scrollTo(0, scrollY);
+		// scroll to top so the user is not disoriented
+		scrollTo(0, 0);
 	});
 
 	ps.subscribe( 'shown', function() { // This event occurs after the DFW overlay is shown
@@ -466,10 +463,10 @@ PubSub.prototype.publish = function( topic, args ) {
 	 */
 	api.ui = {
 		init: function() {
-			var topbar = $('#fullscreen-topbar');
+			var topbar = $('#fullscreen-topbar'), txtarea = $('#wp_mce_fullscreen'), last = 0;
 			s.toolbars = topbar.add( $('#wp-fullscreen-status') );
 			s.element = $('#fullscreen-fader');
-			s.textarea_obj = document.getElementById('wp_mce_fullscreen');
+			s.textarea_obj = txtarea[0];
 			s.has_tinymce = typeof(tinyMCE) != 'undefined';
 
 			if ( !s.has_tinymce )
@@ -479,7 +476,7 @@ PubSub.prototype.publish = function( topic, args ) {
 				wptitlehint('wp-fullscreen-title');
 
 			$(document).keyup(function(e){
-				var c = e.charCode || e.keyCode, a;
+				var c = e.keyCode || e.charCode, a;
 
 				if ( !fullscreen.settings.visible )
 					return true;
@@ -492,10 +489,10 @@ PubSub.prototype.publish = function( topic, args ) {
 				if ( 27 == c ) // Esc
 					fullscreen.off();
 
-				if ( a && (61 == c || 187 == c) ) // +
+				if ( a && (61 == c || 107 == c || 187 == c) ) // +
 					api.dfw_width(25);
 
-				if ( a && (45 == c || 189 == c) ) // -
+				if ( a && (45 == c || 109 == c || 189 == c) ) // -
 					api.dfw_width(-25);
 
 				if ( a && 48 == c ) // 0
@@ -504,6 +501,23 @@ PubSub.prototype.publish = function( topic, args ) {
 				return true;
 			});
 
+			// word count in HTML mode
+			if ( typeof(wpWordCount) != 'undefined' ) {
+
+				txtarea.keyup( function(e) {
+					var k = e.keyCode || e.charCode;
+
+					if ( k == last )
+						return true;
+
+					if ( 13 == k || 8 == last || 46 == last )
+						$(document).triggerHandler('wpcountwords', [ txtarea.val() ]);
+
+					last = k;
+					return true;
+				});
+			}
+
 			topbar.mouseenter(function(e){
 				s.toolbars.addClass('fullscreen-make-sticky');
 				$( document ).unbind( '.fullscreen' );
@@ -511,7 +525,9 @@ PubSub.prototype.publish = function( topic, args ) {
 				s.timer = 0;
 			}).mouseleave(function(e){
 				s.toolbars.removeClass('fullscreen-make-sticky');
-				$( document ).bind( 'mousemove.fullscreen', function(e) { bounder( 'showToolbar', 'hideToolbar', 2000 ); } );
+
+				if ( s.visible )
+					$( document ).bind( 'mousemove.fullscreen', function(e) { bounder( 'showToolbar', 'hideToolbar', 2000 ); } );
 			});
 		},
 

@@ -396,7 +396,7 @@ case 'delete-meta' :
 	if ( !$meta = get_post_meta_by_id( $id ) )
 		die('1');
 
-	if ( !current_user_can( 'edit_post', $meta->post_id ) )
+	if ( !current_user_can( 'edit_post', $meta->post_id ) || is_protected_meta( $meta->meta_key ) )
 		die('-1');
 	if ( delete_meta( $meta->meta_id ) )
 		die('1');
@@ -508,7 +508,7 @@ case 'add-link-category' : // On the Fly
 	$x->send();
 	break;
 case 'add-tag' :
-	check_ajax_referer( 'add-tag' );
+	check_ajax_referer( 'add-tag', '_wpnonce_add-tag' );
 	$post_type = !empty($_POST['post_type']) ? $_POST['post_type'] : 'post';
 	$taxonomy = !empty($_POST['taxonomy']) ? $_POST['taxonomy'] : 'post_tag';
 	$tax = get_taxonomy($taxonomy);
@@ -864,6 +864,8 @@ case 'add-meta' :
 		if ( !$meta = get_post_meta_by_id( $mid ) )
 			die('0'); // if meta doesn't exist
 		if ( !current_user_can( 'edit_post', $meta->post_id ) )
+			die('-1');
+		if ( is_protected_meta( $meta->meta_key ) )
 			die('-1');
 		if ( $meta->meta_value != stripslashes($value) || $meta->meta_key != stripslashes($key) ) {
 			if ( !$u = update_meta( $mid, $key, $value ) )

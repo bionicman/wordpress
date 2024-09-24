@@ -344,10 +344,12 @@ wpList = {
 			else
 				list.append(e);
 
-		} else if ( s.pos < 0 ) {
-			list.prepend(e);
-		} else {
-			list.append(e);
+		} else if ( 'comment' != s.what || 0 === $('#' + s.element).length ) {
+			if ( s.pos < 0 ) {
+				list.prepend(e);
+			} else {
+				list.append(e);
+			}
 		}
 
 		if ( s.alt ) {

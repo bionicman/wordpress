@@ -552,7 +552,7 @@ function wp_dashboard_quick_press() {
 			<input type="reset" value="<?php esc_attr_e( 'Reset' ); ?>" class="button" />
 			<span id="publishing-action">
 				<input type="submit" name="publish" id="publish" accesskey="p" tabindex="5" class="button-primary" value="<?php current_user_can('publish_posts') ? esc_attr_e('Publish') : esc_attr_e('Submit for Review'); ?>" />
-				<img class="waiting" src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" />
+				<img class="waiting" src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" alt="" />
 			</span>
 			<br class="clear" />
 		</p>
@@ -1120,7 +1120,7 @@ function wp_dashboard_rss_control( $widget_id, $form_inputs = array() ) {
 
 // Display File upload quota on dashboard
 function wp_dashboard_quota() {
-	if ( !is_multisite() || !current_user_can('edit_posts') || get_site_option( 'upload_space_check_disabled' ) )
+	if ( !is_multisite() || !current_user_can('upload_files') || get_site_option( 'upload_space_check_disabled' ) )
 		return true;
 
 	$quota = get_space_allowed();
@@ -1208,10 +1208,10 @@ function wp_check_browser_version() {
 			'user-agent'	=> 'WordPress/' . $wp_version . '; ' . get_bloginfo( 'url' )
 		);
 
-		$raw_response = wp_remote_post( 'http://api.wordpress.org/core/browse-happy/1.0/', $options );
+		$response = wp_remote_post( 'http://api.wordpress.org/core/browse-happy/1.0/', $options );
 
-		if ( is_wp_error( $raw_response ) || 200 != $raw_response['response']['code'] )
-			return;
+		if ( is_wp_error( $response ) || 200 != wp_remote_retrieve_response_code( $response ) )
+			return false;
 
 		/**
 		 * Response should be an array with:
@@ -1224,7 +1224,7 @@ function wp_check_browser_version() {
 		 *  'img_src' - string - An image representing the browser
 		 *  'img_src_ssl' - string - An image (over SSL) representing the browser
 		 */
-		$response = unserialize( $raw_response['body'] );
+		$response = unserialize( wp_remote_retrieve_body( $response ) );
 
 		if ( ! $response )
 			return;

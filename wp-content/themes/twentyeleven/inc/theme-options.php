@@ -3,7 +3,7 @@
  * Twenty Eleven Theme Options
  *
  * @package WordPress
- * @subpackage Twenty Eleven
+ * @subpackage Twenty_Eleven
  * @since Twenty Eleven 1.0
  */
 
@@ -53,6 +53,25 @@ function twentyeleven_theme_options_init() {
 	);
 }
 add_action( 'admin_init', 'twentyeleven_theme_options_init' );
+
+/**
+ * Change the capability required to save the 'twentyeleven_options' options group.
+ *
+ * @see twentyeleven_theme_options_init() First parameter to register_setting() is the name of the options group.
+ * @see twentyeleven_theme_options_add_page() The edit_theme_options capability is used for viewing the page.
+ *
+ * By default, the options groups for all registered settings require the manage_options capability.
+ * This filter is required to change our theme options page to edit_theme_options instead.
+ * By default, only administrators have either of these capabilities, but the desire here is
+ * to allow for finer-grained control for roles and users.
+ *
+ * @param string $capability The capability used for the page, which is manage_options by default.
+ * @return string The capability to actually use.
+ */
+function twentyeleven_option_page_capability( $capability ) {
+	return 'edit_theme_options';
+}
+add_filter( 'option_page_capability_twentyeleven_options', 'twentyeleven_option_page_capability' );
 
 /**
  * Add our theme options page to the admin menu.
@@ -176,7 +195,7 @@ function theme_options_render_page() {
 								<label class="description">
 									<input type="radio" name="twentyeleven_theme_options[color_scheme]" value="<?php echo esc_attr( $color['value'] ); ?>" <?php checked( $options['color_scheme'], $color['value'] ); ?> />
 									<span>
-										<img src="<?php echo esc_url( $color['thumbnail'] ); ?>"/>
+										<img src="<?php echo esc_url( $color['thumbnail'] ); ?>" alt=""/>
 										<?php echo $color['label']; ?>
 									</span>
 								</label>
@@ -193,7 +212,7 @@ function theme_options_render_page() {
 						<fieldset><legend class="screen-reader-text"><span><?php _e( 'Link Color', 'twentyeleven' ); ?></span></legend>
 							<input type="text" name="twentyeleven_theme_options[link_color]" id="link-color" value="<?php echo esc_attr( $options['link_color'] ); ?>" />
 							<a href="#" class="pickcolor hide-if-no-js" id="link-color-example"></a>
-							<input type="button" class="pickcolor button hide-if-no-js" value="<?php esc_attr_e( 'Select a Color', 'twentyeleven' ); ?>">
+							<input type="button" class="pickcolor button hide-if-no-js" value="<?php esc_attr_e( 'Select a Color', 'twentyeleven' ); ?>" />
 							<div id="colorPickerDiv" style="z-index: 100; background:#eee; border:1px solid #ccc; position:absolute; display:none;"></div>
 							<br />
 							<small class="description"><?php printf( __( 'Default color: %s', 'twentyeleven' ), $default_options['link_color'] ); ?></small>
@@ -211,7 +230,7 @@ function theme_options_render_page() {
 								<label class="description">
 									<input type="radio" name="twentyeleven_theme_options[theme_layout]" value="<?php echo esc_attr( $layout['value'] ); ?>" <?php checked( $options['theme_layout'], $layout['value'] ); ?> />
 									<span>
-										<img src="<?php echo esc_url( $layout['thumbnail'] ); ?>"/>
+										<img src="<?php echo esc_url( $layout['thumbnail'] ); ?>" alt=""/>
 										<?php echo $layout['label']; ?>
 									</span>
 								</label>
@@ -296,7 +315,8 @@ function twentyeleven_print_link_color_style() {
 		.widget_twentyeleven_ephemera .comments-link a:hover,
 		section.recent-posts .other-recent-posts a[rel="bookmark"]:hover,
 		section.recent-posts .other-recent-posts .comments-link a:hover,
-		.format-image footer.entry-meta a:hover {
+		.format-image footer.entry-meta a:hover,
+		#site-generator a:hover {
 			color: <?php echo $link_color; ?>;
 		}
 		section.recent-posts .other-recent-posts .comments-link a:hover {

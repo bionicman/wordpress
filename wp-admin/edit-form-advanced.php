@@ -195,7 +195,7 @@ require_once('./admin-header.php');
 
 <div class="wrap">
 <?php screen_icon(); ?>
-<h2><?php echo esc_html( $title ); ?></h2>
+<h2><?php echo esc_html( $title ); ?><?php if ( isset( $post_new_file ) ) : ?> <a href="<?php echo esc_url( $post_new_file ) ?>" class="add-new-h2"><?php echo esc_html($post_type_object->labels->add_new); ?></a><?php endif; ?></h2>
 <?php if ( $notice ) : ?>
 <div id="notice" class="error"><p><?php echo $notice ?></p></div>
 <?php endif; ?>
@@ -270,7 +270,7 @@ wp_nonce_field( 'samplepermalink', 'samplepermalinknonce', false );
 <?php the_editor($post->post_content); ?>
 
 <table id="post-status-info" cellspacing="0"><tbody><tr>
-	<td id="wp-word-count"></td>
+	<td id="wp-word-count"><?php printf( __( 'Word count: %s' ), '<span class="word-count">0</span>' ); ?></td>
 	<td class="autosave-info">
 	<span id="autosave">&nbsp;</span>
 <?php

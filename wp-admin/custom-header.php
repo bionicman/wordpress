@@ -388,7 +388,8 @@ class Custom_Image_Header {
 		<?php if ( 'blank' == get_theme_mod( 'header_textcolor', HEADER_TEXTCOLOR ) || '' == get_theme_mod('header_textcolor', HEADER_TEXTCOLOR) || ! $this->header_text() ) { ?>
 		toggle_text();
 		<?php } ?>
-		});
+	});
+/* ]]> */
 </script>
 <?php
 	}
@@ -644,7 +645,8 @@ wp_nonce_field( 'custom-header-options', '_wpnonce-custom-header-options' ); ?>
 		'post_title' => $filename,
 		'post_content' => $url,
 		'post_mime_type' => $type,
-		'guid' => $url);
+		'guid' => $url,
+		'context' => 'custom-header');
 
 		// Save the data
 		$id = wp_insert_attachment($object, $file);
@@ -737,7 +739,8 @@ wp_nonce_field( 'custom-header-options', '_wpnonce-custom-header-options' ); ?>
 			'post_title' => basename($cropped),
 			'post_content' => $url,
 			'post_mime_type' => 'image/jpeg',
-			'guid' => $url
+			'guid' => $url,
+			'context' => 'custom-header'
 		);
 
 		// Update the attachment

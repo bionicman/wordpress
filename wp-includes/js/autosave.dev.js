@@ -34,7 +34,7 @@ jQuery(document).ready( function($) {
 			if ( mce.isDirty() )
 				return autosaveL10n.saveAlert;
 		} else {
-			if ( fullscreen && fullscreen.visible ) {
+			if ( fullscreen && fullscreen.settings.visible ) {
 				title = $('#wp-fullscreen-title').val();
 				content = $("#wp_mce_fullscreen").val();
 			} else {
@@ -105,7 +105,6 @@ function autosave_parse_response(response) {
 			if ( sup['alert'] ) {
 				jQuery('#autosave-alert').remove();
 				jQuery('#titlediv').after('<div id="autosave-alert" class="error below-h2"><p>' + sup['alert'] + '</p></div>');
-				alert( jQuery('#autosave-alert').text() );
 			}
 
 			jQuery.each(sup, function(selector, value) {
@@ -165,7 +164,7 @@ function autosave_update_slug(post_id) {
 		jQuery.post( ajaxurl, {
 				action: 'sample-permalink',
 				post_id: post_id,
-				new_title: fullscreen && fullscreen.visible ? jQuery('#wp-fullscreen-title').val() : jQuery('#title').val(),
+				new_title: fullscreen && fullscreen.settings.visible ? jQuery('#wp-fullscreen-title').val() : jQuery('#title').val(),
 				samplepermalinknonce: jQuery('#samplepermalinknonce').val()
 			},
 			function(data) {
@@ -191,7 +190,7 @@ function autosave_enable_buttons() {
 }
 
 function autosave_disable_buttons() {
-	jQuery(':button, :submit', '#submitpost').attr('disabled', 'disabled');
+	jQuery(':button, :submit', '#submitpost').prop('disabled', true);
 	// Re-enable 5 sec later.  Just gives autosave a head start to avoid collisions.
 	setTimeout(autosave_enable_buttons, 5000);
 }
@@ -245,7 +244,7 @@ autosave = function() {
 		}
 	}
 
-	if ( fullscreen && fullscreen.visible ) {
+	if ( fullscreen && fullscreen.settings.visible ) {
 		post_data["post_title"] = jQuery('#wp-fullscreen-title').val();
 		post_data["content"] = jQuery("#wp_mce_fullscreen").val();
 	} else {
@@ -269,9 +268,9 @@ autosave = function() {
 	} );
 	post_data["catslist"] = goodcats.join(",");
 
-	if ( jQuery("#comment_status").attr("checked") )
+	if ( jQuery("#comment_status").prop("checked") )
 		post_data["comment_status"] = 'open';
-	if ( jQuery("#ping_status").attr("checked") )
+	if ( jQuery("#ping_status").prop("checked") )
 		post_data["ping_status"] = 'open';
 	if ( jQuery("#excerpt").size() )
 		post_data["excerpt"] = jQuery("#excerpt").val();
@@ -285,6 +284,7 @@ autosave = function() {
 
 	if ( doAutoSave ) {
 		autosaveLast = post_data["post_title"] + post_data["content"];
+		jQuery(document).triggerHandler('wpcountwords', [ post_data["content"] ]);
 	} else {
 		post_data['autosave'] = 0;
 	}
@@ -300,7 +300,7 @@ autosave = function() {
 		data: post_data,
 		beforeSend: doAutoSave ? autosave_loading : null,
 		type: "POST",
-		url: autosaveL10n.requestFile,
+		url: ajaxurl,
 		success: successCallback
 	});
 }

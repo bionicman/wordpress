@@ -133,7 +133,7 @@ body {
 }
 .page-template-showcase-php section.recent-posts {
 	float: right;
-	margin: 0 0 0 31.1%;
+	margin: 0 0 0 31%;
 	width: 69%;
 }
 .page-template-showcase-php #main .widget-area {
@@ -392,6 +392,7 @@ pre {
 	font: 13px "Courier 10 Pitch", Courier, monospace;
 	line-height: 1.5;
 	margin-bottom: 1.625em;
+	overflow: auto;
 	padding: 0.75em 1.625em;
 }
 code, kbd {
@@ -1676,6 +1677,7 @@ section.ephemera .entry-title a span {
 	padding: 0 0 2.6em;
 	text-transform: uppercase;
 }
+.nopassword,
 .nocomments {
 	color: #aaa;
 	font-size: 24px;
@@ -2010,7 +2012,17 @@ p.comment-form-comment {
 	text-align: center;
 }
 #site-generator a {
+	color: #555;
 	font-weight: bold;
+}
+#site-generator .sep {
+	background: url(images/wordpress.png) center left no-repeat;
+	color: transparent;
+	display: inline-block;
+	height: 16px;
+	line-height: 16px;
+	margin: 0 7px;
+	width: 16px;
 }
 
 

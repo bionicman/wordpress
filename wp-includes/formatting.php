@@ -707,7 +707,7 @@ function sanitize_file_name( $filename ) {
 		if ( preg_match("/^[a-zA-Z]{2,5}\d?$/", $part) ) {
 			$allowed = false;
 			foreach ( $mimes as $ext_preg => $mime_match ) {
-				$ext_preg = '!(^' . $ext_preg . ')$!i';
+				$ext_preg = '!^(' . $ext_preg . ')$!i';
 				if ( preg_match( $ext_preg, $part ) ) {
 					$allowed = true;
 					break;
@@ -1227,7 +1227,7 @@ function addslashes_gpc($gpc) {
  *
  * @since 2.0.0
  *
- * @param array|string $value The array or string to be striped.
+ * @param array|string $value The array or string to be stripped.
  * @return array|string Stripped array (or string in the callback).
  */
 function stripslashes_deep($value) {
@@ -1588,8 +1588,8 @@ function _wp_iso_convert( $match ) {
  *
  * Requires and returns a date in the Y-m-d H:i:s format. Simply subtracts the
  * value of the 'gmt_offset' option. Return format can be overridden using the
- * $format parameter. If PHP5 is supported, the function uses the DateTime and
- * DateTimeZone objects to respect time zone differences in DST.
+ * $format parameter. The DateTime and DateTimeZone classes are used to respect
+ * time zone differences in DST.
  *
  * @since 1.2.0
  *
@@ -1601,8 +1601,7 @@ function _wp_iso_convert( $match ) {
 function get_gmt_from_date($string, $format = 'Y-m-d H:i:s') {
 	preg_match('#([0-9]{1,4})-([0-9]{1,2})-([0-9]{1,2}) ([0-9]{1,2}):([0-9]{1,2}):([0-9]{1,2})#', $string, $matches);
 	$tz = get_option('timezone_string');
-	if( class_exists('DateTime') && $tz ) {
-		//PHP5
+	if ( $tz ) {
 		date_default_timezone_set( $tz );
 		$datetime = new DateTime( $string );
 		$datetime->setTimezone( new DateTimeZone('UTC') );
@@ -1611,9 +1610,7 @@ function get_gmt_from_date($string, $format = 'Y-m-d H:i:s') {
 		$string_gmt = gmdate($format, $datetime->format('U'));
 
 		date_default_timezone_set('UTC');
-	}
-	else {
-		//PHP4
+	} else {
 		$string_time = gmmktime($matches[4], $matches[5], $matches[6], $matches[2], $matches[3], $matches[1]);
 		$string_gmt = gmdate($format, $string_time - get_option('gmt_offset') * 3600);
 	}
@@ -2667,7 +2664,7 @@ function wp_sprintf_l($pattern, $args) {
 
 	// Translate and filter the delimiter set (avoid ampersands and entities here)
 	$l = apply_filters('wp_sprintf_l', array(
-		/* translators: used between list items, there is a space after the coma */
+		/* translators: used between list items, there is a space after the comma */
 		'between'          => __(', '),
 		/* translators: used between list items, there is a space after the and */
 		'between_last_two' => __(', and '),
@@ -2758,7 +2755,7 @@ function _links_add_base($m) {
  * This function by default only applies to <a> tags, however this can be
  * modified by the 3rd param.
  *
- * <b>NOTE:</b> Any current target attributed will be striped and replaced.
+ * <b>NOTE:</b> Any current target attributed will be stripped and replaced.
  *
  * @since 2.7.0
  *
@@ -2890,6 +2887,19 @@ function capital_P_dangit( $text ) {
 		array( ' WordPress', '&#8216;WordPress', $dblq . 'WordPress', '>WordPress', '(WordPress' ),
 	$text );
 
+}
+
+/**
+ * Sanitize a mime type
+ *
+ * @since 3.1.3
+ *
+ * @param string $mime_type Mime type
+ * @return string Sanitized mime type
+ */
+function sanitize_mime_type( $mime_type ) {
+	$sani_mime_type = preg_replace( '/[^-*.a-zA-Z0-9\/]/', '', $mime_type );
+	return apply_filters( 'sanitize_mime_type', $sani_mime_type, $mime_type );
 }
 
 ?>

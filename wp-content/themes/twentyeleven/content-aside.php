@@ -5,7 +5,7 @@
  * Learn more: http://codex.wordpress.org/Post_Formats
  * 
  * @package WordPress
- * @subpackage Twenty Eleven
+ * @subpackage Twenty_Eleven
  * @since Twenty Eleven 1.0
  */
 ?>
@@ -29,7 +29,7 @@
 
 		<?php if ( is_search() ) : // Only display Excerpts for Search ?>
 		<div class="entry-summary">
-			<?php the_excerpt( __( 'Continue reading <span class="meta-nav">&rarr;</span>', 'twentyeleven' ) ); ?>
+			<?php the_excerpt(); ?>
 		</div><!-- .entry-summary -->
 		<?php else : ?>
 		<div class="entry-content">
