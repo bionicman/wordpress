@@ -146,23 +146,66 @@ function get_category_rss_link($echo = false, $cat_ID, $category_nicename) {
 
 function get_the_category_rss($type = 'rss') {
 	$categories = get_the_category();
+	$tags = get_the_tags();
 	$home = get_bloginfo_rss('home');
 	$the_list = '';
-	foreach ( (array) $categories as $category ) {
-		$cat_name = convert_chars($category->name);
+	$cat_names = array();
+
+	$filter = 'rss';
+	if ( 'atom' == $type )
+		$filter = 'raw';
+
+	if ( !empty($categories) ) foreach ( (array) $categories as $category ) {
+		$cat_names[] = sanitize_term_field('name', $category->name, $category->term_id, 'category', $filter);
+	}
+
+	if ( !empty($tags) ) foreach ( (array) $tags as $tag ) {
+		$cat_names[] = sanitize_term_field('name', $tag->name, $tag->term_id, 'post_tag', $filter);
+	}
+
+	$cat_names = array_unique($cat_names);
+
+	foreach ( $cat_names as $cat_name ) {
 		if ( 'rdf' == $type )
 			$the_list .= "\n\t\t<dc:subject><![CDATA[$cat_name]]></dc:subject>\n";
-		if ( 'atom' == $type )
-			$the_list .= sprintf( '<category scheme="%1$s" term="%2$s" />', attribute_escape( apply_filters( 'get_bloginfo_rss', get_bloginfo( 'url' ) ) ), attribute_escape( $category->name ) );
+		elseif ( 'atom' == $type )
+			$the_list .= sprintf( '<category scheme="%1$s" term="%2$s" />', attribute_escape( apply_filters( 'get_bloginfo_rss', get_bloginfo( 'url' ) ) ), attribute_escape( $cat_name ) );
 		else
 			$the_list .= "\n\t\t<category><![CDATA[$cat_name]]></category>\n";
 	}
+
 	return apply_filters('the_category_rss', $the_list, $type);
 }
 
 
 function the_category_rss($type = 'rss') {
 	echo get_the_category_rss($type);
+}
+
+function get_tag_feed_link($tag_id, $feed = 'rss2') {
+	$tag_id = (int) $tag_id;
+
+	$tag = get_tag($tag_id);
+
+	if ( empty($tag) || is_wp_error($tag) )
+		return false;
+
+	$permalink_structure = get_option('permalink_structure');
+
+	if ( '' == $permalink_structure ) {
+		$link = get_option('home') . "?feed=$feed&amp;tag=" . $tag->slug;
+	} else {
+		$link = get_tag_link($tag->term_id);
+		if ( 'rss2' == $feed )
+			$feed_link = 'feed';
+		else
+			$feed_link = "feed/$feed";
+		$link = $link . user_trailingslashit($feed_link, 'feed');
+	}
+
+	$link = apply_filters('tag_feed_link', $link, $feed);
+
+	return $link;
 }
 
 function html_type_rss() {

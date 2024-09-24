@@ -17,7 +17,7 @@ function wptexturize($text) {
 		$cockneyreplace = array("&#8217;tain&#8217;t","&#8217;twere","&#8217;twas","&#8217;tis","&#8217;twill","&#8217;til","&#8217;bout","&#8217;nuff","&#8217;round","&#8217;cause");
 	}
 
-	$static_characters = array_merge(array('---', ' -- ', '--', 'xn&#8211;', '...', '``', '\'s', '\'\'', ' (tm)'), $cockney); 
+	$static_characters = array_merge(array('---', ' -- ', '--', 'xn&#8211;', '...', '``', '\'s', '\'\'', ' (tm)'), $cockney);
 	$static_replacements = array_merge(array('&#8212;', ' &#8212; ', '&#8211;', 'xn--', '&#8230;', '&#8220;', '&#8217;s', '&#8221;', ' &#8482;'), $cockneyreplace);
 
 	$dynamic_characters = array('/\'(\d\d(?:&#8217;|\')?s)/', '/(\s|\A|")\'/', '/(\d+)"/', '/(\d+)\'/', '/(\S)\'([^\'\s])/', '/(\s|\A)"(?!\s)/', '/"(\s|\S|\Z)/', '/\'([\s.]|\Z)/', '/(\d+)x(\d+)/');
@@ -131,7 +131,7 @@ function utf8_uri_encode( $utf8_string, $length = 0 ) {
 
 		if ( $value < 128 ) {
 			if ( $length && ( strlen($unicode) + 1 > $length ) )
-				break; 
+				break;
 			$unicode .= chr($value);
 		} else {
 			if ( count( $values ) == 0 ) $num_octets = ( $value < 224 ) ? 2 : 3;
@@ -166,30 +166,33 @@ function remove_accents($string) {
 		chr(195).chr(128) => 'A', chr(195).chr(129) => 'A',
 		chr(195).chr(130) => 'A', chr(195).chr(131) => 'A',
 		chr(195).chr(132) => 'A', chr(195).chr(133) => 'A',
-		chr(195).chr(135) => 'C', chr(195).chr(136) => 'E',
-		chr(195).chr(137) => 'E', chr(195).chr(138) => 'E',
-		chr(195).chr(139) => 'E', chr(195).chr(140) => 'I',
-		chr(195).chr(141) => 'I', chr(195).chr(142) => 'I',
-		chr(195).chr(143) => 'I', chr(195).chr(145) => 'N',
+		chr(195).chr(134) => 'AE',chr(195).chr(135) => 'C',
+		chr(195).chr(136) => 'E', chr(195).chr(137) => 'E',
+		chr(195).chr(138) => 'E', chr(195).chr(139) => 'E',
+		chr(195).chr(140) => 'I', chr(195).chr(141) => 'I',
+		chr(195).chr(142) => 'I', chr(195).chr(143) => 'I',
+		chr(195).chr(144) => 'D', chr(195).chr(145) => 'N',
 		chr(195).chr(146) => 'O', chr(195).chr(147) => 'O',
 		chr(195).chr(148) => 'O', chr(195).chr(149) => 'O',
 		chr(195).chr(150) => 'O', chr(195).chr(153) => 'U',
 		chr(195).chr(154) => 'U', chr(195).chr(155) => 'U',
 		chr(195).chr(156) => 'U', chr(195).chr(157) => 'Y',
-		chr(195).chr(159) => 's', chr(195).chr(160) => 'a',
-		chr(195).chr(161) => 'a', chr(195).chr(162) => 'a',
-		chr(195).chr(163) => 'a', chr(195).chr(164) => 'a',
-		chr(195).chr(165) => 'a', chr(195).chr(167) => 'c',
+		chr(195).chr(158) => 'TH',chr(195).chr(159) => 's',
+		chr(195).chr(160) => 'a', chr(195).chr(161) => 'a',
+		chr(195).chr(162) => 'a', chr(195).chr(163) => 'a',
+		chr(195).chr(164) => 'a', chr(195).chr(165) => 'a',
+		chr(195).chr(166) => 'ae',chr(195).chr(167) => 'c',
 		chr(195).chr(168) => 'e', chr(195).chr(169) => 'e',
 		chr(195).chr(170) => 'e', chr(195).chr(171) => 'e',
 		chr(195).chr(172) => 'i', chr(195).chr(173) => 'i',
 		chr(195).chr(174) => 'i', chr(195).chr(175) => 'i',
-		chr(195).chr(177) => 'n', chr(195).chr(178) => 'o',
-		chr(195).chr(179) => 'o', chr(195).chr(180) => 'o',
-		chr(195).chr(181) => 'o', chr(195).chr(182) => 'o',
-		chr(195).chr(182) => 'o', chr(195).chr(185) => 'u',
-		chr(195).chr(186) => 'u', chr(195).chr(187) => 'u',
-		chr(195).chr(188) => 'u', chr(195).chr(189) => 'y',
+		chr(195).chr(176) => 'd', chr(195).chr(177) => 'n',
+		chr(195).chr(178) => 'o', chr(195).chr(179) => 'o',
+		chr(195).chr(180) => 'o', chr(195).chr(181) => 'o',
+		chr(195).chr(182) => 'o', chr(195).chr(182) => 'o',
+		chr(195).chr(185) => 'u', chr(195).chr(186) => 'u',
+		chr(195).chr(187) => 'u', chr(195).chr(188) => 'u',
+		chr(195).chr(189) => 'y', chr(195).chr(190) => 'th',
 		chr(195).chr(191) => 'y',
 		// Decompositions for Latin Extended-A
 		chr(196).chr(128) => 'A', chr(196).chr(129) => 'a',
@@ -647,13 +650,13 @@ function convert_smilies($text) {
 	if (get_option('use_smilies')) {
 		// HTML loop taken from texturize function, could possible be consolidated
 		$textarr = preg_split("/(<.*>)/U", $text, -1, PREG_SPLIT_DELIM_CAPTURE); // capture the tags as well as in between
-		$stop = count($textarr);// loop stuff 
-		for ($i = 0; $i < $stop; $i++) { 
-			$content = $textarr[$i]; 
-			if ((strlen($content) > 0) && ('<' != $content{0})) { // If it's not a tag 
-				$content = preg_replace($wp_smiliessearch, $wp_smiliesreplace, $content); 
-			} 
-			$output .= $content; 
+		$stop = count($textarr);// loop stuff
+		for ($i = 0; $i < $stop; $i++) {
+			$content = $textarr[$i];
+			if ((strlen($content) > 0) && ('<' != $content{0})) { // If it's not a tag
+				$content = preg_replace($wp_smiliessearch, $wp_smiliesreplace, $content);
+			}
+			$output .= $content;
 		}
 	} else {
 		// return default text.
@@ -1077,18 +1080,21 @@ function clean_url( $url, $protocols = null ) {
 	$original_url = $url;
 
 	if ('' == $url) return $url;
-	$url = preg_replace('|[^a-z0-9-~+_.?#=!&;,/:%]|i', '', $url);
+	$url = preg_replace('|[^a-z0-9-~+_.?#=!&;,/:%@]|i', '', $url);
 	$strip = array('%0d', '%0a');
 	$url = str_replace($strip, '', $url);
 	$url = str_replace(';//', '://', $url);
-	// Append http unless a relative link starting with / or a php file.
-	if ( strpos($url, '://') === false &&
+	/* If the URL doesn't appear to contain a scheme, we
+	 * presume it needs http:// appended (unless a relative
+	 * link starting with / or a php file).
+	*/
+	if ( strpos($url, ':') === false &&
 		substr( $url, 0, 1 ) != '/' && !preg_match('/^[a-z0-9-]+?\.php/i', $url) )
 		$url = 'http://' . $url;
 
 	$url = preg_replace('/&([^#])(?![a-z]{2,8};)/', '&#038;$1', $url);
 	if ( !is_array($protocols) )
-		$protocols = array('http', 'https', 'ftp', 'ftps', 'mailto', 'news', 'irc', 'gopher', 'nntp', 'feed', 'telnet'); 
+		$protocols = array('http', 'https', 'ftp', 'ftps', 'mailto', 'news', 'irc', 'gopher', 'nntp', 'feed', 'telnet');
 	if ( wp_kses_bad_protocol( $url, $protocols ) != $url )
 		return '';
 

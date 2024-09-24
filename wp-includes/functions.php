@@ -8,9 +8,9 @@ function mysql2date($dateformatstring, $mysqlstring, $translate = true) {
 	if ( empty($m) ) {
 		return false;
 	}
-	$i = mktime( 
-		(int) substr( $m, 11, 2 ), (int) substr( $m, 14, 2 ), (int) substr( $m, 17, 2 ), 
-		(int) substr( $m, 5, 2 ), (int) substr( $m, 8, 2 ), (int) substr( $m, 0, 4 ) 
+	$i = mktime(
+		(int) substr( $m, 11, 2 ), (int) substr( $m, 14, 2 ), (int) substr( $m, 17, 2 ),
+		(int) substr( $m, 5, 2 ), (int) substr( $m, 8, 2 ), (int) substr( $m, 0, 4 )
 	);
 
 	if( 'U' == $dateformatstring )
@@ -182,9 +182,9 @@ function get_option($setting) {
 	global $wpdb;
 
 	// Allow plugins to short-circuit options.
-	$pre = apply_filters( 'pre_option_' . $setting, false ); 
-	if ( false !== $pre ) 
-		return $pre; 
+	$pre = apply_filters( 'pre_option_' . $setting, false );
+	if ( false !== $pre )
+		return $pre;
 
 	// prevent non-existent options from triggering multiple queries
 	$notoptions = wp_cache_get('notoptions', 'options');
@@ -406,7 +406,7 @@ function gzip_compression() {
 	if ( ( ini_get( 'zlib.output_compression' ) == 'On' || ini_get( 'zlib.output_compression_level' ) > 0 ) || ini_get( 'output_handler' ) == 'ob_gzhandler' ) {
 		return false;
 	}
-	
+
 	if ( extension_loaded( 'zlib' ) ) {
 		ob_start( 'ob_gzhandler' );
 	}
@@ -627,7 +627,7 @@ function add_query_arg() {
 			$base = $parts[0] . '?';
 			$query = $parts[1];
 		}
-	} elseif (!empty($protocol) || strpos($uri, '/') !== false) {
+	} elseif (!empty($protocol) || strpos($uri, '=') === false ) {
 		$base = $uri . '?';
 		$query = '';
 	} else {
@@ -636,7 +636,6 @@ function add_query_arg() {
 	}
 
 	wp_parse_str($query, $qs);
-	$qs = urlencode_deep($qs);
 	if ( is_array(func_get_arg(0)) ) {
 		$kayvees = func_get_arg(0);
 		$qs = array_merge($qs, $kayvees);
@@ -644,17 +643,17 @@ function add_query_arg() {
 		$qs[func_get_arg(0)] = func_get_arg(1);
 	}
 
-	foreach($qs as $k => $v) {
-		if ( $v !== FALSE ) {
-			if ( $ret != '' )
-				$ret .= '&';
-			if ( empty($v) && !preg_match('|[?&]' . preg_quote($k, '|') . '=|', $query) )
-				$ret .= $k;
-			else
-				$ret .= "$k=$v";
-		}
+	foreach ( $qs as $k => $v ) {
+		if ( $v === false )
+			unset($qs[$k]);
 	}
+
+	if ( ini_get('arg_separator.output') === '&')
+		$ret = http_build_query($qs, '', '&');
+	else
+		$ret = _http_build_query($qs, NULL, '&');
 	$ret = trim($ret, '?');
+	$ret = preg_replace('#=(&|$)#', '$1', $ret);
 	$ret = $protocol . $base . $ret . $frag;
 	$ret = rtrim($ret, '?');
 	return $ret;
@@ -851,6 +850,7 @@ function is_blog_installed() {
 }
 
 function wp_nonce_url($actionurl, $action = -1) {
+	$actionurl = str_replace('&amp;', '&', $actionurl);
 	return wp_specialchars(add_query_arg('_wpnonce', wp_create_nonce($action), $actionurl));
 }
 
@@ -1203,7 +1203,7 @@ function wp_die( $message, $title = '' ) {
 	<title><?php echo $title ?></title>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 	<link rel="stylesheet" href="<?php echo $admin_dir; ?>css/install.css" type="text/css" />
-<?php 
+<?php
 if ( ( $wp_locale ) && ('rtl' == $wp_locale->text_direction) ) : ?>
 	<link rel="stylesheet" href="<?php echo $admin_dir; ?>css/install-rtl.css" type="text/css" />
 <?php endif; ?>
@@ -1220,13 +1220,13 @@ if ( ( $wp_locale ) && ('rtl' == $wp_locale->text_direction) ) : ?>
 }
 
 function _config_wp_home($url = '') {
-	if ( defined( 'WP_HOME' ) ) 
+	if ( defined( 'WP_HOME' ) )
 		return WP_HOME;
 	else return $url;
 }
 
 function _config_wp_siteurl($url = '') {
-	if ( defined( 'WP_SITEURL' ) ) 
+	if ( defined( 'WP_SITEURL' ) )
 		return WP_SITEURL;
 	else return $url;
 }

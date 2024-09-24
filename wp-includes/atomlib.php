@@ -1,12 +1,12 @@
 <?php
-/* 
- * atomlib.php - Atom Syndication Format PHP Library 
+/*
+ * atomlib.php - Atom Syndication Format PHP Library
  *
  * Project: http://code.google.com/p/phpatomlib/
  *
  * Author: Elias Torres <elias@torrez.us>
  * Version: 0.4
- * 
+ *
  */
 
 class AtomFeed {
@@ -47,7 +47,7 @@ class AtomParser {
     var $current;
 
     function AtomParser() {
-        
+
         $this->feed = new AtomFeed();
         $this->current = null;
         $this->map_attrs_func = create_function('$k,$v', 'return "$k=\"$v\"";');
@@ -87,7 +87,7 @@ class AtomParser {
         $fp = fopen($this->FILE, "r");
         while ($data = fread($fp, 4096)) {
             if($this->debug) $this->content .= $data;
-            
+
             if(!xml_parse($parser, $data, feof($fp))) {
                 trigger_error(sprintf(__('XML error: %s at line %d')."\n",
                     xml_error_string(xml_get_error_code($xml_parser)),
@@ -165,8 +165,8 @@ class AtomParser {
 
         } else if(in_array($tag, $this->ATOM_CONTENT_ELEMENTS) || in_array($tag, $this->ATOM_SIMPLE_ELEMENTS)) {
             $this->in_content = array();
-            $this->is_xhtml = $attrs['type'] == 'xhtml'; 
-            $this->is_html = $attrs['type'] == 'html' || $attrs['type'] == 'text/html'; 
+            $this->is_xhtml = $attrs['type'] == 'xhtml';
+            $this->is_html = $attrs['type'] == 'html' || $attrs['type'] == 'text/html';
             $this->is_text = !in_array('type',array_keys($attrs)) || $attrs['type'] == 'text';
             $type = $this->is_xhtml ? 'XHTML' : ($this->is_html ? 'HTML' : ($this->is_text ? 'TEXT' : $attrs['type']));
 
@@ -194,7 +194,7 @@ class AtomParser {
         if(!empty($this->in_content)) {
             # if we are ending the original content element
             # then let's finalize the content
-            if($this->in_content[0][0] == $tag && 
+            if($this->in_content[0][0] == $tag &&
                 $this->in_content[0][1] == $this->depth) {
                 $origtype = $this->in_content[0][2];
                 array_shift($this->in_content);
@@ -203,7 +203,7 @@ class AtomParser {
                     if(count($c) == 3) {
                         array_push($newcontent, $c[2]);
                     } else {
-                        if($this->is_xhtml) {
+                        if($this->is_xhtml || $this->is_text) {
                             array_push($newcontent, $this->xml_escape($c));
                         } else {
                             array_push($newcontent, $c);
@@ -276,7 +276,7 @@ class AtomParser {
                     }
                 }
             }
-        } 
+        }
 
         if($attr) {
             return array(null, $name);
@@ -304,8 +304,8 @@ class AtomParser {
 
     function xml_escape($string)
     {
-             return str_replace(array('&','"',"'",'<','>'), 
-                array('&amp;','&quot;','&apos;','&lt;','&gt;'), 
+             return str_replace(array('&','"',"'",'<','>'),
+                array('&amp;','&quot;','&apos;','&lt;','&gt;'),
                 $string );
     }
 }

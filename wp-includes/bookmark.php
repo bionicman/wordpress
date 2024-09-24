@@ -4,11 +4,11 @@ function get_bookmark($bookmark_id, $output = OBJECT, $filter = 'raw') {
 	global $wpdb;
 
 	$bookmark_id = (int) $bookmark_id;
-	$link = $wpdb->get_row("SELECT * FROM $wpdb->links WHERE link_id = '$bookmark_id'");
-	$link->link_category = wp_get_link_cats($bookmark_id);
+	$link = $wpdb->get_row("SELECT * FROM $wpdb->links WHERE link_id = '$bookmark_id' LIMIT 1");
+	$link->link_category = array_unique( wp_get_object_terms($link_id, 'link_category', 'fields=ids') );
 
 	$link = sanitize_bookmark($link, $filter);
-	
+
 	if ( $output == OBJECT ) {
 		return $link;
 	} elseif ( $output == ARRAY_A ) {
@@ -45,10 +45,10 @@ function get_bookmarks($args = '') {
 	global $wpdb;
 
 	$defaults = array(
-		'orderby' => 'name', 'order' => 'ASC', 
-		'limit' => -1, 'category' => '', 
-		'category_name' => '', 'hide_invisible' => 1, 
-		'show_updated' => 0, 'include' => '', 
+		'orderby' => 'name', 'order' => 'ASC',
+		'limit' => -1, 'category' => '',
+		'category_name' => '', 'hide_invisible' => 1,
+		'show_updated' => 0, 'include' => '',
 		'exclude' => ''
 	);
 
@@ -94,7 +94,7 @@ function get_bookmarks($args = '') {
 		$exclusions .= ')';
 
 	if ( ! empty($category_name) ) {
-		if ( $category = get_term_by('name', $category_name, 'link_category') ) 
+		if ( $category = get_term_by('name', $category_name, 'link_category') )
 			$category = $category->term_id;
 	}
 
@@ -173,7 +173,7 @@ function sanitize_bookmark($bookmark, $context = 'display') {
 		if ( $do_object )
 			$bookmark->$field = sanitize_bookmark_field($field, $bookmark->$field, $bookmark->link_id, $context);
 		else
-			$bookmark[$field] = sanitize_bookmark_field($field, $bookmark[$field], $bookmark['link_id'], $context);	
+			$bookmark[$field] = sanitize_bookmark_field($field, $bookmark[$field], $bookmark['link_id'], $context);
 	}
 
 	return $bookmark;
@@ -191,7 +191,7 @@ function sanitize_bookmark_field($field, $value, $bookmark_id, $context) {
 	if ( 'link_target' == $field ) {
 		$targets = array('_top', '_blank');
 		if ( ! in_array($value, $targets) )
-			$value = '';		
+			$value = '';
 	}
 
 	if ( 'raw' == $context )

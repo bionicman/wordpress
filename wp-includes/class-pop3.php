@@ -1,4 +1,4 @@
-<?php 
+<?php
 
    /**
     * mail_fetch/setup.php
@@ -13,7 +13,7 @@
     *
     * pop3 class
     *
-    * $Id: class-pop3.php 4945 2007-02-25 18:19:21Z ryan $
+    * $Id: class-pop3.php 6026 2007-09-03 23:32:58Z ryan $
     */
 
 class POP3 {

@@ -10,18 +10,13 @@ wp_enqueue_script('interface');
 function wp_widgets_admin_head() {
 	global $wp_registered_sidebars, $wp_registered_widgets, $wp_registered_widget_controls;
 ?>
-	<link rel="stylesheet" href="<?php bloginfo( 'wpurl' ); ?>/wp-admin/css/widgets.css?version=<?php bloginfo('version'); ?>" type="text/css" />
+	<?php wp_admin_css( 'css/widgets' ); ?>
 	<!--[if IE 7]>
 	<style type="text/css">
 		#palette { float: <?php echo ( get_bloginfo( 'text_direction' ) == 'rtl' ) ? 'right' : 'left'; ?>; }
 	</style>
 	<![endif]-->
 <?php
-	if ( get_bloginfo( 'text_direction' ) == 'rtl' ) { 
-?>
-	<link rel="stylesheet" href="<?php bloginfo( 'wpurl' ); ?>/wp-admin/css/widgets-rtl.css?version=<?php bloginfo('version'); ?>" type="text/css" />
-<?php
-	}
 
 	$cols = array();
 	foreach ( $wp_registered_sidebars as $index => $sidebar ) {
@@ -96,11 +91,11 @@ function wp_widgets_admin_head() {
 		var elHeight = parseInt( jQuery(o).css('height') );
 		var elLeft = parseInt( jQuery(o).css('left') );
 		var elTop = parseInt( jQuery(o).css('top') );
-		if ( screenWidth < ( parseInt(elLeft) + parseInt(elWidth) ) ) 
+		if ( screenWidth < ( parseInt(elLeft) + parseInt(elWidth) ) )
 			jQuery(o).css('left', ( screenWidth - elWidth ) + 'px' );
-		if ( screenHeight < ( parseInt(elTop) + parseInt(elHeight) ) ) 
+		if ( screenHeight < ( parseInt(elTop) + parseInt(elHeight) ) )
 			jQuery(o).css('top', ( screenHeight - elHeight ) + 'px' );
-		if ( elLeft < 1 ) 
+		if ( elLeft < 1 )
 			jQuery(o).css('left', '1px');
 		if ( elTop < 1 )
 			jQuery(o).css('top', '1px');
@@ -134,10 +129,10 @@ function wp_widgets_admin_head() {
 	<?php endforeach; ?>
 	}
 	function updateAll() {
-		jQuery.map(cols, function(o) { 
+		jQuery.map(cols, function(o) {
 			if ( jQuery('#' + o + ' li').length )
 				jQuery('#'+o+'placemat span.handle').hide();
-			else 
+			else
 				jQuery('#'+o+'placemat span.handle').show();
 		});
 		resetDroppableHeights();
@@ -162,7 +157,7 @@ function wp_widget_draggable( $name ) {
 
 	$sanitized_name = sanitize_title( $wp_registered_widgets[$name]['id'] );
 	$link_title = __( 'Configure' );
-	$popper = ( isset( $wp_registered_widget_controls[$name] ) ) 
+	$popper = ( isset( $wp_registered_widget_controls[$name] ) )
 		? ' <div class="popper" id="' . $sanitized_name . 'popper" title="' . $link_title . '">&#8801;</div>'
 		: '';
 

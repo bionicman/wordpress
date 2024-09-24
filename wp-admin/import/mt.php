@@ -179,7 +179,7 @@ class MT_Import {
 		if ( $_POST['upload_type'] === 'ftp' ) {
 			$file['file'] = ABSPATH . 'wp-content/mt-export.txt';
 			if ( !file_exists($file['file']) )
-				$file['error'] = __('<code>mt-export.txt</code> does not exist</code>');
+				$file['error'] = __('<code>mt-export.txt</code> does not exist');
 		} else {
 			$file = wp_import_handle_upload();
 		}
@@ -357,9 +357,9 @@ class MT_Import {
 					$post->post_date = $date;
 					$post->post_date_gmt = $date_gmt;
 				} else if ( 'comment' == $context ) {
-					$comment->comment_date = $date;	
+					$comment->comment_date = $date;
 				} else if ( 'ping' == $context ) {
-					$ping->comment_date = $date;	
+					$ping->comment_date = $date;
 				}
 			} else if ( 0 === strpos($line, "EMAIL:") ) {
 				$email = trim( substr($line, strlen("EMAIL:")) );

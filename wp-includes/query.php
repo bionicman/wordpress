@@ -34,7 +34,7 @@ function wp_reset_query() {
 function is_admin () {
 	global $wp_query;
 
-	return ($wp_query->is_admin || (strpos($_SERVER['REQUEST_URI'], 'wp-admin/') !== false));
+	return ($wp_query->is_admin || (stripos($_SERVER['REQUEST_URI'], 'wp-admin/') !== false));
 }
 
 function is_archive () {
@@ -275,18 +275,18 @@ function the_post() {
 }
 
 /*
- * Comments loop. 
- */ 
+ * Comments loop.
+ */
 
-function have_comments() { 
-	global $wp_query; 
-	return $wp_query->have_comments(); 
-} 
+function have_comments() {
+	global $wp_query;
+	return $wp_query->have_comments();
+}
 
-function the_comment() { 
-	global $wp_query; 
-	return $wp_query->the_comment(); 
-}  
+function the_comment() {
+	global $wp_query;
+	return $wp_query->the_comment();
+}
 
 /*
  * WP_Query
@@ -405,6 +405,7 @@ class WP_Query {
 			, 'w'
 			, 'category_name'
 			, 'tag'
+			, 'tag_id'
 			, 'author_name'
 			, 'feed'
 			, 'tb'
@@ -418,8 +419,9 @@ class WP_Query {
 				$array[$key] = '';
 		}
 
-		$array_keys = array('category__in', 'category__not_in', 'category__and');
-		
+		$array_keys = array('category__in', 'category__not_in', 'category__and',
+			'tag__in', 'tag__not_in', 'tag__and', 'tag_slug__in', 'tag_slug__and');
+
 		foreach ( $array_keys as $key ) {
 			if ( !isset($array[$key]))
 				$array[$key] = array();
@@ -563,7 +565,7 @@ class WP_Query {
 				$qv['category__in'] = array();
 			} else {
 				$qv['category__in'] = array_map('intval', $qv['category__in']);
-				$this->is_category = true;	
+				$this->is_category = true;
 			}
 
 			if ( !is_array($qv['category___not_in']) || empty($qv['category__not_in']) ) {
@@ -576,11 +578,49 @@ class WP_Query {
 				$qv['category__and'] = array();
 			} else {
 				$qv['category__and'] = array_map('intval', $qv['category__and']);
-				$this->is_category = true;	
+				$this->is_category = true;
 			}
 
 			if (  '' != $qv['tag'] )
 				$this->is_tag = true;
+
+			$qv['tag_id'] = (int) $qv['tag_id'];
+			if (  !empty($qv['tag_id']) )
+				$this->is_tag = true;
+
+			if ( !is_array($qv['tag__in']) || empty($qv['tag__in']) ) {
+				$qv['tag__in'] = array();
+			} else {
+				$qv['tag__in'] = array_map('intval', $qv['tag__in']);
+				$this->is_tag = true;
+			}
+
+			if ( !is_array($qv['tag___not_in']) || empty($qv['tag__not_in']) ) {
+				$qv['tag__not_in'] = array();
+			} else {
+				$qv['tag__not_in'] = array_map('intval', $qv['tag__not_in']);
+			}
+
+			if ( !is_array($qv['tag__and']) || empty($qv['tag__and']) ) {
+				$qv['tag__and'] = array();
+			} else {
+				$qv['tag__and'] = array_map('intval', $qv['tag__and']);
+				$this->is_category = true;
+			}
+
+			if ( !is_array($qv['tag_slug__in']) || empty($qv['tag_slug__in']) ) {
+				$qv['tag_slug__in'] = array();
+			} else {
+				$qv['tag_slug__in'] = array_map('sanitize_title', $qv['tag_slug__in']);
+				$this->is_tag = true;
+			}
+
+			if ( !is_array($qv['tag_slug__and']) || empty($qv['tag_slug__amd']) ) {
+				$qv['tag_slug__and'] = array();
+			} else {
+				$qv['tag_slug__and'] = array_map('sanitize_title', $qv['tag_slug__and']);
+				$this->is_tag = true;
+			}
 
 			if ( empty($qv['author']) || ($qv['author'] == '0') ) {
 				$this->is_author = false;
@@ -862,7 +902,7 @@ class WP_Query {
 				$search .= "{$searchand}((post_title LIKE '{$n}{$term}{$n}') OR (post_content LIKE '{$n}{$term}{$n}'))";
 				$searchand = ' AND ';
 			}
-			$term = addslashes_gpc($q['s']); 
+			$term = addslashes_gpc($q['s']);
 			if (!$q['sentence'] && count($q['search_terms']) > 1 && $q['search_terms'][0] != $q['s'] )
 				$search .= " OR (post_title LIKE '{$n}{$term}{$n}') OR (post_content LIKE '{$n}{$term}{$n}')";
 
@@ -922,19 +962,6 @@ class WP_Query {
 			}
 		}
 
-		if ( '' != $q['tag'] ) {
-			$reqtag = is_term( $q['tag'], 'post_tag' );
-			if ( !empty($reqtag) )
-				$reqtag = $reqtag['term_id'];
-			else
-				$reqtag = 0;
-
-			$q['tag_id'] = $reqtag;
-			$join = " LEFT JOIN $wpdb->term_relationships ON ($wpdb->posts.ID = $wpdb->term_relationships.object_id) LEFT JOIN $wpdb->term_taxonomy ON ($wpdb->term_relationships.term_taxonomy_id = $wpdb->term_taxonomy.term_taxonomy_id) ";
-			$whichcat = " AND $wpdb->term_taxonomy.term_id IN ({$q['tag_id']}) AND $wpdb->term_taxonomy.taxonomy = 'post_tag' ";
-			$groupby = "{$wpdb->posts}.ID";
-		}
-
 		// Category stuff for nice URLs
 		if ( '' != $q['category_name'] ) {
 			$reqcat = get_category_by_path($q['category_name']);
@@ -967,6 +994,69 @@ class WP_Query {
 			$in_cats = "'" . implode("', '", $in_cats) . "'";
 			$whichcat .= "AND $wpdb->term_taxonomy.term_id IN ($in_cats)";
 			$groupby = "{$wpdb->posts}.ID";
+		}
+
+		// Tags
+		if ( '' != $q['tag'] ) {
+			if ( strpos($q['tag'], ',') !== false ) {
+				$tags = preg_split('/[,\s]+/', $q['tag']);
+				foreach ( (array) $tags as $tag ) {
+					$tag = sanitize_term_field('slug', $tag, 0, 'post_tag', 'db');
+					$q['tag_slug__in'][] = $tag;
+				}
+			} else if ( preg_match('/[+\s]+/', $q['tag']) ) {
+				$tags = preg_split('/[+\s]+/', $q['tag']);
+				foreach ( (array) $tags as $tag ) {
+					$tag = sanitize_term_field('slug', $tag, 0, 'post_tag', 'db');
+					$q['tag_slug__and'][] = $tag;
+				}
+			} else {
+				$q['tag'] = sanitize_term_field('slug', $q['tag'], 0, 'post_tag', 'db');
+				$reqtag = is_term( $q['tag'], 'post_tag' );
+				if ( !empty($reqtag) )
+					$reqtag = $reqtag['term_id'];
+				else
+					$reqtag = 0;
+
+				$q['tag_id'] = $reqtag;
+				$q['tag__in'][] = $reqtag;
+			}
+		}
+
+		if ( !empty($q['tag__in']) || !empty($q['tag__not_in']) || !empty($q['tag__and']) ||
+			!empty($q['tag_slug__in']) || !empty($q['tag_slug__and']) ) {
+			$groupby = "{$wpdb->posts}.ID";
+		}
+
+		if ( !empty($q['tag__in']) ) {
+			$join = " LEFT JOIN $wpdb->term_relationships ON ($wpdb->posts.ID = $wpdb->term_relationships.object_id) LEFT JOIN $wpdb->term_taxonomy ON ($wpdb->term_relationships.term_taxonomy_id = $wpdb->term_taxonomy.term_taxonomy_id) ";
+			$whichcat .= " AND $wpdb->term_taxonomy.taxonomy = 'post_tag' ";
+			$include_tags = "'" . implode("', '", $q['tag__in']) . "'";
+			$whichcat .= " AND $wpdb->term_taxonomy.term_id IN ($include_tags) ";
+		}
+
+		if ( !empty($q['tag_slug__in']) ) {
+			$join = " LEFT JOIN $wpdb->term_relationships ON ($wpdb->posts.ID = $wpdb->term_relationships.object_id) LEFT JOIN $wpdb->term_taxonomy ON ($wpdb->term_relationships.term_taxonomy_id = $wpdb->term_taxonomy.term_taxonomy_id) LEFT JOIN $wpdb->terms ON ($wpdb->term_taxonomy.term_id = $wpdb->terms.term_id) ";
+			$whichcat .= " AND $wpdb->term_taxonomy.taxonomy = 'post_tag' ";
+			$include_tags = "'" . implode("', '", $q['tag_slug__in']) . "'";
+			$whichcat .= " AND $wpdb->terms.slug IN ($include_tags) ";
+		}
+
+		if ( !empty($q['tag__not_in']) ) {
+			$ids = get_objects_in_term($q['tag__not_in'], 'post_tag');
+			if ( is_array($ids) && count($ids > 0) ) {
+				$out_posts = "'" . implode("', '", $ids) . "'";
+				$whichcat .= " AND $wpdb->posts.ID NOT IN ($out_posts)";
+			}
+		}
+
+		if ( !empty($q['tag_slug__and']) ) {
+			$count = 0;
+			foreach ( $q['tag_slug__and'] as $tag_and ) {
+				$join .= " LEFT JOIN $wpdb->term_relationships AS tr$count ON ($wpdb->posts.ID = tr$count.object_id) LEFT JOIN $wpdb->term_taxonomy AS tt$count ON (tr$count.term_taxonomy_id = tt$count.term_taxonomy_id) LEFT JOIN $wpdb->terms AS term$count ON (tt$count.term_id = term$count.term_id) ";
+				$whichcat .= " AND term$count.slug = '$tag_and' ";
+				$count++;
+			}
 		}
 
 		// Author/user stuff
@@ -1134,7 +1224,7 @@ class WP_Query {
 		}
 
 		// Apply post-paging filters on where and join.  Only plugins that
-		// manipulate paging queries should use these hooks.	
+		// manipulate paging queries should use these hooks.
 
 		// Announce current selection parameters.  For use by caching plugins.
 		do_action( 'posts_selection', $where . $groupby . $q['orderby'] . $limits . $join );

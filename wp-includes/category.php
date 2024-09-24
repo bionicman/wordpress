@@ -102,20 +102,28 @@ function get_cat_name($cat_id) {
 	return $category->name;
 }
 
-function cat_is_ancestor_of($cat1, $cat2) { 
-	if ( is_int($cat1) ) 
-		$cat1 = & get_category($cat1); 
-	if ( is_int($cat2) ) 
-		$cat2 = & get_category($cat2); 
+function cat_is_ancestor_of($cat1, $cat2) {
+	if ( is_int($cat1) )
+		$cat1 = & get_category($cat1);
+	if ( is_int($cat2) )
+		$cat2 = & get_category($cat2);
 
-	if ( !$cat1->term_id || !$cat2->parent ) 
-		return false; 
+	if ( !$cat1->term_id || !$cat2->parent )
+		return false;
 
-	if ( $cat2->parent == $cat1->term_id ) 
-		return true; 
+	if ( $cat2->parent == $cat1->term_id )
+		return true;
 
-	return cat_is_ancestor_of($cat1, get_category($cat2->parent)); 
-} 
+	return cat_is_ancestor_of($cat1, get_category($cat2->parent));
+}
+
+function sanitize_category($category, $context = 'display') {
+	return sanitize_term($category, 'category', $context);
+}
+
+function sanitize_category_field($field, $value, $cat_id, $context) {
+	return sanitize_term_field($field, $value, $cat_id, 'category', $context);
+}
 
 // Tags
 
@@ -138,6 +146,10 @@ function &get_tags($args = '') {
 
 	$tags = apply_filters('get_tags', $tags, $args);
 	return $tags;
+}
+
+function &get_tag($tag, $output = OBJECT, $filter = 'raw') {
+	return get_term($tag, 'post_tag', $output, $filter);
 }
 
 //

@@ -180,17 +180,17 @@ function page_rows( $parent = 0, $level = 0, $pages = 0, $hierarchy = true ) {
 		$id = (int) $post->ID;
 		$class = ('alternate' == $class ) ? '' : 'alternate';
 ?>
-  <tr id='page-<?php echo $id; ?>' class='<?php echo $class; ?>'> 
-    <th scope="row" style="text-align: center"><?php echo $post->ID; ?></th> 
+  <tr id='page-<?php echo $id; ?>' class='<?php echo $class; ?>'>
+    <th scope="row" style="text-align: center"><?php echo $post->ID; ?></th>
     <td>
       <?php echo $pad; ?><?php the_title() ?>
-    </td> 
+    </td>
     <td><?php the_author() ?></td>
-    <td><?php if ( '0000-00-00 00:00:00' ==$post->post_modified ) _e('Unpublished'); else echo mysql2date( __('Y-m-d g:i a'), $post->post_modified ); ?></td> 
+    <td><?php if ( '0000-00-00 00:00:00' ==$post->post_modified ) _e('Unpublished'); else echo mysql2date( __('Y-m-d g:i a'), $post->post_modified ); ?></td>
 	<td><a href="<?php the_permalink(); ?>" rel="permalink" class="view"><?php _e( 'View' ); ?></a></td>
-    <td><?php if ( current_user_can( 'edit_page', $id ) ) { echo "<a href='page.php?action=edit&amp;post=$id' class='edit'>" . __( 'Edit' ) . "</a>"; } ?></td> 
-    <td><?php if ( current_user_can( 'delete_page', $id ) ) { echo "<a href='" . wp_nonce_url( "page.php?action=delete&amp;post=$id", 'delete-page_' . $id ) .  "' class='delete' onclick=\"return deleteSomething( 'page', " . $id . ", '" . js_escape(sprintf( __("You are about to delete the '%s' page.\n'OK' to delete, 'Cancel' to stop." ), get_the_title() ) ) . "' );\">" . __( 'Delete' ) . "</a>"; } ?></td> 
-  </tr> 
+    <td><?php if ( current_user_can( 'edit_page', $id ) ) { echo "<a href='page.php?action=edit&amp;post=$id' class='edit'>" . __( 'Edit' ) . "</a>"; } ?></td>
+    <td><?php if ( current_user_can( 'delete_page', $id ) ) { echo "<a href='" . wp_nonce_url( "page.php?action=delete&amp;post=$id", 'delete-page_' . $id ) .  "' class='delete' onclick=\"return deleteSomething( 'page', " . $id . ", '" . js_escape(sprintf( __("You are about to delete the '%s' page.\n'OK' to delete, 'Cancel' to stop." ), get_the_title() ) ) . "' );\">" . __( 'Delete' ) . "</a>"; } ?></td>
+  </tr>
 
 <?php
 		if ( $hierarchy ) page_rows( $id, $level + 1, $pages );
@@ -286,7 +286,7 @@ if ( current_user_can('edit_post', $comment->comment_post_ID) ) {
 	}
 	echo " | <a href=\"" . wp_nonce_url("comment.php?action=deletecomment&amp;dt=spam&amp;p=" . $comment->comment_post_ID . "&amp;c=" . $comment->comment_ID, 'delete-comment_' . $comment->comment_ID) . "\" onclick=\"return deleteSomething( 'comment-as-spam', $comment->comment_ID, '" . js_escape(sprintf(__("You are about to mark as spam this comment by '%s'.\n'Cancel' to stop, 'OK' to mark as spam."), $comment->comment_author))  . "', theCommentList );\">" . __('Spam') . "</a> ";
 }
-$post = get_post($comment->comment_post_ID);
+$post = get_post($comment->comment_post_ID, OBJECT, 'display');
 $post_title = wp_specialchars( $post->post_title, 'double' );
 $post_title = ('' == $post_title) ? "# $comment->comment_post_ID" : $post_title;
 ?>
@@ -559,21 +559,36 @@ function wp_dropdown_roles( $default = false ) {
 	echo $p . $r;
 }
 
+function wp_convert_hr_to_bytes( $size ) {
+	$size = strtolower($size);
+	$bytes = (int) $size;
+	if ( strpos($size, 'k') !== false )
+		$bytes = intval($size) * 1024;
+	elseif ( strpos($size, 'm') !== false )
+		$bytes = intval($size) * 1024 * 1024;
+	elseif ( strpos($size, 'g') !== false )
+		$bytes = intval($size) * 1024 * 1024 * 1024;
+	return $bytes;
+}
+
+function wp_convert_bytes_to_hr( $bytes ) {
+	$units = array( 0 => 'B', 1 => 'kB', 2 => 'MB', 3 => 'GB' );
+	$log = log( $bytes, 1024 );
+	$power = (int) $log;
+	$size = pow(1024, $log - $power);
+	return $size . $units[$power];
+}
+
 function wp_import_upload_form( $action ) {
-	$size = strtolower( ini_get( 'upload_max_filesize' ) );
-	$bytes = 0;
-	if (strpos($size, 'k') !== false)
-		$bytes = $size * 1024;
-	if (strpos($size, 'm') !== false)
-		$bytes = $size * 1024 * 1024;
-	if (strpos($size, 'g') !== false)
-		$bytes = $size * 1024 * 1024 * 1024;
-	$size = apply_filters( 'import_upload_size_limit', $size );
+	$u_bytes = wp_convert_hr_to_bytes( ini_get( 'upload_max_filesize' ) );
+	$p_bytes = wp_convert_hr_to_bytes( ini_get( 'post_max_size' ) );
+	$bytes = apply_filters( 'import_upload_size_limit', min($u_bytes, $p_bytes), $u_bytes, $p_bytes );
+	$size = wp_convert_bytes_to_hr( $bytes );
 ?>
 <form enctype="multipart/form-data" id="import-upload-form" method="post" action="<?php echo attribute_escape($action) ?>">
 <p>
 <?php wp_nonce_field('import-upload'); ?>
-<label for="upload"><?php _e( 'Choose a file from your computer:' ); ?></label> (<?php printf( __('Maximum size: %s' ), $size ); ?> )
+<label for="upload"><?php _e( 'Choose a file from your computer:' ); ?></label> (<?php printf( __('Maximum size: %s' ), $size ); ?>)
 <input type="file" id="upload" name="import" size="25" />
 <input type="hidden" name="action" value="save" />
 <input type="hidden" name="max_file_size" value="<?php echo $bytes; ?>" />

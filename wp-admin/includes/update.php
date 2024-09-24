@@ -3,37 +3,40 @@
 // The admin side of our 1.0 update system
 
 function core_update_footer( $msg ) {
+	if ( !current_user_can('manage_options') )
+		return sprintf( '| '.__( 'Version %s' ), $GLOBALS['wp_version'] );
+
 	$cur = get_option( 'update_core' );
-	
-	if ( ! isset( $cur->response ) )
-		return $msg;
 
 	switch ( $cur->response ) {
 	case 'development' :
-		return sprintf( __( '| You are using a development version (%s). Cool! Please <a href="%s">stay updated</a>.' ), $GLOBALS['wp_version'], 'http://wordpress.org/download/svn/' );
+		return sprintf( '| '.__( 'You are using a development version (%s). Cool! Please <a href="%s">stay updated</a>.' ), $GLOBALS['wp_version'], 'http://wordpress.org/download/svn/' );
 	break;
 
 	case 'upgrade' :
-		return sprintf( __( '| <strong>Your WordPress %s is out of date. <a href="%s">Please update</a>.</strong>' ), $GLOBALS['wp_version'], $cur->url );
+		return sprintf( '| <strong>'.__( 'Your WordPress %s is out of date. <a href="%s">Please update</a>.' ).'</strong>', $GLOBALS['wp_version'], $cur->url );
 	break;
 
-
 	case 'latest' :
-		return sprintf( __( '| Version %s' ), $GLOBALS['wp_version'] );
+	default :
+		return sprintf( '| '.__( 'Version %s' ), $GLOBALS['wp_version'] );
 	break;
 	}
 }
 add_filter( 'update_footer', 'core_update_footer' );
 
 function update_nag() {
-$cur = get_option( 'update_core' );
+	$cur = get_option( 'update_core' );
 
-if ( ! isset( $cur->response ) || $cur->response != 'upgrade' )
-	return false;
+	if ( ! isset( $cur->response ) || $cur->response != 'upgrade' )
+		return false;
 
-?>
-<div id="update-nag"><?php printf( __('Update Available! <a href="%s">Please upgrade now</a>.'), $cur->url ); ?></div>
-<?php
+	if ( current_user_can('manage_options') )
+		$msg = sprintf( __('A new version of WordPress is available! <a href="%s">Please update now</a>.'), $cur->url );
+	else
+		$msg = __('A new version of WordPress is available! Please notify the site administrator.');
+
+	echo "<div id='update-nag'>$msg</div>";
 }
 add_action( 'admin_notices', 'update_nag', 3 );
 
@@ -59,9 +62,9 @@ function wp_update_plugins() {
 			$plugin_changed = true;
 	}
 
-	if ( 
-		isset( $current->last_checked ) && 
-		43200 > ( time() - $current->last_checked ) && 
+	if (
+		isset( $current->last_checked ) &&
+		43200 > ( time() - $current->last_checked ) &&
 		!$plugin_changed
 	)
 		return false;

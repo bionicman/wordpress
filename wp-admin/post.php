@@ -38,6 +38,9 @@ case 'post':
 	if ( isset($_POST['save']) )
 		$location = "post.php?action=edit&post=$post_ID";
 
+	if ( empty($post_ID) )
+		$location = 'post-new.php';
+
 	wp_redirect($location);
 	exit();
 	break;
@@ -151,7 +154,7 @@ case 'delete':
 		if ( ! wp_delete_attachment($post_id) )
 			wp_die( __('Error in deleting...') );
 	} else {
-		if ( !wp_delete_post($post_id) ) 
+		if ( !wp_delete_post($post_id) )
 			wp_die( __('Error in deleting...') );
 	}
 

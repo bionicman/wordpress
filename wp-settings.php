@@ -11,14 +11,14 @@ function wp_unregister_GLOBALS() {
 	$noUnset = array('GLOBALS', '_GET', '_POST', '_COOKIE', '_REQUEST', '_SERVER', '_ENV', '_FILES', 'table_prefix');
 
 	$input = array_merge($_GET, $_POST, $_COOKIE, $_SERVER, $_ENV, $_FILES, isset($_SESSION) && is_array($_SESSION) ? $_SESSION : array());
-	foreach ( $input as $k => $v ) 
+	foreach ( $input as $k => $v )
 		if ( !in_array($k, $noUnset) && isset($GLOBALS[$k]) ) {
 			$GLOBALS[$k] = NULL;
 			unset($GLOBALS[$k]);
 		}
 }
 
-wp_unregister_GLOBALS(); 
+wp_unregister_GLOBALS();
 
 unset( $wp_filter, $cache_userdata, $cache_lastcommentmodified, $cache_lastpostdate, $cache_settings, $category_cache, $cache_categories );
 
@@ -42,7 +42,7 @@ if ( empty( $_SERVER['REQUEST_URI'] ) ) {
 			$_SERVER['REQUEST_URI'] = substr($_SERVER['SCRIPT_NAME'], 0, strrpos($_SERVER['SCRIPT_NAME'], '/')) . '/';
 		else
 			$_SERVER['REQUEST_URI'] = $_SERVER['SCRIPT_NAME'] . $_SERVER['PATH_INFO'];
-			
+
 		// Append the query string if it exists and isn't null
 		if (isset($_SERVER['QUERY_STRING']) && !empty($_SERVER['QUERY_STRING'])) {
 			$_SERVER['REQUEST_URI'] .= '?' . $_SERVER['QUERY_STRING'];
@@ -111,7 +111,7 @@ if ( !defined('LANGDIR') ) {
 if ( !defined('PLUGINDIR') )
 	define('PLUGINDIR', 'wp-content/plugins'); // no leading slash, no trailing slash
 if ( file_exists(ABSPATH . 'wp-content/db.php') )
-	require (ABSPATH . 'wp-content/db.php');
+	require_once (ABSPATH . 'wp-content/db.php');
 else
 	require_once (ABSPATH . WPINC . '/wp-db.php');
 
@@ -158,7 +158,7 @@ require_once (ABSPATH . WPINC . '/l10n.php');
 
 if ( !is_blog_installed() && (strpos($_SERVER['PHP_SELF'], 'install.php') === false && !defined('WP_INSTALLING')) ) {
 	if ( defined('WP_SITEURL') )
-		$link = WP_SITEURL . '/wp-admin/install.php'; 
+		$link = WP_SITEURL . '/wp-admin/install.php';
 	elseif (strpos($_SERVER['PHP_SELF'], 'wp-admin') !== false)
 		$link = preg_replace('|/wp-admin/?.*?$|', '/', $_SERVER['PHP_SELF']) . 'wp-admin/install.php';
 	else
@@ -199,13 +199,15 @@ require (ABSPATH . WPINC . '/canonical.php');
 if (strpos($_SERVER['PHP_SELF'], 'install.php') === false) {
     // Used to guarantee unique hash cookies
     $cookiehash = md5(get_option('siteurl'));
-	define('COOKIEHASH', $cookiehash); 
+	define('COOKIEHASH', $cookiehash);
 }
 
 if ( !defined('USER_COOKIE') )
 	define('USER_COOKIE', 'wordpressuser_'. COOKIEHASH);
 if ( !defined('PASS_COOKIE') )
 	define('PASS_COOKIE', 'wordpresspass_'. COOKIEHASH);
+if ( !defined('TEST_COOKIE') )
+	define('TEST_COOKIE', 'wordpress_test_cookie');
 if ( !defined('COOKIEPATH') )
 	define('COOKIEPATH', preg_replace('|https?://[^/]+|i', '', get_option('home') . '/' ) );
 if ( !defined('SITECOOKIEPATH') )
