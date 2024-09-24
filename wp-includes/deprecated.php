@@ -1,4 +1,19 @@
 <?php
+
+/*
+ *  Deprecated global variables.
+ */
+ 
+$tableposts = $wpdb->posts;
+$tableusers = $wpdb->users;
+$tablecategories = $wpdb->categories;
+$tablepost2cat = $wpdb->post2cat;
+$tablecomments = $wpdb->comments;
+$tablelinks = $wpdb->links;
+$tablelinkcategories = 'linkcategories_is_gone';
+$tableoptions = $wpdb->options;
+$tablepostmeta = $wpdb->postmeta;
+
 /*
  * Deprecated functios come here to die.
  */
@@ -429,8 +444,8 @@ function wp_list_cats($args = '') {
 		$r['show_last_update'] = $r['optiondates'];
 	if ( isset($r['optioncount']) )
 		$r['show_count'] = $r['optioncount'];
-	if ( !empty($r['list']) )
-		$r['style'] = 'break';
+	if ( isset($r['list']) )
+		$r['style'] = $r['list'] ? 'list' : 'break';
 	$r['title_li'] = '';
 
 	return wp_list_categories($r);

@@ -3,7 +3,7 @@
 Plugin Name: Akismet
 Plugin URI: http://akismet.com/
 Description: Akismet checks your comments against the Akismet web service to see if they look like spam or not. You need a <a href="http://wordpress.com/api-keys/">WordPress.com API key</a> to use it. You can review the spam it catches under "Comments." To show off your Akismet stats just put <code>&lt;?php akismet_counter(); ?></code> in your template.
-Version: 1.8
+Version: 1.8.1
 Author: Matt Mullenweg
 Author URI: http://photomatt.net/
 */
@@ -458,7 +458,7 @@ $post_title = ('' == $post_title) ? "# $comment->comment_post_ID" : $post_title;
 <?php } ?>
 
 <?php if ( !isset( $_POST['s'] ) ) { ?>
-<form method="post" action="">
+<form method="post" action="<?php echo htmlspecialchars( add_query_arg( 'noheader', 'true' ) ); ?>">
 <p><input type="hidden" name="action" value="delete" />
 <?php printf(__('There are currently %1$s comments identified as spam.'), $spam_count); ?>&nbsp; &nbsp; <input type="submit" name="Submit" value="<?php _e('Delete all'); ?>" />
 <input type="hidden" name="display_time" value="<?php echo current_time('mysql', 1); ?>" /></p>
@@ -554,8 +554,8 @@ function akismet_check_db_comment( $id ) {
 }
 
 // This option causes tons of FPs, was removed in 2.1
-function kill_proxy_check( $option ) { return 0; }
-add_filter('option_open_proxy_check', 'kill_proxy_check');
+function akismet_kill_proxy_check( $option ) { return 0; }
+add_filter('option_open_proxy_check', 'akismet_kill_proxy_check');
 
 // Widget stuff
 function widget_akismet_register() {

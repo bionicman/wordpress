@@ -12,8 +12,10 @@ function wp_unregister_GLOBALS() {
 
 	$input = array_merge($_GET, $_POST, $_COOKIE, $_SERVER, $_ENV, $_FILES, isset($_SESSION) && is_array($_SESSION) ? $_SESSION : array());
 	foreach ( $input as $k => $v ) 
-		if ( !in_array($k, $noUnset) && isset($GLOBALS[$k]) )
+		if ( !in_array($k, $noUnset) && isset($GLOBALS[$k]) ) {
+			$GLOBALS[$k] = NULL;
 			unset($GLOBALS[$k]);
+		}
 }
 
 wp_unregister_GLOBALS(); 
@@ -111,7 +113,6 @@ $wpdb->post2cat       = $wpdb->prefix . 'post2cat';
 $wpdb->comments       = $wpdb->prefix . 'comments';
 $wpdb->link2cat       = $wpdb->prefix . 'link2cat';
 $wpdb->links          = $wpdb->prefix . 'links';
-$wpdb->linkcategories = $wpdb->prefix . 'linkcategories';
 $wpdb->options        = $wpdb->prefix . 'options';
 $wpdb->postmeta       = $wpdb->prefix . 'postmeta';
 $wpdb->usermeta       = $wpdb->prefix . 'usermeta';
