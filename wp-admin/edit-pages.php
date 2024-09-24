@@ -17,6 +17,7 @@ if ( isset($_GET['action']) && ( -1 != $_GET['action'] || -1 != $_GET['action2']
 		case 'delete':
 			if ( isset($_GET['post']) && ! isset($_GET['bulk_edit']) && (isset($_GET['doaction']) || isset($_GET['doaction2'])) ) {
 				check_admin_referer('bulk-pages');
+				$deleted = 0;
 				foreach( (array) $_GET['post'] as $post_id_del ) {
 					$post_del = & get_post($post_id_del);
 
@@ -30,6 +31,7 @@ if ( isset($_GET['action']) && ( -1 != $_GET['action'] || -1 != $_GET['action2']
 						if ( !wp_delete_post($post_id_del) )
 							wp_die( __('Error in deleting...') );
 					}
+					$deleted++;
 				}
 			}
 			break;
@@ -52,13 +54,14 @@ if ( isset($_GET['action']) && ( -1 != $_GET['action'] || -1 != $_GET['action2']
 	$sendback = wp_get_referer();
 	if (strpos($sendback, 'page.php') !== false) $sendback = admin_url('page-new.php');
 	elseif (strpos($sendback, 'attachments.php') !== false) $sendback = admin_url('attachments.php');
-	$sendback = preg_replace('|[^a-z0-9-~+_.?#=&;,/:]|i', '', $sendback);
 	if ( isset($done) ) {
 		$done['updated'] = count( $done['updated'] );
 		$done['skipped'] = count( $done['skipped'] );
 		$done['locked'] = count( $done['locked'] );
 		$sendback = add_query_arg( $done, $sendback );
 	}
+	if ( isset($deleted) )
+		$sendback = add_query_arg('deleted', $deleted, $sendback);
 	wp_redirect($sendback);
 	exit();
 } elseif ( isset($_GET['_wp_http_referer']) && ! empty($_GET['_wp_http_referer']) ) {
@@ -68,15 +71,15 @@ if ( isset($_GET['action']) && ( -1 != $_GET['action'] || -1 != $_GET['action2']
 
 if ( empty($title) )
 	$title = __('Edit Pages');
-$parent_file = 'edit.php';
+$parent_file = 'edit-pages.php';
 wp_enqueue_script('inline-edit-post');
 
 $post_stati  = array(	//	array( adj, noun )
-		'publish' => array(__('Published'), __('Published pages'), __ngettext_noop('Published <span class="count">(%s)</span>', 'Published <span class="count">(%s)</span>')),
-		'future' => array(__('Scheduled'), __('Scheduled pages'), __ngettext_noop('Scheduled <span class="count">(%s)</span>', 'Scheduled <span class="count">(%s)</span>')),
-		'pending' => array(__('Pending Review'), __('Pending pages'), __ngettext_noop('Pending Review <span class="count">(%s)</span>', 'Pending Review <span class="count">(%s)</span>')),
-		'draft' => array(__('Draft'), _c('Drafts|manage posts header'), __ngettext_noop('Draft <span class="count">(%s)</span>', 'Drafts <span class="count">(%s)</span>')),
-		'private' => array(__('Private'), __('Private pages'), __ngettext_noop('<a %s>Private</a> <span class="count">(%s)</span>', '<a %s>Private</a> <span class="count">(%s)</span>'))
+		'publish' => array(__('Published|page'), __('Published pages'), _n_noop('Published <span class="count">(%s)</span>|page', 'Published <span class="count">(%s)</span>')),
+		'future' => array(__('Scheduled|page'), __('Scheduled pages'), _n_noop('Scheduled <span class="count">(%s)</span>|page', 'Scheduled <span class="count">(%s)</span>')),
+		'pending' => array(__('Pending Review|page'), __('Pending pages'), _n_noop('Pending Review <span class="count">(%s)</span>|page', 'Pending Review <span class="count">(%s)</span>')),
+		'draft' => array(__('Draft|page'), _c('Drafts|manage posts header'), _n_noop('Draft <span class="count">(%s)</span>|page', 'Drafts <span class="count">(%s)</span>')),
+		'private' => array(__('Private|page'), __('Private pages'), _n_noop('Private <span class="count">(%s)</span>|page', 'Private <span class="count">(%s)</span>'))
 	);
 
 $query = array('post_type' => 'page', 'orderby' => 'menu_order title', 'what_to_show' => 'posts',
@@ -100,25 +103,31 @@ if ( is_singular() ) {
 require_once('admin-header.php'); ?>
 
 <div class="wrap">
+<?php screen_icon(); ?>
 <h2><?php echo wp_specialchars( $title ); ?></h2>
 
-<?php if ( isset($_GET['locked']) || isset($_GET['skipped']) || isset($_GET['updated']) ) { ?>
+<?php if ( isset($_GET['locked']) || isset($_GET['skipped']) || isset($_GET['updated']) || isset($_GET['deleted']) ) { ?>
 <div id="message" class="updated fade"><p>
-<?php if ( (int) $_GET['updated'] ) {
+<?php if ( isset($_GET['updated']) && (int) $_GET['updated'] ) {
 	printf( __ngettext( '%s page updated.', '%s pages updated.', $_GET['updated'] ), number_format_i18n( $_GET['updated'] ) );
 	unset($_GET['updated']);
 }
 
-if ( (int) $_GET['skipped'] ) {
+if ( isset($_GET['skipped']) && (int) $_GET['skipped'] ) {
 	printf( __ngettext( '%s page not updated, invalid parent page specified.', '%s pages not updated, invalid parent page specified.', $_GET['skipped'] ), number_format_i18n( $_GET['skipped'] ) );
 	unset($_GET['skipped']);
 }
 
-if ( (int) $_GET['locked'] ) {
+if ( isset($_GET['locked']) && (int) $_GET['locked'] ) {
 	printf( __ngettext( '%s page not updated, somebody is editing it.', '%s pages not updated, somebody is editing them.', $_GET['locked'] ), number_format_i18n( $_GET['skipped'] ) );
 	unset($_GET['locked']);
 }
-$_SERVER['REQUEST_URI'] = remove_query_arg( array('locked', 'skipped', 'updated'), $_SERVER['REQUEST_URI'] );
+
+if ( isset($_GET['deleted']) && (int) $_GET['deleted'] ) {
+	printf( __ngettext( 'Page deleted.', '%s pages deleted.', $_GET['deleted'] ), number_format_i18n( $_GET['deleted'] ) );
+	unset($_GET['deleted']);
+}
+$_SERVER['REQUEST_URI'] = remove_query_arg( array('locked', 'skipped', 'updated', 'deleted'), $_SERVER['REQUEST_URI'] );
 ?>
 </p></div>
 <?php } ?>
@@ -148,7 +157,7 @@ foreach ( $post_stati as $status => $label ) {
 	if ( isset( $_GET['post_status'] ) && $status == $_GET['post_status'] )
 		$class = ' class="current"';
 
-	$status_links[] = "<li><a href='edit-pages.php?post_status=$status'$class>" . sprintf( __ngettext( $label[2][0], $label[2][1], $num_posts->$status ), number_format_i18n( $num_posts->$status ) ) . '</a>';
+	$status_links[] = "<li><a href='edit-pages.php?post_status=$status'$class>" . sprintf( _nc( $label[2][0], $label[2][1], $num_posts->$status ), number_format_i18n( $num_posts->$status ) ) . '</a>';
 }
 echo implode( " |</li>\n", $status_links ) . '</li>';
 unset($status_links);
@@ -165,6 +174,8 @@ endif;
 <?php if ( isset($_GET['post_status'] ) ) : ?>
 <input type="hidden" name="post_status" value="<?php echo attribute_escape($_GET['post_status']) ?>" />
 <?php endif; ?>
+
+<?php if ($posts) { ?>
 
 <div class="tablenav">
 
@@ -209,20 +220,16 @@ if ( $page_links ) : ?>
 
 <div class="clear"></div>
 
-<?php
-
-if ($posts) {
-?>
-<table class="widefat page">
+<table class="widefat page fixed" cellspacing="0">
   <thead>
   <tr>
-<?php print_column_headers('page'); ?>
+<?php print_column_headers('edit-pages'); ?>
   </tr>
   </thead>
 
   <tfoot>
   <tr>
-<?php print_column_headers('page', false); ?>
+<?php print_column_headers('edit-pages', false); ?>
   </tr>
   </tfoot>
 
@@ -249,20 +256,18 @@ if ( $page_links )
 <br class="clear" />
 </div>
 
+<?php } else { ?>
+<div class="clear"></div>
+<p><?php _e('No pages found.') ?></p>
+<?php
+} // end if ($posts)
+?>
+
 </form>
 
 <?php inline_edit_row( 'page' ) ?>
 
 <div id="ajax-response"></div>
-
-<?php
-} else {
-?>
-</form>
-<p><?php _e('No pages found.') ?></p>
-<?php
-} // end if ($posts)
-?>
 
 
 <?php
@@ -279,18 +284,18 @@ if ( 1 == count($posts) && is_singular() ) :
 
 <br class="clear" />
 
-<table class="widefat" style="margin-top: .5em">
+<table class="widefat" cellspacing="0">
 <thead>
   <tr>
-    <th scope="col"><?php _e('Comment') ?></th>
-    <th scope="col"><?php _e('Date') ?></th>
-    <th scope="col"><?php _e('Actions') ?></th>
+    <th scope="col" class="column-comment"><?php echo _c('Comment|noun') ?></th>
+    <th scope="col" class="column-author"><?php _e('Author') ?></th>
+    <th scope="col" class="column-date"><?php _e('Submitted') ?></th>
   </tr>
 </thead>
 <tbody id="the-comment-list" class="list:comment">
 <?php
 	foreach ($comments as $comment)
-		_wp_comment_row( $comment->comment_ID, 'detail', false, false );
+		_wp_comment_row( $comment->comment_ID, 'single', false, false );
 ?>
 </tbody>
 </table>
@@ -316,7 +321,7 @@ endif; // posts;
 		});
 	});
 })(jQuery);
-columns.init('page');
+columns.init('edit-pages');
 /* ]]> */
 </script>
 

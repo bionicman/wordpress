@@ -48,6 +48,7 @@ inlineEditTax = {
 			id = t.getId(id);
 
 		var editRow = $('#inline-edit').clone(true), rowData = $('#inline_'+id);
+		$('td', editRow).attr('colspan', $('.widefat:first thead th:visible').length);
 		
 		if ( $(t.what+id).hasClass('alternate') )
 			$(editRow).addClass('alternate');
@@ -105,6 +106,7 @@ inlineEditTax = {
 		$.post('admin-ajax.php', params,
 			function(r) {
 				var row = $(inlineEditTax.what+id);
+				$('table.widefat .inline-edit-save .waiting').hide();
 
 				if (r) {
 					if ( -1 != r.indexOf('<tr') ) {

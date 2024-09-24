@@ -18,6 +18,7 @@ $form_extra = "' />\n<input type='hidden' name='comment_ID' value='" . $comment-
 <form name="post" action="comment.php" method="post" id="post">
 <?php wp_nonce_field('update-comment_' . $comment->comment_ID) ?>
 <div class="wrap">
+<?php screen_icon(); ?>
 <h2><?php _e('Edit Comment'); ?></h2>
 
 <div id="poststuff" class="metabox-holder">
@@ -38,7 +39,7 @@ $url = attribute_escape( $comment->comment_author_url );
 <div id="minor-publishing">
 
 <div id="minor-publishing-actions">
-<div id="preview=action">
+<div id="preview-action">
 <a class="preview button" href="<?php echo get_comment_link(); ?>" target="_blank"><?php _e('View Comment'); ?></a>
 </div>
 <div class="clear"></div>
@@ -47,9 +48,9 @@ $url = attribute_escape( $comment->comment_author_url );
 <div id="misc-publishing-actions">
 
 <div class="misc-pub-section" id="comment-status-radio">
-<label class="approved"><input type="radio"<?php checked( $comment->comment_approved, '1' ); ?> name="comment_status" value="1" /><?php _e('Approved') ?></label><br />
-<label class="waiting"><input type="radio"<?php checked( $comment->comment_approved, '0' ); ?> name="comment_status" value="0" /><?php _e('Pending') ?></label><br />
-<label class="spam"><input type="radio"<?php checked( $comment->comment_approved, 'spam' ); ?> name="comment_status" value="spam" /><?php echo _c('Spam|verb'); ?></label>
+<label class="approved"><input type="radio"<?php checked( $comment->comment_approved, '1' ); ?> name="comment_status" value="1" /><?php echo _c('Approved|adjective') ?></label><br />
+<label class="waiting"><input type="radio"<?php checked( $comment->comment_approved, '0' ); ?> name="comment_status" value="0" /><?php echo _c('Pending|adjective') ?></label><br />
+<label class="spam"><input type="radio"<?php checked( $comment->comment_approved, 'spam' ); ?> name="comment_status" value="spam" /><?php echo _c('Spam|adjective'); ?></label>
 </div>
 
 <div class="misc-pub-section curtime misc-pub-section-last">

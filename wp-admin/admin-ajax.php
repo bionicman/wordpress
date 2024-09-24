@@ -465,7 +465,7 @@ case 'add-comment' :
 	foreach ( (array) $comments as $comment ) {
 		get_comment( $comment );
 		ob_start();
-			_wp_comment_row( $comment->comment_ID, $mode, $status );
+			_wp_comment_row( $comment->comment_ID, $mode, $status, true, true );
 			$comment_list_item = ob_get_contents();
 		ob_end_clean();
 		$x->add( array(
@@ -819,7 +819,7 @@ case 'closed-postboxes' :
 	$hidden = isset( $_POST['hidden'] )? $_POST['hidden'] : '';
 	$hidden = explode( ',', $_POST['hidden'] );
 	$page = isset( $_POST['page'] )? $_POST['page'] : '';
-	if ( !preg_match( '/^[a-z-]+$/', $page ) ) {
+	if ( !preg_match( '/^[a-z-_]+$/', $page ) ) {
 		die(-1);
 	}
 	$current_user = wp_get_current_user();
@@ -833,7 +833,7 @@ case 'hidden-columns' :
 	$hidden = isset( $_POST['hidden'] )? $_POST['hidden'] : '';
 	$hidden = explode( ',', $_POST['hidden'] );
 	$page = isset( $_POST['page'] )? $_POST['page'] : '';
-	if ( !preg_match( '/^[a-z-]+$/', $page ) ) {
+	if ( !preg_match( '/^[a-z-_]+$/', $page ) ) {
 		die(-1);
 	}
 	$current_user = wp_get_current_user();
@@ -915,10 +915,10 @@ case 'inline-save-tax':
 	check_ajax_referer( 'taxinlineeditnonce', '_inline_edit' );
 
 	if ( ! current_user_can('manage_categories') )
-		die( '<tr colspan="6"><td>' . __('Cheatin&#8217; uh?') . '</td></tr>' );
+		die( __('Cheatin&#8217; uh?') );
 
 	if ( ! isset($_POST['tax_ID']) || ! ( $id = (int) $_POST['tax_ID'] ) )
-		exit;
+		die(-1);
 
 	switch ($_POST['tax_type']) {
 		case 'cat' :
@@ -928,6 +928,9 @@ case 'inline-save-tax':
 			$data['category_nicename'] = $_POST['slug'];
 			if ( isset($_POST['parent']) && (int) $_POST['parent'] > 0 )
 				$data['category_parent'] = $_POST['parent'];
+
+			$cat = get_category($id, ARRAY_A);
+			$data['category_description'] = $cat['category_description'];
 
 			$updated = wp_update_category($data);
 

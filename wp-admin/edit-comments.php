@@ -9,7 +9,6 @@
 /** WordPress Administration Bootstrap */
 require_once('admin.php');
 
-$title = __('Edit Comments');
 wp_enqueue_script('admin-comments');
 enqueue_comment_hotkeys_js();
 
@@ -67,6 +66,13 @@ if ( ( isset( $_REQUEST['delete_all_spam'] ) || isset( $_REQUEST['delete_all_spa
 	 exit;
 }
 
+$post_id = isset($_GET['p']) ? (int) $_GET['p'] : 0;
+
+if ( $post_id )
+	$title = sprintf(__('Edit Comments on &#8220;%s&#8221;'), wp_html_excerpt(_draft_or_post_title($post_id), 50));
+else
+	$title = __('Edit Comments');
+
 require_once('admin-header.php');
 
 $mode = ( ! isset($_GET['mode']) || empty($_GET['mode']) ) ? 'detail' : attribute_escape($_GET['mode']);
@@ -75,12 +81,11 @@ $comment_status = !empty($_GET['comment_status']) ? attribute_escape($_GET['comm
 
 $comment_type = !empty($_GET['comment_type']) ? attribute_escape($_GET['comment_type']) : '';
 
-$post_id = isset($_GET['p']) ? (int) $_GET['p'] : 0;
-
 $search_dirty = ( isset($_GET['s']) ) ? $_GET['s'] : '';
 $search = attribute_escape( $search_dirty ); ?>
 
 <div class="wrap">
+<?php screen_icon(); ?>
 <h2><?php echo wp_specialchars( $title ); ?></h2>
 
 <?php
@@ -248,16 +253,16 @@ if ( 'spam' == $comment_status ) {
 <div class="clear"></div>
 
 <?php if ( $comments ) { ?>
-<table class="widefat">
+<table class="widefat comments fixed" cellspacing="0">
 <thead>
 	<tr>
-<?php print_column_headers('comment'); ?>
+<?php print_column_headers('edit-comments'); ?>
 	</tr>
 </thead>
 
 <tfoot>
 	<tr>
-<?php print_column_headers('comment', false); ?>
+<?php print_column_headers('edit-comments', false); ?>
 	</tr>
 </tfoot>
 
@@ -317,22 +322,16 @@ if ( $page_links )
 </form>
 
 <div id="ajax-response"></div>
-<?php
-} elseif ( 'moderated' == $_GET['comment_status'] ) {
-?>
-<p>
-<?php _e('No comments awaiting moderation&hellip; yet.') ?>
-</p>
-<?php
-} else {
-?>
-<p>
-<?php _e('No results found.') ?>
-</p>
-<?php
-}
-?>
 
+<?php } elseif ( 'moderated' == $_GET['comment_status'] ) { ?>
+<p><?php _e('No comments awaiting moderation&hellip; yet.') ?></p>
+</form>
+
+<?php } else { ?>
+<p><?php _e('No results found.') ?></p>
+</form>
+
+<?php } ?>
 </div>
 
 <script type="text/javascript">

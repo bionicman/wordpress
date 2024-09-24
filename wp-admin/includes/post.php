@@ -869,7 +869,7 @@ function postbox_classes( $id, $page ) {
 	if ( isset( $_GET['edit'] ) && $_GET['edit'] == $id )
 		return '';
 	$current_user = wp_get_current_user();
-	if ( $closed = get_usermeta( $current_user->ID, 'closedpostboxes_'.$page ) ) {
+	if ( $closed = get_user_option('closedpostboxes_'.$page, 0, false ) ) {
 		if ( !is_array( $closed ) ) return '';
 		return in_array( $id, $closed )? 'if-js-closed' : '';
 	} else {
@@ -947,10 +947,18 @@ function get_sample_permalink_html($id, $new_title=null, $new_slug=null) {
 		return '';
 	}
 	$title = __('Click to edit this part of the permalink');
-	if (strlen($post_name) > 30) {
-		$post_name_abridged = substr($post_name, 0, 14). '&hellip;' . substr($post_name, -14);
+	if (function_exists('mb_strlen')) {
+		if (mb_strlen($post_name) > 30) {
+			$post_name_abridged = mb_substr($post_name, 0, 14). '&hellip;' . mb_substr($post_name, -14);
+		} else {
+			$post_name_abridged = $post_name;
+		}
 	} else {
-		$post_name_abridged = $post_name;
+		if (strlen($post_name) > 30) {
+			$post_name_abridged = substr($post_name, 0, 14). '&hellip;' . substr($post_name, -14);
+		} else {
+			$post_name_abridged = $post_name;
+		}
 	}
 	$post_name_html = '<span id="editable-post-name" title="'.$title.'">'.$post_name_abridged.'</span><span id="editable-post-name-full">'.$post_name.'</span>';
 	$display_link = str_replace(array('%pagename%','%postname%'), $post_name_html, $permalink);
@@ -1124,7 +1132,7 @@ function wp_tiny_mce( $teeny = false ) {
 		$plugins = apply_filters( 'teeny_mce_plugins', array('safari', 'inlinepopups', 'media', 'autosave', 'fullscreen') );
 		$ext_plugins = '';
 	} else {
-		$plugins = array( 'safari', 'inlinepopups', 'autosave', 'spellchecker', 'paste', 'wordpress', 'media', 'fullscreen', 'wpeditimage' );
+		$plugins = array( 'safari', 'inlinepopups', 'autosave', 'spellchecker', 'paste', 'wordpress', 'media', 'fullscreen', 'wpeditimage', 'wpgallery' );
 
 		/*
 		The following filter takes an associative array of external plugins for TinyMCE in the form 'plugin_name' => 'url'.

@@ -8,30 +8,20 @@
 
 if ( ! defined('ABSPATH') ) die();
 ?>
-<table class="widefat post">
+<table class="widefat post fixed" cellspacing="0">
 	<thead>
 	<tr>
-<?php print_column_headers('post'); ?>
+<?php print_column_headers('edit'); ?>
 	</tr>
 	</thead>
 
 	<tfoot>
 	<tr>
-<?php print_column_headers('post', false); ?>
+<?php print_column_headers('edit', false); ?>
 	</tr>
 	</tfoot>
 
 	<tbody>
-<?php
-if ( have_posts() ) {
-	post_rows();
-} else {
-?>
-  <tr>
-    <td colspan="8"><?php _e('No posts found.') ?></td>
-  </tr>
-<?php
-} // end if ( have_posts() )
-?>
+<?php post_rows(); ?>
 	</tbody>
 </table>

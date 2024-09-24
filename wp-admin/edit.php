@@ -9,6 +9,14 @@
 /** WordPress Administration Bootstrap */
 require_once('admin.php');
 
+// Back-compat for viewing comments of an entry
+if ( $_redirect = intval( max( @$_GET['p'], @$_GET['attachment_id'], @$_GET['page_id'] ) ) ) {
+	wp_redirect( admin_url('edit-comments.php?p=' . $_redirect ) );
+	exit;
+} else {
+	unset( $_redirect );
+}
+
 // Handle bulk actions
 if ( isset($_GET['action']) && ( -1 != $_GET['action'] || -1 != $_GET['action2'] ) ) {
 	$doaction = ( -1 != $_GET['action'] ) ? $_GET['action'] : $_GET['action2'];
@@ -17,6 +25,7 @@ if ( isset($_GET['action']) && ( -1 != $_GET['action'] || -1 != $_GET['action2']
 		case 'delete':
 			if ( isset($_GET['post']) && ! isset($_GET['bulk_edit']) && (isset($_GET['doaction']) || isset($_GET['doaction2'])) ) {
 				check_admin_referer('bulk-posts');
+				$deleted = 0;
 				foreach( (array) $_GET['post'] as $post_id_del ) {
 					$post_del = & get_post($post_id_del);
 
@@ -30,6 +39,7 @@ if ( isset($_GET['action']) && ( -1 != $_GET['action'] || -1 != $_GET['action2']
 						if ( !wp_delete_post($post_id_del) )
 							wp_die( __('Error in deleting...') );
 					}
+					$deleted++;
 				}
 			}
 			break;
@@ -52,13 +62,14 @@ if ( isset($_GET['action']) && ( -1 != $_GET['action'] || -1 != $_GET['action2']
 	$sendback = wp_get_referer();
 	if ( strpos($sendback, 'post.php') !== false ) $sendback = admin_url('post-new.php');
 	elseif ( strpos($sendback, 'attachments.php') !== false ) $sendback = admin_url('attachments.php');
-	$sendback = preg_replace('|[^a-z0-9-~+_.?#=&;,/:]|i', '', $sendback);
 	if ( isset($done) ) {
 		$done['updated'] = count( $done['updated'] );
 		$done['skipped'] = count( $done['skipped'] );
 		$done['locked'] = count( $done['locked'] );
 		$sendback = add_query_arg( $done, $sendback );
 	}
+	if ( isset($deleted) )
+		$sendback = add_query_arg('deleted', $deleted, $sendback);
 	wp_redirect($sendback);
 	exit();
 } elseif ( isset($_GET['_wp_http_referer']) && ! empty($_GET['_wp_http_referer']) ) {
@@ -73,11 +84,6 @@ wp_enqueue_script('inline-edit-post');
 
 list($post_stati, $avail_post_stati) = wp_edit_posts_query();
 
-if ( 1 == count($posts) && is_singular() ) {
-	wp_enqueue_script( 'admin-comments' );
-	enqueue_comment_hotkeys_js();
-}
-
 require_once('admin-header.php');
 
 if ( !isset( $_GET['paged'] ) )
@@ -89,6 +95,7 @@ else
 	$mode = attribute_escape($_GET['mode']); ?>
 
 <div class="wrap">
+<?php screen_icon(); ?>
 <h2><?php echo wp_specialchars( $title ); ?></h2>
 
 <?php
@@ -97,26 +104,33 @@ if ( isset($_GET['posted']) && $_GET['posted'] ) : $_GET['posted'] = (int) $_GET
 <?php $_SERVER['REQUEST_URI'] = remove_query_arg(array('posted'), $_SERVER['REQUEST_URI']);
 endif; ?>
 
-<?php if ( isset($_GET['locked']) || isset($_GET['skipped']) || isset($_GET['updated']) ) { ?>
+<?php if ( isset($_GET['locked']) || isset($_GET['skipped']) || isset($_GET['updated']) || isset($_GET['deleted']) ) { ?>
 <div id="message" class="updated fade"><p>
-<?php if ( (int) $_GET['updated'] ) {
+<?php if ( isset($_GET['updated']) && (int) $_GET['updated'] ) {
 	printf( __ngettext( '%s post updated.', '%s posts updated.', $_GET['updated'] ), number_format_i18n( $_GET['updated'] ) );
 	unset($_GET['updated']);
 }
 
-if ( (int) $_GET['skipped'] )
+if ( isset($_GET['skipped']) && (int) $_GET['skipped'] )
 	unset($_GET['skipped']);
 
-if ( (int) $_GET['locked'] ) {
+if ( isset($_GET['locked']) && (int) $_GET['locked'] ) {
 	printf( __ngettext( '%s post not updated, somebody is editing it.', '%s posts not updated, somebody is editing them.', $_GET['locked'] ), number_format_i18n( $_GET['locked'] ) );
 	unset($_GET['locked']);
-} 
-$_SERVER['REQUEST_URI'] = remove_query_arg( array('locked', 'skipped', 'updated'), $_SERVER['REQUEST_URI'] );
+}
+
+if ( isset($_GET['deleted']) && (int) $_GET['deleted'] ) {
+	printf( __ngettext( 'Post deleted.', '%s posts deleted.', $_GET['deleted'] ), number_format_i18n( $_GET['deleted'] ) );
+	unset($_GET['deleted']);
+}
+
+$_SERVER['REQUEST_URI'] = remove_query_arg( array('locked', 'skipped', 'updated', 'deleted'), $_SERVER['REQUEST_URI'] );
 ?>
 </p></div>
 <?php } ?>
 
 <form id="posts-filter" action="" method="get">
+
 <ul class="subsubsub">
 <?php
 if ( empty($locked_post_status) ) :
@@ -156,6 +170,8 @@ endif;
 <input type="hidden" name="post_status" value="<?php echo attribute_escape($_GET['post_status']) ?>" />
 <?php endif; ?>
 <input type="hidden" name="mode" value="<?php echo $mode; ?>" />
+
+<?php if ( have_posts() ) { ?>
 
 <div class="tablenav">
 <?php
@@ -232,8 +248,8 @@ do_action('restrict_manage_posts');
 <?php } ?>
 
 <div class="view-switch">
-	<a href="<?php echo clean_url(add_query_arg('mode', 'list', $_SERVER['REQUEST_URI'])) ?>"><img <?php if ( 'list' == $mode ) echo 'class="current"'; ?> src="images/list.gif" title="<?php _e('List View') ?>" alt="<?php _e('List View') ?>" /></a>
-	<a href="<?php echo clean_url(add_query_arg('mode', 'excerpt', $_SERVER['REQUEST_URI'])) ?>"><img <?php if ( 'excerpt' == $mode ) echo 'class="current"'; ?> src="images/exc.gif" title="<?php _e('Excerpt View') ?>" alt="<?php _e('Excerpt View') ?>" /></a>
+	<a href="<?php echo clean_url(add_query_arg('mode', 'list', $_SERVER['REQUEST_URI'])) ?>"><img <?php if ( 'list' == $mode ) echo 'class="current"'; ?> id="view-switch-list" src="../wp-includes/images/blank.gif" width="20" height="20" title="<?php _e('List View') ?>" alt="<?php _e('List View') ?>" /></a>
+	<a href="<?php echo clean_url(add_query_arg('mode', 'excerpt', $_SERVER['REQUEST_URI'])) ?>"><img <?php if ( 'excerpt' == $mode ) echo 'class="current"'; ?> id="view-switch-excerpt" src="../wp-includes/images/blank.gif" width="20" height="20" title="<?php _e('Excerpt View') ?>" alt="<?php _e('Excerpt View') ?>" /></a>
 </div>
 
 <div class="clear"></div>
@@ -262,6 +278,11 @@ if ( $page_links )
 <br class="clear" />
 </div>
 
+<?php } else { // have_posts() ?>
+<div class="clear"></div>
+<p><?php _e('No posts found') ?></p>
+<?php } ?>
+
 </form>
 
 <?php inline_edit_row( 'post' ); ?>
@@ -269,52 +290,6 @@ if ( $page_links )
 <div id="ajax-response"></div>
 
 <br class="clear" />
-
-<?php
-
-if ( 1 == count($posts) && is_singular() ) :
-
-	$comments = $wpdb->get_results( $wpdb->prepare("SELECT * FROM $wpdb->comments WHERE comment_post_ID = %d AND comment_approved != 'spam' ORDER BY comment_date", $id) );
-	if ( $comments ) :
-		// Make sure comments, post, and post_author are cached
-		update_comment_cache($comments);
-		$post = get_post($id);
-		$authordata = get_userdata($post->post_author);
-	?>
-
-<br class="clear" />
-
-<table class="widefat" style="margin-top: .5em">
-<thead>
-  <tr>
-    <th scope="col"><?php _e('Comment') ?></th>
-    <th scope="col"><?php _e('Author') ?></th>
-    <th scope="col"><?php _e('Submitted') ?></th>
-  </tr>
-</thead>
-
-<tfoot>
-  <tr>
-    <th scope="col"><?php _e('Comment') ?></th>
-    <th scope="col"><?php _e('Author') ?></th>
-    <th scope="col"><?php _e('Submitted') ?></th>
-  </tr>
-</tfoot>
-
-<tbody id="the-comment-list" class="list:comment">
-<?php
-	foreach ($comments as $comment)
-		_wp_comment_row( $comment->comment_ID, 'single', false, false );
-?>
-</tbody>
-</table>
-
-<?php
-wp_comment_reply();
-endif; // comments
-endif; // posts;
-
-?>
 
 </div>
 
@@ -330,7 +305,7 @@ endif; // posts;
 		});
 	});
 })(jQuery);
-columns.init('post');
+columns.init('edit');
 /* ]]> */
 </script>
 

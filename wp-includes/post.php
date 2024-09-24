@@ -21,8 +21,8 @@
  * @since 2.0.0
  * @uses apply_filters() Calls 'get_attached_file' on file path and attachment ID.
  *
- * @param int $attachment_id Attachment ID
- * @param bool $unfiltered Whether to apply filters or not
+ * @param int $attachment_id Attachment ID.
+ * @param bool $unfiltered Whether to apply filters or not.
  * @return string The file path to the attached file.
  */
 function get_attached_file( $attachment_id, $unfiltered = false ) {
@@ -464,7 +464,7 @@ function get_posts($args = null) {
 		'order' => 'DESC', 'include' => '',
 		'exclude' => '', 'meta_key' => '',
 		'meta_value' =>'', 'post_type' => 'post',
-		'post_parent' => 0, 'suppress_filters' => true
+		'suppress_filters' => true
 	);
 
 	$r = wp_parse_args( $args, $defaults );
@@ -1677,7 +1677,6 @@ function wp_set_post_tags( $post_id = 0, $tags = '', $append = false ) {
 	if ( empty($tags) )
 		$tags = array();
 	$tags = (is_array($tags)) ? $tags : explode( ',', trim($tags, " \n\t\r\0\x0B,") );
-	$tags = array_map('trim', $tags); //Trim whitespace from around the tags.
 	wp_set_object_terms($post_id, $tags, 'post_tag', $append);
 }
 
@@ -1899,8 +1898,8 @@ function &get_page(&$page, $output = OBJECT, $filter = 'raw') {
 		}
 	}
 
-	$page = get_post($page, $output, $filter);
-	return $page;
+	$the_page = get_post($page, $output, $filter);
+	return $the_page;
 }
 
 /**
@@ -2419,12 +2418,14 @@ function wp_delete_attachment($postid) {
 
 	$wpdb->query( $wpdb->prepare( "DELETE FROM $wpdb->postmeta WHERE post_id = %d ", $postid ));
 
+	$uploadPath = wp_upload_dir();
+
 	if ( ! empty($meta['thumb']) ) {
 		// Don't delete the thumb if another attachment uses it
 		if (! $wpdb->get_row( $wpdb->prepare( "SELECT meta_id FROM $wpdb->postmeta WHERE meta_key = '_wp_attachment_metadata' AND meta_value LIKE %s AND post_id <> %d", '%'.$meta['thumb'].'%', $postid)) ) {
 			$thumbfile = str_replace(basename($file), $meta['thumb'], $file);
 			$thumbfile = apply_filters('wp_delete_file', $thumbfile);
-			@ unlink($thumbfile);
+			@ unlink( path_join($uploadPath['basedir'], $thumbfile) );
 		}
 	}
 
@@ -2433,7 +2434,7 @@ function wp_delete_attachment($postid) {
 	foreach ( $sizes as $size ) {
 		if ( $intermediate = image_get_intermediate_size($postid, $size) ) {
 			$intermediate_file = apply_filters('wp_delete_file', $intermediate['path']);
-			@ unlink($intermediate_file);
+			@ unlink( path_join($uploadPath['basedir'], $intermediate_file) );
 		}
 	}
 

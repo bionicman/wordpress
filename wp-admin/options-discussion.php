@@ -16,12 +16,11 @@ include('admin-header.php');
 ?>
 
 <div class="wrap">
+<?php screen_icon(); ?>
 <h2><?php echo wp_specialchars( $title ); ?></h2> 
 
 <form method="post" action="options.php">
-<input type='hidden' name='option_page' value='discussion' />
-<input type="hidden" name="action" value="update" />
-<?php wp_nonce_field('discussion-options') ?>
+<?php settings_fields('discussion'); ?>
 
 <table class="form-table">
 <tr valign="top">

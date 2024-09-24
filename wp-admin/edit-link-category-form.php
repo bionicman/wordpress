@@ -16,14 +16,14 @@ if ( ! empty($cat_ID) ) {
 	/**
 	 * @var string
 	 */
-	$heading = '<h2>' . __('Edit Category') . '</h2>';
+	$heading = '<h2>' . __('Edit Link Category') . '</h2>';
 	$submit_text = __('Edit Category');
 	$form = '<form name="editcat" id="editcat" method="post" action="link-category.php" class="validate">';
 	$action = 'editedcat';
 	$nonce_action = 'update-link-category_' . $cat_ID;
 	do_action('edit_link_category_form_pre', $category);
 } else {
-	$heading = '<h2>' . __('Add Category') . '</h2>';
+	$heading = '<h2>' . __('Add Link Category') . '</h2>';
 	$submit_text = __('Add Category');
 	$form = '<form name="addcat" id="addcat" class="add:the-list: validate" method="post" action="link-category.php">';
 	$action = 'addcat';
@@ -53,6 +53,7 @@ _fill_empty_link_category($category);
 ?>
 
 <div class="wrap">
+<?php screen_icon(); ?>
 <?php echo $heading ?>
 <div id="ajax-response"></div>
 <?php echo $form ?>
@@ -66,7 +67,7 @@ _fill_empty_link_category($category);
 		</tr>
 		<tr class="form-field">
 			<th scope="row" valign="top"><label for="slug"><?php _e('Category slug') ?></label></th>
-			<td><input name="slug" id="slug" type="text" value="<?php echo attribute_escape(apply_filters('editable_slug', $category->slug)); ?>" size="40" />
+			<td><input name="slug" id="slug" type="text" value="<?php echo attribute_escape(apply_filters('editable_slug', $category->slug)); ?>" size="40" /><br />
             <?php _e('The &#8220;slug&#8221; is the URL-friendly version of the name. It is usually all lowercase and contains only letters, numbers, and hyphens.'); ?></td>
 		</tr>
 		<tr class="form-field">

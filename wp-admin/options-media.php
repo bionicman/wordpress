@@ -17,13 +17,11 @@ include('admin-header.php');
 ?>
 
 <div class="wrap">
+<?php screen_icon(); ?>
 <h2><?php echo wp_specialchars( $title ); ?></h2> 
 
 <form action="options.php" method="post">
-<input type="hidden" name="action" value="update" />
-<?php wp_nonce_field( 'media-options' ); ?>
-<input type='hidden' name='option_page' value='media' />
-<input type="hidden" name="page_options" value="thumbnail_size_w,thumbnail_size_h,thumbnail_crop,medium_size_w,medium_size_h,image_default_size,image_default_align,image_default_link_type,large_size_w,large_size_h" /> <!-- is this needed anymore TODO -->
+<?php settings_fields('media'); ?>
 
 <p><?php _e('The setting below determines where images, documents, and other media files will be linked to when inserted into the body of a post.'); ?></p>
 
@@ -32,7 +30,7 @@ include('admin-header.php');
 <th scope="row"><?php _e('Default media links') ?></th> 
 <td><fieldset><legend class="hidden"><?php _e('Default image links') ?></legend> 
 <?php 
-    $link_types = array('none' => 'None', 'post' => 'Post URL', 'file' => 'File'); 
+    $link_types = array('none' => __('None'), 'post' => __('Post URL'), 'file' => __('File')); 
 
     $default_link_type = get_option('image_default_link_type');
         if ( empty($default_link_type) )
@@ -40,7 +38,7 @@ include('admin-header.php');
 
     foreach ($link_types as $type => $name) { ?>
         <input type="radio" name="image_default_link_type" id="image_default_link_type_<?php echo $type; ?>" value="<?php echo $type; ?>"<?php echo ($default_link_type == $type ? ' checked="checked"' : ''); ?> />
-        <label for="image_default_link_type_<?php echo $type; ?>"><?php _e($name); ?></label>
+        <label for="image_default_link_type_<?php echo $type; ?>"><?php echo $name; ?></label>
     <?php 
     } 
 ?> 

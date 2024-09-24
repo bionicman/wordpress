@@ -60,6 +60,7 @@ $messages[5] = __('Category not updated.');
 $messages[6] = __('Categories deleted.'); ?>
 
 <div class="wrap nosubsub">
+<?php screen_icon(); ?>
 <h2><?php echo wp_specialchars( $title ); ?></h2> 
 
 <?php if ( isset($_GET['message']) && ( $msg = (int) $_GET['message'] ) ) : ?>
@@ -69,8 +70,8 @@ endif; ?>
 
 <form class="search-form" action="" method="get">
 <p class="search-box">
-	<label class="hidden" for="category-search-input"><?php _e( 'Search Categories' ); ?>:</label>
-	<input type="text" class="search-input" id="category-search-input" name="s" value="<?php _admin_search_query(); ?>" />
+	<label class="hidden" for="link-category-search-input"><?php _e( 'Search Categories' ); ?>:</label>
+	<input type="text" class="search-input" id="link-category-search-input" name="s" value="<?php _admin_search_query(); ?>" />
 	<input type="submit" value="<?php _e( 'Search Categories' ); ?>" class="button" />
 </p>
 </form>
@@ -117,16 +118,16 @@ if ( $page_links )
 
 <div class="clear"></div>
 
-<table class="widefat">
+<table class="widefat fixed" cellspacing="0">
 	<thead>
 	<tr>
-<?php print_column_headers('link-category'); ?>
+<?php print_column_headers('edit-link-categories'); ?>
 	</tr>
 	</thead>
 
 	<tfoot>
 	<tr>
-<?php print_column_headers('link-category', false); ?>
+<?php print_column_headers('edit-link-categories', false); ?>
 	</tr>
 	</tfoot>
 
@@ -141,10 +142,8 @@ $categories = get_terms( 'link_category', $args );
 if ( $categories ) {
 	$output = '';
 	foreach ( $categories as $category ) {
-		$category = sanitize_term($category, 'link_category', 'display');
 		$output .= link_cat_row($category);
 	}
-	$output = apply_filters('cat_rows', $output);
 	echo $output;
 	unset($category);
 }
@@ -235,5 +234,5 @@ if ( $page_links )
 /* ]]> */
 </script>
 
-<?php inline_edit_term_row('link-category'); ?>
+<?php inline_edit_term_row('edit-link-categories'); ?>
 <?php include('admin-footer.php'); ?>

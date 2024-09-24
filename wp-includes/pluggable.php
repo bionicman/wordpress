@@ -760,7 +760,9 @@ function auth_redirect() {
 	else
 		$proto = 'http://';
 
-	$login_url = site_url( 'wp-login.php?redirect_to=' . urlencode($proto . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']), 'login' );
+	$redirect = ( strpos($_SERVER['REQUEST_URI'], '/options.php') && wp_get_referer() ) ? wp_get_referer() : $proto . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+
+	$login_url = site_url( 'wp-login.php?redirect_to=' . urlencode( $redirect ), 'login' );
 
 	wp_redirect($login_url);
 	exit();
@@ -1522,7 +1524,7 @@ function get_avatar( $id_or_email, $size = '96', $default = '', $alt = false ) {
 		$default = "http://www.gravatar.com/avatar/s={$size}";
 	elseif ( empty($email) )
 		$default = "http://www.gravatar.com/avatar/?d=$default&amp;s={$size}";
-	else
+	elseif ( strpos($default, 'http://') === 0 )
 		$default = add_query_arg( 's', $size, $default );
 
 	if ( !empty($email) ) {
@@ -1535,9 +1537,9 @@ function get_avatar( $id_or_email, $size = '96', $default = '', $alt = false ) {
 		if ( !empty( $rating ) )
 			$out .= "&amp;r={$rating}";
 
-		$avatar = "<img alt='{$safe_alt}' src='{$out}' class='avatar avatar-{$size}' height='{$size}' width='{$size}' />";
+		$avatar = "<img alt='{$safe_alt}' src='{$out}' class='avatar avatar-{$size} photo' height='{$size}' width='{$size}' />";
 	} else {
-		$avatar = "<img alt='{$safe_alt}' src='{$default}' class='avatar avatar-{$size} avatar-default' height='{$size}' width='{$size}' />";
+		$avatar = "<img alt='{$safe_alt}' src='{$default}' class='avatar avatar-{$size} photo avatar-default' height='{$size}' width='{$size}' />";
 	}
 
 	return apply_filters('get_avatar', $avatar, $id_or_email, $size, $default, $alt);

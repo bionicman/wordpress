@@ -24,9 +24,7 @@ if ( isset($_GET['action']) && isset($_GET['linkcheck']) ) {
 			wp_delete_link($link_id);
 		}
 
-		$sendback = wp_get_referer();
-		$sendback = preg_replace('|[^a-z0-9-~+_.?#=&;,/:]|i', '', $sendback);
-		wp_redirect($sendback);
+		wp_redirect( wp_get_referer() );
 		exit;
 	}
 } elseif ( isset($_GET['_wp_http_referer']) && ! empty($_GET['_wp_http_referer']) ) {
@@ -43,7 +41,7 @@ if ( empty($order_by) )
 	$order_by = 'order_name';
 
 $title = __('Edit Links');
-$this_file = $parent_file = 'edit.php';
+$this_file = $parent_file = 'link-manager.php';
 include_once ("./admin-header.php");
 
 if (!current_user_can('manage_links'))
@@ -72,6 +70,7 @@ switch ($order_by) {
 } ?>
 
 <div class="wrap nosubsub">
+<?php screen_icon(); ?>
 <h2><?php echo wp_specialchars( $title ); ?></h2> 
 
 <?php
@@ -139,21 +138,21 @@ if ( !empty($_GET['s']) )
 	$args['search'] = $_GET['s'];
 $links = get_bookmarks( $args );
 if ( $links ) {
-	$link_columns = get_column_headers('link');
-	$hidden = (array) get_user_option( 'manage-link-columns-hidden' );
+	$link_columns = get_column_headers('link-manager');
+	$hidden = get_hidden_columns('link-manager');
 ?>
 
 <?php wp_nonce_field('bulk-bookmarks') ?>
-<table class="widefat">
+<table class="widefat fixed" cellspacing="0">
 	<thead>
 	<tr>
-<?php print_column_headers('link'); ?>
+<?php print_column_headers('link-manager'); ?>
 	</tr>
 	</thead>
 
 	<tfoot>
 	<tr>
-<?php print_column_headers('link', false); ?>
+<?php print_column_headers('link-manager', false); ?>
 	</tr>
 	</tfoot>
 
@@ -278,7 +277,7 @@ if ( $links ) {
 		});
 	});
 })(jQuery);
-columns.init('link');
+columns.init('link-manager');
 /* ]]> */
 </script>
 

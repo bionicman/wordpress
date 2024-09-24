@@ -160,7 +160,7 @@ include ('admin-header.php');
 <div id="message" class="updated fade">
 	<p><strong><?php _e('User updated.') ?></strong></p>
 	<?php if ( $wp_http_referer && !$is_profile_page ) : ?>
-	<p><a href="users.php"><?php _e('&laquo; Back to Authors and Users'); ?></a></p>
+	<p><a href="users.php"><?php _e('&larr; Back to Authors and Users'); ?></a></p>
 	<?php endif; ?>
 </div>
 <?php endif; ?>
@@ -176,7 +176,8 @@ include ('admin-header.php');
 <?php endif; ?>
 
 <div class="wrap" id="profile-page">
-	<h2><?php echo wp_specialchars( $title ); ?></h2> 
+<?php screen_icon(); ?>
+<h2><?php echo wp_specialchars( $title ); ?></h2> 
 
 <form id="your-profile" action="" method="post">
 <?php wp_nonce_field('update-user_' . $user_id) ?>

@@ -412,7 +412,9 @@ wp_page_alt:"' . mce_escape( __('Next page...') ) . '",
 add_media:"' . mce_escape( __('Add Media') ) . '",
 add_image:"' . mce_escape( __('Add an Image') ) . '",
 add_video:"' . mce_escape( __('Add Video') ) . '",
-add_audio:"' . mce_escape( __('Add Audio') ) . '"
+add_audio:"' . mce_escape( __('Add Audio') ) . '",
+editgallery:"' . mce_escape( __('Edit Gallery') ) . '",
+delgallery:"' . mce_escape( __('Delete Gallery') ) . '"
 });
 
 tinyMCE.addI18n("' . $language . '.wpeditimage",{
@@ -451,5 +453,3 @@ caption:"' . mce_escape( __('Edit Image Caption') ) . '",
 alt:"' . mce_escape( __('Edit Alternate Text') ) . '"
 });
 ';
-
-// mce_put_file( ABSPATH . WPINC . '/js/tinymce/langs/wp-langs-' . $language . '.js', $lang );

@@ -28,6 +28,26 @@ wp_admin_css( 'css/ie' );
 <script type="text/javascript">
 //<![CDATA[
 addLoadEvent = function(func) {if (typeof jQuery != "undefined") jQuery(document).ready(func); else if (typeof wpOnload!='function'){wpOnload=func;} else {var oldonload=wpOnload; wpOnload=function(){oldonload();func();}}};
+
+function convertEntities(o) {
+	var c = function(s) {
+		if (/&[^;]+;/.test(s)) {
+			var e = document.createElement("div");
+			e.innerHTML = s;
+			return !e.firstChild ? s : e.firstChild.nodeValue;
+		}
+		return s;
+	}
+
+	if ( typeof o === 'string' )
+		return c(o);
+	else if ( typeof o === 'object' )
+		for (var v in o) {
+			if ( typeof o[v] === 'string' )
+				o[v] = c(o[v]);
+		}
+	return o;
+};
 //]]>
 </script>
 <?php
@@ -76,7 +96,7 @@ if ( function_exists('mb_strlen') ) {
 <div id="wphead-info">
 <div id="user_info">
 <p><?php printf(__('Howdy, <a href="%1$s" title="Edit your profile">%2$s</a>'), 'profile.php', $user_identity) ?>
-<?php if ( ! $is_opera ) { ?> | <span id="gears-menu"><a href="turbo.php"><?php _e('Turbo') ?></a></span><?php } ?> |
+<?php if ( ! $is_opera ) { ?> | <span id="gears-menu"><a href="tools.php"><?php _e('Turbo') ?></a></span><?php } ?> |
 <a href="<?php echo wp_logout_url() ?>" title="<?php _e('Log Out') ?>"><?php _e('Log Out'); ?></a></p>
 </div>
 
@@ -89,10 +109,9 @@ if ( function_exists('mb_strlen') ) {
 
 <div id="wpbody-content">
 <?php
-do_action('admin_notices');
-
 screen_meta($hook_suffix);
-unset($hook_suffix);
+
+do_action('admin_notices');
 
 if ( $parent_file == 'options-general.php' ) {
 	require(ABSPATH . 'wp-admin/options-head.php');

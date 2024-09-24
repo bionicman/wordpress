@@ -70,7 +70,6 @@ case 'bulk-delete':
 	}
 
 	$sendback = wp_get_referer();
-	$sendback = preg_replace('|[^a-z0-9-~+_.?#=&;,/:]|i', '', $sendback);
 
 	wp_redirect($sendback);
 	exit();
@@ -131,6 +130,7 @@ $messages[5] = __('Category not updated.');
 ?>
 
 <div class="wrap nosubsub">
+<?php screen_icon(); ?>
 <h2><?php echo wp_specialchars( $title ); ?></h2> 
 
 <?php
@@ -189,16 +189,16 @@ if ( $page_links )
 
 <div class="clear"></div>
 
-<table class="widefat">
+<table class="widefat fixed" cellspacing="0">
 	<thead>
 	<tr>
-<?php print_column_headers('category'); ?>
+<?php print_column_headers('categories'); ?>
 	</tr>
 	</thead>
 
 	<tfoot>
 	<tr>
-<?php print_column_headers('category', false); ?>
+<?php print_column_headers('categories', false); ?>
 	</tr>
 	</tfoot>
 
@@ -302,7 +302,7 @@ if ( $page_links )
 </script>
 
 <?php
-inline_edit_term_row('category');
+inline_edit_term_row('categories');
 
 break;
 }

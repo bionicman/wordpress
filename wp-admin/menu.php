@@ -29,34 +29,32 @@ $menu[0] = array( __('Dashboard'), 'read', 'index.php', '', 'menu-top', 'menu-da
 
 $menu[4] = array( '', 'read', '', '', 'wp-menu-separator' );
 
-$menu[5] = array( __('Posts'), 'edit_posts', 'post-new.php', '', 'wp-menu-open menu-top', 'menu-posts', 'div' );
-	$submenu['post-new.php'][5]  = array( _c('Add New|post'), 'edit_posts', 'post-new.php' );
-	//$submenu['post-new.php'][10]  = array( __('Drafts'), 'edit_posts', 'edit-post-drafts.php' );
-	$submenu['post-new.php'][15]  = array( __('Edit'), 'edit_posts', 'edit.php' );
-	$submenu['post-new.php'][20] = array( __('Tags'), 'manage_categories', 'edit-tags.php' );
-	$submenu['post-new.php'][25] = array( __('Categories'), 'manage_categories', 'categories.php' );
+$menu[5] = array( __('Posts'), 'edit_posts', 'edit.php', '', 'wp-menu-open menu-top', 'menu-posts', 'div' );
+	$submenu['edit.php'][5]  = array( __('Edit'), 'edit_posts', 'edit.php' );
+	$submenu['edit.php'][10]  = array( _c('Add New|post'), 'edit_posts', 'post-new.php' );
+	$submenu['edit.php'][15] = array( __('Tags'), 'manage_categories', 'edit-tags.php' );
+	$submenu['edit.php'][20] = array( __('Categories'), 'manage_categories', 'categories.php' );
 
-$menu[10] = array( __('Media'), 'upload_files', 'media-new.php', '', 'menu-top', 'menu-media', 'div' );
-	$submenu['media-new.php'][5] = array( _c('Add New|file'), 'upload_files', 'media-new.php');
-	$submenu['media-new.php'][10] = array( __('Edit'), 'upload_files', 'upload.php');
+$menu[10] = array( __('Media'), 'upload_files', 'upload.php', '', 'menu-top', 'menu-media', 'div' );
+	$submenu['upload.php'][5] = array( __('Library'), 'upload_files', 'upload.php');
+	$submenu['upload.php'][10] = array( _c('Add New|file'), 'upload_files', 'media-new.php');
 
-$menu[15] = array( __('Links'), 'manage_links', 'link-add.php', '', 'menu-top', 'menu-links', 'div' );
-	$submenu['link-add.php'][5] = array( _c('Add New|links'), 'manage_links', 'link-add.php' );
-	$submenu['link-add.php'][10] = array( __('Edit'), 'manage_links', 'link-manager.php' );
-	$submenu['link-add.php'][15] = array( __('Link Categories'), 'manage_categories', 'edit-link-categories.php' );
+$menu[15] = array( __('Links'), 'manage_links', 'link-manager.php', '', 'menu-top', 'menu-links', 'div' );
+	$submenu['link-manager.php'][5] = array( __('Edit'), 'manage_links', 'link-manager.php' );
+	$submenu['link-manager.php'][10] = array( _c('Add New|links'), 'manage_links', 'link-add.php' );
+	$submenu['link-manager.php'][15] = array( __('Link Categories'), 'manage_categories', 'edit-link-categories.php' );
 
-$menu[20] = array( __('Pages'), 'edit_pages', 'page-new.php', '', 'menu-top', 'menu-pages', 'div' );
-	$submenu['page-new.php'][5] = array( _c('Add New|page'), 'edit_pages', 'page-new.php' );
-	//$submenu['page-new.php'][10] = array( __('Drafts'), 'edit_pages', 'edit-page-drafts.php' );
-	$submenu['page-new.php'][15] = array( __('Edit'), 'edit_pages', 'edit-pages.php' );
+$menu[20] = array( __('Pages'), 'edit_pages', 'edit-pages.php', '', 'menu-top', 'menu-pages', 'div' );
+	$submenu['edit-pages.php'][5] = array( __('Edit'), 'edit_pages', 'edit-pages.php' );
+	$submenu['edit-pages.php'][10] = array( _c('Add New|page'), 'edit_pages', 'page-new.php' );
 
 $menu[25] = array( sprintf( __('Comments %s'), "<span id='awaiting-mod' class='count-$awaiting_mod'><span class='pending-count'>" . number_format_i18n($awaiting_mod) . "</span></span>" ), 'edit_posts', 'edit-comments.php', '', 'menu-top', 'menu-comments', 'div' );
 
 $_wp_last_object_menu = 25; // The index of the last top-level menu in the object menu group
 
-$menu[29] = array( '', 'read', '', '', 'wp-menu-separator' );
+$menu[39] = array( '', 'read', '', '', 'wp-menu-separator' );
 
-$menu[30] = array( __('Appearance'), 'switch_themes', 'themes.php', '', 'menu-top', 'menu-appearance', 'div' );
+$menu[40] = array( __('Appearance'), 'switch_themes', 'themes.php', '', 'menu-top', 'menu-appearance', 'div' );
 	$submenu['themes.php'][5]  = array(__('Themes'), 'switch_themes', 'themes.php');
 	$submenu['themes.php'][10] = array(__('Editor'), 'edit_themes', 'theme-editor.php');
 
@@ -65,15 +63,15 @@ $update_count = 0;
 if ( !empty($update_plugins->response) )
 	$update_count = count( $update_plugins->response );
 
-$menu[35] = array( sprintf( __('Plugins %s'), "<span id='update-plugins' class='count-$update_count'><span class='plugin-count'>" . number_format_i18n($update_count) . "</span></span>" ), 'activate_plugins', 'plugins.php', '', 'menu-top', 'menu-plugins', 'div' );
+$menu[45] = array( sprintf( __('Plugins %s'), "<span class='update-plugins count-$update_count'><span class='plugin-count'>" . number_format_i18n($update_count) . "</span></span>" ), 'activate_plugins', 'plugins.php', '', 'menu-top', 'menu-plugins', 'div' );
 	$submenu['plugins.php'][5]  = array( __('Installed'), 'activate_plugins', 'plugins.php' );
 	$submenu['plugins.php'][10] = array(_c('Add New|plugin'), 'install_plugins', 'plugin-install.php');	
 	$submenu['plugins.php'][15] = array( __('Editor'), 'edit_plugins', 'plugin-editor.php' );
 
 if ( current_user_can('edit_users') )
-	$menu[40] = array( __('Users'), 'edit_users', 'users.php', '', 'menu-top', 'menu-users', 'div' );
+	$menu[50] = array( __('Users'), 'edit_users', 'users.php', '', 'menu-top', 'menu-users', 'div' );
 else
-	$menu[40] = array( __('Profile'), 'read', 'profile.php', '', 'menu-top', 'menu-users', 'div' );
+	$menu[50] = array( __('Profile'), 'read', 'profile.php', '', 'menu-top', 'menu-users', 'div' );
 
 if ( current_user_can('edit_users') ) {
 	$_wp_real_parent_file['profile.php'] = 'users.php'; // Back-compat for plugins adding submenus to profile.php.
@@ -85,14 +83,13 @@ if ( current_user_can('edit_users') ) {
 	$submenu['profile.php'][5] = array(__('Your Profile'), 'read', 'profile.php');
 }
 
-$menu[45] = array( __('Tools'), 'manage_options', 'import.php', '', 'menu-top', 'menu-tools', 'div' );
-	$submenu['import.php'][5] = array( __('Import'), 'import', 'import.php' );
-	$submenu['import.php'][10] = array( __('Export'), 'import', 'export.php' );
-	if ( ! $is_opera )
-		$submenu['import.php'][20] = array( __('Turbo'), 'read', 'turbo.php' );
-	$submenu['import.php'][30] = array( __('Update'), 'install_plugins',  'update-core.php');
+$menu[55] = array( __('Tools'), 'manage_options', 'tools.php', '', 'menu-top', 'menu-tools', 'div' );
+	$submenu['tools.php'][5] = array( __('Tools'), 'read', 'tools.php' );
+	$submenu['tools.php'][10] = array( __('Import'), 'import', 'import.php' );
+	$submenu['tools.php'][15] = array( __('Export'), 'import', 'export.php' );
+	$submenu['tools.php'][20] = array( __('Upgrade'), 'install_plugins',  'update-core.php');
 
-$menu[50] = array( __('Settings'), 'manage_options', 'options-general.php', '', 'menu-top', 'menu-settings', 'div' );
+$menu[60] = array( __('Settings'), 'manage_options', 'options-general.php', '', 'menu-top', 'menu-settings', 'div' );
 	$submenu['options-general.php'][10] = array(__('General'), 'manage_options', 'options-general.php');
 	$submenu['options-general.php'][15] = array(__('Writing'), 'manage_options', 'options-writing.php');
 	$submenu['options-general.php'][20] = array(__('Reading'), 'manage_options', 'options-reading.php');
@@ -102,12 +99,14 @@ $menu[50] = array( __('Settings'), 'manage_options', 'options-general.php', '', 
 	$submenu['options-general.php'][40] = array(__('Permalinks'), 'manage_options', 'options-permalink.php');
 	$submenu['options-general.php'][45] = array(__('Miscellaneous'), 'manage_options', 'options-misc.php');
 
-$menu[55] = array( '', 'read', '', '', 'wp-menu-separator-last' );
+$_wp_last_utility_menu = 60; // The index of the last top-level menu in the utility menu group
+
+$menu[79] = array( '', 'read', '', '', 'wp-menu-separator-last' );
 
 // Back-compat for old top-levels
-$_wp_real_parent_file['post.php'] = 'post-new.php'; 
-$_wp_real_parent_file['edit.php'] = 'post-new.php';
-$_wp_real_parent_file['edit-pages.php'] = 'page-new.php';
+$_wp_real_parent_file['post.php'] = 'edit.php'; 
+$_wp_real_parent_file['post-new.php'] = 'edit.php';
+$_wp_real_parent_file['page-new.php'] = 'edit-pages.php';
 
 do_action('_admin_menu');
 
@@ -172,6 +171,21 @@ foreach ( $menu as $id => $data ) {
 			$_wp_menu_nopriv[$data[2]] = true;
 			unset($menu[$id]);
 		}
+	}
+}
+
+// Remove any duplicated seperators
+$seperator_found = false;
+foreach ( $menu as $id => $data ) {
+	if ( 0 == strcmp('wp-menu-separator', $data[4] ) ) {
+		if (false == $seperator_found) {
+			$seperator_found = true;
+		} else {
+			unset($menu[$id]);
+			$seperator_found = false;
+		}
+	} else {
+		$seperator_found = false;
 	}
 }
 

@@ -1392,7 +1392,7 @@ EOD;
 		nocache_headers();
 		header('WWW-Authenticate: Basic realm="WordPress Atom Protocol"');
 		header("HTTP/1.1 401 $msg");
-		header('Status: ' . $msg);
+		header('Status: 401 ' . $msg);
 		header('Content-Type: text/html');
 		$content = <<<EOD
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML 2.0//EN">
@@ -1469,6 +1469,11 @@ EOD;
 		if(isset($_SERVER['HTTP_AUTHORIZATION'])) {
 			list($_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW']) =
 				explode(':', base64_decode(substr($_SERVER['HTTP_AUTHORIZATION'], 6)));
+		} else if (isset($_SERVER['REDIRECT_REMOTE_USER'])) {
+			// Workaround for setups that do not forward HTTP_AUTHORIZATION
+			// See http://trac.wordpress.org/ticket/7361
+			list($_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW']) =
+				explode(':', base64_decode(substr($_SERVER['REDIRECT_REMOTE_USER'], 6)));
 		}
 
 		// If Basic Auth is working...

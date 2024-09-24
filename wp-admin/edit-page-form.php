@@ -22,6 +22,7 @@ $messages[1] = sprintf( __( 'Page updated. Continue editing below or <a href="%s
 $messages[2] = __('Custom field updated.');
 $messages[3] = __('Custom field deleted.');
 $messages[4] = __('Page updated.');
+$messages[5] = sprintf(__('Page published. <a href="%s">View page</a>'), get_permalink($post_ID));
 
 if ( isset($_GET['revision']) )
 	$messages[5] = sprintf( __('Page restored to revision from %s'), wp_post_revision_title( (int) $_GET['revision'], false ) );
@@ -90,12 +91,6 @@ function page_submit_meta_box($post) {
 </div><?php // /minor-publishing-actions ?>
 
 <div id="misc-publishing-actions">
-
-<?php if ( false ) { // Stub for 2.8 ?>
-<div class="misc-pub-section misc-pub-section-1-last" id="visibility">
-<?php _e('Visibility:'); ?> <b><?php _e('Public'); // TODO: dropdown ?></b>
-</div>
-<?php } ?>
 
 <div class="misc-pub-section<?php if ( !$can_publish ) { echo ' misc-pub-section-last'; } ?>"><label for="post_status"><?php _e('Status:') ?></label>
 <b><span id="post-status-display">
@@ -202,7 +197,7 @@ if ( 0 != $post->ID ) {
 <div class="misc-pub-section curtime misc-pub-section-last">
 	<span id="timestamp">
 	<?php printf($stamp, $date); ?></span>
-	&nbsp;<a href="#edit_timestamp" class="edit-timestamp hide-if-no-js" tabindex='4'><?php _e('Edit') ?></a>
+	<a href="#edit_timestamp" class="edit-timestamp hide-if-no-js" tabindex='4'><?php _e('Edit') ?></a>
 	<div id="timestampdiv" class="hide-if-js"><?php touch_time(($action == 'edit'),1,4); ?></div>
 </div><?php // /misc-pub-section ?>
 <?php endif; ?>
@@ -397,6 +392,7 @@ require_once('admin-header.php');
 ?>
 
 <div class="wrap">
+<?php screen_icon(); ?>
 <h2><?php echo wp_specialchars( $title ); ?></h2>
 
 <form name="post" action="page.php" method="post" id="post">

@@ -29,8 +29,6 @@ function wp_dashboard_setup() {
 
 	// Recent Comments Widget
 	$recent_comments_title = __( 'Recent Comments' );
-	if ( current_user_can('edit_posts') ) 
-		$recent_comments_title .= ' <a href="edit-comments.php" class="edit-box open-box">' . __('View all') . '</a>';
 	wp_add_dashboard_widget( 'dashboard_recent_comments', $recent_comments_title, 'wp_dashboard_recent_comments' );
 
 	// Incoming Links Widget
@@ -56,7 +54,7 @@ function wp_dashboard_setup() {
 
 	// Recent Drafts
 	if ( current_user_can('edit_posts') )
-		wp_add_dashboard_widget( 'dashboard_recent_drafts', __( 'Recent Drafts') . ' <a href="edit.php?post_status=draft" class="edit-box open-box">' . __('View all') . '</a>', 'wp_dashboard_recent_drafts' );
+		wp_add_dashboard_widget( 'dashboard_recent_drafts', __('Recent Drafts'), 'wp_dashboard_recent_drafts' );
 
 	// Primary feed (Dev Blog) Widget
 	if ( !isset( $widget_options['dashboard_primary'] ) ) {
@@ -91,6 +89,11 @@ function wp_dashboard_setup() {
 	// Filter widget order
 	$dashboard_widgets = apply_filters( 'wp_dashboard_widgets', array() );
 
+	foreach ( $dashboard_widgets as $widget_id ) {
+		$name = empty( $wp_registered_widgets[$widget_id]['all_link'] ) ? $wp_registered_widgets[$widget_id]['name'] : $wp_registered_widgets[$widget_id]['name'] . " <a href='{$wp_registered_widgets[$widget_id]['all_link']}' class='edit-box open-box'>" . __('View all') . '</a>';
+		wp_add_dashboard_widget( $widget_id, $name, $wp_registered_widgets[$widget_id]['callback'], $wp_registered_widget_controls[$widget_id]['callback'] );
+	}
+
 	if ( 'POST' == $_SERVER['REQUEST_METHOD'] && isset($_POST['widget_id']) ) {
 		ob_start(); // hack - but the same hack wp-admin/widgets.php uses
 		wp_dashboard_trigger_widget_control( $_POST['widget_id'] );
@@ -102,8 +105,8 @@ function wp_dashboard_setup() {
 	if ( $update )
 		update_option( 'dashboard_widget_options', $widget_options );
 
-	foreach ( $dashboard_widgets as $widget_id )
-		wp_add_dashboard_widget( $widget_id, $wp_registered_widgets[$widget_id]['name'], $wp_registered_widgets[$widget_id]['callback'], $wp_registered_widget_controls[$widget_id]['callback'] );
+	do_action('do_meta_boxes', 'dashboard', 'normal', '');
+	do_action('do_meta_boxes', 'dashboard', 'side', '');
 }
 
 function wp_add_dashboard_widget( $widget_id, $widget_name, $callback, $control_callback = null ) {
@@ -117,7 +120,7 @@ function wp_add_dashboard_widget( $widget_id, $widget_name, $callback, $control_
 			return;
 		}
 		list($url) = explode( '#', add_query_arg( 'edit', $widget_id ), 2 );
-		$widget_name .= ' <a href="' . clean_url( "$url#$widget_id" ) . '" class="edit-box open-box">' . __( 'Edit' ) . '</a>';
+		$widget_name .= ' <a href="' . clean_url( "$url#$widget_id" ) . '" class="edit-box open-box">' . __( 'Configure' ) . '</a>';
 	}
 	$side_widgets = array('dashboard_quick_press', 'dashboard_recent_drafts', 'dashboard_primary', 'dashboard_secondary');
 	$location = 'normal';
@@ -127,7 +130,7 @@ function wp_add_dashboard_widget( $widget_id, $widget_name, $callback, $control_
 }
 
 function _wp_dashboard_control_callback( $dashboard, $meta_box ) {
-	echo '<form action="" method="post">';
+	echo '<form action="" method="post" class="dashboard-widget-control-form">';
 	wp_dashboard_trigger_widget_control( $meta_box['id'] );
 	echo "<p class='submit'><input type='hidden' name='widget_id' value='$meta_box[id]' /><input type='submit' value='" . __( 'Submit' ) . "' /></p>";
 
@@ -177,13 +180,13 @@ function wp_dashboard_right_now() {
 	echo "\n\t".'<tr class="first">';
 
 	// Posts
-	$num = isset($num_posts->publish) ? number_format_i18n( $num_posts->publish ) : 0;
+	$num = number_format_i18n( $num_posts->publish );
 	if ( current_user_can( 'edit_posts' ) )
 		$text = "<a href='edit.php'>$num</a>";
 	else
 		$text = $num;
 	echo '<td class="first b b-posts">' . $text . '</td>';
-	echo '<td class="t posts">' . __ngettext( 'Post', 'Posts', $num ) . '</td>';
+	echo '<td class="t posts">' . __ngettext( 'Post', 'Posts', intval($num_posts->publish) ) . '</td>';
 	/* TODO: Show status breakdown on hover
 	if ( $can_edit_pages && !empty($num_pages->publish) ) { // how many pages is not exposed in feeds.  Don't show if !current_user_can
 		$post_type_texts[] = '<a href="edit-pages.php">'.sprintf( __ngettext( '%s page', '%s pages', $num_pages->publish ), number_format_i18n( $num_pages->publish ) ).'</a>';
@@ -233,12 +236,12 @@ function wp_dashboard_right_now() {
 	echo '<td class="first b b-cats">'.$num.'</td>';
 	echo '<td class="t cats">' . __ngettext( 'Category', 'Categories', $num_cats ) . '</td>';
 
-	// Spam Comments
-	$num = number_format_i18n($num_comm['spam']);
+	// Pending Comments
+	$num = number_format_i18n($num_comm['awaiting_moderation']);
 	if ( current_user_can( 'moderate_comments' ) )
-		$num = "<a href='edit-comments.php?comment_status=spam'><span class='spam-count'>$num</span></a>";
-	echo '<td class="b b-spam">'.$num.'</td>';
-	echo '<td class="last t spam">' . __ngettext( 'Spam', 'Spam', $num_comm['spam'] ) . '</td>';
+		$num = "<a href='edit-comments.php?comment_status=moderated'><span class='pending-count'>$num</span></a>";
+	echo '<td class="b b-waiting">'.$num.'</td>';
+	echo '<td class="last t waiting">' . __ngettext( 'Pending', 'Pending', $num_comm['awaiting_moderation'] ) . '</td>';
 
 	echo "</tr>\n\t<tr>";
 
@@ -249,12 +252,12 @@ function wp_dashboard_right_now() {
 	echo '<td class="first b b-tags">'.$num.'</td>';
 	echo '<td class="t tags">' . __ngettext( 'Tag', 'Tags', $num_tags ) . '</td>';
 
-	// Pending Comments
-	$num = number_format_i18n($num_comm['awaiting_moderation']);
+	// Spam Comments
+	$num = number_format_i18n($num_comm['spam']);
 	if ( current_user_can( 'moderate_comments' ) )
-		$num = "<a href='edit-comments.php?comment_status=moderated'><span class='pending-count'>$num</span></a>";
-	echo '<td class="b b-waiting">'.$num.'</td>';
-	echo '<td class="last t waiting">' . __ngettext( 'Pending', 'Pending', $num_comm['awaiting_moderation'] ) . '</td>';
+		$num = "<a href='edit-comments.php?comment_status=spam'><span class='spam-count'>$num</span></a>";
+	echo '<td class="b b-spam">'.$num.'</td>';
+	echo '<td class="last t spam">' . __ngettext( 'Spam', 'Spam', $num_comm['spam'] ) . '</td>';
 
 	echo "</tr>";
 	do_action('right_now_table_end');
@@ -285,7 +288,7 @@ function wp_dashboard_right_now() {
 
 function wp_dashboard_quick_press() {
 	$drafts = false;
-	if ( 'post' === strtolower( $_SERVER['REQUEST_METHOD'] ) && isset( $_POST['action'] ) && 0 === strpos( $_POST['action'], 'post-quickpress' ) ) {
+	if ( 'post' === strtolower( $_SERVER['REQUEST_METHOD'] ) && isset( $_POST['action'] ) && 0 === strpos( $_POST['action'], 'post-quickpress' ) && (int) $_POST['post_ID'] ) {
 		$view = get_permalink( $_POST['post_ID'] );
 		$edit = clean_url( get_edit_post_link( $_POST['post_ID'] ) );
 		if ( 'post-quickpress-publish' == $_POST['action'] ) {
@@ -338,9 +341,9 @@ function wp_dashboard_quick_press() {
 			<input type="submit" name="save" id="save-post" class="button" tabindex="4" value="<?php _e('Save Draft'); ?>" />
 			<input type="reset" value="<?php _e( 'Cancel' ); ?>" class="cancel" />
 			<?php if ( current_user_can('publish_posts') ) { ?>
-			<input type="submit" name="publish" id="publish" accesskey="p" tabindex="5" class="button button-primary" value="<?php _e('Publish'); ?>" />
+			<input type="submit" name="publish" id="publish" accesskey="p" tabindex="5" class="button-primary" value="<?php _e('Publish'); ?>" />
 			<?php } else { ?>
-			<input type="submit" name="publish" id="publish" accesskey="p" tabindex="5" class="button button-primary" value="<?php _e('Submit for Review'); ?>" />
+			<input type="submit" name="publish" id="publish" accesskey="p" tabindex="5" class="button-primary" value="<?php _e('Submit for Review'); ?>" />
 			<?php } ?>
 			<br class="clear" />
 		</p>
@@ -380,7 +383,7 @@ function wp_dashboard_recent_drafts( $drafts = false ) {
 	<ul>
 		<li><?php echo join( "</li>\n<li>", $list ); ?></li>
 	</ul>
-
+	<p class="textright"><a href="edit.php?post_status=draft" class="button"><?php _e('View all'); ?></a></p>
 <?php
 	} else {
 		_e('There are no drafts at the moment');
@@ -409,6 +412,10 @@ function wp_dashboard_recent_comments() {
 		</div>
 
 <?php
+		if ( current_user_can('edit_posts') ) { ?>
+			<p class="textright"><a href="edit-comments.php" class="button"><?php _e('View all'); ?></a></p>
+<?php	}
+		
 		wp_comment_reply( -1, false, 'dashboard', false );
 
 	else :
@@ -456,7 +463,7 @@ function _wp_dashboard_recent_comments_row( &$comment, $show_date = true ) {
 			if ( 'reply' == $action || 'quickedit' == $action )
 				$action .= ' hide-if-no-js';
 
-			$actions_string .= "<span class='$action'>$sep$link</span>";
+			$actions_string .= "$sep<span class='$action'>$link</span>";
 		}
 	}
 
@@ -466,7 +473,7 @@ function _wp_dashboard_recent_comments_row( &$comment, $show_date = true ) {
 			<?php if ( !$comment->comment_type || 'comment' == $comment->comment_type ) : ?>
 
 			<?php echo get_avatar( $comment, 50 ); ?>
-			<h4 class="comment-meta"><?php printf( __( 'From %1$s on %2$s%3$s' ), '<cite class="comment-author">' . get_comment_author_link() . '</cite>', $comment_post_link, ' <span class="approve">' . __( '[Pending]' ) . '</span>' ); ?></h4>
+			<h4 class="comment-meta"><?php printf( __( 'From %1$s on %2$s%3$s' ), '<cite class="comment-author">' . get_comment_author_link() . '</cite>', $comment_post_link." ".$comment_link, ' <span class="approve">' . __( '[Pending]' ) . '</span>' ); ?></h4>
 
 			<?php
 			else :
@@ -488,7 +495,7 @@ function _wp_dashboard_recent_comments_row( &$comment, $show_date = true ) {
 
 			<?php endif; // comment_type ?>
 			<blockquote><p><?php comment_excerpt(); ?></p></blockquote>
-			<p class="comment-actions"><?php echo $actions_string; ?></p>
+			<p class="row-actions"><?php echo $actions_string; ?></p>
 
 			<div id="inline-<?php echo $comment->comment_ID; ?>" class="hidden">
 				<textarea class="comment" rows="3" cols="10"><?php echo $comment->comment_content; ?></textarea>
@@ -797,5 +804,10 @@ function wp_dashboard_rss_control( $widget_id, $form_inputs = array() ) {
 
 	wp_widget_rss_form( $widget_options[$widget_id], $form_inputs );
 }
+
+/**
+ * Empty function usable by plugins to output empty dashboard widget (to be populated later by JS).
+ */
+function wp_dashboard_empty() {}
 
 ?>

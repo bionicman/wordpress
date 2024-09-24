@@ -31,6 +31,9 @@ function plugins_api($action, $args = null) {
 	if( is_array($args) )
 		$args = (object)$args;
 
+	if ( !isset($args->per_page) )
+		$args->per_page = 24;
+
 	$args = apply_filters('plugins_api_args', $args, $action); //NOTE: Ensure that an object is returned via this filter.
 	$res = apply_filters('plugins_api', false, $action, $args); //NOTE: Allows a plugin to completely override the builtin WordPress.org API.
 
@@ -279,7 +282,7 @@ function display_plugins_table($plugins, $page = 1, $totalpages = 1){
 ?>
 		<br class="clear" />
 	</div>
-	<table class="widefat" id="install-plugins">
+	<table class="widefat" id="install-plugins" cellspacing="0">
 		<thead>
 			<tr>
 				<th scope="col" class="name"><?php _e('Name'); ?></th>
@@ -425,8 +428,23 @@ function install_plugin_information() {
 					break;
 				}
 			}
-			if ( 'install' == $type && file_exists( WP_PLUGIN_DIR  . '/' . $api->slug ) ) //TODO: Make more.. searchable?
-				$type = 'latest_installed';
+			if ( 'install' == $type && is_dir( WP_PLUGIN_DIR  . '/' . $api->slug ) ) {
+				$installed_plugin = get_plugins('/' . $api->slug);
+				if ( ! empty($installed_plugin) ) {
+					$key = array_shift( $key = array_keys($installed_plugin) ); //Use the first plugin regardless of the name, Could have issues for multiple-plugins in one directory if they share different version numbers
+					if ( version_compare($api->version, $installed_plugin[ $key ]['Version'], '>') ){
+						$type = 'latest_installed';
+					} elseif ( version_compare($api->version, $installed_plugin[ $key ]['Version'], '<') ) {
+						$type = 'newer_installed';
+						$newer_version = $installed_plugin[ $key ]['Version'];
+					} else {
+						//If the above update check failed, Then that probably means that the update checker has out-of-date information, force a refresh
+						delete_option('update_plugins');
+						$update_file = $api->slug . '/' . $key; //This code branch only deals with a plugin which is in a folder the same name as its slug, Doesnt support plugins which have 'non-standard' names
+						$type = 'update_available';
+					}
+				}
+			}
 
 			switch ( $type ) :
 				default:
@@ -438,6 +456,11 @@ function install_plugin_information() {
 				case 'update_available':
 					if ( current_user_can('update_plugins') ) :
 						?><a href="<?php echo wp_nonce_url(admin_url('update.php?action=upgrade-plugin&plugin=' . $update_file), 'upgrade-plugin_' . $update_file) ?>" target="_parent"><?php _e('Install Update Now') ?></a><?php
+					endif;
+				break;
+				case 'newer_installed':
+					if ( current_user_can('install_plugins') || current_user_can('update_plugins') ) :
+					?><a><?php printf(__('Newer Version (%s) Installed'), $newer_version) ?></a><?php
 					endif;
 				break;
 				case 'latest_installed':
@@ -524,6 +547,7 @@ function upload_plugin() {
 	check_admin_referer('plugin-upload');
 
 	echo '<div class="wrap">';
+	screen_icon();
 	echo '<h2>', sprintf( __('Installing Plugin from file: %s'), basename($filename) ), '</h2>';
 
 	//Handle a newly uploaded file, Else assume it was 
@@ -560,6 +584,7 @@ function install_plugin() {
 		wp_die($api);
 
 	echo '<div class="wrap">';
+	screen_icon();
 	echo '<h2>', sprintf( __('Installing Plugin: %s'), $api->name . ' ' . $api->version ), '</h2>';
 
 	do_plugin_install($api->download_link, $api);
@@ -748,7 +773,7 @@ function wp_install_plugin($package, $feedback = '') {
 
 	if( $wp_filesystem->exists( $plugins_dir . $filelist[0] ) ) {
 		$wp_filesystem->delete($working_dir, true);
-		return new WP_Error('install_folder_exists', __('Folder allready exists.'), $filelist[0] );
+		return new WP_Error('install_folder_exists', __('Folder already exists.'), $filelist[0] );
 	}
 
 	apply_filters('install_feedback', __('Installing the plugin'));
@@ -843,7 +868,7 @@ function wp_install_plugin_local_package($package, $feedback = '') {
 
 	if( $wp_filesystem->exists( $plugins_dir . $filelist[0] ) ) {
 		$wp_filesystem->delete($working_dir, true);
-		return new WP_Error('install_folder_exists', __('Folder allready exists.'), $filelist[0] );
+		return new WP_Error('install_folder_exists', __('Folder already exists.'), $filelist[0] );
 	}
 
 	apply_filters('install_feedback', __('Installing the plugin'));

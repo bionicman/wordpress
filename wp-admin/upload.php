@@ -101,7 +101,7 @@ if ( isset($_GET['find_detached'] ) ) {
 }
 
 $title = __('Media Library');
-$parent_file = 'edit.php';
+$parent_file = 'upload.php';
 
 if ( ! isset( $_GET['paged'] ) || $_GET['paged'] < 1 )
 	$_GET['paged'] = 1;
@@ -136,11 +136,6 @@ if ( isset($_GET['detached']) ) {
 	list($post_mime_types, $avail_post_mime_types) = wp_edit_attachments_query();
 }
 
-if ( is_singular() ) {
-	wp_enqueue_script( 'admin-comments' );
-	enqueue_comment_hotkeys_js();
-}
-
 require_once('admin-header.php'); ?>
 
 <?php
@@ -168,6 +163,7 @@ if ( isset($_GET['message']) && (int) $_GET['message'] ) {
 <?php do_action('restrict_manage_posts'); ?>
 
 <div class="wrap">
+<?php screen_icon(); ?>
 <h2><?php echo wp_specialchars( $title ); ?></h2> 
 
 <?php
@@ -297,7 +293,7 @@ foreach ($arc_result as $arc_row) {
 <div class="clear"></div>
 
 <?php if ( isset($orphans) ) { ?>
-<table class="widefat">
+<table class="widefat" cellspacing="0">
 <thead>
 <tr>
 	<th scope="col" class="check-column"><input type="checkbox" /></th>
@@ -409,43 +405,6 @@ if ( $page_links )
 </form>
 <br class="clear" />
 
-<?php
-
-if ( 1 == count($posts) && is_singular() ) :
-
-	$comments = $wpdb->get_results( $wpdb->prepare("SELECT * FROM $wpdb->comments WHERE comment_post_ID = %d AND comment_approved != 'spam' ORDER BY comment_date", $id) );
-	if ( $comments ) :
-		// Make sure comments, post, and post_author are cached
-		update_comment_cache($comments);
-		$post = get_post($id);
-		$authordata = get_userdata($post->post_author);
-	?>
-
-<br class="clear" />
-
-<table class="widefat" style="margin-top: .5em">
-<thead>
-	<tr>
-		<th scope="col"><?php _e('Comment') ?></th>
-		<th scope="col"><?php _e('Date') ?></th>
-		<th scope="col"><?php _e('Actions') ?></th>
-	</tr>
-</thead>
-<tbody id="the-comment-list" class="list:comment">
-<?php
-		foreach ($comments as $comment)
-			_wp_comment_row( $comment->comment_ID, 'detail', false, false );
-?>
-</tbody>
-</table>
-
-<?php
-wp_comment_reply();
-endif; // comments
-endif; // posts;
-
-?>
-
 </div>
 
 <script type="text/javascript">
@@ -463,7 +422,7 @@ endif; // posts;
 		});
 	});
 })(jQuery);
-columns.init('media');
+columns.init('upload');
 /* ]]> */
 </script>
 

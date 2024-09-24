@@ -98,12 +98,6 @@ function post_submit_meta_box($post) {
 
 <div id="misc-publishing-actions">
 
-<?php if ( false ) { // Stub for 2.8 ?>
-<div class="misc-pub-section" id="visibility">
-<?php _e('Visibility:'); ?> <b><?php _e('Public'); // TODO: dropdown ?></b>
-</div>
-<?php } ?>
-
 <div class="misc-pub-section<?php if ( !$can_publish ) { echo '  misc-pub-section-last'; } ?>"><label for="post_status"><?php _e('Status:') ?></label>
 <b><span id="post-status-display">
 <?php
@@ -214,7 +208,7 @@ if ( 0 != $post->ID ) {
 <div class="misc-pub-section curtime misc-pub-section-last">
 	<span id="timestamp">
 	<?php printf($stamp, $date); ?></span>
-	&nbsp;<a href="#edit_timestamp" class="edit-timestamp hide-if-no-js" tabindex='4'><?php _e('Edit') ?></a>
+	<a href="#edit_timestamp" class="edit-timestamp hide-if-no-js" tabindex='4'><?php _e('Edit') ?></a>
 	<div id="timestampdiv" class="hide-if-js"><?php touch_time(($action == 'edit'),1,4); ?></div>
 </div><?php // /misc-pub-section ?>
 <?php endif; ?>
@@ -428,20 +422,19 @@ function post_comment_status_meta_box($post) {
 wp_nonce_field( 'get-comments', 'add_comment_nonce', false );
 ?>
 
-<table class="widefat comments-box" style="display:none;">
+<table class="widefat comments-box fixed" cellspacing="0" style="display:none;">
 <thead>
 	<tr>
-		<th scope="col"><?php _e('Comments') ?></th>
-		<th scope="col"><?php _e('Author') ?></th>
-		<th scope="col"><?php _e('Submitted') ?></th>
-	</tr>
+    <th scope="col" class="column-author"><?php _e('Author') ?></th>
+    <th scope="col" class="column-comment"><?php echo _c('Comment|noun') ?></th>
+  </tr>
 </thead>
 <tbody id="the-comment-list" class="list:comment">
 </tbody>
 </table>
 <p class="hide-if-no-js"><a href="#commentstatusdiv" id="show-comments" onclick="commentsBox.get(<?php echo $total; ?>);return false;"><?php _e('Show comments'); ?></a> <img class="waiting" style="display:none;" src="images/loading.gif" alt="" /></p>
 <?php
-	$hidden = (array) get_user_option( "meta-box-hidden_post" );
+	$hidden = get_hidden_meta_boxes('post');
 	if ( ! in_array('commentstatusdiv', $hidden) ) { ?>
 		<script type="text/javascript">commentsBox.get(<?php echo $total; ?>, 10);</script>
 <?php
@@ -514,6 +507,7 @@ require_once('admin-header.php');
 <?php endif; ?>
 
 <div class="wrap">
+<?php screen_icon(); ?>
 <h2><?php echo wp_specialchars( $title ); ?></h2>
 <?php if ( $notice ) : ?>
 <div id="notice" class="error"><p><?php echo $notice ?></p></div>

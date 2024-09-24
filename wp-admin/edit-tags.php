@@ -129,6 +129,7 @@ $messages[5] = __('Tag not updated.');
 $messages[6] = __('Tags deleted.'); ?>
 
 <div class="wrap nosubsub">
+<?php screen_icon(); ?>
 <h2><?php echo wp_specialchars( $title ); ?></h2> 
 
 <?php if ( isset($_GET['message']) && ( $msg = (int) $_GET['message'] ) ) : ?>
@@ -155,9 +156,9 @@ endif; ?>
 $pagenum = isset( $_GET['pagenum'] ) ? absint( $_GET['pagenum'] ) : 0;
 if ( empty($pagenum) )
 	$pagenum = 1;
-if( ! isset( $tagsperpage ) || $tagsperpage < 0 )
-	$tagsperpage = 20;
 
+$tagsperpage = apply_filters("tagsperpage",20);
+	
 $page_links = paginate_links( array(
 	'base' => add_query_arg( 'pagenum', '%#%' ),
 	'format' => '',
@@ -185,16 +186,16 @@ if ( $page_links )
 
 <div class="clear"></div>
 
-<table class="widefat tag">
+<table class="widefat tag fixed" cellspacing="0">
 	<thead>
 	<tr>
-<?php print_column_headers('tag'); ?>
+<?php print_column_headers('edit-tags'); ?>
 	</tr>
 	</thead>
 
 	<tfoot>
 	<tr>
-<?php print_column_headers('tag', false); ?>
+<?php print_column_headers('edit-tags', false); ?>
 	</tr>
 	</tfoot>
 
@@ -291,7 +292,7 @@ else
 /* ]]> */
 </script>
 
-<?php inline_edit_term_row('tag'); ?>
+<?php inline_edit_term_row('edit-tags'); ?>
 
 <?php
 break;

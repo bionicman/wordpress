@@ -135,12 +135,14 @@ case 'delete':
 <?php echo $referer; ?>
 
 <div class="wrap">
+<?php screen_icon(); ?>
 <h2><?php _e('Delete Users'); ?></h2>
 <p><?php _e('You have specified these users for deletion:'); ?></p>
 <ul>
 <?php
 	$go_delete = false;
 	foreach ( (array) $userids as $id ) {
+		$id = (int) $id;
 		$user = new WP_User($id);
 		if ( $id == $current_user->ID ) {
 			echo "<li>" . sprintf(__('ID #%1s: %2s <strong>The current user will not be deleted.</strong>'), $id, $user->user_login) . "</li>\n";
@@ -236,6 +238,7 @@ if ( ! empty($messages) ) {
 } ?>
 
 <div class="wrap">
+<?php screen_icon(); ?>
 <h2><?php echo wp_specialchars( $title ); ?></h2> 
 
 <div class="filter">
@@ -325,19 +328,19 @@ unset($role_links);
 <?php if ( $wp_user_search->get_results() ) : ?>
 
 	<?php if ( $wp_user_search->is_search() ) : ?>
-		<p><a href="users.php"><?php _e('&laquo; Back to All Users'); ?></a></p>
+		<p><a href="users.php"><?php _e('&larr; Back to All Users'); ?></a></p>
 	<?php endif; ?>
 
-<table class="widefat">
+<table class="widefat fixed" cellspacing="0">
 <thead>
 <tr class="thead">
-<?php print_column_headers('user') ?>
+<?php print_column_headers('users') ?>
 </tr>
 </thead>
 
 <tfoot>
 <tr class="thead">
-<?php print_column_headers('user', false) ?>
+<?php print_column_headers('users', false) ?>
 </tr>
 </tfoot>
 

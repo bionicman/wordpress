@@ -577,6 +577,27 @@ function add_object_page( $page_title, $menu_title, $access_level, $file, $funct
 	return $hookname;
 }
 
+function add_utility_page( $page_title, $menu_title, $access_level, $file, $function = '', $icon_url = '') {
+	global $menu, $admin_page_hooks, $_wp_last_utility_menu;
+
+	$file = plugin_basename( $file );
+
+	$admin_page_hooks[$file] = sanitize_title( $menu_title );
+
+	$hookname = get_plugin_page_hookname( $file, '' );
+	if (!empty ( $function ) && !empty ( $hookname ))
+		add_action( $hookname, $function );
+
+	if ( empty($icon_url) )
+		$icon_url = 'images/generic.png';
+
+	$_wp_last_utility_menu++;
+
+	$menu[$_wp_last_utility_menu] = array ( $menu_title, $access_level, $file, $page_title, 'menu-top ' . $hookname, $hookname, $icon_url );
+
+	return $hookname;
+}
+
 function add_submenu_page( $parent, $page_title, $menu_title, $access_level, $file, $function = '' ) {
 	global $submenu;
 	global $menu;
@@ -625,7 +646,7 @@ function add_submenu_page( $parent, $page_title, $menu_title, $access_level, $fi
  * @return unknown
  */
 function add_management_page( $page_title, $menu_title, $access_level, $file, $function = '' ) {
-	return add_submenu_page( 'import.php', $page_title, $menu_title, $access_level, $file, $function );
+	return add_submenu_page( 'tools.php', $page_title, $menu_title, $access_level, $file, $function );
 }
 
 function add_options_page( $page_title, $menu_title, $access_level, $file, $function = '' ) {
@@ -644,20 +665,24 @@ function add_users_page( $page_title, $menu_title, $access_level, $file, $functi
 	return add_submenu_page( $parent, $page_title, $menu_title, $access_level, $file, $function );
 }
 
+function add_dashboard_page( $page_title, $menu_title, $access_level, $file, $function = '' ) {
+	return add_submenu_page( 'index.php', $page_title, $menu_title, $access_level, $file, $function );
+}
+
 function add_posts_page( $page_title, $menu_title, $access_level, $file, $function = '' ) {
-	return add_submenu_page( 'posts-new.php', $page_title, $menu_title, $access_level, $file, $function );
+	return add_submenu_page( 'edit.php', $page_title, $menu_title, $access_level, $file, $function );
 }
 
 function add_media_page( $page_title, $menu_title, $access_level, $file, $function = '' ) {
-	return add_submenu_page( 'media-new.php', $page_title, $menu_title, $access_level, $file, $function );
+	return add_submenu_page( 'upload.php', $page_title, $menu_title, $access_level, $file, $function );
 }
 
 function add_links_page( $page_title, $menu_title, $access_level, $file, $function = '' ) {
-	return add_submenu_page( 'link-add.php', $page_title, $menu_title, $access_level, $file, $function );
+	return add_submenu_page( 'link-manager.php', $page_title, $menu_title, $access_level, $file, $function );
 }
 
 function add_pages_page( $page_title, $menu_title, $access_level, $file, $function = '' ) {
-	return add_submenu_page( 'page-new.php', $page_title, $menu_title, $access_level, $file, $function );
+	return add_submenu_page( 'edit-pages.php', $page_title, $menu_title, $access_level, $file, $function );
 }
 
 function add_comments_page( $page_title, $menu_title, $access_level, $file, $function = '' ) {
@@ -731,7 +756,8 @@ function get_admin_page_parent( $parent = '' ) {
 		}
 	}
 
-	$parent_file = '';
+	if ( empty($parent_file) )
+		$parent_file = '';
 	return '';
 }
 

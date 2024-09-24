@@ -250,6 +250,9 @@ class WP_Http {
 				$r['headers']['Content-Length'] = strlen($r['body']);
 			}
 
+			if ( ! isset( $r['headers']['Content-Length'] ) && ! isset( $r['headers']['content-length'] ) )
+				$r['headers']['Content-Length'] = strlen($r['body']);
+
 			$transports = WP_Http::_postTransport($r);
 		}
 
@@ -783,6 +786,7 @@ class WP_Http_Streams {
 		stream_set_timeout($handle, $r['timeout'] );
 
 		if ( ! $r['blocking'] ) {
+			stream_set_blocking($handle, 0);
 			fclose($handle);
 			return array( 'headers' => array(), 'body' => '', 'response' => array('code', 'message') );
 		}
