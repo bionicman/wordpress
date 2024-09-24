@@ -3,7 +3,7 @@
 Plugin Name: Akismet
 Plugin URI: http://akismet.com/
 Description: Akismet checks your comments against the Akismet web service to see if they look like spam or not. You need a <a href="http://wordpress.com/api-keys/">WordPress.com API key</a> to use it. You can review the spam it catches under "Comments." To show off your Akismet stats just put <code>&lt;?php akismet_counter(); ?></code> in your template. See also: <a href="http://wordpress.org/extend/plugins/stats/">WP Stats plugin</a>.
-Version: 2.1.2
+Version: 2.1.3
 Author: Matt Mullenweg
 Author URI: http://photomatt.net/
 */
@@ -147,14 +147,10 @@ function akismet_verify_key( $key ) {
 if ( !get_option('wordpress_api_key') && !$wpcom_api_key && !isset($_POST['submit']) ) {
 	function akismet_warning() {
 		echo "
-		<div id='akismet-warning' class='updated fade-ff0000'><p><strong>".__('Akismet is not active.')."</strong> ".sprintf(__('You must <a href="%1$s">enter your WordPress.com API key</a> for it to work.'), "plugins.php?page=akismet-key-config")."</p></div>
-		<style type='text/css'>
-		#adminmenu { margin-bottom: 5em; }
-		#akismet-warning { position: absolute; top: 7em; }
-		</style>
+		<div id='akismet-warning' class='updated fade-ff0000'><p><strong>".__('Akismet is almost ready.')."</strong> ".sprintf(__('You must <a href="%1$s">enter your WordPress.com API key</a> for it to work.'), "plugins.php?page=akismet-key-config")."</p></div>
 		";
 	}
-	add_action('admin_footer', 'akismet_warning');
+	add_action('admin_notices', 'akismet_warning');
 	return;
 }
 
@@ -204,6 +200,8 @@ function akismet_auto_check_comment( $comment ) {
 	if ( 'true' == $response[1] ) {
 		add_filter('pre_comment_approved', create_function('$a', 'return \'spam\';'));
 		update_option( 'akismet_spam_count', get_option('akismet_spam_count') + 1 );
+
+		do_action( 'akismet_spam_caught' );
 
 		$post = get_post( $comment['comment_post_ID'] );
 		$last_updated = strtotime( $post->post_modified_gmt );
@@ -463,7 +461,7 @@ $total_pages = ceil( $total / 50 );
 $r = '';
 if ( 1 < $page ) {
 	$args['apage'] = ( 1 == $page - 1 ) ? '' : $page - 1;
-	$r .=  '<a class="prev" href="' . clean_url(add_query_arg( $args )) . '">&laquo; '. __('Previous Page') .'</a>' . "\n";
+	$r .=  '<a class="prev" href="' . clean_url(add_query_arg( $args )) . '">'. __('&laquo; Previous Page') .'</a>' . "\n";
 }
 if ( ( $total_pages = ceil( $total / 50 ) ) > 1 ) {
 	for ( $page_num = 1; $page_num <= $total_pages; $page_num++ ) :
@@ -484,7 +482,7 @@ if ( ( $total_pages = ceil( $total / 50 ) ) > 1 ) {
 }
 if ( ( $page ) * 50 < $total || -1 == $total ) {
 	$args['apage'] = $page + 1;
-	$r .=  '<a class="next" href="' . clean_url(add_query_arg($args)) . '">'. __('Next Page') .' &raquo;</a>' . "\n";
+	$r .=  '<a class="next" href="' . clean_url(add_query_arg($args)) . '">'. __('Next Page &raquo;') .'</a>' . "\n";
 }
 echo "<p>$r</p>";
 ?>
@@ -530,7 +528,7 @@ $total_pages = ceil( $total / 50 );
 $r = '';
 if ( 1 < $page ) {
 	$args['apage'] = ( 1 == $page - 1 ) ? '' : $page - 1;
-	$r .=  '<a class="prev" href="' . clean_url(add_query_arg( $args )) . '">&laquo; '. __('Previous Page') .'</a>' . "\n";
+	$r .=  '<a class="prev" href="' . clean_url(add_query_arg( $args )) . '">'. __('&laquo; Previous Page') .'</a>' . "\n";
 }
 if ( ( $total_pages = ceil( $total / 50 ) ) > 1 ) {
 	for ( $page_num = 1; $page_num <= $total_pages; $page_num++ ) :
@@ -551,7 +549,7 @@ if ( ( $total_pages = ceil( $total / 50 ) ) > 1 ) {
 }
 if ( ( $page ) * 50 < $total || -1 == $total ) {
 	$args['apage'] = $page + 1;
-	$r .=  '<a class="next" href="' . clean_url(add_query_arg($args)) . '">'. __('Next Page') .' &raquo;</a>' . "\n";
+	$r .=  '<a class="next" href="' . clean_url(add_query_arg($args)) . '">'. __('Next Page &raquo;') .'</a>' . "\n";
 }
 echo "<p>$r</p>";
 }
