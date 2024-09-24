@@ -321,7 +321,7 @@ function get_user_option( $option, $user = 0 ) {
 }
 
 function form_option($option) {
-	echo htmlspecialchars( get_option($option), ENT_QUOTES );
+	echo wp_specialchars( get_option($option), 1 );
 }
 
 function get_alloptions() {
@@ -2085,6 +2085,11 @@ function add_query_arg() {
 			$uri = @func_get_arg(2);
 	}
 
+	if ( $frag = strstr($uri, '#') )
+		$uri = substr($uri, 0, -strlen($frag));
+	else
+		$frag = '';
+
 	if ( preg_match('|^https?://|i', $uri, $matches) ) {
 		$protocol = $matches[0];
 		$uri = substr($uri, strlen($protocol));
@@ -2124,7 +2129,7 @@ function add_query_arg() {
 			$ret .= "$k=$v";
 		}
 	}
-	$ret = $protocol . $base . $ret;
+	$ret = $protocol . $base . $ret . $frag;
 	return trim($ret, '?');
 }
 

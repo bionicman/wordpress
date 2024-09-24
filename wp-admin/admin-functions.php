@@ -265,6 +265,8 @@ function get_post_to_edit($id) {
 	$post->post_title = format_to_edit($post->post_title);
 	$post->post_title = apply_filters('title_edit_pre', $post->post_title);
 
+    $post->post_password = format_to_edit($post->post_password); 
+
 	if ($post->post_status == 'static')
 		$post->page_template = get_post_meta($id, '_wp_page_template', true);
 
@@ -333,6 +335,23 @@ function get_category_to_edit($id) {
 	return $category;
 }
 
+function get_user_to_edit($user_id) {
+	$user = new WP_User($user_id);
+	$user->user_login = wp_specialchars($user->user_login, 1);
+	$user->user_email = wp_specialchars($user->user_email, 1);
+	$user->user_url = wp_specialchars($user->user_url, 1);
+	$user->first_name = wp_specialchars($user->first_name, 1);
+	$user->last_name = wp_specialchars($user->last_name, 1);
+	$user->display_name = wp_specialchars($user->display_name, 1);
+	$user->nickname = wp_specialchars($user->nickname, 1);
+	$user->aim = wp_specialchars($user->aim, 1);
+	$user->yim = wp_specialchars($user->yim, 1);
+	$user->jabber = wp_specialchars($user->jabber, 1);
+	$user->description = wp_specialchars($user->description);
+
+	return $user;
+}
+
 // Creates a new user from the "Users" form using $_POST information.
 
 function add_user() {
@@ -381,7 +400,7 @@ function edit_user($user_id = 0) {
 	if (isset ($_POST['display_name']))
 		$user->display_name = wp_specialchars(trim($_POST['display_name']));
 	if (isset ($_POST['description']))
-		$user->description = wp_specialchars(trim($_POST['description']));
+		$user->description = trim($_POST['description']);
 	if (isset ($_POST['jabber']))
 		$user->jabber = wp_specialchars(trim($_POST['jabber']));
 	if (isset ($_POST['aim']))
@@ -447,13 +466,16 @@ function edit_user($user_id = 0) {
 
 function get_link_to_edit($link_id) {
 	$link = get_link($link_id);
-	
+
 	$link->link_url = wp_specialchars($link->link_url, 1);
 	$link->link_name = wp_specialchars($link->link_name, 1);
-	$link->link_description = wp_specialchars($link->link_description);
+	$link->link_image = wp_specialchars($link->link_image, 1);
+	$link->link_description = wp_specialchars($link->link_description, 1);
 	$link->link_notes = wp_specialchars($link->link_notes);
-	$link->link_rss = wp_specialchars($link->link_rss);
-	
+	$link->link_rss = wp_specialchars($link->link_rss, 1);
+	$link->link_rel = wp_specialchars($link->link_rel, 1);
+	$link->post_category = $link->link_category;
+
 	return $link;
 }
 
@@ -876,6 +898,7 @@ function meta_form() {
 <?php
 
 	foreach ($keys as $key) {
+		$key = wp_specialchars($key, 1);
 		echo "\n\t<option value='$key'>$key</option>";
 	}
 ?>

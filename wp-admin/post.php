@@ -81,7 +81,7 @@ case 'edit':
 	?>
 	<div id='preview' class='wrap'>
 	<h2 id="preview-post"><?php _e('Post Preview (updated when post is saved)'); ?> <small class="quickjump"><a href="#write-post"><?php _e('edit &uarr;'); ?></a></small></h2>
-		<iframe src="<?php echo add_query_arg('preview', 'true', get_permalink($post->ID)); ?>" width="100%" height="600" ></iframe>
+		<iframe src="<?php echo wp_specialchars(apply_filters('preview_post_link', add_query_arg('preview', 'true', get_permalink($post->ID)))); ?>" width="100%" height="600" ></iframe>
 	</div>
 	<?php
 	break;
@@ -335,12 +335,9 @@ case 'editedcomment':
 
 	edit_comment();
 
-	$referredby = $_POST['referredby'];
-	if (!empty($referredby)) {
-		wp_redirect($referredby);
-	} else {
-		wp_redirect("edit.php?p=$comment_post_ID&c=1#comments");
-	}
+	$location = ( empty($_POST['referredby']) ? "edit.php?p=$comment_post_ID&c=1" : $_POST['referredby'] ) . '#comment-' . $comment_ID;
+	$location = apply_filters('comment_edit_redirect', $location, $comment_ID);
+	wp_redirect($location);
 
 	break;
 
@@ -384,7 +381,7 @@ default:
 
 		include('edit-form-advanced.php');
 ?>
-<div class="wrap">
+<div id="wp-bookmarklet" class="wrap">
 <?php echo '<h3>'.__('WordPress bookmarklet').'</h3>
 <p>'.__('Right click on the following link and choose "Add to favorites" to create a posting shortcut.').'</p>'; ?>
 <p>
