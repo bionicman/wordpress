@@ -2021,6 +2021,8 @@ class WP_Query {
 		// Order by
 		if ( empty($q['orderby']) ) {
 			$q['orderby'] = "$wpdb->posts.post_date ".$q['order'];
+		} elseif ( 'none' == $q['orderby'] ) {
+			$q['orderby'] = '';
 		} else {
 			// Used to filter values
 			$allowed_keys = array('author', 'date', 'title', 'modified', 'menu_order', 'parent', 'ID', 'rand');
@@ -2065,7 +2067,7 @@ class WP_Query {
 		}
 
 		if ( 'any' == $post_type ) {
-			$where .= '';
+			$where .= " AND $wpdb->posts.post_type != 'revision'";
 		} elseif ( $this->is_attachment ) {
 			$where .= " AND $wpdb->posts.post_type = 'attachment'";
 		} elseif ($this->is_page) {
@@ -2378,17 +2380,16 @@ class WP_Query {
 	 * @since 1.5.0
 	 * @access public
 	 * @uses $post
-	 * @uses do_action() Calls 'loop_start' if loop has just started
+	 * @uses do_action_ref_array() Calls 'loop_start' if loop has just started
 	 */
 	function the_post() {
 		global $post;
 		$this->in_the_loop = true;
 		$post = $this->next_post();
 		setup_postdata($post);
-		do_action('the_post', $post);
 
 		if ( $this->current_post == 0 ) // loop has just started
-			do_action('loop_start');
+			do_action_ref_array('loop_start', array(&$this));
 	}
 
 	/**
@@ -2398,7 +2399,7 @@ class WP_Query {
 	 *
 	 * @since 1.5.0
 	 * @access public
-	 * @uses do_action() Calls 'loop_start' if loop has just started
+	 * @uses do_action_ref_array() Calls 'loop_end' if loop is ended
 	 *
 	 * @return bool True if posts are available, false if end of loop.
 	 */
@@ -2406,7 +2407,7 @@ class WP_Query {
 		if ($this->current_post + 1 < $this->post_count) {
 			return true;
 		} elseif ($this->current_post + 1 == $this->post_count && $this->post_count > 0) {
-			do_action('loop_end');
+			do_action_ref_array('loop_end', array(&$this));
 			// Do some cleaning up after the loop
 			$this->rewind_posts();
 		}
@@ -2654,11 +2655,14 @@ function wp_old_slug_redirect () {
  * @since 1.5.0
  *
  * @param object $post Post data.
+ * @uses do_action_ref_array() Calls 'the_post'
  * @return bool True when finished.
  */
 function setup_postdata($post) {
 	global $id, $authordata, $day, $currentmonth, $page, $pages, $multipage, $more, $numpages;
 
+	do_action_ref_array('the_post', array(&$post));
+	
 	$id = (int) $post->ID;
 
 	$authordata = get_userdata($post->post_author);

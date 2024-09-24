@@ -67,9 +67,9 @@ function wp_version_check() {
 		$new_option = new stdClass();
 		$new_option->response = esc_attr( $returns[0] );
 		if ( isset( $returns[1] ) )
-			$new_option->url = clean_url( $returns[1] );
+			$new_option->url = esc_url( $returns[1] );
 		if ( isset( $returns[2] ) )
-			$new_option->package = clean_url( $returns[2] );
+			$new_option->package = esc_url( $returns[2] );
 		if ( isset( $returns[3] ) )
 			$new_option->current = esc_attr( $returns[3] );
 		if ( isset( $returns[4] ) )
@@ -208,13 +208,15 @@ function wp_update_themes( ) {
 	$current_theme->last_checked = time();
 	set_transient( 'update_themes', $current_theme );
 
+	$current_theme->template = get_option( 'template' );
+
 	$themes = array( );
-	$themes['current_theme'] = $current_theme;
+	$themes['current_theme'] = (array) $current_theme;
 	foreach( (array) $installed_themes as $theme_title => $theme ) {
-		$themes[$theme['Template']] = array( );
+		$themes[$theme['Stylesheet']] = array( );
 
 		foreach( (array) $theme as $key => $value ) {
-			$themes[$theme['Template']][$key] = $value;
+			$themes[$theme['Stylesheet']][$key] = $value;
 		}
 	}
 

@@ -77,7 +77,7 @@ function the_media_upload_tabs() {
 			if ( $current == $callback )
 				$class = " class='current'";
 			$href = add_query_arg(array('tab'=>$callback, 's'=>false, 'paged'=>false, 'post_mime_type'=>false, 'm'=>false));
-			$link = "<a href='" . clean_url($href) . "'$class>$text</a>";
+			$link = "<a href='" . esc_url($href) . "'$class>$text</a>";
 			echo "\t<li id='" . esc_attr("tab-$callback") . "'>$link</li>\n";
 		}
 		echo "</ul>\n";
@@ -107,7 +107,7 @@ function get_image_send_to_editor($id, $alt, $title, $align, $url='', $rel = fal
 	$rel = $rel ? ' rel="attachment wp-att-' . esc_attr($id).'"' : '';
 
 	if ( $url )
-		$html = '<a href="' . clean_url($url) . "\"$rel>$html</a>";
+		$html = '<a href="' . esc_url($url) . "\"$rel>$html</a>";
 
 	$html = apply_filters( 'image_send_to_editor', $html, $id, $alt, $title, $align, $url, $size );
 
@@ -327,6 +327,8 @@ if ( is_string($content_func) )
 	$args = func_get_args();
 	$args = array_slice($args, 1);
 	call_user_func_array($content_func, $args);
+	
+	do_action('admin_print_footer_scripts');
 ?>
 <script type="text/javascript">if(typeof wpOnload=='function')wpOnload();</script>
 </body>
@@ -1196,7 +1198,7 @@ function get_media_item( $attachment_id, $args = null ) {
 		if ( !empty($field[$field['input']]) )
 			$item .= $field[$field['input']];
 		elseif ( $field['input'] == 'textarea' ) {
-			$item .= "<textarea type='text' id='$name' name='$name'" . $aria_required . ">" . wp_specialchars( $field['value'] ) . "</textarea>";
+			$item .= "<textarea type='text' id='$name' name='$name'" . $aria_required . ">" . esc_html( $field['value'] ) . "</textarea>";
 		} else {
 			$item .= "<input type='text' id='$name' name='$name' value='" . esc_attr( $field['value'] ) . "'" . $aria_required . "/>";
 		}
@@ -1299,12 +1301,14 @@ jQuery(document).ready(function($){
 <?php if ( $flash ) : ?>
 <script type="text/javascript">
 //<![CDATA[
+var swfu;
 SWFUpload.onload = function() {
-	swfu = new SWFUpload({
+	var settings = {
 			button_text: '<span class="button"><?php _e('Select Files'); ?></span>',
 			button_text_style: '.button { text-align: center; font-weight: bold; font-family:"Lucida Grande","Lucida Sans Unicode",Tahoma,Verdana,sans-serif; }',
 			button_height: "24",
 			button_width: "132",
+			button_text_top_padding: 1,
 			button_image_url: '<?php echo includes_url('images/upload.png'); ?>',
 			button_placeholder_id: "flash-browse-button",
 			upload_url : "<?php echo esc_attr( $flash_action_url ); ?>",
@@ -1336,7 +1340,8 @@ SWFUpload.onload = function() {
 				swfupload_element_id : "flash-upload-ui" // id of the element displayed when swfupload is available
 			},
 			debug: false
-		});
+		};
+		swfu = new SWFUpload(settings);
 };
 //]]>
 </script>
@@ -1344,11 +1349,14 @@ SWFUpload.onload = function() {
 <div id="flash-upload-ui">
 <?php do_action('pre-flash-upload-ui'); ?>
 
-	<div><?php _e( 'Choose files to upload' ); ?> <div id="flash-browse-button"></div></div>
+	<div>
+	<?php _e( 'Choose files to upload' ); ?>
+	<div id="flash-browse-button"></div>
+	<span><input id="cancel-upload" disabled="disabled" onclick="cancelUpload()" type="button" value="<?php esc_attr_e('Cancel Upload'); ?>" class="button" /></span>
+	</div>
 <?php do_action('post-flash-upload-ui'); ?>
 	<p class="howto"><?php _e('After a file has been uploaded, you can add titles and descriptions.'); ?></p>
 </div>
-
 <?php endif; // $flash ?>
 
 <div id="html-upload-ui">
@@ -1394,7 +1402,7 @@ function media_upload_type_form($type = 'file', $errors = null, $id = null) {
 <?php media_upload_form( $errors ); ?>
 
 <script type="text/javascript">
-<!--
+//<![CDATA[
 jQuery(function($){
 	var preloaded = $(".media-item.preloaded");
 	if ( preloaded.length > 0 ) {
@@ -1402,7 +1410,7 @@ jQuery(function($){
 	}
 	updateMediaForm();
 });
--->
+//]]>
 </script>
 <div id="media-items">
 <?php
@@ -1411,13 +1419,15 @@ if ( $id ) {
 		add_filter('attachment_fields_to_edit', 'media_post_single_attachment_fields_to_edit', 10, 2);
 		echo get_media_items( $id, $errors );
 	} else {
-		echo '<div id="media-upload-error">'.wp_specialchars($id->get_error_message()).'</div>';
+		echo '<div id="media-upload-error">'.esc_html($id->get_error_message()).'</div>';
 		exit;
 	}
 }
 ?>
 </div>
-<input type="submit" class="button savebutton" name="save" value="<?php esc_attr_e( 'Save all changes' ); ?>" />
+<p class="savebutton ml-submit">
+<input type="submit" class="button" name="save" value="<?php esc_attr_e( 'Save all changes' ); ?>" />
+</p>
 <?php
 }
 
@@ -1567,8 +1577,8 @@ jQuery(function($){
 <div id="sort-buttons" class="hide-if-no-js">
 <span>
 <?php _e('All Tabs:'); ?>
-<a href="#" id="showall" class="toggle"><?php _e('Show'); ?></a>
-<a href="#" id="hideall" class="toggle" style="display:none;"><?php _e('Hide'); ?></a>
+<a href="#" id="showall"><?php _e('Show'); ?></a>
+<a href="#" id="hideall" style="display:none;"><?php _e('Hide'); ?></a>
 </span>
 <?php _e('Sort Order:'); ?>
 <a href="#" id="asc"><?php _e('Ascending'); ?></a> |
@@ -1735,7 +1745,7 @@ if ( empty($_GET['post_mime_type']) || $_GET['post_mime_type'] == 'all' )
 	$class = ' class="current"';
 else
 	$class = '';
-$type_links[] = "<li><a href='" . clean_url(add_query_arg(array('post_mime_type'=>'all', 'paged'=>false, 'm'=>false))) . "'$class>".__('All Types')."</a>";
+$type_links[] = "<li><a href='" . esc_url(add_query_arg(array('post_mime_type'=>'all', 'paged'=>false, 'm'=>false))) . "'$class>".__('All Types')."</a>";
 foreach ( $post_mime_types as $mime_type => $label ) {
 	$class = '';
 
@@ -1745,7 +1755,7 @@ foreach ( $post_mime_types as $mime_type => $label ) {
 	if ( isset($_GET['post_mime_type']) && wp_match_mime_types($mime_type, $_GET['post_mime_type']) )
 		$class = ' class="current"';
 
-	$type_links[] = "<li><a href='" . clean_url(add_query_arg(array('post_mime_type'=>$mime_type, 'paged'=>false))) . "'$class>" . sprintf(_n($label[2][0], $label[2][1], $num_posts[$mime_type]), "<span id='$mime_type-counter'>" . number_format_i18n( $num_posts[$mime_type] ) . '</span>') . '</a>';
+	$type_links[] = "<li><a href='" . esc_url(add_query_arg(array('post_mime_type'=>$mime_type, 'paged'=>false))) . "'$class>" . sprintf(_n($label[2][0], $label[2][1], $num_posts[$mime_type]), "<span id='$mime_type-counter'>" . number_format_i18n( $num_posts[$mime_type] ) . '</span>') . '</a>';
 }
 echo implode(' | </li>', $type_links) . '</li>';
 unset($type_links);
@@ -1792,7 +1802,7 @@ foreach ($arc_result as $arc_row) {
 		$default = '';
 
 	echo "<option$default value='" . esc_attr( $arc_row->yyear . $arc_row->mmonth ) . "'>";
-	echo wp_specialchars( $wp_locale->get_month($arc_row->mmonth) . " $arc_row->yyear" );
+	echo esc_html( $wp_locale->get_month($arc_row->mmonth) . " $arc_row->yyear" );
 	echo "</option>\n";
 }
 ?>
@@ -2049,7 +2059,7 @@ add_filter('flash_uploader', 'media_upload_use_flash');
  */
 function media_upload_flash_bypass() {
 	echo '<p class="upload-flash-bypass">';
-	printf( __('You are using the Flash uploader.  Problems?  Try the <a href="%s">Browser uploader</a> instead.'), clean_url(add_query_arg('flash', 0)) );
+	printf( __('You are using the Flash uploader.  Problems?  Try the <a href="%s">Browser uploader</a> instead.'), esc_url(add_query_arg('flash', 0)) );
 	echo '</p>';
 }
 
@@ -2064,7 +2074,7 @@ function media_upload_html_bypass($flash = true) {
 	if ( $flash ) {
 		// the user manually selected the browser uploader, so let them switch back to Flash
 		echo ' ';
-		printf( __('Try the <a href="%s">Flash uploader</a> instead.'), clean_url(add_query_arg('flash', 1)) );
+		printf( __('Try the <a href="%s">Flash uploader</a> instead.'), esc_url(add_query_arg('flash', 1)) );
 	}
 	echo "</p>\n";
 }

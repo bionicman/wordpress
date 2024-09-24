@@ -140,7 +140,10 @@ function number_format_i18n( $number, $decimals = null ) {
 	// let the user override the precision only
 	$decimals = ( is_null( $decimals ) ) ? $wp_locale->number_format['decimals'] : intval( $decimals );
 
-	return number_format( $number, $decimals, $wp_locale->number_format['decimal_point'], $wp_locale->number_format['thousands_sep'] );
+	$num = number_format( $number, $decimals, $wp_locale->number_format['decimal_point'], $wp_locale->number_format['thousands_sep'] );
+  
+	// let the user translate digits from latin to localized language
+	return apply_filters( 'number_format_i18n', $num );
 }
 
 /**
@@ -379,7 +382,7 @@ function get_option( $setting, $default = false ) {
 function wp_protect_special_option( $option ) {
 	$protected = array( 'alloptions', 'notoptions' );
 	if ( in_array( $option, $protected ) )
-		die( sprintf( __( '%s is a protected WP option and may not be modified' ), wp_specialchars( $option ) ) );
+		die( sprintf( __( '%s is a protected WP option and may not be modified' ), esc_html( $option ) ) );
 }
 
 /**
@@ -1593,7 +1596,7 @@ function do_feed() {
 
 	$hook = 'do_feed_' . $feed;
 	if ( !has_action($hook) ) {
-		$message = sprintf( __( 'ERROR: %s is not a valid feed template' ), wp_specialchars($feed));
+		$message = sprintf( __( 'ERROR: %s is not a valid feed template' ), esc_html($feed));
 		wp_die($message);
 	}
 
@@ -1718,7 +1721,7 @@ function is_blog_installed() {
  */
 function wp_nonce_url( $actionurl, $action = -1 ) {
 	$actionurl = str_replace( '&amp;', '&', $actionurl );
-	return wp_specialchars( add_query_arg( '_wpnonce', wp_create_nonce( $action ), $actionurl ) );
+	return esc_html( add_query_arg( '_wpnonce', wp_create_nonce( $action ), $actionurl ) );
 }
 
 /**
@@ -2285,8 +2288,8 @@ function wp_explain_nonce( $action ) {
 		$trans['add']['user']          = array( __( 'Your attempt to add this user has failed.' ), false );
 		$trans['delete']['users']      = array( __( 'Your attempt to delete users has failed.' ), false );
 		$trans['bulk']['users']        = array( __( 'Your attempt to bulk modify users has failed.' ), false );
-		$trans['update']['user']       = array( __( 'Your attempt to edit this user: &#8220;%s&#8221; has failed.' ), 'get_author_name' );
-		$trans['update']['profile']    = array( __( 'Your attempt to modify the profile for: &#8220;%s&#8221; has failed.' ), 'get_author_name' );
+		$trans['update']['user']       = array( __( 'Your attempt to edit this user: &#8220;%s&#8221; has failed.' ), 'get_the_author_meta', 'display_name' );
+		$trans['update']['profile']    = array( __( 'Your attempt to modify the profile for: &#8220;%s&#8221; has failed.' ), 'get_the_author_meta', 'display_name' );
 
 		$trans['update']['options']    = array( __( 'Your attempt to edit your settings has failed.' ), false );
 		$trans['update']['permalink']  = array( __( 'Your attempt to change your permalink structure to: %s has failed.' ), 'use_id' );
@@ -2299,10 +2302,16 @@ function wp_explain_nonce( $action ) {
 		if ( isset( $trans[$verb][$noun] ) ) {
 			if ( !empty( $trans[$verb][$noun][1] ) ) {
 				$lookup = $trans[$verb][$noun][1];
+				if ( isset($trans[$verb][$noun][2]) )
+					$lookup_value = $trans[$verb][$noun][2];
 				$object = $matches[4];
-				if ( 'use_id' != $lookup )
-					$object = call_user_func( $lookup, $object );
-				return sprintf( $trans[$verb][$noun][0], wp_specialchars($object) );
+				if ( 'use_id' != $lookup ) {
+					if ( isset( $lookup_value ) )
+						$object = call_user_func( $lookup, $lookup_value, $object );
+					else
+						$object = call_user_func( $lookup, $object );
+				}
+				return sprintf( $trans[$verb][$noun][0], esc_html($object) );
 			} else {
 				return $trans[$verb][$noun][0];
 			}
@@ -2328,9 +2337,9 @@ function wp_explain_nonce( $action ) {
  */
 function wp_nonce_ays( $action ) {
 	$title = __( 'WordPress Failure Notice' );
-	$html = wp_specialchars( wp_explain_nonce( $action ) );
+	$html = esc_html( wp_explain_nonce( $action ) );
 	if ( wp_get_referer() )
-		$html .= "</p><p><a href='" . clean_url( remove_query_arg( 'updated', wp_get_referer() ) ) . "'>" . __( 'Please try again.' ) . "</a>";
+		$html .= "</p><p><a href='" . esc_url( remove_query_arg( 'updated', wp_get_referer() ) ) . "'>" . __( 'Please try again.' ) . "</a>";
 	elseif ( 'log-out' == $action )
 		$html .= "</p><p>" . sprintf( __( "Do you really want to <a href='%s'>log out</a>?"), wp_logout_url() );
 
@@ -2407,6 +2416,9 @@ function wp_die( $message, $title = '', $args = array() ) {
 		$title = $have_gettext? __('WordPress &rsaquo; Error') : 'WordPress &rsaquo; Error';
 	}
 
+	$text_direction = 'ltr';
+	if ( isset($r['text_direction']) && $r['text_direction'] == 'rtl' ) $text_direction = 'rtl';
+	if ( ( $wp_locale ) && ( 'rtl' == $wp_locale->text_direction ) ) $text_direction = 'rtl';
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml" <?php if ( function_exists( 'language_attributes' ) ) language_attributes(); ?>>
@@ -2415,7 +2427,7 @@ function wp_die( $message, $title = '', $args = array() ) {
 	<title><?php echo $title ?></title>
 	<link rel="stylesheet" href="<?php echo $admin_dir; ?>css/install.css" type="text/css" />
 <?php
-if ( ( $wp_locale ) && ( 'rtl' == $wp_locale->text_direction ) ) : ?>
+if ( 'rtl' == $text_direction ) : ?>
 	<link rel="stylesheet" href="<?php echo $admin_dir; ?>css/install-rtl.css" type="text/css" />
 <?php endif; ?>
 </head>
@@ -3128,6 +3140,8 @@ function wp_timezone_choice($selectedzone) {
 	foreach ( $all as $zone ) {
 		$zone = explode('/',$zone);
 		if ( ! in_array($zone[0], $continents) )
+			continue;
+		if ( $zone[0] == 'Etc' && in_array($zone[1], array('UCT', 'GMT', 'GMT0', 'GMT+0', 'GMT-0', 'Greenwich', 'Universal', 'Zulu')) )
 			continue;
 		$zonen[$i]['continent'] = isset($zone[0]) ? $zone[0] : '';
 		$zonen[$i]['city'] = isset($zone[1]) ? $zone[1] : '';

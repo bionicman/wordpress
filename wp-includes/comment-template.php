@@ -294,7 +294,7 @@ function get_comment_class( $class = '', $comment_id = null, $post_id = null ) {
 	if ( $comment->user_id > 0 && $user = get_userdata($comment->user_id) ) {
 		// For all registered users, 'byuser'
 		$classes[] = 'byuser';
-		$classes[] = 'comment-author-' . $comment->user_id;
+		$classes[] = 'comment-author-' . sanitize_html_class($user->user_nicename, $comment->user_id);
 		// For comment authors who are the author of the post
 		if ( $post = get_post($post_id) ) {
 			if ( $comment->user_id === $post->post_author )
@@ -995,9 +995,9 @@ function get_comment_reply_link($args = array(), $comment = null, $post = null) 
 	$link = '';
 
 	if ( get_option('comment_registration') && !$user_ID )
-		$link = '<a rel="nofollow" class="comment-reply-login" href="' . clean_url( wp_login_url( get_permalink() ) ) . '">' . $login_text . '</a>';
+		$link = '<a rel="nofollow" class="comment-reply-login" href="' . esc_url( wp_login_url( get_permalink() ) ) . '">' . $login_text . '</a>';
 	else
-		$link = "<a rel='nofollow' class='comment-reply-link' href='" . clean_url( add_query_arg( 'replytocom', $comment->comment_ID ) ) . "#" . $respond_id . "' onclick='return addComment.moveForm(\"$add_below-$comment->comment_ID\", \"$comment->comment_ID\", \"$respond_id\", \"$post->ID\")'>$reply_text</a>";
+		$link = "<a rel='nofollow' class='comment-reply-link' href='" . esc_url( add_query_arg( 'replytocom', $comment->comment_ID ) ) . "#" . $respond_id . "' onclick='return addComment.moveForm(\"$add_below-$comment->comment_ID\", \"$comment->comment_ID\", \"$respond_id\", \"$post->ID\")'>$reply_text</a>";
 	return apply_filters('comment_reply_link', $before . $link . $after, $args, $comment, $post);
 }
 
@@ -1078,7 +1078,7 @@ function get_cancel_comment_reply_link($text = '') {
 		$text = __('Click here to cancel reply.');
 
 	$style = isset($_GET['replytocom']) ? '' : ' style="display:none;"';
-	$link = wp_specialchars( remove_query_arg('replytocom') ) . '#respond';
+	$link = esc_html( remove_query_arg('replytocom') ) . '#respond';
 	return apply_filters('cancel_comment_reply_link', '<a rel="nofollow" id="cancel-comment-reply-link" href="' . $link . '"' . $style . '>' . $text . '</a>', $link, $text);
 }
 

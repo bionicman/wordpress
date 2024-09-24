@@ -222,9 +222,9 @@ function get_the_content($more_link_text = null, $stripteaser = 0, $more_file = 
 		if ( $more ) {
 			$output .= '<span id="more-' . $id . '"></span>' . $content[1];
 		} else {
-			$output = balanceTags($output);
 			if ( ! empty($more_link_text) )
 				$output .= apply_filters( 'the_content_more_link', ' <a href="' . get_permalink() . "#more-$id\" class=\"more-link\">$more_link_text</a>", $more_link_text );
+			$output = force_balance_tags($output);
 		}
 
 	}
@@ -324,16 +324,16 @@ function get_post_class( $class = '', $post_id = null ) {
 
 	// Categories
 	foreach ( (array) get_the_category($post->ID) as $cat ) {
-		if ( empty($cat->cat_ID ) )
+		if ( empty($cat->slug ) )
 			continue;
-		$classes[] = 'category-' . $cat->cat_ID;
+		$classes[] = 'category-' . sanitize_html_class($cat->slug, $cat->cat_ID);
 	}
 
 	// Tags
 	foreach ( (array) get_the_tags($post->ID) as $tag ) {
-		if ( empty($tag->term_id ) )
+		if ( empty($tag->slug ) )
 			continue;
-		$classes[] = 'tag-' . $tag->term_id;
+		$classes[] = 'tag-' . sanitize_html_class($tag->slug, $tag->term_id);
 	}
 
 	if ( !empty($class) ) {
@@ -407,15 +407,15 @@ function get_body_class( $class = '' ) {
 		if ( is_author() ) {
 			$author = $wp_query->get_queried_object();
 			$classes[] = 'author';
-			$classes[] = 'author-' . $author->user_id;
+			$classes[] = 'author-' . sanitize_html_class($author->user_nicename , $author->user_id);
 		} elseif ( is_category() ) {
 			$cat = $wp_query->get_queried_object();
 			$classes[] = 'category';
-			$classes[] = 'category-' . $cat->cat_ID;
+			$classes[] = 'category-' . sanitize_html_class($cat->slug, $cat->cat_ID);
 		} elseif ( is_tag() ) {
 			$tags = $wp_query->get_queried_object();
 			$classes[] = 'tag';
-			$classes[] = 'tag-' . $tags->term_id;
+			$classes[] = 'tag-' . sanitize_html_class($tags->slug, $tags->term_id);
 		}
 	} elseif ( is_page() ) {
 		$classes[] = 'page';
@@ -1241,7 +1241,7 @@ function wp_post_revision_title( $revision, $link = true ) {
  * @uses wp_get_post_revisions()
  * @uses wp_post_revision_title()
  * @uses get_edit_post_link()
- * @uses get_author_name()
+ * @uses get_the_author_meta()
  *
  * @todo split into two functions (list, form-table) ?
  *
@@ -1286,7 +1286,7 @@ function wp_list_post_revisions( $post_id = 0, $args = null ) {
 			continue;
 
 		$date = wp_post_revision_title( $revision );
-		$name = get_author_name( $revision->post_author );
+		$name = get_the_author_meta( 'display_name', $revision->post_author );
 
 		if ( 'form-table' == $format ) {
 			if ( $left )

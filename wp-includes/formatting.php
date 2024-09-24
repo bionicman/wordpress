@@ -172,26 +172,29 @@ function wpautop($pee, $br = 1) {
 /**
  * Checks to see if a string is utf8 encoded.
  *
- * @author bmorel at ssi dot fr
+ * NOTE: This function checks for 5-Byte sequences, UTF8 
+ *       has Bytes Sequences with a maximum length of 4.
  *
+ * @author bmorel at ssi dot fr (modified)
  * @since 1.2.1
  *
- * @param string $Str The string to be checked
- * @return bool True if $Str fits a UTF-8 model, false otherwise.
+ * @param string $str The string to be checked
+ * @return bool True if $str fits a UTF-8 model, false otherwise.
  */
-function seems_utf8($Str) { # by bmorel at ssi dot fr
-	$length = strlen($Str);
+function seems_utf8(&$str) {
+	$length = strlen($str);
 	for ($i=0; $i < $length; $i++) {
-		if (ord($Str[$i]) < 0x80) continue; # 0bbbbbbb
-		elseif ((ord($Str[$i]) & 0xE0) == 0xC0) $n=1; # 110bbbbb
-		elseif ((ord($Str[$i]) & 0xF0) == 0xE0) $n=2; # 1110bbbb
-		elseif ((ord($Str[$i]) & 0xF8) == 0xF0) $n=3; # 11110bbb
-		elseif ((ord($Str[$i]) & 0xFC) == 0xF8) $n=4; # 111110bb
-		elseif ((ord($Str[$i]) & 0xFE) == 0xFC) $n=5; # 1111110b
+		$c = ord($str[$i]); 
+		if ($c < 0x80) $n = 0; # 0bbbbbbb
+		elseif (($c & 0xE0) == 0xC0) $n=1; # 110bbbbb
+		elseif (($c & 0xF0) == 0xE0) $n=2; # 1110bbbb
+		elseif (($c & 0xF8) == 0xF0) $n=3; # 11110bbb
+		elseif (($c & 0xFC) == 0xF8) $n=4; # 111110bb
+		elseif (($c & 0xFE) == 0xFC) $n=5; # 1111110b
 		else return false; # Does not match any model
 		for ($j=0; $j<$n; $j++) { # n bytes matching 10bbbbbb follow ?
-			if ((++$i == $length) || ((ord($Str[$i]) & 0xC0) != 0x80))
-			return false;
+			if ((++$i == $length) || ((ord($str[$i]) & 0xC0) != 0x80))
+				return false;
 		}
 	}
 	return true;
@@ -213,7 +216,7 @@ function seems_utf8($Str) { # by bmorel at ssi dot fr
  * @param boolean $double_encode Optional. Whether or not to encode existing html entities. Default is false.
  * @return string The encoded text with HTML entities.
  */
-function wp_specialchars( $string, $quote_style = ENT_NOQUOTES, $charset = false, $double_encode = false ) {
+function _wp_specialchars( $string, $quote_style = ENT_NOQUOTES, $charset = false, $double_encode = false ) {
 	$string = (string) $string;
 
 	if ( 0 === strlen( $string ) ) {
@@ -286,7 +289,7 @@ function wp_specialchars( $string, $quote_style = ENT_NOQUOTES, $charset = false
  * @since 2.8
  *
  * @param string $string The text which is to be decoded.
- * @param mixed $quote_style Optional. Converts double quotes if set to ENT_COMPAT, both single and double if set to ENT_QUOTES or none if set to ENT_NOQUOTES. Also compatible with old wp_specialchars() values; converting single quotes if set to 'single', double if set to 'double' or both if otherwise set. Default is ENT_NOQUOTES.
+ * @param mixed $quote_style Optional. Converts double quotes if set to ENT_COMPAT, both single and double if set to ENT_QUOTES or none if set to ENT_NOQUOTES. Also compatible with old _wp_specialchars() values; converting single quotes if set to 'single', double if set to 'double' or both if otherwise set. Default is ENT_NOQUOTES.
  * @return string The decoded text without HTML entities.
  */
 function wp_specialchars_decode( $string, $quote_style = ENT_NOQUOTES ) {
@@ -301,7 +304,7 @@ function wp_specialchars_decode( $string, $quote_style = ENT_NOQUOTES ) {
 		return $string;
 	}
 
-	// Match the previous behaviour of wp_specialchars() when the $quote_style is not an accepted value
+	// Match the previous behaviour of _wp_specialchars() when the $quote_style is not an accepted value
 	if ( empty( $quote_style ) ) {
 		$quote_style = ENT_NOQUOTES;
 	} elseif ( !in_array( $quote_style, array( 0, 2, 3, 'single', 'double' ), true ) ) {
@@ -713,6 +716,33 @@ function sanitize_sql_orderby( $orderby ){
 	if ( !$obmatches )
 		return false;
 	return $orderby;
+}
+
+/**
+ * Santizes a html classname to ensure it only contains valid characters
+ * 
+ * Strips the string down to A-Z,a-z,0-9,'-' if this results in an empty
+ * string then it will return the alternative value supplied.
+ * 
+ * @todo Expand to support the full range of CDATA that a class attribute can contain.
+ *  
+ * @since 2.8.0
+ *  
+ * @param string $class The classname to be sanitized
+ * @param string $fallback The value to return if the sanitization end's up as an empty string.
+ * @return string The sanitized value
+ */
+function sanitize_html_class($class, $fallback){
+	//Strip out any % encoded octets
+	$sanitized = preg_replace('|%[a-fA-F0-9][a-fA-F0-9]|', '', $class);
+	
+	//Limit to A-Z,a-z,0-9,'-'
+	$sanitized = preg_replace('/[^A-Za-z0-9-]/', '', $sanitized);
+	
+	if ('' == $sanitized)
+		$sanitized = $fallback;
+	
+	return apply_filters('sanitize_html_class',$sanitized, $class, $fallback);	
 }
 
 /**
@@ -1149,7 +1179,7 @@ function antispambot($emailaddy, $mailto=0) {
  */
 function _make_url_clickable_cb($matches) {
 	$url = $matches[2];
-	$url = clean_url($url);
+	$url = esc_url($url);
 	if ( empty($url) )
 		return $matches[0];
 	return $matches[1] . "<a href=\"$url\" rel=\"nofollow\">$url</a>";
@@ -1171,7 +1201,7 @@ function _make_web_ftp_clickable_cb($matches) {
 	$ret = '';
 	$dest = $matches[2];
 	$dest = 'http://' . $dest;
-	$dest = clean_url($dest);
+	$dest = esc_url($dest);
 	if ( empty($dest) )
 		return $matches[0];
 	// removed trailing [,;:] from URL
@@ -1988,7 +2018,7 @@ function wp_htmledit_pre($output) {
  * Checks and cleans a URL.
  *
  * A number of characters are removed from the URL. If the URL is for displaying
- * (the default behaviour) amperstands are also replaced. The 'clean_url' filter
+ * (the default behaviour) amperstands are also replaced. The 'esc_url' filter
  * is applied to the returned cleaned URL.
  *
  * @since 1.2.0
@@ -2032,9 +2062,47 @@ function clean_url( $url, $protocols = null, $context = 'display' ) {
 }
 
 /**
- * Performs clean_url() for database usage.
+ * Checks and cleans a URL.
  *
- * @see clean_url()
+ * A number of characters are removed from the URL. If the URL is for displaying
+ * (the default behaviour) amperstands are also replaced. The 'esc_url' filter
+ * is applied to the returned cleaned URL.
+ *
+ * @since 2.8.0
+ * @uses esc_url()
+ * @uses wp_kses_bad_protocol() To only permit protocols in the URL set
+ *		via $protocols or the common ones set in the function.
+ *
+ * @param string $url The URL to be cleaned.
+ * @param array $protocols Optional. An array of acceptable protocols.
+ *		Defaults to 'http', 'https', 'ftp', 'ftps', 'mailto', 'news', 'irc', 'gopher', 'nntp', 'feed', 'telnet' if not set.
+ * @return string The cleaned $url after the 'cleaned_url' filter is applied.
+ */
+function esc_url( $url, $protocols = null ) {
+	return clean_url( $url, $protocols, 'display' );
+}
+
+/**
+ * Performs esc_url() for database usage.
+ *
+ * @see esc_url()
+ * @see esc_url()
+ *
+ * @since 2.8.0
+ *
+ * @param string $url The URL to be cleaned.
+ * @param array $protocols An array of acceptable protocols.
+ * @return string The cleaned URL.
+ */
+function esc_url_raw( $url, $protocols = null ) {
+	return clean_url( $url, $protocols, 'db' );
+}
+
+/**
+ * Performs esc_url() for database or redirect usage.
+ *
+ * @see esc_url()
+ * @deprecated 2.8.0
  *
  * @since 2.3.1
  *
@@ -2074,7 +2142,7 @@ function htmlentities2($myHTML) {
  */
 function esc_js( $text ) {
 	$safe_text = wp_check_invalid_utf8( $text );
-	$safe_text = wp_specialchars( $safe_text, ENT_COMPAT );
+	$safe_text = _wp_specialchars( $safe_text, ENT_COMPAT );
 	$safe_text = preg_replace( '/&#(x)?0*(?(1)27|39);?/i', "'", stripslashes( $safe_text ) );
 	$safe_text = preg_replace( "/\r?\n/", "\\n", addslashes( $safe_text ) );
 	return apply_filters( 'js_escape', $safe_text, $text );
@@ -2098,6 +2166,35 @@ function js_escape( $text ) {
 }
 
 /**
+ * Escaping for HTML blocks.
+ *
+ * @since 2.8.0
+ *
+ * @param string $text
+ * @return string
+ */
+function esc_html( $text ) {
+	$safe_text = wp_check_invalid_utf8( $text );
+	$safe_text = _wp_specialchars( $safe_text, ENT_QUOTES );
+	return apply_filters( 'esc_html', $safe_text, $text );
+	return $text;
+}
+
+/**
+ * Escaping for HTML blocks
+ * @deprecated 2.8.0
+ * @see esc_html()
+ */
+function wp_specialchars( $string, $quote_style = ENT_NOQUOTES, $charset = false, $double_encode = false ) {
+	if ( func_num_args() > 1 ) { // Maintain backwards compat for people passing additional args
+		$args = func_get_args();
+		return call_user_func_array( '_wp_specialchars', $args );
+	} else {
+		return esc_html( $string );
+	}
+}
+
+/**
  * Escaping for HTML attributes.
  *
  * @since 2.8.0
@@ -2107,7 +2204,7 @@ function js_escape( $text ) {
  */
 function esc_attr( $text ) {
 	$safe_text = wp_check_invalid_utf8( $text );
-	$safe_text = wp_specialchars( $safe_text, ENT_QUOTES );
+	$safe_text = _wp_specialchars( $safe_text, ENT_QUOTES );
 	return apply_filters( 'attribute_escape', $safe_text, $text );
 }
 
@@ -2224,7 +2321,7 @@ function sanitize_option($option, $value) {
 			$value = addslashes($value);
 			$value = wp_filter_post_kses( $value ); // calls stripslashes then addslashes
 			$value = stripslashes($value);
-			$value = wp_specialchars( $value );
+			$value = esc_html( $value );
 			break;
 
 		case 'blog_charset':
@@ -2251,7 +2348,7 @@ function sanitize_option($option, $value) {
 		case 'siteurl':
 		case 'home':
 			$value = stripslashes($value);
-			$value = clean_url($value);
+			$value = esc_url($value);
 			break;
 		default :
 			$value = apply_filters("sanitize_option_{$option}", $value, $option);
@@ -2298,15 +2395,15 @@ function wp_pre_kses_less_than( $text ) {
 /**
  * Callback function used by preg_replace.
  *
- * @uses wp_specialchars to format the $matches text.
+ * @uses esc_html to format the $matches text.
  * @since 2.3.0
  *
  * @param array $matches Populated by matches to preg_replace.
- * @return string The text returned after wp_specialchars if needed.
+ * @return string The text returned after esc_html if needed.
  */
 function wp_pre_kses_less_than_callback( $matches ) {
 	if ( false === strpos($matches[0], '>') )
-		return wp_specialchars($matches[0]);
+		return esc_html($matches[0]);
 	return $matches[0];
 }
 
@@ -2413,7 +2510,7 @@ function wp_sprintf_l($pattern, $args) {
 	while ( $i ) {
 		$arg = array_shift($args);
 		$i--;
-		if ( $i == 1 )
+		if ( 0 == $i )
 			$result .= $l['between_last_two'] . $arg;
 		else
 			$result .= $l['between'] . $arg;

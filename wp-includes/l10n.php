@@ -120,6 +120,22 @@ function esc_attr__( $text, $domain = 'default' ) {
 }
 
 /**
+ * Retrieves the translation of $text and escapes it for safe use in HTML output.
+ * If there is no translation, or the domain isn't loaded the original text is returned.
+ *
+ * @see translate() An alias of translate()
+ * @see esc_html()
+ * @since 2.8.0
+ *
+ * @param string $text Text to translate
+ * @param string $domain Optional. Domain to retrieve the translated text
+ * @return string Translated text
+ */
+function esc_html__( $text, $domain = 'default' ) {
+	return esc_html( translate( $text, $domain ) );
+}
+
+/**
  * Displays the returned translated text from translate().
  *
  * @see translate() Echoes returned translate() string
@@ -144,6 +160,20 @@ function _e( $text, $domain = 'default' ) {
  */
 function esc_attr_e( $text, $domain = 'default' ) {
 	echo esc_attr( translate( $text, $domain ) );
+}
+
+/**
+ * Displays translated text that has been escaped for safe use in HTML output.
+ *
+ * @see translate() Echoes returned translate() string
+ * @see esc_html()
+ * @since 2.8.0
+ *
+ * @param string $text Text to translate
+ * @param string $domain Optional. Domain to retrieve the translated text
+ */
+function esc_html_e( $text, $domain = 'default' ) {
+	echo esc_html( translate( $text, $domain ) );
 }
 
 /**
@@ -322,8 +352,7 @@ function load_default_textdomain() {
  * Loads the plugin's translated strings.
  *
  * If the path is not given then it will be the root of the plugin directory.
- * The .mo file should be named based on the domain with a dash followed by a
- * dash, and then the locale exactly.
+ * The .mo file should be named based on the domain with a dash, and then the locale exactly.
  *
  * @since 1.5.0
  *

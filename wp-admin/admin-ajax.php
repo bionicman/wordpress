@@ -132,7 +132,7 @@ function _wp_ajax_delete_comment_response( $comment_id ) {
 	$total = (int) @$_POST['_total'];
 	$per_page = (int) @$_POST['_per_page'];
 	$page = (int) @$_POST['_page'];
-	$url = clean_url( @$_POST['_url'], null, 'url' );
+	$url = esc_url_raw( @$_POST['_url'] );
 	// JS didn't send us everything we need to know. Just die with success message
 	if ( !$total || !$per_page || !$page || !$url )
 		die( (string) time() );
@@ -242,8 +242,10 @@ case 'delete-link-cat' :
 
 	$cat_name = get_term_field('name', $id, 'link_category');
 
+	$default = get_option('default_link_category');
+
 	// Don't delete the default cats.
-	if ( $id == get_option('default_link_category') ) {
+	if ( $id == $default ) {
 		$x = new WP_AJAX_Response( array(
 			'what' => 'link-cat',
 			'id' => $id,
@@ -252,7 +254,7 @@ case 'delete-link-cat' :
 		$x->send();
 	}
 
-	$r = wp_delete_term($id, 'link_category');
+	$r = wp_delete_term($id, 'link_category', array('default' => $default));
 	if ( !$r )
 		die('0');
 	if ( is_wp_error($r) ) {
@@ -422,7 +424,7 @@ case 'add-link-category' : // On the Fly
 			$cat_id = wp_insert_term( $cat_name, 'link_category' );
 		}
 		$cat_id = $cat_id['term_id'];
-		$cat_name = wp_specialchars(stripslashes($cat_name));
+		$cat_name = esc_html(stripslashes($cat_name));
 		$x->add( array(
 			'what' => 'link-category',
 			'id' => $cat_id,
@@ -898,7 +900,7 @@ case 'autosave' : // The name of this action is hardcoded in edit_post()
 			$last_user_name = $last_user ? $last_user->display_name : __( 'Someone' );
 			$data = new WP_Error( 'locked', sprintf(
 				$_POST['post_type'] == 'page' ? __( 'Autosave disabled: %s is currently editing this page.' ) : __( 'Autosave disabled: %s is currently editing this post.' ),
-				wp_specialchars( $last_user_name )
+				esc_html( $last_user_name )
 			) );
 
 			$supplemental['disable_autosave'] = 'disable';
@@ -1057,7 +1059,7 @@ case 'inline-save':
 	if ( $last = wp_check_post_lock( $post_ID ) ) {
 		$last_user = get_userdata( $last );
 		$last_user_name = $last_user ? $last_user->display_name : __( 'Someone' );
-		printf( $_POST['post_type'] == 'page' ? __( 'Saving is disabled: %s is currently editing this page.' ) : __( 'Saving is disabled: %s is currently editing this post.' ),	wp_specialchars( $last_user_name ) );
+		printf( $_POST['post_type'] == 'page' ? __( 'Saving is disabled: %s is currently editing this page.' ) : __( 'Saving is disabled: %s is currently editing this post.' ),	esc_html( $last_user_name ) );
 		exit;
 	}
 
@@ -1217,7 +1219,7 @@ case 'find_posts':
 		}
 
 		$html .= '<tr class="found-posts"><td class="found-radio"><input type="radio" id="found-'.$post->ID.'" name="found_post_id" value="' . esc_attr($post->ID) . '"></td>';
-		$html .= '<td><label for="found-'.$post->ID.'">'.wp_specialchars($post->post_title, true).'</label></td><td>'.wp_specialchars($time, true).'</td><td>'.wp_specialchars($stat, true).'</td></tr>'."\n\n";
+		$html .= '<td><label for="found-'.$post->ID.'">'.esc_html( $post->post_title ).'</label></td><td>'.esc_html( $time ).'</td><td>'.esc_html( $stat ).'</td></tr>'."\n\n";
 	}
 	$html .= '</tbody></table>';
 
@@ -1280,63 +1282,33 @@ case 'save-widget' :
 
 	unset( $_POST['savewidgets'], $_POST['action'] );
 
+	do_action('load-widgets.php');
+	do_action('widgets.php');
+	do_action('sidebar_admin_setup');
+
 	$id_base = $_POST['id_base'];
-	$number = isset($_POST['widget_number']) ? $_POST['widget_number'] : '';
+	$widget_id = $_POST['widget-id'];
 	$sidebar_id = $_POST['sidebar'];
+
 	$sidebars = wp_get_sidebars_widgets();
 	$sidebar = isset($sidebars[$sidebar_id]) ? $sidebars[$sidebar_id] : array();
 
 	// delete
 	if ( isset($_POST['delete_widget']) && $_POST['delete_widget'] ) {
-		$del_id = $_POST['widget-id'];
-		$widget = isset($wp_registered_widgets[$del_id]) ? $wp_registered_widgets[$del_id] : false;
 
-		if ( !in_array($del_id, $sidebar, true) )
+		if ( !isset($wp_registered_widgets[$widget_id]) )
 			die('-1');
 
-		if ( $widget ) {
-			$option = str_replace( '-', '_', 'widget_' . $id_base );
-			$data = get_option($option);
-
-			if ( isset($widget['params'][0]['number']) ) {
-				$number = $widget['params'][0]['number'];
-				if ( is_array($data) && isset($data[$number]) ) {
-					unset( $data[$number] );
-					update_option($option, $data);
-				}
-			} else {
-				if ( $data ) {
-					$data = array();
-					update_option($option, $data);
-				}
-			}
-		}
-
-		$sidebar = array_diff( $sidebar, array($del_id) );
-		$sidebars[$sidebar_id] = $sidebar;
-		wp_set_sidebars_widgets($sidebars);
-
-		echo "deleted:$del_id";
-		die();
+		$sidebar = array_diff( $sidebar, array($widget_id) );
+		$_POST = array('sidebar' => $sidebar_id, 'widget-' . $id_base => array(), 'the-widget-id' => $widget_id, 'delete_widget' => '1');
 	}
+	$_POST['widget-id'] = $sidebar;
 
-	// save
 	foreach ( (array) $wp_registered_widget_updates as $name => $control ) {
+
 		if ( $name == $id_base ) {
 			if ( !is_callable( $control['callback'] ) )
 				continue;
-
-			if ( $number ) {
-				// don't delete other instances of the same multi-widget
-				foreach ( $sidebar as $_widget_id ) {
-					$_widget = $wp_registered_widgets[$_widget_id];
-
-					if ( isset($_widget['params']) && 
-						is_array($_widget['params'][0]) && 
-						array_key_exists('number', $_widget['params'][0]) )
-							unset($wp_registered_widgets[$_widget_id]['params'][0]['number']);
-				}
-			}
 
 			ob_start();
 				call_user_func_array( $control['callback'], $control['params'] );
@@ -1345,6 +1317,13 @@ case 'save-widget' :
 		}
 	}
 
+	if ( isset($_POST['delete_widget']) && $_POST['delete_widget'] ) {
+		$sidebars[$sidebar_id] = $sidebar;
+		wp_set_sidebars_widgets($sidebars);
+		echo "deleted:$widget_id";
+		die();
+	}
+	
 	die('1');
 	break;
 default :
