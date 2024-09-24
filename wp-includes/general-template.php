@@ -61,7 +61,7 @@ function wp_meta() {
 
 function bloginfo($show='') {
 	$info = get_bloginfo($show);
-	
+
 	// Don't filter URL's.
 	if (strpos($show, 'url') === false &&
 		strpos($show, 'directory') === false &&
@@ -161,6 +161,7 @@ function wp_title($sep = '&raquo;', $display = true) {
 	global $wpdb, $wp_locale, $wp_query;
 
 	$cat = get_query_var('cat');
+	$tag = get_query_var('tag_id');
 	$p = get_query_var('p');
 	$name = get_query_var('name');
 	$category_name = get_query_var('category_name');
@@ -185,8 +186,15 @@ function wp_title($sep = '&raquo;', $display = true) {
 				else
 					$category_name = $category_name[count($category_name)-2]; // there was a trailling slash
 		}
-		$title = $wpdb->get_var("SELECT cat_name FROM $wpdb->categories WHERE category_nicename = '$category_name'");
-		$title = apply_filters('single_cat_title', $title);
+		$cat = get_term_by('slug', $category_name, 'category', OBJECT, 'display');
+		if ( $cat )
+			$title = apply_filters('single_cat_title', $cat->name);
+	}
+
+	if ( !empty($tag) ) {
+		$tag = get_term($tag, 'post_tag', OBJECT, 'display');
+		if ( ! empty($tag->name) )
+			$title = apply_filters('single_tag_title', $tag->name);
 	}
 
 	// If there's an author
@@ -269,6 +277,21 @@ function single_cat_title($prefix = '', $display = true ) {
 }
 
 
+function single_tag_title($prefix = '', $display = true ) {
+	$tag_id = intval( get_query_var('tag_id') );
+	if ( !empty($tag_id) ) {
+		$my_tag = &get_term($tag_id, 'post_tag');
+		$my_tag_name = apply_filters('single_tag_title', $my_tag->name);
+		if ( !empty($my_tag_name) ) {
+			if ( $display )
+				echo $prefix.strip_tags($my_tag_name);
+			else
+				return strip_tags($my_tag_name);
+		}
+	}
+}
+
+
 function single_month_title($prefix = '', $display = true ) {
 	global $wp_locale;
 
@@ -313,16 +336,16 @@ function get_archives_link($url, $text, $format = 'html', $before = '', $after =
 
 
 function wp_get_archives($args = '') {
-	global $wp_locale, $wpdb;
+	global $wpdb, $wp_locale;
 
-	if ( is_array($args) )
-		$r = &$args;
-	else
-		parse_str($args, $r);
+	$defaults = array(
+		'type' => 'monthly', 'limit' => '', 
+		'format' => 'html', 'before' => '', 
+		'after' => '', 'show_post_count' => false
+	);
 
-	$defaults = array('type' => 'monthly', 'limit' => '', 'format' => 'html', 'before' => '', 'after' => '', 'show_post_count' => false);
-	$r = array_merge($defaults, $r);
-	extract($r, EXTR_SKIP);
+	$r = wp_parse_args( $args, $defaults );
+	extract( $r, EXTR_SKIP );
 
 	if ( '' == $type )
 		$type = 'monthly';
@@ -585,10 +608,10 @@ function get_calendar($initial = true) {
 	);
 	if ( $ak_post_titles ) {
 		foreach ( $ak_post_titles as $ak_post_title ) {
-			
+
 				$post_title = apply_filters( "the_title", $ak_post_title->post_title );
 				$post_title = str_replace('"', '&quot;', wptexturize( $post_title ));
-								
+
 				if ( empty($ak_titles_for_day['day_'.$ak_post_title->dom]) )
 					$ak_titles_for_day['day_'.$ak_post_title->dom] = '';
 				if ( empty($ak_titles_for_day["$ak_post_title->dom"]) ) // first one
@@ -675,7 +698,7 @@ function the_date_xml() {
 
 
 function the_date($d='', $before='', $after='', $echo = true) {
-	global $id, $post, $day, $previousday, $newday;
+	global $id, $post, $day, $previousday;
 	$the_date = '';
 	if ( $day != $previousday ) {
 		$the_date .= $before;
@@ -809,7 +832,7 @@ function rich_edit_exists() {
 
 function user_can_richedit() {
 	global $wp_rich_edit, $pagenow;
-	
+
 	if ( !isset( $wp_rich_edit) ) {
 		if ( get_user_option( 'rich_editing' ) == 'true' && 
 			( ( preg_match( '!AppleWebKit/(\d+)!', $_SERVER['HTTP_USER_AGENT'], $match ) && intval($match[1]) >= 420 ) || 
@@ -939,9 +962,12 @@ function the_editor($content, $id = 'content', $prev_id = 'title') {
 	<?php
 }
 
+function get_search_query() {
+	return apply_filters( 'get_search_query', stripslashes( get_query_var( 's' ) ) );
+}
+
 function the_search_query() {
-	global $s;
-	echo attribute_escape(stripslashes($s));
+	echo attribute_escape( apply_filters( 'the_search_query', get_search_query() ) );
 }
 
 function language_attributes() {

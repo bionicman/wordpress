@@ -27,11 +27,26 @@ if ( ! isset($blog_id) )
 
 // Fix for IIS, which doesn't set REQUEST_URI
 if ( empty( $_SERVER['REQUEST_URI'] ) ) {
-	$_SERVER['REQUEST_URI'] = $_SERVER['SCRIPT_NAME']; // Does this work under CGI?
 
-	// Append the query string if it exists and isn't null
-	if (isset($_SERVER['QUERY_STRING']) && !empty($_SERVER['QUERY_STRING'])) {
-		$_SERVER['REQUEST_URI'] .= '?' . $_SERVER['QUERY_STRING'];
+	// IIS Mod-Rewrite
+	if (isset($_SERVER['HTTP_X_ORIGINAL_URL'])) {
+		$_SERVER['REQUEST_URI'] = $_SERVER['HTTP_X_ORIGINAL_URL'];
+	}
+	// IIS Isapi_Rewrite
+	else if (isset($_SERVER['HTTP_X_REWRITE_URL'])) {
+		$_SERVER['REQUEST_URI'] = $_SERVER['HTTP_X_REWRITE_URL'];
+	}
+	else {
+		// If root then simulate that no script-name was specified
+		if (empty($_SERVER['PATH_INFO']))
+			$_SERVER['REQUEST_URI'] = substr($_SERVER['SCRIPT_NAME'], 0, strrpos($_SERVER['SCRIPT_NAME'], '/')) . '/';
+		else
+			$_SERVER['REQUEST_URI'] = $_SERVER['SCRIPT_NAME'] . $_SERVER['PATH_INFO'];
+			
+		// Append the query string if it exists and isn't null
+		if (isset($_SERVER['QUERY_STRING']) && !empty($_SERVER['QUERY_STRING'])) {
+			$_SERVER['REQUEST_URI'] .= '?' . $_SERVER['QUERY_STRING'];
+		}
 	}
 }
 
@@ -48,8 +63,9 @@ $PHP_SELF = $_SERVER['PHP_SELF'];
 if ( empty($PHP_SELF) )
 	$_SERVER['PHP_SELF'] = $PHP_SELF = preg_replace("/(\?.*)?$/",'',$_SERVER["REQUEST_URI"]);
 
-if ( !(phpversion() >= '4.2') )
+if ( version_compare( '4.2', phpversion(), '>' ) ) {
 	die( 'Your server is running PHP version ' . phpversion() . ' but WordPress requires at least 4.2.' );
+}
 
 if ( !extension_loaded('mysql') && !file_exists(ABSPATH . 'wp-content/db.php') )
 	die( 'Your PHP installation appears to be missing the MySQL which is required for WordPress.' );
@@ -69,7 +85,7 @@ function timer_stop($display = 0, $precision = 3) { //if called like timer_stop(
 	$mtime = $mtime[1] + $mtime[0];
 	$timeend = $mtime;
 	$timetotal = $timeend-$timestart;
-	$r = number_format($timetotal, $precision);
+	$r = number_format_i18n($timetotal, $precision);
 	if ( $display )
 		echo $r;
 	return $r;
@@ -116,6 +132,9 @@ $wpdb->links          = $wpdb->prefix . 'links';
 $wpdb->options        = $wpdb->prefix . 'options';
 $wpdb->postmeta       = $wpdb->prefix . 'postmeta';
 $wpdb->usermeta       = $wpdb->prefix . 'usermeta';
+$wpdb->terms          = $wpdb->prefix . 'terms';
+$wpdb->term_taxonomy  = $wpdb->prefix . 'term_taxonomy';
+$wpdb->term_relationships = $wpdb->prefix . 'term_relationships';
 
 if ( defined('CUSTOM_USER_TABLE') )
 	$wpdb->users = CUSTOM_USER_TABLE;
@@ -123,9 +142,9 @@ if ( defined('CUSTOM_USER_META_TABLE') )
 	$wpdb->usermeta = CUSTOM_USER_META_TABLE;
 
 if ( file_exists(ABSPATH . 'wp-content/object-cache.php') )
-	require (ABSPATH . 'wp-content/object-cache.php');
+	require_once (ABSPATH . 'wp-content/object-cache.php');
 else
-	require (ABSPATH . WPINC . '/cache.php');
+	require_once (ABSPATH . WPINC . '/cache.php');
 
 wp_cache_init();
 
@@ -138,11 +157,16 @@ include_once(ABSPATH . WPINC . '/gettext.php');
 require_once (ABSPATH . WPINC . '/l10n.php');
 
 if ( !is_blog_installed() && (strpos($_SERVER['PHP_SELF'], 'install.php') === false && !defined('WP_INSTALLING')) ) {
-	if (strpos($_SERVER['PHP_SELF'], 'wp-admin') !== false)
-		$link = 'install.php';
+	if ( defined('WP_SITEURL') )
+		$link = WP_SITEURL . '/wp-admin/install.php'; 
+	elseif (strpos($_SERVER['PHP_SELF'], 'wp-admin') !== false)
+		$link = preg_replace('|/wp-admin/?.*?$|', '/', $_SERVER['PHP_SELF']) . 'wp-admin/install.php';
 	else
-		$link = 'wp-admin/install.php';
-	wp_die(sprintf("It doesn't look like you've installed WP yet. Try running <a href='%s'>install.php</a>.", $link));
+		$link = preg_replace('|/[^/]+?$|', '/', $_SERVER['PHP_SELF']) . 'wp-admin/install.php';
+	require_once(ABSPATH . WPINC . '/kses.php');
+	require_once(ABSPATH . WPINC . '/pluggable.php');
+	wp_redirect($link);
+	die(); // have to die here ~ Mark
 }
 
 require (ABSPATH . WPINC . '/formatting.php');
@@ -168,6 +192,9 @@ require (ABSPATH . WPINC . '/cron.php');
 require (ABSPATH . WPINC . '/version.php');
 require (ABSPATH . WPINC . '/deprecated.php');
 require (ABSPATH . WPINC . '/script-loader.php');
+require (ABSPATH . WPINC . '/taxonomy.php');
+require (ABSPATH . WPINC . '/update.php');
+require (ABSPATH . WPINC . '/canonical.php');
 
 if (strpos($_SERVER['PHP_SELF'], 'install.php') === false) {
     // Used to guarantee unique hash cookies
@@ -190,8 +217,8 @@ require (ABSPATH . WPINC . '/vars.php');
 
 // Check for hacks file if the option is enabled
 if (get_option('hack_file')) {
-	if (file_exists(ABSPATH . '/my-hacks.php'))
-		require(ABSPATH . '/my-hacks.php');
+	if (file_exists(ABSPATH . 'my-hacks.php'))
+		require(ABSPATH . 'my-hacks.php');
 }
 
 if ( get_option('active_plugins') ) {

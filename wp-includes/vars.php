@@ -1,24 +1,15 @@
 <?php
 
 // On which page are we ?
-if ( is_admin() ) {
-	// wp-admin pages are checked more carefully
-	preg_match('#/wp-admin/?(.*?)$#i', $PHP_SELF, $self_matches);
+if ( preg_match('#([^/]+\.php)$#', $PHP_SELF, $self_matches) ) {
 	$pagenow = $self_matches[1];
-	$pagenow = preg_replace('#\?.*?$#', '', $pagenow);
-	if ( '' === $pagenow || 'index' === $pagenow || 'index.php' === $pagenow ) {
-		$pagenow = 'index.php';
-	} else {
-		preg_match('#(.*?)(/|$)#', $pagenow, $self_matches);
-		$pagenow = strtolower($self_matches[1]);
-		if ( '.php' !== substr($pagenow, -4, 4) )
-			$pagenow .= '.php'; // for Options +Multiviews: /wp-admin/themes/index.php (themes.php is queried)
-	}
+} elseif ( strpos($PHP_SELF, '?') !== false ) {
+	$pagenow = explode('/', $PHP_SELF);
+	$pagenow = trim($pagenow[(sizeof($pagenow)-1)]);
+	$pagenow = explode('?', $pagenow);
+	$pagenow = $pagenow[0];
 } else {
-	if ( preg_match('#([^/]+\.php)([?/].*?)?$#i', $PHP_SELF, $self_matches) )
-		$pagenow = strtolower($self_matches[1]);
-	else
-		$pagenow = 'index.php';
+	$pagenow = 'index.php';
 }
 
 // Simple browser detection
@@ -43,5 +34,51 @@ $is_IE = ( $is_macIE || $is_winIE );
 // Server detection
 $is_apache = ((strpos($_SERVER['SERVER_SOFTWARE'], 'Apache') !== false) || (strpos($_SERVER['SERVER_SOFTWARE'], 'LiteSpeed') !== false)) ? true : false;
 $is_IIS = (strpos($_SERVER['SERVER_SOFTWARE'], 'Microsoft-IIS') !== false) ? true : false;
+
+$wp_header_to_desc = apply_filters( 'wp_header_to_desc_array', array(
+	100 => 'Continue',
+	101 => 'Switching Protocols',
+
+	200 => 'OK',
+	201 => 'Created',
+	202 => 'Accepted',
+	203 => 'Non-Authoritative Information',
+	204 => 'No Content',
+	205 => 'Reset Content',
+	206 => 'Partial Content',
+
+	300 => 'Multiple Choices',
+	301 => 'Moved Permanently',
+	302 => 'Found',
+	303 => 'See Other',
+	304 => 'Not Modified',
+	305 => 'Use Proxy',
+	307 => 'Temporary Redirect',
+
+	400 => 'Bad Request',
+	401 => 'Unauthorized',
+	403 => 'Forbidden',
+	404 => 'Not Found',
+	405 => 'Method Not Allowed',
+	406 => 'Not Acceptable',
+	407 => 'Proxy Authentication Required',
+	408 => 'Request Timeout',
+	409 => 'Conflict',
+	410 => 'Gone',
+	411 => 'Length Required',
+	412 => 'Precondition Failed',
+	413 => 'Request Entity Too Large',
+	414 => 'Request-URI Too Long',
+	415 => 'Unsupported Media Type',
+	416 => 'Requested Range Not Satisfiable',
+	417 => 'Expectation Failed',
+
+	500 => 'Internal Server Error',
+	501 => 'Not Implemented',
+	502 => 'Bad Gateway',
+	503 => 'Service Unavailable',
+	504 => 'Gateway Timeout',
+	505 => 'HTTP Version Not Supported'
+) );
 
 ?>

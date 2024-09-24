@@ -413,8 +413,14 @@ function funky_javascript_fix($text) {
 	return $text;
 }
 
+function balanceTags( $text, $force = false ) {
+	if ( !$force && get_option('use_balanceTags') == 0 )
+		return $text;
+	return force_balance_tags( $text );
+}
+
 /*
- balanceTags
+ force_balance_tags
 
  Balances Tags of string using a modified stack.
 
@@ -433,12 +439,10 @@ function funky_javascript_fix($text) {
 	     Added Cleaning Hooks
 	1.0  First Version
 */
-function balanceTags($text, $force = false) {
-
-	if ( !$force && get_option('use_balanceTags') == 0 )
-		return $text;
-
+function force_balance_tags( $text ) {
 	$tagstack = array(); $stacksize = 0; $tagqueue = ''; $newtext = '';
+	$single_tags = array('br', 'hr', 'img', 'input'); //Known single-entity/self-closing tags
+	$nestable_tags = array('blockquote', 'div', 'span'); //Tags that can be immediately nested within themselves
 
 	# WP bug fix for comments - in case you REALLY meant to type '< !--'
 	$text = str_replace('< !--', '<    !--', $text);
@@ -489,11 +493,11 @@ function balanceTags($text, $force = false) {
 			if((substr($regex[2],-1) == '/') || ($tag == '')) {
 			}
 			// ElseIf it's a known single-entity tag but it doesn't close itself, do so
-			elseif ($tag == 'br' || $tag == 'img' || $tag == 'hr' || $tag == 'input') {
+			elseif ( in_array($tag, $single_tags) ) {
 				$regex[2] .= '/';
 			} else {	// Push the tag onto the stack
 				// If the top of the stack is the same as the tag we want to push, close previous tag
-				if (($stacksize > 0) && ($tag != 'div') && ($tagstack[$stacksize - 1] == $tag)) {
+				if (($stacksize > 0) && !in_array($tag, $nestable_tags) && ($tagstack[$stacksize - 1] == $tag)) {
 					$tagqueue = '</' . array_pop ($tagstack) . '>';
 					$stacksize--;
 				}
@@ -532,10 +536,6 @@ function balanceTags($text, $force = false) {
 	$newtext = str_replace("<    !--","< !--",$newtext);
 
 	return $newtext;
-}
-
-function force_balance_tags($text) {
-	return balanceTags($text, true);
 }
 
 function format_to_edit($content, $richedit = false) {
@@ -1074,6 +1074,8 @@ function wp_richedit_pre($text) {
 }
 
 function clean_url( $url, $protocols = null ) {
+	$original_url = $url;
+
 	if ('' == $url) return $url;
 	$url = preg_replace('|[^a-z0-9-~+_.?#=!&;,/:%]|i', '', $url);
 	$strip = array('%0d', '%0a');
@@ -1083,13 +1085,14 @@ function clean_url( $url, $protocols = null ) {
 	if ( strpos($url, '://') === false &&
 		substr( $url, 0, 1 ) != '/' && !preg_match('/^[a-z0-9-]+?\.php/i', $url) )
 		$url = 'http://' . $url;
-	
+
 	$url = preg_replace('/&([^#])(?![a-z]{2,8};)/', '&#038;$1', $url);
 	if ( !is_array($protocols) )
 		$protocols = array('http', 'https', 'ftp', 'ftps', 'mailto', 'news', 'irc', 'gopher', 'nntp', 'feed', 'telnet'); 
 	if ( wp_kses_bad_protocol( $url, $protocols ) != $url )
 		return '';
-	return $url;
+
+	return apply_filters('clean_url', $url, $original_url);
 }
 
 // Borrowed from the PHP Manual user notes. Convert entities, while
@@ -1196,6 +1199,17 @@ function wp_parse_str( $string, &$array ) {
 	if ( get_magic_quotes_gpc() )
 		$array = stripslashes_deep( $array ); // parse_str() adds slashes if magicquotes is on.  See: http://php.net/parse_str
 	$array = apply_filters( 'wp_parse_str', $array );
+}
+
+// Convert lone less than signs.  KSES already converts lone greater than signs.
+function wp_pre_kses_less_than( $text ) {
+	return preg_replace_callback('%<[^>]*?((?=<)|>|$)%', 'wp_pre_kses_less_than_callback', $text);
+}
+
+function wp_pre_kses_less_than_callback( $matches ) {
+	if ( false === strpos($matches[0], '>') )
+		return wp_specialchars($matches[0]);
+	return $matches[0];
 }
 
 ?>

@@ -10,18 +10,29 @@ if ( version_compare(mysql_get_server_info(), '4.1.0', '>=') ) {
 		$charset_collate .= " COLLATE $wpdb->collate";
 }
 
-$wp_queries="CREATE TABLE $wpdb->categories (
-  cat_ID bigint(20) NOT NULL auto_increment,
-  cat_name varchar(55) NOT NULL default '',
-  category_nicename varchar(200) NOT NULL default '',
-  category_description longtext NOT NULL,
-  category_parent bigint(20) NOT NULL default '0',
-  category_count bigint(20) NOT NULL default '0',
-  link_count bigint(20) NOT NULL default '0',
-  posts_private tinyint(1) NOT NULL default '0',
-  links_private tinyint(1) NOT NULL default '0',
-  PRIMARY KEY  (cat_ID),
-  KEY category_nicename (category_nicename)
+$wp_queries="CREATE TABLE $wpdb->terms (
+ term_id bigint(20) NOT NULL auto_increment,
+ name varchar(55) NOT NULL default '',
+ slug varchar(200) NOT NULL default '',
+ term_group bigint(10) NOT NULL default 0,
+ PRIMARY KEY  (term_id),
+ UNIQUE KEY slug (slug)
+) $charset_collate;
+CREATE TABLE $wpdb->term_taxonomy (
+ term_taxonomy_id bigint(20) NOT NULL auto_increment,
+ term_id bigint(20) NOT NULL default 0,
+ taxonomy varchar(32) NOT NULL default '',
+ description longtext NOT NULL,
+ parent bigint(20) NOT NULL default 0,
+ count bigint(20) NOT NULL default 0,
+ PRIMARY KEY  (term_taxonomy_id),
+ UNIQUE KEY term_id_taxonomy (term_id,taxonomy)
+) $charset_collate;
+CREATE TABLE $wpdb->term_relationships (
+ object_id bigint(20) NOT NULL default 0,
+ term_taxonomy_id bigint(20) NOT NULL default 0,
+ PRIMARY KEY  (object_id,term_taxonomy_id),
+ KEY term_taxonomy_id (term_taxonomy_id)
 ) $charset_collate;
 CREATE TABLE $wpdb->comments (
   comment_ID bigint(20) unsigned NOT NULL auto_increment,
@@ -42,13 +53,6 @@ CREATE TABLE $wpdb->comments (
   PRIMARY KEY  (comment_ID),
   KEY comment_approved (comment_approved),
   KEY comment_post_ID (comment_post_ID)
-) $charset_collate;
-CREATE TABLE $wpdb->link2cat (
-  rel_id bigint(20) NOT NULL auto_increment,
-  link_id bigint(20) NOT NULL default '0',
-  category_id bigint(20) NOT NULL default '0',
-  PRIMARY KEY  (rel_id),
-  KEY link_id (link_id,category_id)
 ) $charset_collate;
 CREATE TABLE $wpdb->links (
   link_id bigint(20) NOT NULL auto_increment,
@@ -84,13 +88,6 @@ CREATE TABLE $wpdb->options (
   PRIMARY KEY  (option_id,blog_id,option_name),
   KEY option_name (option_name)
 ) $charset_collate;
-CREATE TABLE $wpdb->post2cat (
-  rel_id bigint(20) NOT NULL auto_increment,
-  post_id bigint(20) NOT NULL default '0',
-  category_id bigint(20) NOT NULL default '0',
-  PRIMARY KEY  (rel_id),
-  KEY post_id (post_id,category_id)
-) $charset_collate;
 CREATE TABLE $wpdb->postmeta (
   meta_id bigint(20) NOT NULL auto_increment,
   post_id bigint(20) NOT NULL default '0',
@@ -109,7 +106,7 @@ CREATE TABLE $wpdb->posts (
   post_title text NOT NULL,
   post_category int(4) NOT NULL default '0',
   post_excerpt text NOT NULL,
-  post_status enum('publish','draft','private','static','object','attachment','inherit','future') NOT NULL default 'publish',
+  post_status enum('publish','draft','private','static','object','attachment','inherit','future', 'pending') NOT NULL default 'publish',
   comment_status enum('open','closed','registered_only') NOT NULL default 'open',
   ping_status enum('open','closed') NOT NULL default 'open',
   post_password varchar(20) NOT NULL default '',
@@ -159,7 +156,7 @@ function populate_options() {
 	$schema = ( isset($_SERVER['HTTPS']) && strtolower($_SERVER['HTTPS']) == 'on' ) ? 'https://' : 'http://';
 	$guessurl = preg_replace('|/wp-admin/.*|i', '', $schema . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
 	add_option('siteurl', $guessurl, __('WordPress web address'));
-	add_option('blogname', __('My Weblog'), __('Blog title'));
+	add_option('blogname', __('My Blog'), __('Blog title'));
 	add_option('blogdescription', __('Just another WordPress weblog'), __('Short tagline'));
 	add_option('new_users_can_blog', 0);
 	add_option('users_can_register', 0);
@@ -240,6 +237,9 @@ function populate_options() {
 	add_option('default_link_category', 2);
 	add_option('show_on_front', 'posts');
 
+	// 2.2
+	add_option('tag_base');
+
 	// Delete unused options
 	$unusedoptions = array ('blodotgsping_url', 'bodyterminator', 'emailtestonly', 'phoneemail_separator', 'smilies_directory', 'subjectprefix', 'use_bbcode', 'use_blodotgsping', 'use_phoneemail', 'use_quicktags', 'use_weblogsping', 'weblogs_cache_file', 'use_preview', 'use_htmltrans', 'smilies_directory', 'fileupload_allowedusers', 'use_phoneemail', 'default_post_status', 'default_post_category', 'archive_mode', 'time_difference', 'links_minadminlevel', 'links_use_adminlevels', 'links_rating_type', 'links_rating_char', 'links_rating_ignore_zero', 'links_rating_single_image', 'links_rating_image0', 'links_rating_image1', 'links_rating_image2', 'links_rating_image3', 'links_rating_image4', 'links_rating_image5', 'links_rating_image6', 'links_rating_image7', 'links_rating_image8', 'links_rating_image9', 'weblogs_cacheminutes', 'comment_allowed_tags', 'search_engine_friendly_urls', 'default_geourl_lat', 'default_geourl_lon', 'use_default_geourl', 'weblogs_xml_url', 'new_users_can_blog', '_wpnonce', '_wp_http_referer', 'Update', 'action', 'rich_editing');
 	foreach ($unusedoptions as $option) :
@@ -256,6 +256,7 @@ function populate_options() {
 function populate_roles() {
 	populate_roles_160();
 	populate_roles_210();
+	populate_roles_230();
 }
 
 function populate_roles_160() {
@@ -386,6 +387,14 @@ function populate_roles_210() {
 	$role = get_role('contributor');
 	if ( ! empty($role) ) {
 		$role->add_cap('delete_posts');
+	}
+}
+
+function populate_roles_230() {
+	$role = get_role( 'administrator' );
+
+	if ( !empty( $role ) ) {
+		$role->add_cap( 'unfiltered_upload' );
 	}
 }
 

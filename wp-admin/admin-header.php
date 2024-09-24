@@ -1,5 +1,5 @@
 <?php
-@header('Content-type: ' . get_option('html_type') . '; charset=' . get_option('blog_charset'));
+@header('Content-Type: ' . get_option('html_type') . '; charset=' . get_option('blog_charset'));
 if (!isset($_GET["page"])) require_once('admin.php');
 if ( $editing ) {
 	wp_enqueue_script( array('dbx-admin-key?pagenow=' . attribute_escape($pagenow),'admin-custom-fields') );
@@ -42,16 +42,16 @@ else if ( isset($plugin_page) )
 do_action('admin_head');
 ?>
 </head>
-<body>
+<body class="wp-admin <?php echo apply_filters( 'admin_body_class', '' ); ?>">
 <div id="wphead">
-<h1><?php bloginfo('name'); ?> <span>(<a href="<?php echo get_option('home') . '/'; ?>"><?php _e('View site &raquo;') ?></a>)</span></h1>
+<h1><?php bloginfo('name'); ?> <span id="viewsite">(<a href="<?php echo get_option('home') . '/'; ?>"><?php _e('View site &raquo;') ?></a>)</span></h1>
 </div>
 <div id="user_info"><p><?php printf(__('Howdy, <strong>%s</strong>.'), $user_identity) ?> [<a href="<?php echo get_option('siteurl'); ?>/wp-login.php?action=logout" title="<?php _e('Log out of this account') ?>"><?php _e('Sign Out'); ?></a>, <a href="profile.php"><?php _e('My Profile'); ?></a>] </p></div>
 
 <?php
-require(ABSPATH . '/wp-admin/menu-header.php');
+require(ABSPATH . 'wp-admin/menu-header.php');
 
 if ( $parent_file == 'options-general.php' ) {
-	require(ABSPATH . '/wp-admin/options-head.php');
+	require(ABSPATH . 'wp-admin/options-head.php');
 }
 ?>

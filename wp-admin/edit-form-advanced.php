@@ -1,6 +1,6 @@
 <?php
 if ( isset($_GET['message']) )
-	  $_GET['message'] = (int) $_GET['message'];
+	$_GET['message'] = (int) $_GET['message'];
 $messages[1] = __('Post updated');
 $messages[2] = __('Custom field updated');
 $messages[3] = __('Custom field deleted.');
@@ -101,9 +101,11 @@ addLoadEvent(focusit);
 
 <fieldset id="poststatusdiv" class="dbx-box">
 <h3 class="dbx-handle"><?php _e('Post Status') ?></h3> 
-<div class="dbx-content"><?php if ( current_user_can('publish_posts') ) : ?>
-<label for="post_status_publish" class="selectit"><input id="post_status_publish" name="post_status" type="radio" value="publish" <?php checked($post->post_status, 'publish'); checked($post->post_status, 'future'); ?> /> <?php _e('Published') ?></label>
+<div class="dbx-content">
+<?php if ( current_user_can('publish_posts') ) : ?>
+	<label for="post_status_publish" class="selectit"><input id="post_status_publish" name="post_status" type="radio" value="publish" <?php checked($post->post_status, 'publish'); checked($post->post_status, 'future'); ?> /> <?php _e('Published') ?></label>
 <?php endif; ?>
+	<label for="post_status_pending" class="selectit"><input id="post_status_pending" name="post_status" type="radio" value="pending" <?php checked($post->post_status, 'pending'); ?> /> <?php _e('Pending Review') ?></label>
 	  <label for="post_status_draft" class="selectit"><input id="post_status_draft" name="post_status" type="radio" value="draft" <?php checked($post->post_status, 'draft'); ?> /> <?php _e('Draft') ?></label>
 	  <label for="post_status_private" class="selectit"><input id="post_status_private" name="post_status" type="radio" value="private" <?php checked($post->post_status, 'private'); ?> /> <?php _e('Private') ?></label></div>
 </fieldset>
@@ -116,22 +118,13 @@ addLoadEvent(focusit);
 <?php endif; ?>
 
 <?php 
-$authors = get_editable_authors( $current_user->id ); // TODO: ROLE SYSTEM
+$authors = get_editable_user_ids( $current_user->id ); // TODO: ROLE SYSTEM
 if ( $authors && count( $authors ) > 1 ) :
 ?>
 <fieldset id="authordiv" class="dbx-box">
 <h3 class="dbx-handle"><?php _e('Post Author'); ?></h3>
 <div class="dbx-content">
-<select name="post_author_override" id="post_author_override">
-<?php
-foreach ($authors as $o) :
-$o = get_userdata( $o->ID );
-if ( $post->post_author == $o->ID || ( empty($post_ID) && $user_ID == $o->ID ) ) $selected = 'selected="selected"';
-else $selected = '';
-echo "<option value='" . (int) $o->ID . "' $selected>" . wp_specialchars( $o->display_name ) . "</option>";
-endforeach;
-?>
-</select>
+<?php wp_dropdown_users( array('include' => $authors, 'name' => 'post_author_override', 'selected' => empty($post_ID) ? $user_ID : $post->post_author) ); ?>
 </div>
 </fieldset>
 <?php endif; ?>
@@ -162,16 +155,22 @@ endforeach;
 <?php echo $form_pingback ?>
 <?php echo $form_prevstatus ?>
 
+<fieldset id="tagdiv">
+	<legend><?php _e('Tags (separate multiple tags with commas: cats, pet food, dogs)'); ?></legend>
+	<div><input type="text" name="tags_input" id="tags-input" size="30" tabindex="3" value="<?php echo get_tags_to_edit( $post_ID ); ?>" /></div>
+</fieldset>
 
 <p class="submit">
 <span id="autosave"></span>
 <?php echo $saveasdraft; ?>
-<input type="submit" name="submit" value="<?php _e('Save') ?>" style="font-weight: bold;" tabindex="4" /> 
+<input type="submit" name="submit" value="<?php _e('Save'); ?>" style="font-weight: bold;" tabindex="4" /> 
 <?php 
-if ('publish' != $post->post_status || 0 == $post_ID) {
+if ( !in_array( $post->post_status, array('publish', 'future') ) || 0 == $post_ID ) {
 ?>
 <?php if ( current_user_can('publish_posts') ) : ?>
-	<input name="publish" type="submit" id="publish" tabindex="5" accesskey="p" value="<?php _e('Publish'); ?>" /> 
+	<input name="publish" type="submit" id="publish" tabindex="5" accesskey="p" value="<?php _e('Publish') ?>" /> 
+<?php else : ?>
+	<input name="publish" type="submit" id="publish" tabindex="5" accesskey="p" value="<?php _e('Submit for Review') ?>" /> 
 <?php endif; ?>
 <?php
 }
@@ -193,7 +192,7 @@ if (current_user_can('upload_files')) {
 	$uploading_iframe_src = wp_nonce_url("upload.php?style=inline&amp;tab=upload&amp;post_id=$uploading_iframe_ID", 'inlineuploading');
 	$uploading_iframe_src = apply_filters('uploading_iframe_src', $uploading_iframe_src);
 	if ( false != $uploading_iframe_src )
-		echo '<iframe id="uploading" frameborder="0" src="' . $uploading_iframe_src . '">' . __('This feature requires iframe support.') . '</iframe>';
+		echo '<iframe id="uploading" name="uploading" frameborder="0" src="' . $uploading_iframe_src . '">' . __('This feature requires iframe support.') . '</iframe>';
 }
 ?>
 

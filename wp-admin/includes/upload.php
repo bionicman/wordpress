@@ -1,11 +1,13 @@
 <?php
+
 function wp_upload_display( $dims = false, $href = '' ) {
 	global $post;
 	$id = get_the_ID();
 	$attachment_data = wp_get_attachment_metadata( $id );
 	$is_image = (int) wp_attachment_is_image();
+	$filesystem_path = get_attached_file( $id );
 	if ( !isset($attachment_data['width']) && $is_image ) {
-		if ( $image_data = getimagesize( get_attached_file( $id ) ) ) {
+		if ( $image_data = getimagesize( $filesystem_path ) ) {
 			$attachment_data['width'] = $image_data[0];
 			$attachment_data['height'] = $image_data[1];
 			wp_update_attachment_metadata( $id, $attachment_data );
@@ -14,10 +16,7 @@ function wp_upload_display( $dims = false, $href = '' ) {
 	if ( isset($attachment_data['width']) )
 		list($width,$height) = wp_shrink_dimensions($attachment_data['width'], $attachment_data['height'], 171, 128);
 
-	ob_start();
-		the_title();
-		$post_title = attribute_escape(ob_get_contents());
-	ob_end_clean();
+	$post_title = attribute_escape( the_title( '', '', false ) );
 	$post_content = attribute_escape(apply_filters( 'content_edit_pre', $post->post_content ));
 
 	$class = 'text';
@@ -40,6 +39,7 @@ function wp_upload_display( $dims = false, $href = '' ) {
 		$r .= "\t\t\t$innerHTML";
 	if ( $href )
 		$r .= "</a>\n";
+	$r .= "\t\t\t\t<span class='upload-file-size'>".size_format(filesize($filesystem_path))."</span>\n";
 	$r .= "\n\t\t<div class='upload-file-data'>\n\t\t\t<p>\n";
 	$r .= "\t\t\t\t<input type='hidden' name='attachment-url-$id' id='attachment-url-$id' value='$src' />\n";
 	$r .= "\t\t\t\t<input type='hidden' name='attachment-url-base-$id' id='attachment-url-base-$id' value='$src_base' />\n";
@@ -172,7 +172,7 @@ function wp_upload_form() {
 <?php	endif; ?>
 					<?php wp_nonce_field( 'inlineuploading' ); ?>
 					<div class="submit">
-						<input type="submit" value="<?php $id ? _e('Save') : _e('Upload'); ?> &raquo;" />
+						<input type="submit" value="<?php $id ? _e('Save &raquo;') : _e('Upload &raquo;'); ?>" />
 					</div>
 				</td>
 			</tr>
@@ -222,7 +222,7 @@ function wp_upload_tab_upload_action() {
 
 		// Construct the attachment array
 		$attachment = array(
-			'post_title' => $post_title ? $post_title : $filename,
+			'post_title' => $post_title,
 			'post_content' => $post_content,
 			'post_type' => 'attachment',
 			'post_parent' => $post_id,
@@ -284,7 +284,7 @@ function wp_upload_posts_where( $where ) {
 }
 
 function wp_upload_tab_browse() {
-	global $wpdb, $action, $paged;
+	global $action, $paged;
 	$old_vars = compact( 'paged' );
 
 	switch ( $action ) :
@@ -301,11 +301,7 @@ function wp_upload_tab_browse() {
 		add_action( 'pre_get_posts', 'wp_upload_grab_attachments' );
 		if ( 'browse' == $tab && $post_id )
 			add_filter( 'posts_where', 'wp_upload_posts_where' );
-		$attachments = query_posts("what_to_show=posts&posts_per_page=10&paged=$paged");
-		$count_query = "SELECT COUNT(*) FROM $wpdb->posts WHERE post_type = 'attachment'";
-		if ( $post_id )
-			$count_query .= " AND post_parent = '$post_id'";
-        	$total =  $wpdb->get_var($count_query);
+		$attachments = query_posts("what_to_show=posts&post_status=any&posts_per_page=10&paged=$paged");
 
 		echo "<ul id='upload-files'>\n";
 		if ( have_posts() ) : while ( have_posts() ) : the_post();
@@ -344,9 +340,9 @@ add_action( 'upload_files_browse-all', 'wp_upload_tab_browse_action' );
 
 function wp_upload_admin_head() {
 	global $wp_locale;
-	echo "<link rel='stylesheet' href='" . get_option('siteurl') . '/wp-admin/upload.css?version=' . get_bloginfo('version') . "a' type='text/css' />\n";
+	echo "<link rel='stylesheet' href='" . get_bloginfo('wpurl') . '/wp-admin/css/upload.css?version=' . get_bloginfo('version') . "a' type='text/css' />\n";
 	if ( 'rtl' == $wp_locale->text_direction )
-		echo "<link rel='stylesheet' href='" . get_option('siteurl') . '/wp-admin/upload-rtl.css?version=' . get_bloginfo('version') . "a' type='text/css' />\n";
+		echo "<link rel='stylesheet' href='" . get_bloginfo('wpurl') . '/wp-admin/css/upload-rtl.css?version=' . get_bloginfo('version') . "a' type='text/css' />\n";
 	if ( 'inline' == @$_GET['style'] ) {
 		echo "<style type='text/css' media='screen'>\n";
 		echo "\t#upload-menu { position: absolute; z-index: 2; }\n";

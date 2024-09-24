@@ -29,12 +29,13 @@ case 'update':
 	if ($options) {
 		foreach ($options as $option) {
 			$option = trim($option);
-			$value = trim($_POST[$option]);
-			$value = sanitize_option($option, $value); // This does stripslashes on those that need it
+			$value = $_POST[$option];
+			if(!is_array($value))	$value = trim($value);
+			$value = stripslashes_deep($value);
 			update_option($option, $value);
 		}
 	}
-    
+
 	$referred = remove_query_arg('updated' , wp_get_referer());
 	$goback = add_query_arg('updated', 'true', wp_get_referer());
 	$goback = preg_replace('|[^a-z0-9-~+_.?#=&;,/:]|i', '', $goback);

@@ -157,63 +157,144 @@ function get_userdatabylogin($user_login) {
 endif;
 
 if ( !function_exists( 'wp_mail' ) ) :
-function wp_mail($to, $subject, $message, $headers = '') {
+function wp_mail( $to, $subject, $message, $headers = '' ) {
 	global $phpmailer;
 
-	if ( !is_object( $phpmailer ) ) {
-		require_once(ABSPATH . WPINC . '/class-phpmailer.php');
-		require_once(ABSPATH . WPINC . '/class-smtp.php');
+	// (Re)create it, if it's gone missing
+	if ( !is_object( $phpmailer ) || !is_a( $phpmailer, 'PHPMailer' ) ) {
+		require_once ABSPATH . WPINC . '/class-phpmailer.php';
+		require_once ABSPATH . WPINC . '/class-smtp.php';
 		$phpmailer = new PHPMailer();
 	}
 
-	$mail = compact('to', 'subject', 'message', 'headers');
-	$mail = apply_filters('wp_mail', $mail);
-	extract($mail, EXTR_SKIP);
+	// Compact the input, apply the filters, and extract them back out
+	extract( apply_filters( 'wp_mail', compact( 'to', 'subject', 'message', 'headers' ) ), EXTR_SKIP );
 
-	if ( $headers == '' ) {
-		$headers = "MIME-Version: 1.0\n" .
-			"From: " . apply_filters('wp_mail_from', "wordpress@" . preg_replace('#^www\.#', '', strtolower($_SERVER['SERVER_NAME']))) . "\n" . 
-			"Content-Type: text/plain; charset=\"" . get_option('blog_charset') . "\"\n";
-	}
+	// Headers
+	if ( empty( $headers ) ) {
+		$headers = array();
+	} elseif ( !is_array( $headers ) ) {
+		// Explode the headers out, so this function can take both 
+		// string headers and an array of headers.
+		$tempheaders = (array) explode( "\n", $headers );
+		$headers = array();
 
-	$phpmailer->ClearAddresses();
-	$phpmailer->ClearCCs();
-	$phpmailer->ClearBCCs();
-	$phpmailer->ClearReplyTos();
-	$phpmailer->ClearAllRecipients();
-	$phpmailer->ClearCustomHeaders();
+		// If it's actually got contents
+		if ( !empty( $tempheaders ) ) {
+			// Iterate through the raw headers
+			foreach ( $tempheaders as $header ) {
+				if ( strpos($header, ':') === false )
+					continue;
+				// Explode them out
+				list( $name, $content ) = explode( ':', trim( $header ), 2 );
 
-	$phpmailer->FromName = "WordPress";
-	$phpmailer->AddAddress("$to", "");
-	$phpmailer->Subject = $subject;
-	$phpmailer->Body    = $message;
-	$phpmailer->IsHTML(false);
-	$phpmailer->IsMail(); // set mailer to use php mail()
+				// Cleanup crew
+				$name = trim( $name );
+				$content = trim( $content );
 
-	do_action_ref_array('phpmailer_init', array(&$phpmailer));
+				// Mainly for legacy -- process a From: header if it's there
+				if ( 'from' == strtolower($name) ) {
+					if ( strpos($content, '<' ) !== false ) {
+						// So... making my life hard again?
+						$from_name = substr( $content, 0, strpos( $content, '<' ) - 1 );
+						$from_name = str_replace( '"', '', $from_name );
+						$from_name = trim( $from_name );
 
-	$mailheaders = (array) explode( "\n", $headers );
-	foreach ( $mailheaders as $line ) {
-		$header = explode( ":", $line );
-		switch ( trim( $header[0] ) ) {
-			case "From":
-				$from = trim( str_replace( '"', '', $header[1] ) );
-				if ( strpos( $from, '<' ) ) {
-					$phpmailer->FromName = str_replace( '"', '', substr( $header[1], 0, strpos( $header[1], '<' ) - 1 ) );
-					$from = trim( substr( $from, strpos( $from, '<' ) + 1 ) );
-					$from = str_replace( '>', '', $from );
+						$from_email = substr( $content, strpos( $content, '<' ) + 1 );
+						$from_email = str_replace( '>', '', $from_email );
+						$from_email = trim( $from_email );
+					} else {
+						$from_name = trim( $content );
+					}
+				} elseif ( 'content-type' == strtolower($name) ) {
+					if ( strpos( $content,';' ) !== false ) {
+						list( $type, $charset ) = explode( ';', $content );
+						$content_type = trim( $type );
+						$charset = trim( str_replace( array( 'charset=', '"' ), '', $charset ) );
+					} else {
+						$content_type = trim( $content );
+					}
 				} else {
-					$phpmailer->FromName = $from;
+					// Add it to our grand headers array
+					$headers[trim( $name )] = trim( $content );
 				}
-				$phpmailer->From = trim( $from );
-				break;
-			default:
-				if ( $line != '' && $header[0] != 'MIME-Version' && $header[0] != 'Content-Type' )
-					$phpmailer->AddCustomHeader( $line );
-				break;
+			}
 		}
 	}
 
+	// Empty out the values that may be set
+	$phpmailer->ClearAddresses();
+	$phpmailer->ClearAllRecipients();
+	$phpmailer->ClearAttachments();
+	$phpmailer->ClearBCCs();
+	$phpmailer->ClearCCs();
+	$phpmailer->ClearCustomHeaders();
+	$phpmailer->ClearReplyTos();
+
+	// From email and name
+	// If we don't have a name from the input headers
+	if ( !isset( $from_name ) ) {
+		$from_name = 'WordPress';
+	}
+
+	// If we don't have an email from the input headers
+	if ( !isset( $from_email ) ) {
+		// Get the site domain and get rid of www.
+		$sitename = strtolower( $_SERVER['SERVER_NAME'] );
+		if ( substr( $sitename, 0, 4 ) == 'www.' ) {
+			$sitename = substr( $sitename, 4 );
+		}
+
+		$from_email = 'wordpress@' . $sitename;
+	}
+
+	// Set the from name and email
+	$phpmailer->From = apply_filters( 'wp_mail_from', $from_email );
+	$phpmailer->FromName = apply_filters( 'wp_mail_from_name', $from_name );
+
+	// Set destination address
+	$phpmailer->AddAddress( $to );
+
+	// Set mail's subject and body
+	$phpmailer->Subject = $subject;
+	$phpmailer->Body = $message;
+
+	// Set to use PHP's mail()
+	$phpmailer->IsMail();
+
+	// Set Content-Type and charset
+	// If we don't have a content-type from the input headers
+	if ( !isset( $content_type ) ) {
+		$content_type = 'text/plain';
+	}
+
+	$content_type = apply_filters( 'wp_mail_content_type', $content_type );
+
+	// Set whether it's plaintext or not, depending on $content_type
+	if ( $content_type == 'text/html' ) {
+		$phpmailer->IsHTML( true );
+	} else {
+		$phpmailer->IsHTML( false );
+	}
+
+	// If we don't have a charset from the input headers
+	if ( !isset( $charset ) ) {
+		$charset = get_bloginfo( 'charset' );
+	}
+
+	// Set the content-type and charset
+	$phpmailer->CharSet = apply_filters( 'wp_mail_charset', $charset );
+
+	// Set custom headers
+	if ( !empty( $headers ) ) {
+		foreach ( $headers as $name => $content ) {
+			$phpmailer->AddCustomHeader( sprintf( '%1$s: %2$s', $name, $content ) );
+		}
+	}
+
+	do_action_ref_array( 'phpmailer_init', array( &$phpmailer ) );
+
+	// Send!
 	$result = @$phpmailer->Send();
 
 	return $result;
@@ -320,18 +401,8 @@ function wp_redirect($location, $status = 302) {
 	$location = preg_replace('|[^a-z0-9-~+_.?#=&;,/:%]|i', '', $location);
 	$location = wp_kses_no_null($location);
 
-	// remove %0d and %0a from location
 	$strip = array('%0d', '%0a');
-	$found = true;
-	while($found) {
-		$found = false;
-		foreach($strip as $val) {
-			while(strpos($location, $val) !== false) {
-				$found = true;
-				$location = str_replace($val, '', $location);
-			}
-		}
-	}
+	$location = str_replace($strip, '', $location);
 
 	if ( $is_IIS ) {
 		header("Refresh: 0;url=$location");
@@ -451,8 +522,7 @@ function wp_notify_postauthor($comment_id, $comment_type='') {
 			$reply_to = "Reply-To: \"$comment->comment_author_email\" <$comment->comment_author_email>";
 	}
 
-	$message_headers = "MIME-Version: 1.0\n"
-		. "$from\n"
+	$message_headers = "$from\n"
 		. "Content-Type: text/plain; charset=\"" . get_option('blog_charset') . "\"\n";
 
 	if ( isset($reply_to) )
@@ -463,7 +533,7 @@ function wp_notify_postauthor($comment_id, $comment_type='') {
 	$message_headers = apply_filters('comment_notification_headers', $message_headers, $comment_id);
 
 	@wp_mail($user->user_email, $subject, $notify_message, $message_headers);
-   
+
 	return true;
 }
 endif;
@@ -479,7 +549,7 @@ function wp_notify_moderator($comment_id) {
 
 	if( get_option( "moderation_notify" ) == 0 )
 		return true; 
-    
+
 	$comment = $wpdb->get_row("SELECT * FROM $wpdb->comments WHERE comment_ID='$comment_id' LIMIT 1");
 	$post = $wpdb->get_row("SELECT * FROM $wpdb->posts WHERE ID='$comment->comment_post_ID' LIMIT 1");
 
