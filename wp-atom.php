@@ -1,10 +1,8 @@
 <?php
 
-if (empty($feed)) {
-    $blog = 1;
-		$feed = 'atom';
-    $doing_rss = 1;
-    require('wp-blog-header.php');
+if (empty($wp)) {
+	require_once('wp-config.php');
+	wp('feed=atom');
 }
 
 header('Content-type: application/atom+xml; charset=' . get_settings('blog_charset'), true);
@@ -16,6 +14,7 @@ $more = 1;
   xmlns="http://purl.org/atom/ns#"
   xmlns:dc="http://purl.org/dc/elements/1.1/"
   xml:lang="<?php echo get_option('rss_language'); ?>"
+  <?php do_action('atom_ns'); ?>
   >
 	<title><?php bloginfo_rss('name') ?></title>
 	<link rel="alternate" type="text/html" href="<?php bloginfo_rss('home') ?>" />
@@ -23,7 +22,7 @@ $more = 1;
 	<modified><?php echo mysql2date('Y-m-d\TH:i:s\Z', get_lastpostmodified('GMT'), false); ?></modified>
 	<copyright>Copyright <?php echo mysql2date('Y', get_lastpostdate('blog'), 0); ?></copyright>
 	<generator url="http://wordpress.org/" version="<?php bloginfo_rss('version'); ?>">WordPress</generator>
-	
+	<?php do_action('atom_head'); ?>
 	<?php $items_count = 0; if ($posts) { foreach ($posts as $post) { start_wp(); ?>
 	<entry>
 	  	<author>
@@ -40,6 +39,7 @@ $more = 1;
 		<content type="<?php bloginfo('html_type'); ?>" mode="escaped" xml:base="<?php permalink_single_rss() ?>"><![CDATA[<?php the_content('', 0, '') ?>]]></content>
 <?php endif; ?>
 <?php rss_enclosure(); ?>
+<?php do_action('atom_entry'); ?>
 	</entry>
 	<?php $items_count++; if (($items_count == get_settings('posts_per_rss')) && empty($m)) { break; } } } ?>
 </feed>

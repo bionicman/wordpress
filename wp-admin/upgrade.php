@@ -7,6 +7,7 @@ require_once(ABSPATH . '/wp-admin/upgrade-functions.php');
 
 $step = $_GET['step'];
 if (!$step) $step = 0;
+header( 'Content-Type: text/html; charset=utf-8' );
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -61,7 +62,7 @@ text-align: center; border-top: 1px solid #ccc; padding-top: 1em; font-style: it
 	</style>
 </head>
 <body>
-<h1 id="logo"><img alt="WordPress" src="http://static.wordpress.org/logo.png" /></h1>
+<h1 id="logo"><img alt="WordPress" src="images/wordpress-logo.png" /></h1>
 <?php
 switch($step) {
 
@@ -73,11 +74,13 @@ switch($step) {
 	break;
 	
 	case 1:
+	wp_cache_flush();
 	make_db_current_silent();
 	upgrade_all();
+	wp_cache_flush();
 ?> 
 <h2><?php _e('Step 1'); ?></h2> 
-	<p><?php printf(__("There's actually only one step. So if you see this, you're done. <a href='%s'>Have fun</a>!"), '../'); ?></p>
+	<p><?php printf(__("There's actually only one step. So if you see this, you're done. <a href='%s'>Have fun</a>!"), __get_option('home') . '/'); ?></p>
 
 <!--
 <pre>
