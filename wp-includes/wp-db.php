@@ -15,7 +15,7 @@ if (!defined('SAVEQUERIES'))
 
 class wpdb {
 
-	var $show_errors = true;
+	var $show_errors = false;
 	var $num_queries = 0;
 	var $last_query;
 	var $col_info;
@@ -97,6 +97,7 @@ class wpdb {
 <p>We were able to connect to the database server (which means your username and password is okay) but not able to select the <code>$db</code> database.</p>
 <ul>
 <li>Are you sure it exists?</li>
+<li>Does the user <code>".DB_USER."</code> have permission to use the <code>$db</code> database?</li>
 <li>On some systems the name of your database is prefixed with your username, so it would be like username_wordpress. Could that be the problem?</li>
 </ul>
 <p>If you don't know how to setup a database you should <strong>contact your host</strong>. If all else fails you may find help at the <a href='http://wordpress.org/support/'>WordPress Support Forums</a>.</p>");
@@ -149,29 +150,38 @@ class wpdb {
 		$EZSQL_ERROR[] =
 		array ('query' => $this->last_query, 'error_str' => $str);
 
+		$error_str = "WordPress database error $str for query $this->last_query";
+		if ( $caller = $this->get_caller() )
+			$error_str .= " made by $caller";
+		error_log($error_str, 0);
+
+		// Is error output turned on or not..
+		if ( !$this->show_errors )
+			return false;
+
 		$str = htmlspecialchars($str, ENT_QUOTES);
 		$query = htmlspecialchars($this->last_query, ENT_QUOTES);
-		// Is error output turned on or not..
-		if ( $this->show_errors ) {
-			// If there is an error then take note of it
-			print "<div id='error'>
-			<p class='wpdberror'><strong>WordPress database error:</strong> [$str]<br />
-			<code>$query</code></p>
-			</div>";
-		} else {
-			return false;
-		}
+
+		// If there is an error then take note of it
+		print "<div id='error'>
+		<p class='wpdberror'><strong>WordPress database error:</strong> [$str]<br />
+		<code>$query</code></p>
+		</div>";
 	}
 
 	// ==================================================================
 	//	Turn error handling on or off..
 
-	function show_errors() {
-		$this->show_errors = true;
+	function show_errors( $show = true ) {
+		$errors = $this->show_errors;
+		$this->show_errors = $show;
+		return $errors;
 	}
 
 	function hide_errors() {
+		$show = $this->show_errors;
 		$this->show_errors = false;
+		return $show;
 	}
 
 	// ==================================================================
@@ -399,8 +409,13 @@ class wpdb {
 	 * @param string $message
 	 */
 	function bail($message) { // Just wraps errors in a nice header and footer
-		if ( !$this->show_errors )
+		if ( !$this->show_errors ) {
+			if ( class_exists('WP_Error') )
+				$this->error = new WP_Error('500', $message);
+			else
+				$this->error = $message;
 			return false;
+		}
 		wp_die($message);
 	}
 }
