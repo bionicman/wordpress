@@ -6,10 +6,7 @@ $parent_file = 'themes.php';
 
 wp_reset_vars(array('action', 'redirect', 'profile', 'error', 'warning', 'a', 'file', 'theme'));
 
-add_action( 'admin_head', 'theme_editor_css' );
-function theme_editor_css(){
-	wp_admin_css( 'css/theme-editor' );
-}
+wp_admin_css( 'theme-editor' );
 
 $themes = get_themes();
 
@@ -92,7 +89,7 @@ $desc_header = ( $description != $file_show ) ? "$description</strong> (%s)" : "
 <div class="bordertitle">
 	<h2><?php _e('Theme Editor'); ?></h2>
 	<form id="themeselector" name="theme" action="theme-editor.php" method="post">
-		<strong><?php _e('Select theme to edit:'); ?> </strong>
+		<strong><label for="theme"><?php _e('Select theme to edit:'); ?> </label></strong>
 		<select name="theme" id="theme">
 <?php
 	foreach ($themes as $a_theme) {

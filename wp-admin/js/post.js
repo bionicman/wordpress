@@ -18,6 +18,8 @@ function new_tag_remove_tag() {
 }
 
 function tag_update_quickclicks() {
+	if ( jQuery( '#tags-input' ).length == 0 )
+		return;
 	var current_tags = jQuery( '#tags-input' ).val().split(',');
 	jQuery( '#tagchecklist' ).empty();
 	shown = false;
@@ -118,8 +120,9 @@ jQuery(document).ready( function() {
 		jQuery('#in-category-' + id + ', #in-popular-category-' + id).attr( 'checked', c );
 		noSyncChecks = false;
 	};
+	var popularCats = jQuery('#categorychecklist-pop :checkbox').map( function() { return parseInt(jQuery(this).val(), 10); } ).get().join(',');
 	var catAddBefore = function( s ) {
-		s.data += '&' + jQuery( '#categorychecklist :checked' ).serialize();
+		s.data += '&popular_ids=' + popularCats + '&' + jQuery( '#categorychecklist :checked' ).serialize();
 		return s;
 	};
 	var catAddAfter = function( r, s ) {
@@ -149,7 +152,8 @@ jQuery(document).ready( function() {
 	} );
 	jQuery('#category-add-toggle').click( function() {
 		jQuery(this).parents('div:first').toggleClass( 'wp-hidden-children' );
-		categoryTabs.tabsClick( 1 );
+		// categoryTabs.tabs( 'select', '#categories-all' ); // this is broken (in the UI beta?)
+		categoryTabs.find( 'a[href="#categories-all"]' ).click();
 		jQuery('#newcat').focus();
 		return false;
 	} );
@@ -177,5 +181,9 @@ jQuery(document).ready( function() {
 		if ( jQuery.isFunction( autosave_update_post_ID ) ) {
 			autosave_update_post_ID(s.parsed.responses[0].supplemental.postid);
 		}
-	} });
+	}, addBefore: function( s ) {
+		s.data += '&post_id=' + jQuery('#post_ID').val();
+		return s;
+	}
+	});
 });

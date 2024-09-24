@@ -90,16 +90,34 @@ function image_downsize($id, $size = 'medium') {
 
 }
 
-// return an <img src /> tag for the given image attachment, scaling it down if requested
+/**
+ * An <img src /> tag for an image attachment, scaling it down if requested.
+ *
+ * {@internal Missing Long Description}}
+ *
+ * @uses apply_filters() The 'get_image_tag_class' filter is the IMG element
+ *		class attribute.
+ * @uses apply_filters() The 'get_image_tag' filter is the full IMG element with
+ *		all attributes.
+ *
+ * @param int $id Attachment ID.
+ * @param string $alt Image Description for the alt attribute.
+ * @param string $title Image Description for the title attribute.
+ * @param string $align Part of the class name for aligning the image.
+ * @param string $size Optional. Default is 'medium'.
+ * @return string HTML IMG element for given image attachment
+ */
 function get_image_tag($id, $alt, $title, $align, $size='medium') {
 
 	list( $img_src, $width, $height ) = image_downsize($id, $size);
 	$hwstring = image_hwstring($width, $height);
 
-	$html = '<img src="'.attribute_escape($img_src).'" alt="'.attribute_escape($alt).'" title="'.attribute_escape($title).'" '.$hwstring.'class="align'.attribute_escape($align).' size-'.attribute_escape($size).' wp-image-'.$id.'" />';
+	$class = 'align'.attribute_escape($align).' size-'.attribute_escape($size).' wp-image-'.$id;
+	$class = apply_filters('get_image_tag_class', $class, $id, $align, $size);
 
-	$url = '';
-	$html = apply_filters( 'image_send_to_editor', $html, $id, $alt, $title, $align, $url, $size );
+	$html = '<img src="'.attribute_escape($img_src).'" alt="'.attribute_escape($alt).'" title="'.attribute_escape($title).'" '.$hwstring.'class="'.$class.'" />';
+
+	$html = apply_filters( 'get_image_tag', $html, $id, $alt, $title, $align, $size );
 
 	return $html;
 }
@@ -307,7 +325,7 @@ function wp_get_attachment_image_src($attachment_id, $size='thumbnail', $icon = 
 		return $image;
 
 	if ( $icon && $src = wp_mime_type_icon($attachment_id) ) {
-		$icon_dir = apply_filters( 'icon_dir', ABSPATH . WPINC . '/images/crystal' );
+		$icon_dir = apply_filters( 'icon_dir', includes_url('images/crystal') );
 		$src_file = $icon_dir . '/' . basename($src);
 		@list($width, $height) = getimagesize($src_file);
 	}
@@ -350,7 +368,8 @@ function gallery_shortcode($attr) {
 	}
 
 	extract(shortcode_atts(array(
-		'orderby'    => 'menu_order ASC, ID ASC',
+		'order'      => 'ASC',
+		'orderby'    => 'menu_order ID',
 		'id'         => $post->ID,
 		'itemtag'    => 'dl',
 		'icontag'    => 'dt',
@@ -360,7 +379,7 @@ function gallery_shortcode($attr) {
 	), $attr));
 
 	$id = intval($id);
-	$attachments = get_children("post_parent=$id&post_type=attachment&post_mime_type=image&orderby={$orderby}");
+	$attachments = get_children( array('post_parent' => $id, 'post_status' => 'inherit', 'post_type' => 'attachment', 'post_mime_type' => 'image', 'order' => $order, 'orderby' => $orderby) );
 
 	if ( empty($attachments) )
 		return '';
@@ -434,7 +453,7 @@ function next_image_link() {
 function adjacent_image_link($prev = true) {
 	global $post;
 	$post = get_post($post);
-	$attachments = array_values(get_children("post_parent=$post->post_parent&post_type=attachment&post_mime_type=image&orderby=menu_order ASC, ID ASC"));
+	$attachments = array_values(get_children( array('post_parent' => $post->post_parent, 'post_status' => 'inherit', 'post_type' => 'attachment', 'post_mime_type' => 'image', 'order' => 'ASC', 'orderby' => 'menu_order ID') ));
 
 	foreach ( $attachments as $k => $attachment )
 		if ( $attachment->ID == $post->ID )

@@ -31,7 +31,8 @@ function add_feed($feedname, $function) {
 		$wp_rewrite->feeds[] = $feedname;
 	}
 	$hook = 'do_feed_' . $feedname;
-	remove_action($hook, $function, 10, 1);
+	// Remove default function hook
+	remove_action($hook, $hook, 10, 1);
 	add_action($hook, $function, 10, 1);
 	return $hook;
 }
@@ -793,12 +794,12 @@ class WP_Rewrite {
 		$robots_rewrite = array('robots.txt$' => $this->index . '?robots=1');
 
 		//Default Feed rules - These are require to allow for the direct access files to work with permalink structure starting with %category%
-		$default_feeds = array(	'.*/wp-atom.php$'	=>	$this->index .'?feed=atom',
-								'.*/wp-rdf.php$'	=>	$this->index .'?feed=rdf',
-								'.*/wp-rss.php$'	=>	$this->index .'?feed=rss',
-								'.*/wp-rss2.php$'	=>	$this->index .'?feed=rss2',
-								'.*/wp-feed.php$'	=>	$this->index .'?feed=feed',
-								'.*/wp-commentsrss2.php$'	=>	$this->index . '?feed=rss2&withcomments=1');
+		$default_feeds = array(	'.*wp-atom.php$'	=>	$this->index .'?feed=atom',
+								'.*wp-rdf.php$'	=>	$this->index .'?feed=rdf',
+								'.*wp-rss.php$'	=>	$this->index .'?feed=rss',
+								'.*wp-rss2.php$'	=>	$this->index .'?feed=rss2',
+								'.*wp-feed.php$'	=>	$this->index .'?feed=feed',
+								'.*wp-commentsrss2.php$'	=>	$this->index . '?feed=rss2&withcomments=1');
 
 		// Post
 		$post_rewrite = $this->generate_rewrite_rules($this->permalink_structure, EP_PERMALINK);
