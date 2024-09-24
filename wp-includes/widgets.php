@@ -378,7 +378,7 @@ function wp_widget_pages_control() {
 			<p><label for="pages-sortby"><?php _e( 'Sort by:' ); ?> 
 				<select name="pages-sortby" id="pages-sortby">
 					<option value="post_title"<?php selected( $options['sortby'], 'post_title' ); ?>><?php _e('Page title'); ?></option>
-					<option value="menu_order"<?php selected( $options['sortby'], 'menu_order' ); ?>><?php _e('Menu order'); ?></option>
+					<option value="menu_order"<?php selected( $options['sortby'], 'menu_order' ); ?>><?php _e('Page order'); ?></option>
 					<option value="ID"<?php selected( $options['sortby'], 'ID' ); ?>><?php _e( 'Page ID' ); ?></option>
 				</select></label></p>
 			<p><label for="pages-exclude"><?php _e( 'Exclude:' ); ?> <input type="text" value="<?php echo $exclude; ?>" name="pages-exclude" id="pages-exclude" style="width: 180px;" /></label><br />
@@ -389,7 +389,7 @@ function wp_widget_pages_control() {
 
 function wp_widget_links($args) {
 	global $wp_db_version;
-	extract($args);
+	extract($args, EXTR_SKIP);
 	if ( $wp_db_version < 3582 ) {
 		// This ONLY works with li/h2 sidebars.
 		get_links_list();
@@ -805,7 +805,7 @@ function wp_widget_recent_comments_register() {
 
 function wp_widget_rss($args, $number = 1) {
 	require_once(ABSPATH . WPINC . '/rss.php');
-	extract($args);
+	extract($args, EXTR_SKIP);
 	$options = get_option('widget_rss');
 	if ( isset($options['error']) && $options['error'] )
 		return;
@@ -860,7 +860,7 @@ function wp_widget_rss($args, $number = 1) {
 			echo "<li><a class='rsswidget' href='$link' title='$desc'>$title</a>$summary</li>";
 		}
 	} else {
-		echo __('<li>An error has occured; the feed is probably down. Try again later.</li>');
+		echo '<li>' . __( 'An error has occurred; the feed is probably down. Try again later.' ) . '</li>';
 	}
 ?>
 			</ul>

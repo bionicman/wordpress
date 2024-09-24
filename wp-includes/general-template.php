@@ -322,7 +322,7 @@ function wp_get_archives($args = '') {
 
 	$defaults = array('type' => 'monthly', 'limit' => '', 'format' => 'html', 'before' => '', 'after' => '', 'show_post_count' => false);
 	$r = array_merge($defaults, $r);
-	extract($r);
+	extract($r, EXTR_SKIP);
 
 	if ( '' == $type )
 		$type = 'monthly';
@@ -957,27 +957,24 @@ function language_attributes() {
 	echo $output;
 }
 
-function paginate_links( $arg = '' ) {
-	if ( is_array($arg) )
-		$a = &$arg;
-	else
-		parse_str($arg, $a);
+function paginate_links( $args = '' ) {
+	$defaults = array( 
+		'base' => '%_%', // http://example.com/all_posts.php%_% : %_% is replaced by format (below)
+		'format' => '?page=%#%', // ?page=%#% : %#% is replaced by the page number
+		'total' => 1,
+		'current' => 0,
+		'show_all' => false,
+		'prev_next' => true,
+		'prev_text' => __('&laquo; Previous'),
+		'next_text' => __('Next &raquo;'),
+		'end_size' => 1, // How many numbers on either end including the end
+		'mid_size' => 2, // How many numbers to either side of current not including current
+		'type' => 'plain',
+		'add_args' => false // array of query args to aadd
+	);
 
-	// Defaults
-	$base = '%_%'; // http://example.com/all_posts.php%_% : %_% is replaced by format (below)
-	$format = '?page=%#%'; // ?page=%#% : %#% is replaced by the page number
-	$total = 1;
-	$current = 0;
-	$show_all = false;
-	$prev_next = true;
-	$prev_text = __('&laquo; Previous');
-	$next_text = __('Next &raquo;');
-	$end_size = 1; // How many numbers on either end including the end
-	$mid_size = 2; // How many numbers to either side of current not including current
-	$type = 'plain';
-	$add_args = false; // array of query args to aadd
-
-	extract($a);
+	$args = wp_parse_args( $args, $defaults );
+	extract($args, EXTR_SKIP);
 
 	// Who knows what else people pass in $args
 	$total    = (int) $total;
