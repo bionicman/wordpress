@@ -14,13 +14,13 @@
 
 <style type="text/css" media="screen">
 
-<?php 
+<?php
 // Checks to see whether it needs a sidebar or not
-if ( !$withcomments && !is_single() ) { 
+if ( !$withcomments && !is_single() ) {
 ?>
 	#page { background: url("<?php bloginfo('stylesheet_directory'); ?>/images/kubrickbg.jpg") repeat-y top; border: none; }
 <?php } else { // No sidebar ?>
-	#page { background: url("<?php bloginfo('stylesheet_directory'); ?>/images/kubrickbgwide.jpg") repeat-y top; border: none; } 
+	#page { background: url("<?php bloginfo('stylesheet_directory'); ?>/images/kubrickbgwide.jpg") repeat-y top; border: none; }
 <?php } ?>
 
 </style>
@@ -33,7 +33,7 @@ if ( !$withcomments && !is_single() ) {
 
 <div id="header">
 	<div id="headerimg">
-		<h1><a href="<?php echo get_settings('home'); ?>/"><?php bloginfo('name'); ?></a></h1>
+		<h1><a href="<?php echo get_option('home'); ?>/"><?php bloginfo('name'); ?></a></h1>
 		<div class="description"><?php bloginfo('description'); ?></div>
 	</div>
 </div>

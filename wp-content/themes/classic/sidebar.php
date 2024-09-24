@@ -3,15 +3,11 @@
 <div id="menu">
 
 <ul>
-	<?php wp_list_pages(); ?>
-	<?php get_links_list(); ?>
- <li id="categories"><?php _e('Categories:'); ?>
-	<ul>
-	<?php wp_list_cats(); ?>
-	</ul>
- </li>
+	<?php wp_list_pages('title_li=' . __('Pages:')); ?>
+	<?php wp_list_bookmarks('title_after=&title_before='); ?>
+	<?php wp_list_categories('title_li=' . __('Categories:')); ?>
  <li id="search">
-   <label for="s"><?php _e('Search:'); ?></label>	
+   <label for="s"><?php _e('Search:'); ?></label>
    <form id="searchform" method="get" action="<?php bloginfo('home'); ?>">
 	<div>
 		<input type="text" name="s" id="s" size="15" /><br />
@@ -20,12 +16,12 @@
 	</form>
  </li>
  <li id="archives"><?php _e('Archives:'); ?>
- 	<ul>
+	<ul>
 	 <?php wp_get_archives('type=monthly'); ?>
- 	</ul>
+	</ul>
  </li>
  <li id="meta"><?php _e('Meta:'); ?>
- 	<ul>
+	<ul>
 		<?php wp_register(); ?>
 		<li><?php wp_loginout(); ?></li>
 		<li><a href="feed:<?php bloginfo('rss2_url'); ?>" title="<?php _e('Syndicate this site using RSS'); ?>"><?php _e('<abbr title="Really Simple Syndication">RSS</abbr>'); ?></a></li>

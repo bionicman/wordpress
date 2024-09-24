@@ -16,7 +16,7 @@ switch ($step) {
     {
         include_once('admin-header.php');
         if ( !current_user_can('manage_links') )
-            die (__("Cheatin&#8217; uh?"));
+            wp_die(__('Cheatin&#8217; uh?'));
 
         $opmltype = 'blogrolling'; // default.
 ?>
@@ -26,7 +26,7 @@ switch ($step) {
 <form enctype="multipart/form-data" action="link-import.php" method="post" name="blogroll">
 <?php wp_nonce_field('import-bookmarks') ?>
 
-<p><?php _e('If a program or website you use allows you to export your links or subscriptions as OPML you may import them here.'); ?></p>
+<p><?php _e('If a program or website you use allows you to export your links or subscriptions as OPML you may import them here.'); ?>
 <div style="width: 70%; margin: auto; height: 8em;">
 <input type="hidden" name="step" value="1" />
 <input type="hidden" name="MAX_FILE_SIZE" value="30000" />
@@ -46,16 +46,16 @@ switch ($step) {
 <p style="clear: both; margin-top: 1em;"><?php _e('Now select a category you want to put these links in.') ?><br />
 <?php _e('Category:') ?> <select name="cat_id">
 <?php
-$categories = $wpdb->get_results("SELECT cat_id, cat_name, auto_toggle FROM $wpdb->linkcategories ORDER BY cat_id");
+$categories = get_categories('hide_empty=0');
 foreach ($categories as $category) {
 ?>
-<option value="<?php echo $category->cat_id; ?>"><?php echo $category->cat_id.': '.$category->cat_name; ?></option>
+<option value="<?php echo $category->cat_ID; ?>"><?php echo wp_specialchars($category->cat_name); ?></option>
 <?php
 } // end foreach
 ?>
 </select></p>
 
-<p class="submit"><input type="submit" name="submit" value="<?php _e('Import OPML File') ?> &raquo;" /></p>
+<p class="submit"><input type="submit" name="submit" value="<?php _e('Import OPML File &raquo;') ?>" /></p>
 </form>
 
 </div>
@@ -68,15 +68,16 @@ foreach ($categories as $category) {
 
                 include_once('admin-header.php');
                 if ( !current_user_can('manage_links') )
-                    die (__("Cheatin' uh ?"));
+                    wp_die(__('Cheatin&#8217; uh?'));
 ?>
 <div class="wrap">
 
      <h2><?php _e('Importing...') ?></h2>
 <?php
-				$cat_id = abs( (int) $_POST['cat_id'] );
-				if ( $cat_id < 1 )
-					$cat_id  = 1;
+                $cat_id = $_POST['cat_id'];
+                if (($cat_id == '') || ($cat_id == 0)) {
+                    $cat_id  = 1;
+                }
 
                 $opml_url = $_POST['opml_url'];
                 if (isset($opml_url) && $opml_url != '' && $opml_url != 'http://') {
@@ -88,7 +89,7 @@ foreach ($categories as $category) {
 					$file = wp_handle_upload($_FILES['userfile'], $overrides);
 
 					if ( isset($file['error']) )
-						die($file['error']);
+						wp_die($file['error']);
 
 					$url = $file['url'];
 					$opml_url = $file['file'];
@@ -105,10 +106,8 @@ foreach ($categories as $category) {
                             $titles[$i] = '';
                         if ('http' == substr($titles[$i], 0, 4))
                             $titles[$i] = '';
-                        // FIXME:  Use wp_insert_link().
-                        $query = "INSERT INTO $wpdb->links (link_url, link_name, link_target, link_category, link_description, link_owner, link_rss)
-                                VALUES('{$urls[$i]}', '".$wpdb->escape($names[$i])."', '', $cat_id, '".$wpdb->escape($descriptions[$i])."', $user_ID, '{$feeds[$i]}')\n";
-                        $result = $wpdb->query($query);
+                        $link = array( 'link_url' => $urls[$i], 'link_name' => $wpdb->escape($names[$i]), 'link_category' => array($cat_id), 'link_description' => $wpdb->escape($descriptions[$i]), 'link_owner' => $user_ID, 'link_rss' => $feeds[$i]);              			
+						wp_insert_link($link);
 						echo sprintf('<p>'.__('Inserted <strong>%s</strong>').'</p>', $names[$i]);
                     }
 ?>

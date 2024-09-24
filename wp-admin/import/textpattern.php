@@ -56,9 +56,8 @@ class Textpattern_Import {
 		echo '<p>'.__('This has not been tested on previous versions of Textpattern.  Mileage may vary.').'</p>';
 		echo '<p>'.__('Your Textpattern Configuration settings are as follows:').'</p>';
 		echo '<form action="admin.php?import=textpattern&amp;step=1" method="post">';
-		wp_nonce_field('import-textpattern');
 		$this->db_form();
-		echo '<p class="submit"><input type="submit" name="submit" value="'.attribute_escape(__('Import Categories &raquo;')).'" /></p>';
+		echo '<p class="submit"><input type="submit" name="submit" value="'.__('Import Categories').' &raquo;" /></p>';
 		echo '</form>';
 		echo '</div>';
 	}
@@ -484,8 +483,7 @@ class Textpattern_Import {
 
 
 		echo '<form action="admin.php?import=textpattern&amp;step=2" method="post">';
-		wp_nonce_field('import-textpattern');
-		printf('<input type="submit" name="submit" value="%s" />', attribute_escape(__('Import Users')));
+		printf('<input type="submit" name="submit" value="%s" />', __('Import Users'));
 		echo '</form>';
 
 	}
@@ -497,8 +495,7 @@ class Textpattern_Import {
 		$this->users2wp($users);
 
 		echo '<form action="admin.php?import=textpattern&amp;step=3" method="post">';
-		wp_nonce_field('import-textpattern');
-		printf('<input type="submit" name="submit" value="%s" />', attribute_escape(__('Import Posts')));
+		printf('<input type="submit" name="submit" value="%s" />', __('Import Posts'));
 		echo '</form>';
 	}
 
@@ -509,8 +506,7 @@ class Textpattern_Import {
 		$this->posts2wp($posts);
 
 		echo '<form action="admin.php?import=textpattern&amp;step=4" method="post">';
-		wp_nonce_field('import-textpattern');
-		printf('<input type="submit" name="submit" value="%s" />', attribute_escape(__('Import Comments')));
+		printf('<input type="submit" name="submit" value="%s" />', __('Import Comments'));
 		echo '</form>';
 	}
 
@@ -521,8 +517,7 @@ class Textpattern_Import {
 		$this->comments2wp($comments);
 
 		echo '<form action="admin.php?import=textpattern&amp;step=5" method="post">';
-		wp_nonce_field('import-textpattern');
-		printf('<input type="submit" name="submit" value="%s" />', attribute_escape(__('Import Links')));
+		printf('<input type="submit" name="submit" value="%s" />', __('Import Links'));
 		echo '</form>';
 	}
 
@@ -534,8 +529,7 @@ class Textpattern_Import {
 		add_option('txp_links', $links);
 
 		echo '<form action="admin.php?import=textpattern&amp;step=6" method="post">';
-		wp_nonce_field('import-textpattern');
-		printf('<input type="submit" name="submit" value="%s" />', attribute_escape(__('Finish')));
+		printf('<input type="submit" name="submit" value="%s" />', __('Finish'));
 		echo '</form>';
 	}
 
@@ -596,38 +590,36 @@ class Textpattern_Import {
 
 		if ( $step > 0 )
 		{
-			check_admin_referer('import-textpattern');
-
 			if($_POST['dbuser'])
 			{
 				if(get_option('txpuser'))
 					delete_option('txpuser');
-				add_option('txpuser', sanitize_user($_POST['dbuser'], true));
+				add_option('txpuser',$_POST['dbuser']);
 			}
 			if($_POST['dbpass'])
 			{
 				if(get_option('txppass'))
 					delete_option('txppass');
-				add_option('txppass',  sanitize_user($_POST['dbpass'], true));
+				add_option('txppass',$_POST['dbpass']);
 			}
 
 			if($_POST['dbname'])
 			{
 				if(get_option('txpname'))
 					delete_option('txpname');
-				add_option('txpname',  sanitize_user($_POST['dbname'], true));
+				add_option('txpname',$_POST['dbname']);
 			}
 			if($_POST['dbhost'])
 			{
 				if(get_option('txphost'))
 					delete_option('txphost');
-				add_option('txphost',  sanitize_user($_POST['dbhost'], true));
+				add_option('txphost',$_POST['dbhost']);
 			}
 			if($_POST['dbprefix'])
 			{
 				if(get_option('tpre'))
 					delete_option('tpre');
-				add_option('tpre',  sanitize_user($_POST['dbprefix']));
+				add_option('tpre',$_POST['dbprefix']);
 			}
 
 
