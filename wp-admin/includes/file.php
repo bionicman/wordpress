@@ -203,7 +203,7 @@ function download_url( $url ) {
 	if( ! $tmpfname )
 		return false;
 
-	$handle = fopen($tmpfname, 'w');
+	$handle = @fopen($tmpfname, 'w');
 	if( ! $handle )
 		return false;
 
@@ -313,8 +313,6 @@ function WP_Filesystem( $args = false, $preference = false ) {
 }
 
 function get_filesystem_method() {
-	return 'ftpsockets';
-
 	$tempFile = tempnam(get_temp_dir(), 'WPU');
 
 	if ( getmyuid() == fileowner($tempFile) ) {

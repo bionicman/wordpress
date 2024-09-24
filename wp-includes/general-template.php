@@ -977,6 +977,7 @@ function the_editor($content, $id = 'content', $prev_id = 'title', $media_button
             e = e || window.event;
             if (e.keyCode == 9 && !e.shiftKey && !e.controlKey && !e.altKey) {
                 if ( tinyMCE.activeEditor ) {
+                    if ( (jQuery("#post_ID").val() < 1) && (jQuery("#title").val().length > 0) ) { autosave(); }
                     e = null;
                     if ( tinyMCE.activeEditor.isHidden() ) return true;
                     tinyMCE.activeEditor.focus();
@@ -1120,6 +1121,7 @@ function wp_admin_css_uri( $file = 'wp-admin' ) {
 				$color = 'fresh';
 			$color = $_wp_admin_css_colors[$color];
 			$_file = $color->url;
+			$_file = ('css/colors-rtl' == $file) ? str_replace('.css','-rtl.css',$_file) : $_file;
 		} else {
 			$_file = get_option( 'siteurl' ) . "/wp-admin/$file.css";
 		}

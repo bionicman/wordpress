@@ -895,7 +895,7 @@ function wp_notify_moderator($comment_id) {
 
 	$strCommentsPending = sprintf( __ngettext('%s comment', '%s comments', $comments_waiting), $comments_waiting );
 	$notify_message .= sprintf( __('Currently %s are waiting for approval. Please visit the moderation panel:'), $strCommentsPending ) . "\r\n";
-	$notify_message .= get_option('siteurl') . "/wp-admin/moderation.php\r\n";
+	$notify_message .= get_option('siteurl') . "/wp-admin/edit-comments.php?comment_status=moderated\r\n";
 
 	$subject = sprintf( __('[%1$s] Please moderate: "%2$s"'), get_option('blogname'), $post->post_title );
 	$admin_email = get_option('admin_email');
@@ -1250,7 +1250,7 @@ function get_avatar( $id_or_email, $size = '96', $default = '' ) {
 
 		$avatar = "<img alt='' src='{$out}' class='avatar avatar-{$size}' height='{$size}' width='{$size}' />";
 	} else {
-		$avatar = "<img alt='' src='{$default}' class='avatar avatar-{$size} avatar-default' height='{$size}' width='{$size}'>";
+		$avatar = "<img alt='' src='{$default}' class='avatar avatar-{$size} avatar-default' height='{$size}' width='{$size}' />";
 	}
 
 	return apply_filters('get_avatar', $avatar, $id_or_email, $size, $default);
