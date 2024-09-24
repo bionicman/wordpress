@@ -368,7 +368,7 @@ function get_themes() {
 		//Make unique and remove duplicates when stylesheet and template are the same i.e. most themes
 		$template_files = array_unique($template_files);
 		$stylesheet_files = array_unique($stylesheet_files);
-				
+			
 		$template_dir = dirname($template_files[0]);
 		$stylesheet_dir = dirname($stylesheet_files[0]);
 
@@ -502,14 +502,14 @@ function get_current_theme() {
  */
 function register_theme_directory( $directory) {
 	global $wp_theme_directories;
-	
+
 	/* If this folder does not exist, return and do not register */
 	if ( !file_exists( $directory ) )
 			/* Try prepending as the theme directory could be relative to the content directory */
 		$registered_directory = WP_CONTENT_DIR . '/' . $directory;
 	else
 		$registered_directory = $directory;
-	
+
 	/* If this folder does not exist, return and do not register */
 	if ( !file_exists( $registered_directory ) )
 		return false;
@@ -624,7 +624,7 @@ function get_theme_root( $stylesheet_or_template = false ) {
 	} else {
 		$theme_root = WP_CONTENT_DIR . '/themes';
 	}
-	
+
 	return apply_filters( 'theme_root', $theme_root );
 }
 
@@ -1320,7 +1320,11 @@ function add_custom_image_header($header_callback, $admin_header_callback) {
  */
 function add_theme_support( $feature ) {
 	global $_wp_theme_features;
-	$_wp_theme_features[$feature] = true;
+
+	if ( func_num_args() == 1 )
+		$_wp_theme_features[$feature] = true;
+	else
+		$_wp_theme_features[$feature] = array_slice( func_get_args(), 1 );
 }
 
 /**
@@ -1334,7 +1338,33 @@ function add_theme_support( $feature ) {
 
 function current_theme_supports( $feature ) {
 	global $_wp_theme_features;
-	return ( isset( $_wp_theme_features[$feature] ) && $_wp_theme_features[$feature] );
+
+	if ( !isset( $_wp_theme_features[$feature] ) )
+		return false;
+
+	// If no args passed then no extra checks need be performed
+	if ( func_num_args() <= 1 )
+		return true;
+
+	$args = array_slice( func_get_args(), 1 );
+
+	// @todo Allow pluggable arg checking
+	switch ( $feature ) {
+		case 'post-thumbnails':
+			// post-thumbnails can be registered for only certain content/post types by passing
+			// an array of types to add_theme_support().  If no array was passed, then
+			// any type is accepted
+			if ( true === $_wp_theme_features[$feature] )  // Registered for all types
+				return true;
+			$content_type = $args[0];
+			if ( in_array($content_type, $_wp_theme_features[$feature][0]) )
+				return true;
+			else
+				return false;
+			break;
+	}
+
+	return true;
 }
 
 /**

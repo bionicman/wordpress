@@ -18,6 +18,9 @@ if ( function_exists('memory_get_usage') && ( (int) @ini_get('memory_limit') < a
 set_magic_quotes_runtime(0);
 @ini_set('magic_quotes_sybase', 0);
 
+if ( function_exists('date_default_timezone_set') )
+	date_default_timezone_set('UTC');
+
 /**
  * Turn register globals off.
  *
@@ -198,14 +201,17 @@ function timer_stop($display = 0, $precision = 3) { //if called like timer_stop(
 }
 timer_start();
 
-// Add define('WP_DEBUG',true); to wp-config.php to enable display of notices during development.
-if ( defined('WP_DEBUG') && WP_DEBUG == true ) {
-	error_reporting(E_ALL);
+// Add define('WP_DEBUG', true); to wp-config.php to enable display of notices during development.
+if ( defined('WP_DEBUG') && WP_DEBUG ) {
+	if ( defined('E_DEPRECATED') )
+		error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
+	else
+		error_reporting(E_ALL);
 	// Add define('WP_DEBUG_DISPLAY', false); to wp-config.php to use the globally configured setting for display_errors and not force it to On
-	if ( ! defined('WP_DEBUG_DISPLAY') || WP_DEBUG_DISPLAY == true )
+	if ( ! defined('WP_DEBUG_DISPLAY') || WP_DEBUG_DISPLAY )
 		ini_set('display_errors', 1);
 	// Add define('WP_DEBUG_LOG', true); to enable php debug logging to WP_CONTENT_DIR/debug.log
-	if ( defined('WP_DEBUG_LOG') && WP_DEBUG_LOG == true ) {
+	if ( defined('WP_DEBUG_LOG') && WP_DEBUG_LOG ) {
 		ini_set('log_errors', 1);
 		ini_set('error_log', WP_CONTENT_DIR . '/debug.log');
 	}
@@ -220,6 +226,12 @@ if ( defined('WP_DEBUG') && WP_DEBUG == true ) {
 // For an advanced caching plugin to use, static because you would only want one
 if ( defined('WP_CACHE') && WP_CACHE )
 	@include WP_CONTENT_DIR . '/advanced-cache.php';
+
+/**
+ * Private
+ */ 
+if ( !defined('MEDIA_TRASH') )
+	define('MEDIA_TRASH', false);
 
 /**
  * Stores the location of the WordPress directory of functions, classes, and core content.
@@ -293,6 +305,22 @@ function wp_clone( $object ) {
 		$can_clone = version_compare( phpversion(), '5.0', '>=' );
 	}
 	return $can_clone ? clone( $object ) : $object;
+}
+
+/**
+ * Whether the current request is in WordPress admin Panel
+ *
+ * Does not inform on whether the user is an admin! Use capability checks to
+ * tell if the user should be accessing a section or not.
+ *
+ * @since 1.5.1
+ *
+ * @return bool True if inside WordPress administration pages.
+ */
+function is_admin() {
+	if ( defined('WP_ADMIN') )
+		return WP_ADMIN;
+	return false;
 }
 
 if ( file_exists(WP_CONTENT_DIR . '/object-cache.php') ) {
@@ -689,7 +717,7 @@ if ( file_exists(TEMPLATEPATH . '/functions.php') )
 	include(TEMPLATEPATH . '/functions.php');
 
 // Load in support for template functions which the theme supports
-require_if_theme_supports( 'post-thumbnails', ABSPATH . WPINC . '/post-image-template.php' );
+require_if_theme_supports( 'post-thumbnails', ABSPATH . WPINC . '/post-thumbnail-template.php' );
 
 /**
  * Runs just before PHP shuts down execution.

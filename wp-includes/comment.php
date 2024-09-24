@@ -506,7 +506,7 @@ function wp_allow_comment($commentdata) {
 
 	do_action( 'check_comment_flood', $comment_author_IP, $comment_author_email, $comment_date_gmt );
 
-	if ( $user_id ) {
+	if ( isset($user_id) && $user_id) {
 		$userdata = get_userdata($user_id);
 		$user = new WP_User($user_id);
 		$post_author = $wpdb->get_var($wpdb->prepare("SELECT post_author FROM $wpdb->posts WHERE ID = %d LIMIT 1", $comment_post_ID));
@@ -550,7 +550,8 @@ function check_comment_flood_db( $ip, $email, $date ) {
 	global $wpdb;
 	if ( current_user_can( 'manage_options' ) )
 		return; // don't throttle admins
-	if ( $lasttime = $wpdb->get_var( $wpdb->prepare("SELECT comment_date_gmt FROM $wpdb->comments WHERE comment_author_IP = %s OR comment_author_email = %s ORDER BY comment_date DESC LIMIT 1", $ip, $email) ) ) {
+	$hour_ago = gmdate( 'Y-m-d H:i:s', time() - 3600 );
+	if ( $lasttime = $wpdb->get_var( $wpdb->prepare( "SELECT `comment_date_gmt` FROM `$wpdb->comments` WHERE `comment_date_gmt` >= %s AND ( `comment_author_IP` = %s OR `comment_author_email` = %s ) ORDER BY `comment_date_gmt` DESC LIMIT 1", $hour_ago, $ip, $email ) ) ) {
 		$time_lastcomment = mysql2date('U', $lasttime, false);
 		$time_newcomment  = mysql2date('U', $date, false);
 		$flood_die = apply_filters('comment_flood_filter', false, $time_lastcomment, $time_newcomment);
@@ -1674,8 +1675,7 @@ function pingback($content, $post_ID) {
 			// using a timeout of 3 seconds should be enough to cover slow servers
 			$client = new IXR_Client($pingback_server_url);
 			$client->timeout = 3;
-			$client->useragent .= ' -- WordPress/' . $wp_version;
-
+			$client->useragent = apply_filters( 'pingback_useragent', $client->useragent . ' -- WordPress/' . $wp_version, $client->useragent, $pingback_server_url, $pagelinkedto, $pagelinkedfrom);
 			// when set to true, this outputs debug messages by itself
 			$client->debug = false;
 

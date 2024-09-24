@@ -2279,8 +2279,8 @@ function get_all_page_ids() {
  */
 function &get_page(&$page, $output = OBJECT, $filter = 'raw') {
 	if ( empty($page) ) {
-		if ( isset( $GLOBALS['page'] ) && isset( $GLOBALS['page']->ID ) ) {
-			return get_post($GLOBALS['page'], $output, $filter);
+		if ( isset( $GLOBALS['post'] ) && isset( $GLOBALS['post']->ID ) ) {
+			return get_post($GLOBALS['post'], $output, $filter);
 		} else {
 			$page = null;
 			return $page;
@@ -2839,7 +2839,7 @@ function wp_delete_attachment( $post_id, $force_delete = false ) {
 	if ( 'attachment' != $post->post_type )
 		return false;
 
-	if ( !$force_delete && 'trash' != $post->post_status )
+	if ( !$force_delete && EMPTY_TRASH_DAYS && MEDIA_TRASH && 'trash' != $post->post_status )
 		return wp_trash_post( $post_id );
 
 	delete_post_meta($post_id, '_wp_trash_meta_status');

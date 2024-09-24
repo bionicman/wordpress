@@ -44,6 +44,11 @@ case 'addtag':
 break;
 
 case 'delete':
+	if ( !isset( $_GET['tag_ID'] ) ) {
+		wp_redirect("edit-tags.php?taxonomy=$taxonomy");
+		exit;
+	}
+
 	$tag_ID = (int) $_GET['tag_ID'];
 	check_admin_referer('delete-tag_' .  $tag_ID);
 
@@ -70,8 +75,8 @@ case 'bulk-delete':
 	if ( !current_user_can('manage_categories') )
 		wp_die(__('Cheatin&#8217; uh?'));
 
-	$tags = $_GET['delete_tags'];
-	foreach( (array) $tags as $tag_ID ) {
+	$tags = (array) $_GET['delete_tags'];
+	foreach( $tags as $tag_ID ) {
 		wp_delete_term( $tag_ID, $taxonomy);
 	}
 
@@ -179,11 +184,11 @@ $pagenum = isset( $_GET['pagenum'] ) ? absint( $_GET['pagenum'] ) : 0;
 if ( empty($pagenum) )
 	$pagenum = 1;
 
-$tags_per_page = get_user_option('edit_tags_per_page');
-if ( empty($tags_per_page) )
+$tags_per_page = (int) get_user_option( 'edit_tags_per_page', 0, false );
+if ( empty($tags_per_page) || $tags_per_page < 1 )
 	$tags_per_page = 20;
-$tags_per_page = apply_filters('edit_tags_per_page', $tags_per_page);
-$tags_per_page = apply_filters('tagsperpage', $tags_per_page); // Old filter
+$tags_per_page = apply_filters( 'edit_tags_per_page', $tags_per_page );
+$tags_per_page = apply_filters( 'tagsperpage', $tags_per_page ); // Old filter
 
 $page_links = paginate_links( array(
 	'base' => add_query_arg( 'pagenum', '%#%' ),

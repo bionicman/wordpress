@@ -19,12 +19,10 @@ $charset_collate = '';
 // Declare these as global in case schema.php is included from a function.
 global $wpdb, $wp_queries;
 
-if ( $wpdb->has_cap( 'collation' ) ) {
-	if ( ! empty($wpdb->charset) )
-		$charset_collate = "DEFAULT CHARACTER SET $wpdb->charset";
-	if ( ! empty($wpdb->collate) )
-		$charset_collate .= " COLLATE $wpdb->collate";
-}
+if ( ! empty($wpdb->charset) )
+	$charset_collate = "DEFAULT CHARACTER SET $wpdb->charset";
+if ( ! empty($wpdb->collate) )
+	$charset_collate .= " COLLATE $wpdb->collate";
 
 /** Create WordPress database tables SQL */
 $wp_queries = "CREATE TABLE $wpdb->terms (
@@ -109,8 +107,7 @@ CREATE TABLE $wpdb->options (
   option_value longtext NOT NULL,
   autoload varchar(20) NOT NULL default 'yes',
   PRIMARY KEY  (option_id),
-  UNIQUE option_name (option_name),
-  UNIQUE autoloaded_options (autoload, option_name)
+  UNIQUE KEY option_name (option_name)
 ) $charset_collate;
 CREATE TABLE $wpdb->postmeta (
   meta_id bigint(20) unsigned NOT NULL auto_increment,
@@ -190,12 +187,10 @@ function populate_options() {
 	do_action('populate_options');
 
 	if ( ini_get('safe_mode') ) {
-		// Safe mode screws up mkdir(), so we must use a flat structure.
+		// Safe mode can break mkdir() so use a flat structure by default.
 		$uploads_use_yearmonth_folders = 0;
-		$upload_path = WP_CONTENT_DIR;
 	} else {
 		$uploads_use_yearmonth_folders = 1;
-		$upload_path = WP_CONTENT_DIR . '/uploads';
 	}
 
 	$options = array(
@@ -266,7 +261,7 @@ function populate_options() {
 
 	// 2.0.1
 	'uploads_use_yearmonth_folders' => $uploads_use_yearmonth_folders,
-	'upload_path' => $upload_path,
+	'upload_path' => '',
 
 	// 2.0.3
 	'secret' => wp_generate_password(64),
@@ -318,7 +313,6 @@ function populate_options() {
 
 	// 2.9
 	'embed_autourls' => 1,
-	'embed_oembed_discover' => 1,
 	'embed_size_w' => '',
 	'embed_size_h' => 600,
 	);

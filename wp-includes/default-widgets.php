@@ -391,7 +391,7 @@ class WP_Widget_Text extends WP_Widget {
 		if ( current_user_can('unfiltered_html') )
 			$instance['text'] =  $new_instance['text'];
 		else
-			$instance['text'] = stripslashes( wp_filter_post_kses( $new_instance['text'] ) );
+			$instance['text'] = stripslashes( wp_filter_post_kses( addslashes($new_instance['text']) ) ); // wp_filter_post_kses() expects slashed
 		$instance['filter'] = isset($new_instance['filter']);
 		return $instance;
 	}
@@ -634,7 +634,7 @@ class WP_Widget_Recent_Comments extends WP_Widget {
 			$number = 15;
 
 		if ( !$comments = wp_cache_get( 'recent_comments', 'widget' ) ) {
-			$comments = $wpdb->get_results("SELECT * FROM $wpdb->comments WHERE comment_approved = '1' ORDER BY comment_date_gmt DESC LIMIT 15");
+			$comments = $wpdb->get_results("SELECT $wpdb->comments.* FROM $wpdb->comments JOIN $wpdb->posts ON $wpdb->posts.ID = $wpdb->comments.comment_post_ID WHERE comment_approved = '1' AND post_status = 'publish' ORDER BY comment_date_gmt DESC LIMIT 15");
 			wp_cache_add( 'recent_comments', $comments, 'widget' );
 		}
 

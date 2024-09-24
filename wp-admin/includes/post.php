@@ -559,7 +559,9 @@ function add_meta( $post_ID ) {
 
 	$metakeyselect = isset($_POST['metakeyselect']) ? stripslashes( trim( $_POST['metakeyselect'] ) ) : '';
 	$metakeyinput = isset($_POST['metakeyinput']) ? stripslashes( trim( $_POST['metakeyinput'] ) ) : '';
-	$metavalue = isset($_POST['metavalue']) ? maybe_serialize( stripslashes( trim( $_POST['metavalue'] ) ) ) : '';
+	$metavalue = isset($_POST['metavalue']) ? maybe_serialize( stripslashes_deep( $_POST['metavalue'] ) ) : '';
+	if ( is_string($metavalue) )
+		$metavalue = trim( $metavalue );
 
 	if ( ('0' === $metavalue || !empty ( $metavalue ) ) && ((('#NONE#' != $metakeyselect) && !empty ( $metakeyselect) ) || !empty ( $metakeyinput) ) ) {
 		// We have a key/value pair. If both the select and the
@@ -597,9 +599,9 @@ function delete_meta( $mid ) {
 	$mid = (int) $mid;
 
 	$post_id = $wpdb->get_var( $wpdb->prepare("SELECT post_id FROM $wpdb->postmeta WHERE meta_id = %d", $mid) );
-	wp_cache_delete($post_id, 'post_meta');
 
 	do_action( 'delete_postmeta', $mid );
+	wp_cache_delete($post_id, 'post_meta');
 	$rval = $wpdb->query( $wpdb->prepare("DELETE FROM $wpdb->postmeta WHERE meta_id = %d", $mid) );
 	do_action( 'deleted_postmeta', $mid );
 
@@ -684,9 +686,8 @@ function update_meta( $meta_id, $meta_key, $meta_value ) {
 		return false;
 
 	$post_id = $wpdb->get_var( $wpdb->prepare("SELECT post_id FROM $wpdb->postmeta WHERE meta_id = %d", $meta_id) );
-	wp_cache_delete($post_id, 'post_meta');
 
-	$meta_value = maybe_serialize( stripslashes( $meta_value ) );
+	$meta_value = maybe_serialize( stripslashes_deep( $meta_value ) );
 	$meta_id = (int) $meta_id;
 
 	$data  = compact( 'meta_key', 'meta_value' );
@@ -694,6 +695,7 @@ function update_meta( $meta_id, $meta_key, $meta_value ) {
 
 	do_action( 'update_postmeta', $meta_id, $post_id, $meta_key, $meta_value );
 	$rval = $wpdb->update( $wpdb->postmeta, $data, $where );
+	wp_cache_delete($post_id, 'post_meta');
 	do_action( 'updated_postmeta', $meta_id, $post_id, $meta_key, $meta_value );
 
 	return $rval;
@@ -843,10 +845,10 @@ function wp_edit_posts_query( $q = false ) {
 		$orderby = 'date';
 	}
 
-	$posts_per_page = get_user_option('edit_per_page');
-	if ( empty($posts_per_page) )
+	$posts_per_page = (int) get_user_option( 'edit_per_page', 0, false );
+	if ( empty( $posts_per_page ) || $posts_per_page < 1 )
 		$posts_per_page = 15;
-	$posts_per_page = apply_filters('edit_posts_per_page', $posts_per_page);
+	$posts_per_page = apply_filters( 'edit_posts_per_page', $posts_per_page );
 
 	wp("post_type=post&$post_status_q&posts_per_page=$posts_per_page&order=$order&orderby=$orderby");
 
@@ -901,10 +903,10 @@ function wp_edit_attachments_query( $q = false ) {
 	$q['cat'] = isset( $q['cat'] ) ? (int) $q['cat'] : 0;
 	$q['post_type'] = 'attachment';
 	$q['post_status'] = isset( $q['status'] ) && 'trash' == $q['status'] ? 'trash' : 'inherit';
-	$media_per_page = get_user_option('upload_per_page');
-	if ( empty($media_per_page) )
+	$media_per_page = (int) get_user_option( 'upload_per_page', 0, false );
+	if ( empty( $media_per_page ) || $media_per_page < 1 )
 		$media_per_page = 20;
-	$q['posts_per_page'] = $media_per_page;
+	$q['posts_per_page'] = apply_filters( 'upload_per_page', $media_per_page );
 
 	$post_mime_types = get_post_mime_types();
 	$avail_post_mime_types = get_available_post_mime_types('attachment');
@@ -1068,14 +1070,21 @@ function get_sample_permalink_html( $id, $new_title = null, $new_slug = null ) {
  * @return string html
  */
 function _wp_post_thumbnail_html( $thumbnail_id = NULL ) {
+	global $content_width, $_wp_additional_image_sizes;
 	$content = '<p class="hide-if-no-js"><a href="#" id="set-post-thumbnail" onclick="jQuery(\'#add_image\').click();return false;">' . esc_html__( 'Set thumbnail' ) . '</a></p>';
 
 	if ( $thumbnail_id && get_post( $thumbnail_id ) ) {
-		$thumbnail_html = wp_get_attachment_image($thumbnail_id, array( 266, 266 ) );
+		$old_content_width = $content_width;
+		$content_width = 266;
+		if ( !isset( $_wp_additional_image_sizes['post-thumbnail'] ) )
+			$thumbnail_html = wp_get_attachment_image( $thumbnail_id, array( $content_width, $content_width ) );
+		else
+			$thumbnail_html = wp_get_attachment_image( $thumbnail_id, 'post-thumbnail' );
 		if ( !empty( $thumbnail_html ) ) {
 			$content = '<a href="#" id="set-post-thumbnail" onclick="jQuery(\'#add_image\').click();return false;">' . $thumbnail_html . '</a>';
 			$content .= '<p class="hide-if-no-js"><a href="#" id="remove-post-thumbnail" onclick="WPRemoveThumbnail();return false;">' . esc_html__( 'Remove thumbnail' ) . '</a></p>';
 		}
+		$content_width = $old_content_width;
 	}
 
 	return apply_filters( 'admin_post_thumbnail_html', $content );

@@ -32,7 +32,7 @@
  * @return array Width and height of what the result image should resize to.
  */
 function image_constrain_size_for_editor($width, $height, $size = 'medium') {
-	global $content_width;
+	global $content_width, $_wp_additional_image_sizes;
 
 	if ( is_array($size) ) {
 		$max_width = $size[0];
@@ -59,6 +59,11 @@ function image_constrain_size_for_editor($width, $height, $size = 'medium') {
 		// can resize it in the editor if they wish.
 		$max_width = intval(get_option('large_size_w'));
 		$max_height = intval(get_option('large_size_h'));
+		if ( intval($content_width) > 0 )
+			$max_width = min( intval($content_width), $max_width );
+	} elseif ( isset( $_wp_additional_image_sizes ) && count( $_wp_additional_image_sizes ) && in_array( $size, array_keys( $_wp_additional_image_sizes ) ) ) {
+		$max_width = intval( $_wp_additional_image_sizes[$size]['width'] );
+		$max_height = intval( $_wp_additional_image_sizes[$size]['height'] );
 		if ( intval($content_width) > 0 )
 			$max_width = min( intval($content_width), $max_width );
 	}
@@ -167,6 +172,21 @@ function image_downsize($id, $size = 'medium') {
 	}
 	return false;
 
+}
+
+/**
+ * Registers a new image size
+ */
+function add_image_size( $name, $width = 0, $height = 0, $crop = FALSE ) {
+	global $_wp_additional_image_sizes;
+	$_wp_additional_image_sizes[$name] = array( 'width' => absint( $width ), 'height' => absint( $height ), 'crop' => !!$crop );
+}
+
+/**
+ * Registers an image size for the post thumbnail
+ */
+function set_post_thumbnail_size( $width = 0, $height = 0, $crop = FALSE ) {
+	add_image_size( 'post-thumbnail', $width, $height, $crop );
 }
 
 /**
@@ -305,7 +325,7 @@ function image_resize_dimensions($orig_w, $orig_h, $dest_w, $dest_h, $crop = fal
 
 	// the return array matches the parameters to imagecopyresampled()
 	// int dst_x, int dst_y, int src_x, int src_y, int dst_w, int dst_h, int src_w, int src_h
-	return array( 0, 0, $s_x, $s_y, $new_w, $new_h, $crop_w, $crop_h );
+	return array( 0, 0, (int) $s_x, (int) $s_y, (int) $new_w, (int) $new_h, (int) $crop_w, (int) $crop_h );
 
 }
 
@@ -558,38 +578,38 @@ function wp_get_attachment_image($attachment_id, $size = 'thumbnail', $icon = fa
 }
 
 /**
- * Adds a 'wp-post-image' class to post image thumbnails
- * Uses the begin_fetch_post_image_html and end_fetch_post_image_html action hooks to
- * dynamically add/remove itself so as to only filter post image thumbnails
+ * Adds a 'wp-post-image' class to post thumbnail thumbnails
+ * Uses the begin_fetch_post_thumbnail_html and end_fetch_post_thumbnail_html action hooks to
+ * dynamically add/remove itself so as to only filter post thumbnail thumbnails
  *
  * @author Mark Jaquith
  * @since 2.9.0
  * @param array $attr Attributes including src, class, alt, title
  * @return array
  */
-function _wp_post_image_class_filter( $attr ) {
+function _wp_post_thumbnail_class_filter( $attr ) {
 	$attr['class'] .= ' wp-post-image';
 	return $attr;
 }
 
 /**
- * Adds _wp_post_image_class_filter to the wp_get_attachment_image_attributes filter
+ * Adds _wp_post_thumbnail_class_filter to the wp_get_attachment_image_attributes filter
  *
  * @author Mark Jaquith
  * @since 2.9.0
  */
-function _wp_post_image_class_filter_add( $attr ) {
-	add_filter( 'wp_get_attachment_image_attributes', '_wp_post_image_class_filter' );
+function _wp_post_thumbnail_class_filter_add( $attr ) {
+	add_filter( 'wp_get_attachment_image_attributes', '_wp_post_thumbnail_class_filter' );
 }
 
 /**
- * Removes _wp_post_image_class_filter from the wp_get_attachment_image_attributes filter
+ * Removes _wp_post_thumbnail_class_filter from the wp_get_attachment_image_attributes filter
  *
  * @author Mark Jaquith
  * @since 2.9.0
  */
-function _wp_post_image_class_filter_remove( $attr ) {
-	remove_filter( 'wp_get_attachment_image_attributes', '_wp_post_image_class_filter' );
+function _wp_post_thumbnail_class_filter_remove( $attr ) {
+	remove_filter( 'wp_get_attachment_image_attributes', '_wp_post_thumbnail_class_filter' );
 }
 
 add_shortcode('wp_caption', 'img_caption_shortcode');
@@ -648,7 +668,7 @@ add_shortcode('gallery', 'gallery_shortcode');
  * @return string HTML content to display gallery.
  */
 function gallery_shortcode($attr) {
-	global $post;
+	global $post, $wp_locale;
 
 	static $instance = 0;
 	$instance++;
@@ -711,7 +731,8 @@ function gallery_shortcode($attr) {
 	$captiontag = tag_escape($captiontag);
 	$columns = intval($columns);
 	$itemwidth = $columns > 0 ? floor(100/$columns) : 100;
-
+	$float = $wp_locale->text_direction == 'rtl' ? 'right' : 'left'; 
+	
 	$selector = "gallery-{$instance}";
 
 	$output = apply_filters('gallery_style', "
@@ -720,7 +741,7 @@ function gallery_shortcode($attr) {
 				margin: auto;
 			}
 			#{$selector} .gallery-item {
-				float: left;
+				float: {$float};
 				margin-top: 10px;
 				text-align: center;
 				width: {$itemwidth}%;			}
@@ -1038,7 +1059,7 @@ class WP_Embed {
 	 * @return string The embed HTML on success, otherwise the original URL.
 	 */
 	function shortcode( $attr, $url = '' ) {
-		global $post, $_wp_using_ext_object_cache;
+		global $post;
 
 		if ( empty($url) )
 			return '';
@@ -1065,9 +1086,9 @@ class WP_Embed {
 		if ( $post_ID ) {
 
 			// Check for a cached result (stored in the post meta)
-			$cachekey = '_oembed_' . md5( $url . implode( '|', $attr ) );
+			$cachekey = '_oembed_' . md5( $url . serialize( $attr ) );
 			if ( $this->usecache ) {
-				$cache = ( $_wp_using_ext_object_cache ) ? wp_cache_get( "{$post_ID}_{$cachekey}", 'oembed' ) : get_post_meta( $post_ID, $cachekey, true );
+				$cache = get_post_meta( $post_ID, $cachekey, true );
 
 				// Failures are cached
 				if ( '{{unknown}}' === $cache )
@@ -1078,15 +1099,12 @@ class WP_Embed {
 			}
 
 			// Use oEmbed to get the HTML
-			$attr['discover'] = ( get_option( 'embed_oembed_discover' ) && author_can( $post_ID, 'unfiltered_html' ) ) ? true : false;
+			$attr['discover'] = ( apply_filters('embed_oembed_discover', false) && author_can( $post_ID, 'unfiltered_html' ) ) ? true : false;
 			$html = wp_oembed_get( $url, $attr );
 
 			// Cache the result
 			$cache = ( $html ) ? $html : '{{unknown}}';
-			if ( $_wp_using_ext_object_cache )
-				wp_cache_set( "{$post_ID}_{$cachekey}", $cache, 'oembed' );
-			else
-				update_post_meta( $post_ID, $cachekey, $cache );
+			update_post_meta( $post_ID, $cachekey, $cache );
 
 			// If there was a result, return it
 			if ( $html )
@@ -1106,7 +1124,8 @@ class WP_Embed {
 		$post_metas = get_post_custom_keys( $post_ID );
 		if ( empty($post_metas) )
 			return;
-		foreach( (array) $post_metas as $post_meta_key ) {
+
+		foreach( $post_metas as $post_meta_key ) {
 			if ( '_oembed_' == substr( $post_meta_key, 0, 8 ) )
 				delete_post_meta( $post_ID, $post_meta_key );
 		}

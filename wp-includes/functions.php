@@ -600,7 +600,7 @@ function add_option( $name, $value = '', $deprecated = '', $autoload = 'yes' ) {
 		wp_cache_set( 'notoptions', $notoptions, 'options' );
 	}
 
-	$wpdb->insert($wpdb->options, array('option_name' => $name, 'option_value' => $value, 'autoload' => $autoload) );
+	$wpdb->query( $wpdb->prepare( "INSERT INTO `$wpdb->options` (`option_name`, `option_value`, `autoload`) VALUES (%s, %s, %s) ON DUPLICATE KEY UPDATE `option_name` = VALUES(`option_name`), `option_value` = VALUES(`option_value`), `autoload` = VALUES(`autoload`)", $name, $value, $autoload ) );
 
 	do_action( "add_option_{$name}", $name, $value );
 	do_action( 'added_option', $name, $value );
@@ -2035,16 +2035,20 @@ function wp_upload_dir( $time = null ) {
 	$siteurl = get_option( 'siteurl' );
 	$upload_path = get_option( 'upload_path' );
 	$upload_path = trim($upload_path);
-	if ( empty($upload_path) )
+	if ( empty($upload_path) ) {
 		$dir = WP_CONTENT_DIR . '/uploads';
-	else
+	} else {
 		$dir = $upload_path;
-
-	// $dir is absolute, $path is (maybe) relative to ABSPATH
-	$dir = path_join( ABSPATH, $dir );
+		if ( 'wp-content/uploads' == $upload_path ) {
+			$dir = WP_CONTENT_DIR . '/uploads';
+		} elseif ( 0 !== strpos($dir, ABSPATH) ) {
+			// $dir is absolute, $upload_path is (maybe) relative to ABSPATH
+			$dir = path_join( ABSPATH, $dir );
+		}
+	}
 
 	if ( !$url = get_option( 'upload_url_path' ) ) {
-		if ( empty($upload_path) or ( $upload_path == $dir ) )
+		if ( empty($upload_path) || ( 'wp-content/uploads' == $upload_path ) || ( $upload_path == $dir ) )
 			$url = WP_CONTENT_URL . '/uploads';
 		else
 			$url = trailingslashit( $siteurl ) . $upload_path;
@@ -3514,13 +3518,35 @@ function wp_scheduled_delete() {
 	$posts_to_delete = $wpdb->get_results($wpdb->prepare("SELECT post_id FROM $wpdb->postmeta WHERE meta_key = '_wp_trash_meta_time' AND meta_value < '%d'", $delete_timestamp), ARRAY_A);
 
 	foreach ( (array) $posts_to_delete as $post ) {
-		wp_delete_post($post['post_id']);
+		$post_id = (int) $post['post_id'];
+		if ( !$post_id )
+			continue;
+
+		$del_post = get_post($post_id);
+
+		if ( !$del_post || 'trash' != $del_post->post_status ) {
+			delete_post_meta($post_id, '_wp_trash_meta_status');
+			delete_post_meta($post_id, '_wp_trash_meta_time');
+		} else {
+			wp_delete_post($post_id);
+		}
 	}
 
 	$comments_to_delete = $wpdb->get_results($wpdb->prepare("SELECT comment_id FROM $wpdb->commentmeta WHERE meta_key = '_wp_trash_meta_time' AND meta_value < '%d'", $delete_timestamp), ARRAY_A);
 
 	foreach ( (array) $comments_to_delete as $comment ) {
-		wp_delete_comment($comment['comment_id']);
+		$comment_id = (int) $comment['comment_id'];
+		if ( !$comment_id )
+			continue;
+
+		$del_comment = get_comment($comment_id);
+
+		if ( !$del_comment || 'trash' != $del_comment->comment_approved ) {
+			delete_comment_meta($comment_id, '_wp_trash_meta_time');
+			delete_comment_meta($comment_id, '_wp_trash_meta_status');
+		} else {
+			wp_delete_comment($comment_id);
+		}
 	}
 }
 
