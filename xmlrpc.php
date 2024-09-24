@@ -28,10 +28,10 @@ header('Content-type: text/xml; charset=' . get_option('blog_charset'), true);
     <engineLink>http://wordpress.org/</engineLink>
     <homePageLink><?php bloginfo_rss('url') ?></homePageLink>
     <apis>
-      <api name="WordPress" blogID="1" preferred="false" apiLink="<?php bloginfo_rss('url') ?>/xmlrpc.php" />
-      <api name="Movable Type" blogID="1" preferred="true" apiLink="<?php bloginfo_rss('url') ?>/xmlrpc.php" />
-      <api name="MetaWeblog" blogID="1" preferred="false" apiLink="<?php bloginfo_rss('url') ?>/xmlrpc.php" />
-      <api name="Blogger" blogID="1" preferred="false" apiLink="<?php bloginfo_rss('url') ?>/xmlrpc.php" />
+      <api name="WordPress" blogID="1" preferred="false" apiLink="<?php bloginfo_rss('wpurl') ?>/xmlrpc.php" />
+      <api name="Movable Type" blogID="1" preferred="true" apiLink="<?php bloginfo_rss('wpurl') ?>/xmlrpc.php" />
+      <api name="MetaWeblog" blogID="1" preferred="false" apiLink="<?php bloginfo_rss('wpurl') ?>/xmlrpc.php" />
+      <api name="Blogger" blogID="1" preferred="false" apiLink="<?php bloginfo_rss('wpurl') ?>/xmlrpc.php" />
     </apis>
   </service>
 </rsd>
@@ -208,7 +208,7 @@ class wp_xmlrpc_server extends IXR_Server {
 			$allow_pings = ("open" == $page->ping_status) ? 1 : 0;
 
 			// Format page date.
-			$page_date = mysql2date("Ymd\TH:i:s", $page->post_date_gmt);
+			$page_date = mysql2date("Ymd\TH:i:s\Z", $page->post_date_gmt);
 
 			// Pull the categories info together.
 			$categories = array();
@@ -438,7 +438,7 @@ class wp_xmlrpc_server extends IXR_Server {
 		// The date needs to be formated properly.
 		$num_pages = count($page_list);
 		for($i = 0; $i < $num_pages; $i++) {
-			$post_date = mysql2date("Ymd\TH:i:s", $page_list[$i]->post_date_gmt);
+			$post_date = mysql2date("Ymd\TH:i:s\Z", $page_list[$i]->post_date_gmt);
 			$page_list[$i]->dateCreated = new IXR_Date($post_date);
 
 			unset($page_list[$i]->post_date_gmt);
@@ -538,7 +538,7 @@ class wp_xmlrpc_server extends IXR_Server {
 		$username				= $args[1];
 		$password				= $args[2];
 		$category				= $args[3];
-		$max_results			= $args[4];
+		$max_results			= (int) $args[4];
 
 		if(!$this->login_pass_ok($username, $password)) {
 			return($this->error);
@@ -929,8 +929,9 @@ class wp_xmlrpc_server extends IXR_Server {
 	    return $this->error;
 	  }
 
+      $cap = ($publish) ? 'publish_posts' : 'edit_posts';
 	  $user = set_current_user(0, $user_login);
-	  if ( !current_user_can('publish_posts') )
+	  if ( !current_user_can($cap) )
 	    return new IXR_Error(401, __('Sorry, you can not post on this weblog or category.'));
 
 		// The post_type defaults to post, but could also be page.
@@ -1150,7 +1151,7 @@ class wp_xmlrpc_server extends IXR_Server {
 			$menu_order = $content_struct["wp_page_order"];
 		}
 
-		$post_author = $user->ID;
+		$post_author = $postdata["post_author"];
 
 		// Only set the post_author if one is set.
 		if(
@@ -1269,7 +1270,7 @@ class wp_xmlrpc_server extends IXR_Server {
 
 	  if ($postdata['post_date'] != '') {
 
-	    $post_date = mysql2date('Ymd\TH:i:s', $postdata['post_date_gmt']);
+	    $post_date = mysql2date('Ymd\TH:i:s\Z', $postdata['post_date_gmt']);
 
 	    $categories = array();
 	    $catids = wp_get_post_categories($post_ID);
@@ -1337,7 +1338,7 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		foreach ($posts_list as $entry) {
 
-			$post_date = mysql2date('Ymd\TH:i:s', $entry['post_date_gmt']);
+			$post_date = mysql2date('Ymd\TH:i:s\Z', $entry['post_date_gmt']);
 			$categories = array();
 			$catids = wp_get_post_categories($entry['ID']);
 			foreach($catids as $catid) {
@@ -1436,6 +1437,21 @@ class wp_xmlrpc_server extends IXR_Server {
 		$type = $data['type'];
 		$bits = $data['bits'];
 
+		logIO('O', '(MW) Received '.strlen($bits).' bytes');
+
+		if ( !$this->login_pass_ok($user_login, $user_pass) )
+			return $this->error;
+
+		set_current_user(0, $user_login);
+		if ( !current_user_can('upload_files') ) {
+			logIO('O', '(MW) User does not have upload_files capability');
+			$this->error = new IXR_Error(401, __('You are not allowed to upload files to this site.'));
+			return $this->error;
+		}
+
+		if ( $upload_err = apply_filters( "pre_upload_error", false ) )
+			return new IXR_Error(500, $upload_err);
+
 		if(!empty($data["overwrite"]) && ($data["overwrite"] == true)) {
 			// Get postmeta info on the object.
 			$old_file = $wpdb->get_row("
@@ -1453,21 +1469,6 @@ class wp_xmlrpc_server extends IXR_Server {
 			$filename = preg_replace("/^wpid\d+-/", "", $name);
 			$name = "wpid{$old_file->ID}-{$filename}";
 		}
-
-		logIO('O', '(MW) Received '.strlen($bits).' bytes');
-
-		if ( !$this->login_pass_ok($user_login, $user_pass) )
-			return $this->error;
-
-		set_current_user(0, $user_login);
-		if ( !current_user_can('upload_files') ) {
-			logIO('O', '(MW) User does not have upload_files capability');
-			$this->error = new IXR_Error(401, __('You are not allowed to upload files to this site.'));
-			return $this->error;
-		}
-
-		if ( $upload_err = apply_filters( "pre_upload_error", false ) )
-			return new IXR_Error(500, $upload_err);
 
 		$upload = wp_upload_bits($name, $type, $bits, $overwrite);
 		if ( ! empty($upload['error']) ) {
@@ -1522,7 +1523,7 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		foreach ($posts_list as $entry) {
 
-			$post_date = mysql2date('Ymd\TH:i:s', $entry['post_date_gmt']);
+			$post_date = mysql2date('Ymd\TH:i:s\Z', $entry['post_date_gmt']);
 
 			$struct[] = array(
 				'dateCreated' => new IXR_Date($post_date),

@@ -156,7 +156,7 @@ function get_userdatabylogin($user_login) {
 }
 endif;
 
-if ( !function_exists('wp_mail') ) :
+if ( !function_exists( 'wp_mail' ) ) :
 function wp_mail($to, $subject, $message, $headers = '') {
 	global $phpmailer;
 

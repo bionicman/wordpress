@@ -63,8 +63,8 @@ function bloginfo($show='') {
 	$info = get_bloginfo($show);
 	
 	// Don't filter URL's.
-	if (strpos($show, 'url') === false || 
-		strpos($show, 'directory') === false || 
+	if (strpos($show, 'url') === false &&
+		strpos($show, 'directory') === false &&
 		strpos($show, 'home') === false) {
 		$info = apply_filters('bloginfo', $info, $show);
 		$info = convert_chars($info);
@@ -109,6 +109,7 @@ function get_bloginfo($show='') {
 			break;
 		case 'comments_atom_url':
 			$output = get_feed_link('comments_atom');
+			break;
 		case 'comments_rss2_url':
 			$output = get_feed_link('comments_rss2');
 			break;
@@ -217,8 +218,7 @@ function wp_title($sep = '&raquo;', $display = true) {
 	// If there is a post
 	if ( is_single() || is_page() ) {
 		$post = $wp_query->get_queried_object();
-		$title = apply_filters('single_post_title', $title);
-		$title = strip_tags($post->post_title);
+		$title = strip_tags( apply_filters( 'single_post_title', $post->post_title ) );
 	}
 
 	$prefix = '';
@@ -899,10 +899,11 @@ function the_editor($content, $id = 'content', $prev_id = 'title') {
 	//<!--
 	edCanvas = document.getElementById('<?php echo $id; ?>');
 	<?php if ( $prev_id && user_can_richedit() ) : ?>
+	// If tinyMCE is defined.
+	if ( typeof tinyMCE != 'undefined' ) {
 	// This code is meant to allow tabbing from Title to Post (TinyMCE).
-	if ( tinyMCE.isMSIE )
-		document.getElementById('<?php echo $prev_id; ?>').onkeydown = function (e)
-			{
+		if ( tinyMCE.isMSIE ) {
+			document.getElementById('<?php echo $prev_id; ?>').onkeydown = function (e) {
 				e = e ? e : window.event;
 				if (e.keyCode == 9 && !e.shiftKey && !e.controlKey && !e.altKey) {
 					var i = tinyMCE.getInstanceById('<?php echo $id; ?>');
@@ -915,9 +916,8 @@ function the_editor($content, $id = 'content', $prev_id = 'title') {
 					return false;
 				}
 			}
-	else
-		document.getElementById('<?php echo $prev_id; ?>').onkeypress = function (e)
-			{
+		} else {
+			document.getElementById('<?php echo $prev_id; ?>').onkeypress = function (e) {
 				e = e ? e : window.event;
 				if (e.keyCode == 9 && !e.shiftKey && !e.controlKey && !e.altKey) {
 					var i = tinyMCE.getInstanceById('<?php echo $id; ?>');
@@ -930,6 +930,8 @@ function the_editor($content, $id = 'content', $prev_id = 'title') {
 					return false;
 				}
 			}
+		}
+	}
 	<?php endif; ?>
 	//-->
 	</script>

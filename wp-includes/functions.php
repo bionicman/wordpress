@@ -322,7 +322,7 @@ function update_option($option_name, $newvalue) {
 	}
 
 	$notoptions = wp_cache_get('notoptions', 'options');
-	if ( isset($notoptions[$option_name]) ) {
+	if ( is_array($notoptions) && isset($notoptions[$option_name]) ) {
 		unset($notoptions[$option_name]);
 		wp_cache_set('notoptions', $notoptions, 'options');
 	}
@@ -356,7 +356,7 @@ function add_option($name, $value = '', $description = '', $autoload = 'yes') {
 
 	// Make sure the option doesn't already exist we can check the cache before we ask for a db query
 	$notoptions = wp_cache_get('notoptions', 'options');
-	if ( isset($notoptions[$name]) ) {
+	if ( is_array($notoptions) && isset($notoptions[$name]) ) {
 		unset($notoptions[$name]);
 		wp_cache_set('notoptions', $notoptions, 'options');
 	} elseif ( false !== get_option($name) ) {
@@ -1317,7 +1317,7 @@ function wp_nonce_ays($action) {
 function wp_die( $message, $title = '' ) {
 	global $wp_locale;
 
-	if ( is_wp_error( $message ) ) {
+	if ( function_exists( 'is_wp_error' ) && is_wp_error( $message ) ) {
 		if ( empty($title) ) {
 			$error_data = $message->get_error_data();
 			if ( is_array($error_data) && isset($error_data['title']) )
@@ -1507,7 +1507,7 @@ function wp_maybe_load_widgets() {
 
 function wp_widgets_add_menu() {
 	global $submenu;
-	$submenu['themes.php'][7] = array( __( 'Widgets' ), 'edit_themes', 'widgets.php' );
+	$submenu['themes.php'][7] = array( __( 'Widgets' ), 'switch_themes', 'widgets.php' );
 	ksort($submenu['themes.php'], SORT_NUMERIC);
 }
 
