@@ -129,9 +129,6 @@ for ($i=1; $i <= $count; $i++) :
 	$content = explode($phone_delim, $content);
 	$content[1] ? $content = $content[1] : $content = $content[0];
 
-	echo "<p><b>Content-type:</b> $content_type, <b>Content-Transfer-Encoding:</b> $content_transfer_encoding, <b>boundary:</b> $boundary</p>\n";
-	echo "<p><b>Raw content:</b><br /><pre>".$content.'</pre></p>';
-
 	$content = trim($content);
 
 	$post_content = apply_filters('phone_content', $content);
@@ -162,8 +159,7 @@ for ($i=1; $i <= $count; $i++) :
 	do_action('publish_phone', $post_ID);
 
 	echo "\n<p><b>Author:</b> " . wp_specialchars($post_author) . "</p>";
-	echo "\n<p><b>Posted title:</b> " . sanitize_post_field('post_title', $post_title, $post_ID, 'display') . "<br />";
-	echo "\n<b>Posted content:</b><br /><pre>". sanitize_post_field('post_content', $post_content, $post_ID, 'display') . '</pre></p>';
+	echo "\n<p><b>Posted title:</b> " . wp_specialchars($post_title) . "<br />";
 
 	if(!$pop3->delete($i)) {
 		echo '<p>Oops '.wp_specialchars($pop3->ERROR).'</p></div>';
