@@ -15,6 +15,7 @@ get_header(); ?>
 			<?php the_post(); ?>
 
 			<nav id="nav-single">
+				<h3 class="assistive-text"><?php _e( 'Image navigation', 'twentyeleven' ); ?></h3>
 				<span class="nav-previous"><?php previous_image_link( false, __( '&larr; Previous' , 'twentyeleven' ) ); ?></span>
 				<span class="nav-next"><?php next_image_link( false, __( 'Next &rarr;' , 'twentyeleven' ) ); ?></span>
 			</nav><!-- #nav-single -->
@@ -85,7 +86,7 @@ get_header(); ?>
 
 						<div class="entry-description">
 							<?php the_content(); ?>
-							<?php wp_link_pages( array( 'before' => '<div class="page-link">' . __( 'Pages:', 'twentyeleven' ), 'after' => '</div>' ) ); ?>
+							<?php wp_link_pages( array( 'before' => '<div class="page-link"><span>' . __( 'Pages:', 'twentyeleven' ) . '</span>', 'after' => '</div>' ) ); ?>
 						</div><!-- .entry-description -->
 
 					</div><!-- .entry-content -->

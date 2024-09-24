@@ -396,12 +396,14 @@ function get_themes() {
 		// Check for theme name collision.  This occurs if a theme is copied to
 		// a new theme directory and the theme header is not updated.  Whichever
 		// theme is first keeps the name.  Subsequent themes get a suffix applied.
-		// The Twenty Ten, Default and Classic themes always trump their pretenders.
+		// The Twenty Eleven, Twenty Ten, Default and Classic themes always trump
+		// their pretenders.
 		if ( isset($wp_themes[$name]) ) {
 			$trump_cards = array(
-				'classic'   => 'WordPress Classic',
-				'default'   => 'WordPress Default',
-				'twentyten' => 'Twenty Ten',
+				'classic'      => 'WordPress Classic',
+				'default'      => 'WordPress Default',
+				'twentyten'    => 'Twenty Ten',
+				'twentyeleven' => 'Twenty Eleven',
 			);
 			if ( isset( $trump_cards[ $stylesheet ] ) && $name == $trump_cards[ $stylesheet ] ) {
 				// If another theme has claimed to be one of our default themes, move
@@ -1458,8 +1460,15 @@ function get_random_header_image() {
 
 	if ( 'random-uploaded-image' == $header_image_mod )
 		$headers = get_uploaded_header_images();
-	elseif ( ! empty( $_wp_default_headers ) )
-		$headers = $_wp_default_headers;
+	elseif ( ! empty( $_wp_default_headers ) ) {
+		if ( 'random-default-image' == $header_image_mod ) {
+			$headers = $_wp_default_headers;
+		} else {
+			$is_random = get_theme_support( 'custom-header' );
+			if ( isset( $is_random[ 0 ] ) && !empty( $is_random[ 0 ][ 'random-default' ] ) )
+				$headers = $_wp_default_headers;
+		}
+	}
 
 	if ( empty( $headers ) )
 		return '';
@@ -1474,7 +1483,8 @@ function get_random_header_image() {
  * Check if random header image is in use.
  *
  * Always true if user expressly chooses the option in Appearance > Header.
- * Also true if theme has multiple header images registered and no specific header image is chosen.
+ * Also true if theme has multiple header images registered, no specific header image
+ * is chosen, and theme turns on random headers with add_theme_support().
  *
  * @since 3.2.0
  * @uses HEADER_IMAGE
@@ -1492,7 +1502,7 @@ function is_random_header_image( $type = 'any' ) {
 	} else {
 		if ( "random-$type-image" == $header_image_mod )
 			return true;
-		elseif ( 'default' == $type && empty( $header_image_mod ) && '' != get_random_header_image()  )
+		elseif ( 'default' == $type && empty( $header_image_mod ) && '' != get_random_header_image() )
 			return true;
 	}
 
@@ -1555,7 +1565,11 @@ function add_custom_image_header( $header_callback, $admin_header_callback, $adm
 	if ( ! empty( $header_callback ) )
 		add_action('wp_head', $header_callback);
 
-	add_theme_support( 'custom-header', array( 'callback' => $header_callback ) );
+	$support = array( 'callback' => $header_callback );
+	$theme_support = get_theme_support( 'custom-header' );
+	if ( ! empty( $theme_support ) && is_array( $theme_support[ 0 ] ) )
+		$support = array_merge( $theme_support[ 0 ], $support );
+	add_theme_support( 'custom-header',  $support );
 	add_theme_support( 'custom-header-uploads' );
 
 	if ( ! is_admin() )

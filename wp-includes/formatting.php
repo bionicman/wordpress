@@ -2521,6 +2521,15 @@ function sanitize_option($option, $value) {
 			}
 			break;
 
+		case 'timezone_string':
+			$allowed_zones = timezone_identifiers_list();
+			if ( ! in_array( $value, $allowed_zones ) && ! empty( $value ) ) {
+				$value = get_option( $option ); // Resets option to stored value in the case of failed sanitization
+				if ( function_exists('add_settings_error') )
+					add_settings_error('timezone_string', 'invalid_timezone_string', __('The timezone you have entered is not valid. Please select a valid timezone.') );
+			}
+			break;
+
 		default :
 			$value = apply_filters("sanitize_option_{$option}", $value, $option);
 			break;
@@ -2898,7 +2907,7 @@ function capital_P_dangit( $text ) {
  * @return string Sanitized mime type
  */
 function sanitize_mime_type( $mime_type ) {
-	$sani_mime_type = preg_replace( '/[^-*.a-zA-Z0-9\/]/', '', $mime_type );
+	$sani_mime_type = preg_replace( '/[^-+*.a-zA-Z0-9\/]/', '', $mime_type );
 	return apply_filters( 'sanitize_mime_type', $sani_mime_type, $mime_type );
 }
 

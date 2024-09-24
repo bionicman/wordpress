@@ -109,12 +109,12 @@ function twentyeleven_setup() {
 	// This theme uses Featured Images (also known as post thumbnails) for per-post/per-page Custom Header images
 	add_theme_support( 'post-thumbnails' );
 
-	// The next four constants set how twentyeleven supports custom headers
+	// The next four constants set how Twenty Eleven supports custom headers.
 
 	// The default header text color
 	define( 'HEADER_TEXTCOLOR', '000' );
 
-	// By leaving empty, we default to random image rotation
+	// By leaving empty, we allow for random image rotation.
 	define( 'HEADER_IMAGE', '' );
 
 	// The height and width of your custom header.
@@ -130,6 +130,9 @@ function twentyeleven_setup() {
 	// Add Twenty Eleven's custom image sizes
 	add_image_size( 'large-feature', HEADER_IMAGE_WIDTH, HEADER_IMAGE_HEIGHT, true ); // Used for large feature (header) images
 	add_image_size( 'small-feature', 500, 300 ); // Used for featured posts if a large-feature doesn't exist
+
+	// Turn on random header image rotation by default.
+	add_theme_support( 'custom-header', array( 'random-default' => true ) );
 
 	// Add a way for the custom header to be styled in the admin panel that controls
 	// custom headers. See twentyeleven_admin_header_style(), below.
@@ -372,8 +375,8 @@ function twentyeleven_widgets_init() {
 		'id' => 'sidebar-1',
 		'before_widget' => '<aside id="%1$s" class="widget %2$s">',
 		'after_widget' => "</aside>",
-		'before_title' => '<h1 class="widget-title">',
-		'after_title' => '</h1>',
+		'before_title' => '<h3 class="widget-title">',
+		'after_title' => '</h3>',
 	) );
 
 	register_sidebar( array(
@@ -382,8 +385,8 @@ function twentyeleven_widgets_init() {
 		'description' => __( 'The sidebar for the optional Showcase Template', 'twentyeleven' ),
 		'before_widget' => '<aside id="%1$s" class="widget %2$s">',
 		'after_widget' => "</aside>",
-		'before_title' => '<h1 class="widget-title">',
-		'after_title' => '</h1>',
+		'before_title' => '<h3 class="widget-title">',
+		'after_title' => '</h3>',
 	) );
 
 	register_sidebar( array(
@@ -392,8 +395,8 @@ function twentyeleven_widgets_init() {
 		'description' => __( 'An optional widget area for your site footer', 'twentyeleven' ),
 		'before_widget' => '<aside id="%1$s" class="widget %2$s">',
 		'after_widget' => "</aside>",
-		'before_title' => '<h1 class="widget-title">',
-		'after_title' => '</h1>',
+		'before_title' => '<h3 class="widget-title">',
+		'after_title' => '</h3>',
 	) );
 
 	register_sidebar( array(
@@ -402,8 +405,8 @@ function twentyeleven_widgets_init() {
 		'description' => __( 'An optional widget area for your site footer', 'twentyeleven' ),
 		'before_widget' => '<aside id="%1$s" class="widget %2$s">',
 		'after_widget' => "</aside>",
-		'before_title' => '<h1 class="widget-title">',
-		'after_title' => '</h1>',
+		'before_title' => '<h3 class="widget-title">',
+		'after_title' => '</h3>',
 	) );
 
 	register_sidebar( array(
@@ -412,8 +415,8 @@ function twentyeleven_widgets_init() {
 		'description' => __( 'An optional widget area for your site footer', 'twentyeleven' ),
 		'before_widget' => '<aside id="%1$s" class="widget %2$s">',
 		'after_widget' => "</aside>",
-		'before_title' => '<h1 class="widget-title">',
-		'after_title' => '</h1>',
+		'before_title' => '<h3 class="widget-title">',
+		'after_title' => '</h3>',
 	) );
 }
 add_action( 'widgets_init', 'twentyeleven_widgets_init' );
@@ -426,7 +429,7 @@ function twentyeleven_content_nav( $nav_id ) {
 
 	if ( $wp_query->max_num_pages > 1 ) : ?>
 		<nav id="<?php echo $nav_id; ?>">
-			<h1 class="assistive-text"><?php _e( 'Post navigation', 'twentyeleven' ); ?></h1>
+			<h3 class="assistive-text"><?php _e( 'Post navigation', 'twentyeleven' ); ?></h3>
 			<div class="nav-previous"><?php next_posts_link( __( '<span class="meta-nav">&larr;</span> Older posts', 'twentyeleven' ) ); ?></div>
 			<div class="nav-next"><?php previous_posts_link( __( 'Newer posts <span class="meta-nav">&rarr;</span>', 'twentyeleven' ) ); ?></div>
 		</nav><!-- #nav-above -->
