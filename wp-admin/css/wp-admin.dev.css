@@ -789,10 +789,10 @@ form.upgrade .hint {
 	border-width: 0 1px 1px;
 	margin: 0 15px;
 	padding: 8px 12px 12px;
-	-moz-border-radius: 0 0 0 4px;
-	-webkit-border-bottom-left-radius: 4px;
-	-khtml-border-bottom-left-radius: 4px;
-	border-bottom-left-radius: 4px;
+	-moz-border-radius: 0 0 4px 4px;
+	-webkit-border-radius: 0 0 4px 4px;
+	-khtml-border-radius: 0 0 4px 4px;
+	border-radius: 0 0 4px 4px;
 }
 
 .metabox-prefs label {
@@ -835,7 +835,7 @@ form.upgrade .hint {
 }
 
 #adminmenu .wp-submenu a {
-	font: normal 11px/18px Verdana, Arial, "Bitstream Vera Sans", sans-serif;
+	font: normal 11px/18px "Lucida Grande", Verdana, Arial, "Bitstream Vera Sans", sans-serif;
 }
 
 #adminmenu .wp-submenu li.current,
@@ -3072,15 +3072,10 @@ abbr.required {
 	border-bottom: none;
 }
 
-#utc-time, #local-time {
-	padding-left: 25px;
-	font-style: italic;
-	font-family: Verdana, Arial, "Bitstream Vera Sans", sans-serif;
-}
-
 ul#dismissed-updates {
 	display: none;
 }
+
 form.upgrade {
 	margin-top: 8px;
 }
@@ -3580,6 +3575,10 @@ span.imgedit-scale-warn {
   16.0 - Themes
 ------------------------------------------------------------------------------*/
 
+.theme-install-php .tablenav { 
+	height:auto; 
+} 
+
 table#availablethemes {
 	border-spacing: 0;
 	border-width: 1px 0;
@@ -3587,6 +3586,11 @@ table#availablethemes {
 	margin: 10px auto;
 	width: 100%;
 }
+
+table#availablethemes .no-items td{ 
+	border-width:0; 
+	padding:5px; 
+} 
 
 td.available-theme {
 	vertical-align: top;
@@ -4169,11 +4173,16 @@ td.post-title p, td.plugin-title p {
 	border-radius: 6px;
 }
 
+.plugin-install #description, .plugin-install-network #description {
+	width: 60%;
+}
+
 table .vers,
 table .column-visible,
 table .column-rating {
-	text-align: center;
+	text-align: left;
 }
+
 
 /* Scrollbar fix for bulk upgrade iframe */
 body.iframe {

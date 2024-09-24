@@ -11,7 +11,7 @@ require_once ('admin.php');
 if ( ! current_user_can( 'manage_links' ) )
 	wp_die( __( 'You do not have sufficient permissions to edit the links for this site.' ) );
 
-$wp_list_table = get_list_table('WP_Links_List_Table');
+$wp_list_table = _get_list_table('WP_Links_List_Table');
 
 // Handle bulk deletes
 $doaction = $wp_list_table->current_action();
@@ -30,7 +30,7 @@ if ( $doaction && isset( $_REQUEST['linkcheck'] ) ) {
 		wp_redirect( add_query_arg('deleted', count( $bulklinks ), admin_url( 'link-manager.php' ) ) );
 		exit;
 	}
-} elseif ( ! empty( $_REQUEST['_wp_http_referer'] ) ) {
+} elseif ( ! empty( $_GET['_wp_http_referer'] ) ) {
 	 wp_redirect( remove_query_arg( array( '_wp_http_referer', '_wpnonce' ), stripslashes( $_SERVER['REQUEST_URI'] ) ) );
 	 exit;
 }
@@ -74,7 +74,7 @@ if ( isset($_REQUEST['deleted']) ) {
 }
 ?>
 
-<form id="posts-filter" action="" method="post">
+<form id="posts-filter" action="" method="get">
 
 <?php $wp_list_table->search_box( __( 'Search Links' ), 'link' ); ?>
 

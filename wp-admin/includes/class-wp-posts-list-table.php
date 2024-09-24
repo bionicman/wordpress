@@ -5,6 +5,7 @@
  * @package WordPress
  * @subpackage List_Table
  * @since 3.1.0
+ * @access private
  */
 class WP_Posts_List_Table extends WP_List_Table {
 
@@ -221,7 +222,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 				wp_dropdown_categories( $dropdown_options );
 			}
 			do_action( 'restrict_manage_posts' );
-			submit_button( __( 'Filter' ), 'secondary', 'post-query-submit', false );
+			submit_button( __( 'Filter' ), 'secondary', false, false, array( 'id' => 'post-query-submit' ) );
 		}
 
 		if ( $this->is_trash && current_user_can( $post_type_object->cap->edit_others_posts ) ) {
@@ -557,7 +558,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 					$actions['view'] = '<a href="' . get_permalink( $post->ID ) . '" title="' . esc_attr( sprintf( __( 'View &#8220;%s&#8221;' ), $title ) ) . '" rel="permalink">' . __( 'View' ) . '</a>';
 				}
 
-				$actions = apply_filters( $this->hierarchical_display ? 'page_row_actions' : 'post_row_actions', $actions, $post );
+				$actions = apply_filters( is_post_type_hierarchical( $post->post_type ) ? 'page_row_actions' : 'post_row_actions', $actions, $post );
 				echo $this->row_actions( $actions );
 
 				get_inline_data( $post );
@@ -764,7 +765,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 
 			if ( is_super_admin() || current_user_can( $post_type_object->cap->edit_others_posts ) ) :
 				$users_opt = array(
-					'hide_if_only_one_author' => true,
+					'hide_if_only_one_author' => false,
 					'who' => 'authors',
 					'name' => 'post_author',
 					'class'=> 'authors',
@@ -775,7 +776,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 					$users_opt['show_option_none'] = __( '&mdash; No Change &mdash;' );
 
 				if ( $authors = wp_dropdown_users( $users_opt ) ) :
-					$authors_dropdown  = '<label>';
+					$authors_dropdown  = '<label class="inline-edit-author">';
 					$authors_dropdown .= '<span class="title">' . __( 'Author' ) . '</span>';
 					$authors_dropdown .= $authors;
 					$authors_dropdown .= '</label>';

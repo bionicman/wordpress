@@ -12,7 +12,7 @@ require_once('./admin.php');
 if ( !current_user_can('switch_themes') && !current_user_can('edit_theme_options') )
 	wp_die( __( 'Cheatin&#8217; uh?' ) );
 
-$wp_list_table = get_list_table('WP_Themes_List_Table');
+$wp_list_table = _get_list_table('WP_Themes_List_Table');
 
 if ( current_user_can( 'switch_themes' ) && isset($_GET['action'] ) ) {
 	if ( 'activate' == $_GET['action'] ) {
@@ -36,10 +36,6 @@ $title = __('Manage Themes');
 $parent_file = 'themes.php';
 
 if ( current_user_can( 'switch_themes' ) ) :
-
-// Flush rewrite rules on activation once new theme is in place.
-if ( isset( $_GET['activated'] ) && $_GET['activated'] == 'true' )
-	flush_rewrite_rules();
 
 $help = '<p>' . __('Aside from the default theme included with your WordPress installation, themes are designed and developed by third parties.') . '</p>';
 $help .= '<p>' . __('You can see your active theme at the top of the screen. Below are the other themes you have installed that are not currently in use. You can see what your site would look like with one of these themes by clicking the Preview link. To change themes, click the Activate link.') . '</p>';
@@ -210,7 +206,7 @@ $broken_themes = get_broken_themes();
 if ( current_user_can('edit_themes') && count( $broken_themes ) ) {
 ?>
 
-<h2><?php _e('Broken Themes'); ?></h2>
+<h3><?php _e('Broken Themes'); ?></h3>
 <p><?php _e('The following themes are installed but incomplete. Themes must have a stylesheet and a template.'); ?></p>
 
 <table id="broken-themes">

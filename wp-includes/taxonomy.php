@@ -78,7 +78,7 @@ function create_initial_taxonomies() {
 	) );
 
 	$rewrite = false;
-	if ( did_action( 'init' ) && current_theme_supports( 'post-formats' ) ) {
+	if ( did_action( 'init' ) ) {
 		$rewrite = apply_filters( 'post_format_rewrite_base', 'type' );
 		$rewrite = $rewrite ? array( 'slug' => $rewrite ) : false;
 	}
@@ -87,8 +87,8 @@ function create_initial_taxonomies() {
 		'public' => true,
 		'hierarchical' => false,
 		'labels' => array(
-			'name' => '',
-			'singular_name' => '',
+			'name' => __( 'Format' ),
+			'singular_name' => __( 'Format' ),
 		),
 		'query_var' => true,
 		'rewrite' => $rewrite,
@@ -671,8 +671,7 @@ class WP_Tax_Query {
 				$join .= " ON ($primary_table.$primary_id_column = $alias.object_id)";
 
 				$where[] = "$alias.term_taxonomy_id $operator ($terms)";
-			}
-			elseif ( 'NOT IN' == $operator ) {
+			} elseif ( 'NOT IN' == $operator ) {
 
 				if ( empty( $terms ) )
 					continue;
@@ -683,6 +682,21 @@ class WP_Tax_Query {
 					SELECT object_id
 					FROM $wpdb->term_relationships
 					WHERE term_taxonomy_id IN ($terms)
+				)";
+			} elseif ( 'AND' == $operator ) {
+
+				if ( empty( $terms ) )
+					continue;
+
+				$num_terms = count( $terms );
+
+				$terms = implode( ',', $terms );
+
+				$where[] = "$primary_table.$primary_id_column IN (
+					SELECT object_id
+					FROM $wpdb->term_relationships
+					WHERE term_taxonomy_id IN ($terms)
+					GROUP BY object_id HAVING COUNT(object_id) = $num_terms
 				)";
 			}
 
@@ -2801,7 +2815,7 @@ function _update_post_term_count( $terms, $taxonomy ) {
  *
  * @param object|int|string $term
  * @param string $taxonomy (optional if $term is object)
- * @return string HTML link to taxonomy term archive
+ * @return string|WP_Error HTML link to taxonomy term archive on success, WP_Error if term does not exist.
  */
 function get_term_link( $term, $taxonomy = '') {
 	global $wp_rewrite;
@@ -2912,7 +2926,7 @@ function get_the_taxonomies($post = 0, $args = array() ) {
 
 	$args = wp_parse_args( $args, array(
 		'template' => '%s: %l.',
-	) );	
+	) );
 	extract( $args, EXTR_SKIP );
 
 	$taxonomies = array();

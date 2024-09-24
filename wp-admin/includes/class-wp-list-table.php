@@ -13,6 +13,7 @@
  * @package WordPress
  * @subpackage List_Table
  * @since 3.1.0
+ * @access private
  */
 class WP_List_Table {
 
@@ -80,7 +81,7 @@ class WP_List_Table {
 		$args = wp_parse_args( $args, array(
 			'plural' => '',
 			'singular' => '',
-			'ajax' => true
+			'ajax' => false
 		) );
 
 		$screen = get_current_screen();
@@ -93,7 +94,7 @@ class WP_List_Table {
 		$this->_args = $args;
 
 		if ( $args['ajax'] ) {
-			wp_enqueue_script( 'list-table' );
+			// wp_enqueue_script( 'list-table' );
 			add_action( 'admin_footer', array( &$this, '_js_vars' ) );
 		}
 	}
@@ -104,6 +105,7 @@ class WP_List_Table {
 	 *
 	 * @since 3.1.0
 	 * @access public
+	 * @abstract
 	 */
 	function ajax_user_can() {
 		die( 'function WP_List_Table::ajax_user_can() must be over-ridden in a sub-class.' );
@@ -115,6 +117,7 @@ class WP_List_Table {
 	 *
 	 * @since 3.1.0
 	 * @access public
+	 * @abstract
 	 */
 	function prepare_items() {
 		die( 'function WP_List_Table::prepare_items() must be over-ridden in a sub-class.' );
@@ -185,7 +188,7 @@ class WP_List_Table {
 	 * @access public
 	 *
 	 * @param string $text The search button text
-	 * @param string $input_id The search input id 
+	 * @param string $input_id The search input id
 	 */
 	function search_box( $text, $input_id ) {
 		if ( empty( $_REQUEST['s'] ) && !$this->has_items() )
@@ -193,13 +196,16 @@ class WP_List_Table {
 
 		$input_id = $input_id . '-search-input';
 
+		if ( ! empty( $_REQUEST['orderby'] ) )
+			echo '<input type="hidden" name="orderby" value="' . esc_attr( $_REQUEST['orderby'] ) . '" />';
+		if ( ! empty( $_REQUEST['order'] ) ) 
+			echo '<input type="hidden" name="order" value="' . esc_attr( $_REQUEST['order'] ) . '" />';
 ?>
 <p class="search-box">
 	<label class="screen-reader-text" for="<?php echo $input_id ?>"><?php echo $text; ?>:</label>
 	<input type="text" id="<?php echo $input_id ?>" name="s" value="<?php _admin_search_query(); ?>" />
-	<?php submit_button( $text, 'button', 'submit', false, array('id' => 'search-submit') ); ?>
+	<?php submit_button( $text, 'button', false, false, array('id' => 'search-submit') ); ?>
 </p>
-<img src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" class="ajax-loading list-ajax-loading" alt="" />
 <?php
 	}
 
@@ -262,11 +268,12 @@ class WP_List_Table {
 		$screen = get_current_screen();
 
 		if ( is_null( $this->_actions ) ) {
-			$this->_actions = $this->get_bulk_actions();
+			$no_new_actions = $this->_actions = $this->get_bulk_actions();
+			// This filter can currently only be used to remove actions.
 			$this->_actions = apply_filters( 'bulk_actions-' . $screen->id, $this->_actions );
+			$this->_actions = array_intersect_key( $this->_actions, $no_new_actions );
 			$two = '';
-		}
-		else {
+		} else {
 			$two = '2';
 		}
 
@@ -279,7 +286,7 @@ class WP_List_Table {
 			echo "\t<option value='$name'>$title</option>\n";
 		echo "</select>\n";
 
-		submit_button( __( 'Apply' ), 'button-secondary action', "doaction$two", false );
+		submit_button( __( 'Apply' ), 'button-secondary action', false, false, array( 'id' => "doaction$two" ) );
 		echo "\n";
 	}
 
@@ -436,6 +443,9 @@ class WP_List_Table {
 	function get_pagenum() {
 		$pagenum = isset( $_REQUEST['paged'] ) ? absint( $_REQUEST['paged'] ) : 0;
 
+		if( isset( $this->_pagination_args['total_pages'] ) && $pagenum > $this->_pagination_args['total_pages'] )
+			$pagenum = $this->_pagination_args['total_pages'];
+
 		return max( 1, $pagenum );
 	}
 
@@ -461,12 +471,7 @@ class WP_List_Table {
 	 * @since 3.1.0
 	 * @access protected
 	 */
-	function pagination() {
-		if ( $this->_pagination ) {
-			echo $this->_pagination;
-			return;
-		}
-
+	function pagination( $which ) {
 		if ( empty( $this->_pagination_args ) )
 			return;
 
@@ -477,13 +482,15 @@ class WP_List_Table {
 		$current = $this->get_pagenum();
 
 		$current_url = ( is_ssl() ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+		
+		$current_url = remove_query_arg( array( 'hotkeys_highlight_last', 'hotkeys_highlight_first' ), $current_url );
 
 		$page_links = array();
 
 		$disable_first = $disable_last = '';
 		if ( $current == 1 )
 			$disable_first = ' disabled';
-		if ( $current == $total_items )
+		if ( $current == $total_pages )
 			$disable_last = ' disabled';
 
 		$page_links[] = sprintf( "<a class='%s' title='%s' href='%s'>%s</a>",
@@ -500,12 +507,16 @@ class WP_List_Table {
 			'&lsaquo;'
 		);
 
-		$html_current_page = sprintf( "<input class='current-page' title='%s' type='text' name='%s' value='%s' size='%d' />",
-			esc_attr__( 'Current page' ),
-			esc_attr( 'paged' ),
-			number_format_i18n( $current ),
-			strlen( $total_pages )
-		);
+		if ( 'bottom' == $which )
+			$html_current_page = $current;
+		else
+			$html_current_page = sprintf( "<input class='current-page' title='%s' type='text' name='%s' value='%s' size='%d' />",
+				esc_attr__( 'Current page' ),
+				esc_attr( 'paged' ),
+				$current,
+				strlen( $total_pages )
+			);
+
 		$html_total_pages = sprintf( "<span class='total-pages'>%s</span>", number_format_i18n( $total_pages ) );
 		$page_links[] = '<span class="paging-input">' . sprintf( _x( '%1$s of %2$s', 'paging' ), $html_current_page, $html_total_pages ) . '</span>';
 
@@ -538,6 +549,7 @@ class WP_List_Table {
 	 *
 	 * @since 3.1.0
 	 * @access protected
+	 * @abstract
 	 *
 	 * @return array
 	 */
@@ -626,6 +638,7 @@ class WP_List_Table {
 		list( $columns, $hidden, $sortable ) = $this->get_column_info();
 
 		$current_url = ( is_ssl() ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
+		$current_url = remove_query_arg( 'paged', $current_url );
 
 		if ( isset( $_GET['orderby'] ) )
 			$current_orderby = $_GET['orderby'];
@@ -688,7 +701,7 @@ class WP_List_Table {
 		$this->display_tablenav( 'top' );
 
 ?>
-<table class="<?php echo implode( ' ', $this->get_table_classes() ); ?>" cellspacing="0">
+<table class="wp-list-table <?php echo implode( ' ', $this->get_table_classes() ); ?>" cellspacing="0">
 	<thead>
 	<tr>
 		<?php $this->print_column_headers(); ?>
@@ -739,11 +752,7 @@ class WP_List_Table {
 <?php
 		$this->extra_tablenav( $which );
 		$this->pagination( $which );
-
-if ( 'bottom' == $which ) {
 ?>
-<img src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" class="ajax-loading list-ajax-loading" alt="" />
-<?php } ?>
 
 		<br class="clear" />
 	</div>
@@ -768,7 +777,8 @@ if ( 'bottom' == $which ) {
 		if ( $this->has_items() ) {
 			$this->display_rows();
 		} else {
-			echo '<tr class="no-items"><td colspan="2">';
+			list( $columns, $hidden ) = $this->get_column_info();
+			echo '<tr class="no-items"><td class="colspanchange" colspan="' . $this->get_column_count() . '">';
 			$this->no_items();
 			echo '</td></tr>';
 		}

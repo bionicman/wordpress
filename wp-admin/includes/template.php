@@ -330,11 +330,11 @@ function wp_comment_reply($position = '1', $checkbox = false, $mode = 'single', 
 		echo $content;
 		return;
 	}
-	
+
 	if ( $mode == 'single' ) {
-		$wp_list_table = get_list_table('WP_Post_Comments_List_Table');
+		$wp_list_table = _get_list_table('WP_Post_Comments_List_Table');
 	} else {
-		$wp_list_table = get_list_table('WP_Comments_List_Table');
+		$wp_list_table = _get_list_table('WP_Comments_List_Table');
 	}
 
 ?>
@@ -1048,7 +1048,7 @@ function get_hidden_meta_boxes( $screen ) {
 
 	// Hide slug boxes by default
 	if ( !is_array( $hidden ) ) {
-		if ( 'post' == $screen->base )
+		if ( 'post' == $screen->base || 'page' == $screen->base )
 			$hidden = array('slugdiv', 'trackbacksdiv', 'postcustom', 'postexcerpt', 'commentstatusdiv', 'commentsdiv', 'authordiv', 'revisionsdiv');
 		else
 			$hidden = array( 'slugdiv' );
@@ -1527,7 +1527,7 @@ function _draft_or_post_title( $post_id = 0 ) {
  *
  */
 function _admin_search_query() {
-	echo isset($_GET['s']) ? esc_attr( stripslashes( $_GET['s'] ) ) : '';
+	echo isset($_REQUEST['s']) ? esc_attr( stripslashes( $_REQUEST['s'] ) ) : '';
 }
 
 /**
@@ -1661,6 +1661,12 @@ function _post_states($post) {
  */
 function convert_to_screen( $screen ) {
 	$screen = str_replace( array('.php', '-new', '-add' ), '', $screen);
+
+	if ( is_network_admin() )
+		$screen .= '-network';
+	elseif ( is_user_admin() )
+		$screen .= '-user';
+
 	$screen = (string) apply_filters( 'screen_meta_screen', $screen );
 	$screen = (object) array('id' => $screen, 'base' => $screen);
 	return $screen;
@@ -1723,7 +1729,7 @@ function screen_meta($screen) {
 		<h5><?php echo ( isset( $columns['_title'] ) ?  $columns['_title'] :  _x('Show on screen', 'Columns') ) ?></h5>
 		<div class="metabox-prefs">
 <?php
-	$special = array('_title', 'cb', 'comment', 'media', 'name', 'title', 'username');
+	$special = array('_title', 'cb', 'comment', 'media', 'name', 'title', 'username', 'blogname');
 
 	foreach ( $columns as $column => $title ) {
 		// Can't hide these for they are special

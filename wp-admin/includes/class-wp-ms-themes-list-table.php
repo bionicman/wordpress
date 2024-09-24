@@ -5,6 +5,7 @@
  * @package WordPress
  * @subpackage List_Table
  * @since 3.1.0
+ * @access private
  */
 class WP_MS_Themes_List_Table extends WP_List_Table {
 
@@ -291,7 +292,7 @@ class WP_MS_Themes_List_Table extends WP_List_Table {
 
 		$actions = apply_filters( 'theme_action_links', array_filter( $actions ), $theme_key, $theme, $context );
 		$actions = apply_filters( "theme_action_links_$theme_key", $actions, $theme_key, $theme, $context );
- 
+
 		$class = empty( $theme['enabled'] ) ? 'inactive' : 'active';
 		$checkbox_id = "checkbox_" . md5($theme['Name']);
 		$checkbox = "<input type='checkbox' name='checked[]' value='" . esc_attr( $theme_key ) . "' id='" . $checkbox_id . "' /><label class='screen-reader-text' for='" . $checkbox_id . "' >" . __('Select') . " " . $theme['Name'] . "</label>";

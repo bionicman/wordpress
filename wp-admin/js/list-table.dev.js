@@ -5,15 +5,45 @@ window.listTable = {
 	init: function() {
 		this.loading = false;
 
-		$('form').each(function() {
-			this.reset();
-		});
+		this.reset( '.tablenav, .search-box, .wp-list-table' );
 
 		if ( '' == $.query.GET('paged') )
 			$.query.SET('paged', 1);
 		this.set_total_pages();
 
 		this.$tbody = $('#the-list, #the-comment-list');
+	},
+
+	/**
+	 * Simulates form.reset() for all input, select, and textarea elements
+	 * within a provided context.
+	 */
+	reset: function( context ) {
+		context = $(context);
+
+		$('input', context).each( function(){
+			this.value = this.defaultValue;
+			this.checked = this.defaultChecked;
+		});
+
+		$('select', context).each( function(){
+			var options = $('option', this),
+				anySelected = false;
+			
+			options.each( function(){
+				this.selected = this.defaultSelected;
+				anySelected = anySelected || this.defaultSelected;
+			});
+			
+			// If no options are selected within a single-select dropdown,
+			// select the first element by default.
+			if ( ! this.multiple && ! anySelected )
+				options[0].selected = true;
+		});
+
+		$('textarea', context).each( function(){
+			this.value = this.defaultValue;
+		});
 	},
 
 	// paging
@@ -74,7 +104,8 @@ window.listTable = {
 	fetch_list: function(data, success_callback, error_callback) {
 		data = $.extend(data, {
 			'action': 'fetch-list',
-			'list_args': list_args
+			'list_args': list_args,
+			'_ajax_fetch_list_nonce': $('#_ajax_fetch_list_nonce').val()
 		});
 
 		$.ajax({
@@ -111,7 +142,7 @@ window.listTable = {
 
 			// Disable buttons that should noop.
 			tablenav.find('.first-page, .prev-page').toggleClass('disabled', 1 == $.query.GET('paged'));
-			tablenav.find('.next-page, .last-page').toggleClass('disabled', response.total_pages_i18n == $.query.GET('paged'));
+			tablenav.find('.next-page, .last-page').toggleClass('disabled', response.total_pages == $.query.GET('paged'));
 
 			$('th.column-cb :input').attr('checked', false);
 
@@ -160,7 +191,7 @@ listTable.init();
 		listTable.update_rows({'paged': paged}, false, function() {
 			if ( $el.parents('.tablenav.bottom').length )
 				scrollTo(0, 0);
-				
+
 			$(listTable).trigger('changePage');
 		});
 	}
@@ -256,20 +287,20 @@ listTable.init();
 			if ( $('h2.nav-tab-wrapper').length )
 				return;
 
-			if ( 'site-users-network' == pagenow || 'site-themes-network' == pagenow ) { 
+			if ( 'site-users-network' == pagenow || 'site-themes-network' == pagenow ) {
 				$('h4.search-text').remove();
 
 				if ( data.s )
-					$('ul.subsubsub').after($('<h4 class="clear search-text">').html( 
-						listTableL10n.search.replace('%s', this.htmlencode(data.s)) 
+					$('ul.subsubsub').after($('<h4 class="clear search-text">').html(
+						listTableL10n.search.replace('%s', this.htmlencode(data.s))
 					));
-			} else { 
+			} else {
 				$('h2 .subtitle').remove();
 
-				if ( data.s ) 
-					$('h2').append($('<span class="subtitle">').html( 
-						listTableL10n.search.replace('%s', this.htmlencode(data.s)) 
-					)); 
+				if ( data.s )
+					$('h2').append($('<span class="subtitle">').html(
+						listTableL10n.search.replace('%s', this.htmlencode(data.s))
+					));
 			}
 		});
 	}

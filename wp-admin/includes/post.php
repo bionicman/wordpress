@@ -715,6 +715,8 @@ function get_post_meta_by_id( $mid ) {
 	$mid = (int) $mid;
 
 	$meta = $wpdb->get_row( $wpdb->prepare("SELECT * FROM $wpdb->postmeta WHERE meta_id = %d", $mid) );
+	if ( empty($meta) )
+		return false;
 	if ( is_serialized_string( $meta->meta_value ) )
 		$meta->meta_value = maybe_unserialize( $meta->meta_value );
 	return $meta;
@@ -1219,7 +1221,7 @@ function wp_check_post_lock( $post_id ) {
 	$lock = explode( ':', $lock );
 	$time = $lock[0];
 	$user = isset( $lock[1] ) ? $lock[1] : get_post_meta( $post->ID, '_edit_last', true );
-	
+
 	$time_window = apply_filters( 'wp_check_post_lock_window', AUTOSAVE_INTERVAL * 2 );
 
 	if ( $time && $time > time() - $time_window && $user != get_current_user_id() )
@@ -1403,10 +1405,10 @@ function wp_tiny_mce( $teeny = false, $settings = false ) {
 	$mce_spellchecker_languages = apply_filters('mce_spellchecker_languages', '+English=en,Danish=da,Dutch=nl,Finnish=fi,French=fr,German=de,Italian=it,Polish=pl,Portuguese=pt,Spanish=es,Swedish=sv');
 
 	if ( $teeny ) {
-		$plugins = apply_filters( 'teeny_mce_plugins', array('inlinepopups', 'media', 'fullscreen', 'wordpress', 'wplink', 'wpdialogs') );
+		$plugins = apply_filters( 'teeny_mce_plugins', array('inlinepopups', 'fullscreen', 'wordpress', 'wplink', 'wpdialogs') );
 		$ext_plugins = '';
 	} else {
-		$plugins = array( 'inlinepopups', 'spellchecker', 'paste', 'wordpress', 'media', 'fullscreen', 'wpeditimage', 'wpgallery', 'tabfocus', 'wplink', 'wpdialogs' );
+		$plugins = array( 'inlinepopups', 'spellchecker', 'paste', 'wordpress', 'fullscreen', 'wpeditimage', 'wpgallery', 'tabfocus', 'wplink', 'wpdialogs' );
 
 		/*
 		The following filter takes an associative array of external plugins for TinyMCE in the form 'plugin_name' => 'url'.
@@ -1495,10 +1497,7 @@ function wp_tiny_mce( $teeny = false, $settings = false ) {
 		$mce_buttons = apply_filters('mce_buttons', array('bold', 'italic', 'strikethrough', '|', 'bullist', 'numlist', 'blockquote', '|', 'justifyleft', 'justifycenter', 'justifyright', '|', 'link', 'unlink', 'wp_more', '|', 'spellchecker', 'fullscreen', 'wp_adv' ));
 		$mce_buttons = implode($mce_buttons, ',');
 
-		$mce_buttons_2 = array('formatselect', 'underline', 'justifyfull', 'forecolor', '|', 'pastetext', 'pasteword', 'removeformat', '|' );
-		if ( ! is_multisite() )
-			$mce_buttons_2[] = 'media';
-		array_push( $mce_buttons_2,  'charmap', '|', 'outdent', 'indent', '|', 'undo', 'redo', 'wp_help' );
+		$mce_buttons_2 = array( 'formatselect', 'underline', 'justifyfull', 'forecolor', '|', 'pastetext', 'pasteword', 'removeformat', '|', 'charmap', '|', 'outdent', 'indent', '|', 'undo', 'redo', 'wp_help' );
 		$mce_buttons_2 = apply_filters('mce_buttons_2', $mce_buttons_2);
 		$mce_buttons_2 = implode($mce_buttons_2, ',');
 

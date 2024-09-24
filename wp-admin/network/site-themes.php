@@ -32,7 +32,7 @@ add_contextual_help($current_screen,
 	'<p>' . __('<a href="http://wordpress.org/support/forum/multisite/" target="_blank">Support Forums</a>') . '</p>'
 );
 
-$wp_list_table = get_list_table('WP_MS_Themes_List_Table');
+$wp_list_table = _get_list_table('WP_MS_Themes_List_Table');
 
 $action = $wp_list_table->current_action();
 
@@ -162,6 +162,7 @@ if ( isset( $_GET['enabled'] ) ) {
 
 <form method="get" action="">
 <?php $wp_list_table->search_box( __( 'Search Installed Themes' ), 'theme' ); ?>
+<input type="hidden" name="id" value="<?php echo esc_attr( $id ) ?>" />
 </form>
 
 <?php $wp_list_table->views(); ?>

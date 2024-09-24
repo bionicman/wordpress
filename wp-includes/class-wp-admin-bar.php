@@ -53,7 +53,7 @@ class WP_Admin_Bar {
 			'href' => false,
 			'parent' => false, // false for a root menu, pass the ID value for a submenu of that menu.
 			'id' => false, // defaults to a sanitized title value.
-			'meta' => false // array of any of the following options: array( 'html' => '', 'class' => '', 'onclick' => '', target => '' );
+			'meta' => false // array of any of the following options: array( 'html' => '', 'class' => '', 'onclick' => '', target => '', title => '' );
 		);
 
 		$r = wp_parse_args( $args, $defaults );
@@ -113,36 +113,41 @@ class WP_Admin_Bar {
 
 	/* Helpers */
 	function recursive_render( $id, &$menu_item ) { ?>
-		<?php $menuclass = ( ! empty( $menu_item['children'] ) ) ? 'menupop ' : ''; ?>
+		<?php
+		$is_parent =  ! empty( $menu_item['children'] );
+		
+		$menuclass = $is_parent ? 'menupop' : '';
+		if ( ! empty( $menu_item['meta']['class'] ) )
+			$menuclass .= ' ' . $menu_item['meta']['class'];
+		?>
 
-		<li class="<?php echo $menuclass . "ab-$id" ?><?php
-			if ( ! empty( $menu_item['meta']['class'] ) ) :
-				echo ' ' . $menu_item['meta']['class'];
-			endif;
-		?>">
-			<a href="<?php echo strip_tags( $menu_item['href'] ) ?>"<?php
+		<li id="<?php echo esc_attr( "wp-admin-bar-$id" ); ?>" class="<?php echo esc_attr( $menuclass ); ?>">
+			<a href="<?php echo esc_url( $menu_item['href'] ) ?>"<?php
 				if ( ! empty( $menu_item['meta']['onclick'] ) ) :
-					?> onclick="<?php echo $menu_item['meta']['onclick']; ?>"<?php
+					?> onclick="<?php echo esc_js( $menu_item['meta']['onclick'] ); ?>"<?php
 				endif;
 			if ( ! empty( $menu_item['meta']['target'] ) ) :
-				?> target="<?php echo $menu_item['meta']['target']; ?>"<?php
+				?> target="<?php echo esc_attr( $menu_item['meta']['target'] ); ?>"<?php
+			endif;
+			if ( ! empty( $menu_item['meta']['title'] ) ) :
+				?> title="<?php echo esc_attr( $menu_item['meta']['title'] ); ?>"<?php
 			endif;
 
 			?>><?php
 
-			if ( ! empty( $menuclass ) ) :
+			if ( $is_parent ) :
 				?><span><?php
 			endif;
 
 			echo $menu_item['title'];
 
-			if ( ! empty( $menuclass ) ) :
+			if ( $is_parent ) :
 				?></span><?php
 			endif;
 
 			?></a>
 
-			<?php if ( ! empty( $menu_item['children'] ) ) : ?>
+			<?php if ( $is_parent ) : ?>
 			<ul>
 				<?php foreach ( $menu_item['children'] as $child_id => $child_menu_item ) : ?>
 					<?php $this->recursive_render( $child_id, $child_menu_item ); ?>
@@ -157,7 +162,7 @@ class WP_Admin_Bar {
 	}
 
 	function add_node( $parent_id, &$menu, $child ) {
-		foreach( $menu as $id => &$menu_item ) {
+		foreach( $menu as $id => $menu_item ) {
 			if ( $parent_id == $id ) {
 				$menu->{$parent_id}['children']->{$child['id']} = $child;
 				$child = null;

@@ -52,6 +52,9 @@ if ( isset( $_GET['action'] ) ) :
 switch ( $action = $_GET['action'] ) :
 case 'fetch-list' :
 
+	$list_class = $_GET['list_args']['class'];
+	check_ajax_referer( "fetch-list-$list_class", '_ajax_fetch_list_nonce' );
+
 	$current_screen = (object) $_GET['list_args']['screen'];
 	//TODO fix this in a better way see #15336
 	$current_screen->is_network = 'false' === $current_screen->is_network ? false : true;
@@ -60,7 +63,7 @@ case 'fetch-list' :
 	define( 'WP_NETWORK_ADMIN', $current_screen->is_network );
 	define( 'WP_USER_ADMIN', $current_screen->is_user );
 
-	$wp_list_table = get_list_table( $_GET['list_args']['class'] );
+	$wp_list_table = _get_list_table( $list_class );
 	if ( ! $wp_list_table )
 		die( '0' );
 
@@ -83,7 +86,7 @@ case 'ajax-tag-search' :
 		die('0');
 	}
 
-	$s = $_GET['q']; // is this slashed already?
+	$s = stripslashes( $_GET['q'] );
 
 	if ( false !== strpos( $s, ',' ) ) {
 		$s = explode( ',', $s );
@@ -93,7 +96,7 @@ case 'ajax-tag-search' :
 	if ( strlen( $s ) < 2 )
 		die; // require 2 chars for matching
 
-	$results = $wpdb->get_col( "SELECT t.name FROM $wpdb->term_taxonomy AS tt INNER JOIN $wpdb->terms AS t ON tt.term_id = t.term_id WHERE tt.taxonomy = '$taxonomy' AND t.name LIKE ('%" . $s . "%')" );
+	$results = $wpdb->get_col( $wpdb->prepare( "SELECT t.name FROM $wpdb->term_taxonomy AS tt INNER JOIN $wpdb->terms AS t ON tt.term_id = t.term_id WHERE tt.taxonomy = %s AND t.name LIKE (%s)", $taxonomy, '%' . like_escape( $s ) . '%' ) );
 
 	echo join( $results, "\n" );
 	die;
@@ -186,7 +189,7 @@ endif;
  * @param int $comment_id
  * @return die
  */
-function _wp_ajax_delete_comment_response( $comment_id ) {
+function _wp_ajax_delete_comment_response( $comment_id, $delta = -1 ) {
 	$total = (int) @$_POST['_total'];
 	$per_page = (int) @$_POST['_per_page'];
 	$page = (int) @$_POST['_page'];
@@ -195,43 +198,39 @@ function _wp_ajax_delete_comment_response( $comment_id ) {
 	if ( !$total || !$per_page || !$page || !$url )
 		die( (string) time() );
 
-	if ( --$total < 0 ) // Take the total from POST and decrement it (since we just deleted one)
+	$total += $delta;
+	if ( $total < 0 )
 		$total = 0;
 
-	if ( 0 != $total % $per_page && 1 != mt_rand( 1, $per_page ) ) // Only do the expensive stuff on a page-break, and about 1 other time per page
-		die( (string) time() );
+	// Only do the expensive stuff on a page-break, and about 1 other time per page
+	if ( 0 == $total % $per_page || 1 == mt_rand( 1, $per_page ) ) {
+		$post_id = 0;
+		$status = 'total_comments'; // What type of comment count are we looking for?
+		$parsed = parse_url( $url );
+		if ( isset( $parsed['query'] ) ) {
+			parse_str( $parsed['query'], $query_vars );
+			if ( !empty( $query_vars['comment_status'] ) )
+				$status = $query_vars['comment_status'];
+			if ( !empty( $query_vars['p'] ) )
+				$post_id = (int) $query_vars['p'];
+		}
 
-	$post_id = 0;
-	$status = 'total_comments'; // What type of comment count are we looking for?
-	$parsed = parse_url( $url );
-	if ( isset( $parsed['query'] ) ) {
-		parse_str( $parsed['query'], $query_vars );
-		if ( !empty( $query_vars['comment_status'] ) )
-			$status = $query_vars['comment_status'];
-		if ( !empty( $query_vars['p'] ) )
-			$post_id = (int) $query_vars['p'];
+		$comment_count = wp_count_comments($post_id);
+
+		if ( isset( $comment_count->$status ) ) // We're looking for a known type of comment count
+			$total = $comment_count->$status;
+			// else use the decremented value from above
 	}
 
-	$comment_count = wp_count_comments($post_id);
 	$time = time(); // The time since the last comment count
 
-	if ( isset( $comment_count->$status ) ) // We're looking for a known type of comment count
-		$total = $comment_count->$status;
-	// else use the decremented value from above
-
-	$page_links = paginate_links( array(
-		'base' => add_query_arg( 'apage', '%#%', $url ),
-		'format' => '',
-		'prev_text' => __('&laquo;'),
-		'next_text' => __('&raquo;'),
-		'total' => ceil($total / $per_page),
-		'current' => $page
-	) );
 	$x = new WP_Ajax_Response( array(
 		'what' => 'comment',
 		'id' => $comment_id, // here for completeness - not used
 		'supplemental' => array(
-			'pageLinks' => $page_links,
+			'total_items_i18n' => sprintf( _n( '1 item', '%s items', $total ), number_format_i18n( $total ) ),
+			'total_pages' => ceil( $total / $per_page ),
+			'total_pages_i18n' => number_format_i18n( ceil( $total / $per_page ) ),
 			'total' => $total,
 			'time' => $time
 		)
@@ -328,6 +327,7 @@ case 'delete-comment' : // On success, die with time() instead of 1
 	check_ajax_referer( "delete-comment_$id" );
 	$status = wp_get_comment_status( $comment->comment_ID );
 
+	$delta = -1;
 	if ( isset($_POST['trash']) && 1 == $_POST['trash'] ) {
 		if ( 'trash' == $status )
 			die( (string) time() );
@@ -336,6 +336,8 @@ case 'delete-comment' : // On success, die with time() instead of 1
 		if ( 'trash' != $status )
 			die( (string) time() );
 		$r = wp_untrash_comment( $comment->comment_ID );
+		if ( ! isset( $_POST['comment_status'] ) || $_POST['comment_status'] != 'trash' ) // undo trash, not in trash
+			$delta = 1;
 	} elseif ( isset($_POST['spam']) && 1 == $_POST['spam'] ) {
 		if ( 'spam' == $status )
 			die( (string) time() );
@@ -344,6 +346,8 @@ case 'delete-comment' : // On success, die with time() instead of 1
 		if ( 'spam' != $status )
 			die( (string) time() );
 		$r = wp_unspam_comment( $comment->comment_ID );
+		if ( ! isset( $_POST['comment_status'] ) || $_POST['comment_status'] != 'spam' ) // undo spam, not in spam
+			$delta = 1;
 	} elseif ( isset($_POST['delete']) && 1 == $_POST['delete'] ) {
 		$r = wp_delete_comment( $comment->comment_ID );
 	} else {
@@ -351,7 +355,7 @@ case 'delete-comment' : // On success, die with time() instead of 1
 	}
 
 	if ( $r ) // Decide if we need to send back '1' or a more complicated response including page links and comment counts
-		_wp_ajax_delete_comment_response( $comment->comment_ID );
+		_wp_ajax_delete_comment_response( $comment->comment_ID, $delta );
 	die( '0' );
 	break;
 case 'delete-tag' :
@@ -530,7 +534,7 @@ case 'add-tag' :
 
 	set_current_screen( $_POST['screen'] );
 
-	$wp_list_table = get_list_table('WP_Terms_List_Table');
+	$wp_list_table = _get_list_table('WP_Terms_List_Table');
 
 	$level = 0;
 	if ( is_taxonomy_hierarchical($taxonomy) ) {
@@ -595,7 +599,7 @@ case 'get-comments' :
 
 	set_current_screen( 'edit-comments' );
 
-	$wp_list_table = get_list_table('WP_Post_Comments_List_Table');
+	$wp_list_table = _get_list_table('WP_Post_Comments_List_Table');
 
 	if ( !current_user_can( 'edit_post', $post_id ) )
 		die('-1');
@@ -672,9 +676,9 @@ case 'replyto-comment' :
 			_wp_dashboard_recent_comments_row( $comment );
 		} else {
 			if ( 'single' == $_REQUEST['mode'] ) {
-				$wp_list_table = get_list_table('WP_Post_Comments_List_Table');
-			} else {				
-				$wp_list_table = get_list_table('WP_Comments_List_Table');
+				$wp_list_table = _get_list_table('WP_Post_Comments_List_Table');
+			} else {
+				$wp_list_table = _get_list_table('WP_Comments_List_Table');
 			}
 			$wp_list_table->single_row( $comment );
 		}
@@ -710,7 +714,7 @@ case 'edit-comment' :
 	$comments_status = isset($_POST['comments_listing']) ? $_POST['comments_listing'] : '';
 
 	$checkbox = ( isset($_POST['checkbox']) && true == $_POST['checkbox'] ) ? 1 : 0;
-	$wp_list_table = get_list_table( $checkbox ? 'WP_Comments_List_Table' : 'WP_Post_Comments_List_Table' );
+	$wp_list_table = _get_list_table( $checkbox ? 'WP_Comments_List_Table' : 'WP_Post_Comments_List_Table' );
 
 	ob_start();
 		$wp_list_table->single_row( get_comment( $comment_id ) );
@@ -887,7 +891,7 @@ case 'add-user' :
 	}
 	$user_object = new WP_User( $user_id );
 
-	$wp_list_table = get_list_table('WP_Users_List_Table');
+	$wp_list_table = _get_list_table('WP_Users_List_Table');
 
 	$x = new WP_Ajax_Response( array(
 		'what' => 'user',
@@ -1089,6 +1093,8 @@ case 'menu-quick-search':
 case 'wp-link-ajax':
 	require_once ABSPATH . 'wp-admin/includes/internal-linking.php';
 
+	check_ajax_referer( 'internal-linking', '_ajax_linking_nonce' );
+
 	$args = array();
 
 	if ( isset( $_POST['search'] ) )
@@ -1197,7 +1203,7 @@ case 'inline-save':
 	// update the post
 	edit_post();
 
-	$wp_list_table = get_list_table('WP_Posts_List_Table');
+	$wp_list_table = _get_list_table('WP_Posts_List_Table');
 
 	$mode = $_POST['post_view'];
 	$wp_list_table->display_rows( array( get_post( $_POST['post_ID'] ) ) );
@@ -1217,7 +1223,7 @@ case 'inline-save-tax':
 
 	set_current_screen( 'edit-' . $taxonomy );
 
-	$wp_list_table = get_list_table('WP_Terms_List_Table');
+	$wp_list_table = _get_list_table('WP_Terms_List_Table');
 
 	if ( ! isset($_POST['tax_ID']) || ! ( $id = (int) $_POST['tax_ID'] ) )
 		die(-1);

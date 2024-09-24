@@ -13,6 +13,7 @@
  * @package WordPress
  * @subpackage List_Table
  * @since 3.1.0
+ * @access private
  */
 class WP_Comments_List_Table extends WP_List_Table {
 
@@ -31,6 +32,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 		parent::WP_List_Table( array(
 			'plural' => 'comments',
 			'singular' => 'comment',
+			'ajax' => true,
 		) );
 	}
 
@@ -39,13 +41,14 @@ class WP_Comments_List_Table extends WP_List_Table {
 	}
 
 	function prepare_items() {
-		global $post_id, $comment_status, $search;
+		global $post_id, $comment_status, $search, $comment_type;
 
 		$comment_status = isset( $_REQUEST['comment_status'] ) ? $_REQUEST['comment_status'] : 'all';
 		if ( !in_array( $comment_status, array( 'all', 'moderated', 'approved', 'spam', 'trash' ) ) )
 			$comment_status = 'all';
 
 		$comment_type = !empty( $_REQUEST['comment_type'] ) ? $_REQUEST['comment_type'] : '';
+		error_log( var_export( $comment_type, true ) );
 
 		$search = ( isset( $_REQUEST['s'] ) ) ? $_REQUEST['s'] : '';
 
@@ -66,13 +69,13 @@ class WP_Comments_List_Table extends WP_List_Table {
 		}
 
 		$page = $this->get_pagenum();
-		
+
 		if ( isset( $_REQUEST['start'] ) ) {
 			$start = $_REQUEST['start'];
 		} else {
 			$start = ( $page - 1 ) * $comments_per_page;
 		}
-		
+
 		if ( $doing_ajax && isset( $_REQUEST['offset'] ) ) {
 			$start += $_REQUEST['offset'];
 		}
@@ -115,7 +118,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 			'per_page' => $comments_per_page,
 		) );
 	}
-	
+
 	function get_per_page( $comment_status = 'all' ) {
 		$comments_per_page = $this->get_items_per_page( 'edit_comments_per_page' );
 		$comments_per_page = apply_filters( 'comments_per_page', $comments_per_page, $comment_status );
@@ -220,7 +223,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 			?>
 			</select>
 <?php
-			submit_button( __( 'Filter' ), 'secondary', 'post-query-submit', false );
+			submit_button( __( 'Filter' ), 'secondary', false, false, array( 'id' => 'post-query-submit' ) );
 		}
 
 		if ( ( 'spam' == $comment_status || 'trash' == $comment_status ) && current_user_can( 'moderate_comments' ) ) {
@@ -265,6 +268,8 @@ class WP_Comments_List_Table extends WP_List_Table {
 
 	function display() {
 		extract( $this->_args );
+
+		wp_nonce_field( "fetch-list-" . get_class( $this ), '_ajax_fetch_list_nonce' );
 
 		$this->display_tablenav( 'top' );
 
@@ -507,13 +512,14 @@ class WP_Comments_List_Table extends WP_List_Table {
  * @package WordPress
  * @subpackage List_Table
  * @since 3.1.0
+ * @access private
  *
  * @see WP_Comments_Table
  */
 class WP_Post_Comments_List_Table extends WP_Comments_List_Table {
 
 	function get_column_info() {
-		$this->_column_headers = array( 
+		$this->_column_headers = array(
 			array(
 			'author'   => __( 'Author' ),
 			'comment'  => _x( 'Comment', 'column name' ),
@@ -521,18 +527,20 @@ class WP_Post_Comments_List_Table extends WP_Comments_List_Table {
 			array(),
 			array(),
 		);
-		
+
 		return $this->_column_headers;
 	}
-	
+
 	function get_table_classes() {
 		$classes = parent::get_table_classes();
 		$classes[] = 'comments-box';
 		return $classes;
 	}
-	
+
 	function display( $output_empty = false ) {
 		extract( $this->_args );
+
+		wp_nonce_field( "fetch-list-" . get_class( $this ), '_ajax_fetch_list_nonce' );
 ?>
 <table class="<?php echo implode( ' ', $this->get_table_classes() ); ?>" cellspacing="0" style="display:none;">
 	<tbody id="the-comment-list"<?php if ( $singular ) echo " class='list:$singular'"; ?>>
@@ -541,7 +549,7 @@ class WP_Post_Comments_List_Table extends WP_Comments_List_Table {
 </table>
 <?php
 	}
-	
+
 	function get_per_page( $comment_status = false ) {
 		return 10;
 	}

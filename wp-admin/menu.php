@@ -28,7 +28,9 @@ $submenu[ 'index.php' ][0] = array( __('Dashboard'), 'read', 'index.php' );
 
 if ( is_multisite() ) {
 	$submenu[ 'index.php' ][5] = array( __('My Sites'), 'read', 'my-sites.php' );
-} else {
+}
+
+if ( ! is_multisite() || is_super_admin() ) {
 	$plugin_update_count = $theme_update_count = $wordpress_update_count = 0;
 	$update_plugins = get_site_transient( 'update_plugins' );
 	if ( !empty($update_plugins->response) )
@@ -40,7 +42,7 @@ if ( is_multisite() ) {
 	if ( !empty($update_wordpress) && !in_array( $update_wordpress[0]->response, array('development', 'latest') ) )
 		$wordpress_update_count = 1;
 
-	$update_count = $plugin_update_count + $theme_update_count + $wordpress_update_count;
+	$total_update_count = $plugin_update_count + $theme_update_count + $wordpress_update_count;
 	$update_title = array();
 	if ( $wordpress_update_count )
 		$update_title[] = sprintf(__('%d WordPress Update'), $wordpress_update_count);
@@ -50,10 +52,13 @@ if ( is_multisite() ) {
 		$update_title[] = sprintf(_n('%d Theme Update', '%d Themes Updates', $theme_update_count), $theme_update_count);
 
 	$update_title = !empty($update_title) ? esc_attr(implode(', ', $update_title)) : '';
-
-	$submenu[ 'index.php' ][10] = array( sprintf( __('Updates %s'), "<span class='update-plugins count-$update_count' title='$update_title'><span class='update-count'>" . number_format_i18n($update_count) . "</span></span>" ), 'update_core',  'update-core.php');
-	unset($plugin_update_count, $theme_update_count, $wordpress_update_count, $update_count, $update_title, $update_themes, $update_plugins, $update_wordpress);
 }
+
+if ( ! is_multisite() ) {
+	$submenu[ 'index.php' ][10] = array( sprintf( __('Updates %s'), "<span class='update-plugins count-$total_update_count' title='$update_title'><span class='update-count'>" . number_format_i18n($total_update_count) . "</span></span>" ), 'update_core',  'update-core.php');
+}
+
+unset($plugin_update_count, $theme_update_count, $wordpress_update_count, $update_themes, $update_plugins, $update_wordpress);
 
 $menu[4] = array( '', 'read', 'separator1', '', 'wp-menu-separator' );
 
@@ -164,7 +169,7 @@ if ( !empty($update_plugins->response) )
 	$update_count = count( $update_plugins->response );
 
 $menu_perms = get_site_option('menu_items', array());
-if ( is_super_admin() || ( is_multisite() && isset($menu_perms['plugins']) && $menu_perms['plugins'] ) ) {
+if ( ! is_multisite() || is_super_admin() || ! empty( $menu_perms['plugins'] ) ) {
 	$count = "<span class='update-plugins count-$update_count'><span class='plugin-count'>" . number_format_i18n($update_count) . "</span></span>";
 	if ( is_multisite() )
 		$count = '';
@@ -201,7 +206,7 @@ $menu[75] = array( __('Tools'), 'edit_posts', 'tools.php', '', 'menu-top menu-ic
 	$submenu['tools.php'][15] = array( __('Export'), 'import', 'export.php' );
 	if ( is_multisite() && !is_main_site() )
 		$submenu['tools.php'][25] = array( __('Delete Site'), 'manage_options', 'ms-delete-site.php' );
-	if ( ! is_multisite() && defined('WP_ALLOW_MULTISITE') && WP_ALLOW_MULTISITE && is_super_admin() )
+	if ( ! is_multisite() && defined('WP_ALLOW_MULTISITE') && WP_ALLOW_MULTISITE )
 		$submenu['tools.php'][50] = array(__('Network'), 'manage_options', 'network.php');
 
 $menu[80] = array( __('Settings'), 'manage_options', 'options-general.php', '', 'menu-top menu-icon-settings', 'menu-settings', 'div' );

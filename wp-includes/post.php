@@ -528,8 +528,7 @@ function set_post_format( $post, $format ) {
 
 	if ( !empty($format) ) {
 		$format = sanitize_key($format);
-		$empty_formats = array( 'post', 'standard' );
-		if ( in_array( $format, $empty_formats ) )
+		if ( 'standard' == $format || !in_array( $format, array_keys( get_post_format_slugs() ) ) )
 			$format = '';
 		else
 			$format = 'post-format-' . $format;
@@ -620,9 +619,9 @@ function get_page_statuses( ) {
  * public - Whether posts of this status should be shown in the front end of the site. Defaults to true.
  * exclude_from_search - Whether to exclude posts with this post status from search results. Defaults to true.
  * show_in_admin_all_list - Whether to include posts in the edit listing for their post type
- * show_in_admin_status_list - Show in the list of statuses with post counts at the top of the edit 
+ * show_in_admin_status_list - Show in the list of statuses with post counts at the top of the edit
  *                             listings, e.g. All (12) | Published (9) | My Custom Status (2) ...
- * 
+ *
  * Arguments prefixed with an _underscore shouldn't be used by plugins and themes.
  *
  * @package WordPress
@@ -967,7 +966,7 @@ function register_post_type($post_type, $args = array()) {
 	if ( false !== $args->rewrite && '' != get_option('permalink_structure') ) {
 		if ( ! is_array( $args->rewrite ) )
 			$args->rewrite = array();
-		if ( ! isset( $args->rewrite['slug'] ) )
+		if ( empty( $args->rewrite['slug'] ) )
 			$args->rewrite['slug'] = $post_type;
 		if ( ! isset( $args->rewrite['with_front'] ) )
 			$args->rewrite['with_front'] = true;
@@ -5156,6 +5155,8 @@ function _post_format_request( $qvs ) {
 	$slugs = array_flip( get_post_format_slugs() );
 	if ( isset( $slugs[ $qvs['post_format'] ] ) )
 		$qvs['post_format'] = 'post-format-' . $slugs[ $qvs['post_format'] ];
+	$tax = get_taxonomy( 'post_format' );
+	$qvs['post_type'] = $tax->object_type;
 	return $qvs;
 }
 add_filter( 'request', '_post_format_request' );

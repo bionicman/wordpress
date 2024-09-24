@@ -16,7 +16,7 @@ if ( ! is_multisite() )
 if ( ! current_user_can('manage_sites') )
 	wp_die(__('You do not have sufficient permissions to edit this site.'));
 
-$wp_list_table = get_list_table('WP_Users_List_Table');
+$wp_list_table = _get_list_table('WP_Users_List_Table');
 $wp_list_table->prepare_items();
 
 $action = $wp_list_table->current_action();
@@ -218,6 +218,7 @@ endif; ?>
 
 <form class="search-form" action="" method="get">
 <?php $wp_list_table->search_box( __( 'Search Users' ), 'user' ); ?>
+<input type="hidden" name="id" value="<?php echo esc_attr( $id ) ?>" />
 </form>
 
 <?php $wp_list_table->views(); ?>

@@ -21,7 +21,8 @@ if ( empty( $menu_perms['themes'] ) && ! is_super_admin() )
 if ( !current_user_can('manage_network_themes') )
 	wp_die( __( 'You do not have sufficient permissions to manage network themes.' ) );
 
-$wp_list_table = get_list_table('WP_MS_Themes_List_Table');
+$wp_list_table = _get_list_table('WP_MS_Themes_List_Table');
+$pagenum = $wp_list_table->get_pagenum();
 
 $action = $wp_list_table->current_action();
 
@@ -160,14 +161,22 @@ if ( $action ) {
 			} // Endif verify-delete
 
 			foreach ( $themes as $theme )
-				$delete_result = delete_theme( $theme );
-			wp_redirect( add_query_arg( 'deleted', count( $themes ), $referer ) );
+				$delete_result = delete_theme( $theme, esc_url( add_query_arg( array('verify-delete' => 1), $_SERVER['REQUEST_URI'] ) ) );
+			$paged = ( $_REQUEST['paged'] ) ? $_REQUEST['paged'] : 1; 
+			wp_redirect( network_admin_url( "themes.php?deleted=".count( $themes )."&paged=$paged&s=$s" ) );
 			exit;
 			break;
 	}
 }
 
 $wp_list_table->prepare_items();
+
+$total_pages = $wp_list_table->get_pagination_arg( 'total_pages' );
+if ( $pagenum > $total_pages && $total_pages > 0 ) {
+	wp_redirect( add_query_arg( 'paged', $total_pages ) );
+	exit;
+}
+
 add_thickbox();
 
 add_screen_option( 'per_page', array('label' => _x( 'Themes', 'themes per page (screen options)' )) );
@@ -203,8 +212,8 @@ if ( isset( $_GET['enabled'] ) ) {
 	$_GET['disabled'] = absint( $_GET['disabled'] );
 	echo '<div id="message" class="updated"><p>' . sprintf( _n( 'Theme disabled.', '%s themes disabled.', $_GET['disabled'] ), number_format_i18n( $_GET['disabled'] ) ) . '</p></div>';
 } elseif ( isset( $_GET['deleted'] ) ) {
-	$_GET['disabled'] = absint( $_GET['deleted'] );
-	echo '<div id="message" class="updated"><p>' . sprintf( _n( 'Theme deleted.', '%s themes deleted.', $_GET['deleted'] ), number_format_i18n( $_GET['deleted'] ) ) . '</p></div>';
+	$_GET['deleted'] = absint( $_GET['deleted'] );
+	echo '<div id="message" class="updated"><p>' . sprintf( _nx( 'Theme deleted.', '%s themes deleted.', $_GET['deleted'], 'network' ), number_format_i18n( $_GET['deleted'] ) ) . '</p></div>';
 } elseif ( isset( $_GET['error'] ) && 'none' == $_GET['error'] ) {
 	echo '<div id="message" class="error"><p>' . __( 'No theme selected.' ) . '</p></div>';
 } elseif ( isset( $_GET['error'] ) && 'main' == $_GET['error'] ) {

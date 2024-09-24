@@ -19,7 +19,8 @@ if ( is_multisite() ) {
 if ( !current_user_can('activate_plugins') )
 	wp_die( __( 'You do not have sufficient permissions to manage plugins for this site.' ) );
 
-$wp_list_table = get_list_table('WP_Plugins_List_Table');
+$wp_list_table = _get_list_table('WP_Plugins_List_Table');
+$pagenum = $wp_list_table->get_pagenum();
 
 $action = $wp_list_table->current_action();
 
@@ -315,6 +316,12 @@ if ( $action ) {
 
 $wp_list_table->prepare_items();
 
+$total_pages = $wp_list_table->get_pagination_arg( 'total_pages' );
+if ( $pagenum > $total_pages && $total_pages > 0 ) {
+	wp_redirect( add_query_arg( 'paged', $total_pages ) );
+	exit;
+}
+
 wp_enqueue_script('plugin-install');
 add_thickbox();
 
@@ -402,9 +409,9 @@ if ( $s )
 
 <?php
 if ( 'mustuse' == $status )
-	echo '<br class="clear"><p>' . __( 'Files in the <code>/wp-content/mu-plugins</code> directory are executed automatically.' ) . '</p>';
+	echo '<br class="clear" /><p>' . __( 'Files in the <code>/wp-content/mu-plugins</code> directory are executed automatically.' ) . '</p>';
 elseif ( 'dropins' == $status )
-	echo '<br class="clear"><p>' . __( 'Drop-ins are advanced plugins in the <code>/wp-content</code> directory that replace WordPress functionality when present.' ) . '</p>';
+	echo '<br class="clear" /><p>' . __( 'Drop-ins are advanced plugins in the <code>/wp-content</code> directory that replace WordPress functionality when present.' ) . '</p>';
 ?>
 
 <?php $wp_list_table->display(); ?>

@@ -8,10 +8,14 @@
 /**
  * Instantiate the admin bar object and set it up as a global for access elsewhere.
  *
+ * To hide the admin bar, you're looking in the wrong place. Unhooking this function will not
+ * properly remove the admin bar. For that, use show_admin_bar(false) or the show_admin_bar filter.
+ *
  * @since 3.1.0
+ * @access private
  * @return bool Whether the admin bar was successfully initialized.
  */
-function wp_admin_bar_init() {
+function _wp_admin_bar_init() {
 	global $wp_admin_bar;
 
 	if ( ! is_admin_bar_showing() )
@@ -32,7 +36,7 @@ function wp_admin_bar_init() {
 
 	return true;
 }
-add_action( 'init', 'wp_admin_bar_init' );
+add_action( 'init', '_wp_admin_bar_init' ); // Don't remove. Wrong way to disable.
 
 /**
  * Render the admin bar to the page based on the $wp_admin_bar->menu member var.
@@ -115,10 +119,8 @@ function wp_admin_bar_my_sites_menu() {
 		$blavatar = '<img src="' . esc_url($default) . '" alt="' . esc_attr__( 'Blavatar' ) . '" width="16" height="16" class="blavatar"/>';
 
 		$blogname = empty( $blog->blogname ) ? $blog->domain : $blog->blogname;
-		if ( strlen( $blogname ) > 15 )
-			$blogname = substr( $blogname, 0, 15 ) . '&hellip;';
 
-		$wp_admin_bar->add_menu( array( 'parent' => 'my-blogs', 'id' => 'blog-' . $blog->userblog_id, 'title' => $blavatar . $blogname,  'href' => get_admin_url($blog->userblog_id), ) );
+		$wp_admin_bar->add_menu( array( 'parent' => 'my-blogs', 'id' => 'blog-' . $blog->userblog_id, 'title' => $blavatar . $blogname,  'href' => get_admin_url($blog->userblog_id) ) );
 		$wp_admin_bar->add_menu( array( 'parent' => 'blog-' . $blog->userblog_id, 'id' => 'blog-' . $blog->userblog_id . '-d', 'title' => __( 'Dashboard' ), 'href' => get_admin_url($blog->userblog_id) ) );
 
 		if ( current_user_can_for_blog( $blog->userblog_id, 'edit_posts' ) ) {
@@ -139,9 +141,19 @@ function wp_admin_bar_shortlink_menu() {
 	global $wp_admin_bar;
 
 	$short = wp_get_shortlink( 0, 'query' );
+	$id = 'get-shortlink';
 
-	if ( ! empty( $short) )
-		$wp_admin_bar->add_menu( array( 'id' => 'get-shortlink', 'title' => __( 'Shortlink' ), 'href' => $short ) );
+	if ( empty( $short ) )
+		return;
+	
+	$html = '<input class="shortlink-input" type="text" readonly="readonly" value="' . esc_attr( $short ) . '" />';
+	
+	$wp_admin_bar->add_menu( array(
+		'id' => $id,
+		'title' => __( 'Shortlink' ),
+		'href' => $short,
+		'meta' => array( 'html' => $html ),
+	) );
 }
 
 /**
@@ -157,9 +169,9 @@ function wp_admin_bar_edit_menu () {
 	if ( empty($current_object) )
 		return;
 
-	if ( ! empty( $current_object->post_type ) && ( $post_type_object = get_post_type_object( $current_object->post_type ) ) && current_user_can( $post_type_object->cap->edit_post, $current_object->ID ) ) {
+	if ( ! empty( $current_object->post_type ) && ( $post_type_object = get_post_type_object( $current_object->post_type ) ) && current_user_can( $post_type_object->cap->edit_post, $current_object->ID ) && $post_type_object->show_ui ) {
 		$wp_admin_bar->add_menu( array( 'id' => 'edit', 'title' => $post_type_object->labels->edit_item,  'href' => get_edit_post_link( $current_object->ID ) ) );
-	} elseif ( ! empty( $current_object->taxonomy ) &&  ( $tax = get_taxonomy( $current_object->taxonomy ) ) && current_user_can( $tax->cap->edit_terms ) ) {
+	} elseif ( ! empty( $current_object->taxonomy ) &&  ( $tax = get_taxonomy( $current_object->taxonomy ) ) && current_user_can( $tax->cap->edit_terms ) && $tax->show_ui ) {
 		$wp_admin_bar->add_menu( array( 'id' => 'edit', 'title' => $tax->labels->edit_item, 'href' => get_edit_term_link( $current_object->term_id, $current_object->taxonomy ) ) );
 	}
 }
@@ -295,7 +307,10 @@ function wp_admin_bar_header() { ?>
  *
  */
 function _admin_bar_bump_cb() { ?>
-<style type="text/css">body { padding-top: 28px !important; }</style>
+<style type="text/css">
+	html { margin-top: 28px !important; }
+	* html body { margin-top: 28px !important; }
+</style>
 <?php
 }
 
@@ -356,31 +371,8 @@ function _get_admin_bar_pref( $context, $user = 0 ) {
 	$pref = get_user_option( "show_admin_bar_{$context}", $user );
 	if ( false === $pref )
 		return 'admin' != $context || is_multisite();
-	
+
 	return 'true' === $pref;
 }
-
-/**
- * Add the admin bar display preferences to user profiles.
- *
- * @since 3.1.0
- * @access private
- */
-function _admin_bar_preferences( $profileuser ) {
-?>
-<tr>
-<th scope="row"><?php _e('Show Admin Bar')?></th>
-<td><fieldset><legend class="screen-reader-text"><span><?php _e('Show Admin Bar') ?></span></legend>
-<label for="admin_bar_front">
-<input name="admin_bar_front" type="checkbox" id="admin_bar_front" value="1" <?php checked( _get_admin_bar_pref( 'front', $profileuser->ID ) ); ?> />
-<?php /* translators: Show admin bar when viewing site */ _e( 'when viewing site' ); ?></label><br />
-<label for="admin_bar_admin">
-<input name="admin_bar_admin" type="checkbox" id="admin_bar_admin" value="1" <?php checked( _get_admin_bar_pref( 'admin', $profileuser->ID ) ); ?> />
-<?php /* translators: Show admin bar in dashboard */ _e( 'in dashboard' ); ?></label>
-</td>
-</tr>
-<?php
-}
-add_action( 'personal_options', '_admin_bar_preferences' );
 
 ?>

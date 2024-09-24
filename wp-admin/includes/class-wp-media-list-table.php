@@ -5,6 +5,7 @@
  * @package WordPress
  * @subpackage List_Table
  * @since 3.1.0
+ * @access private
  */
 class WP_Media_List_Table extends WP_List_Table {
 
@@ -92,7 +93,7 @@ class WP_Media_List_Table extends WP_List_Table {
 			$this->months_dropdown( $post_type );
 
 			do_action( 'restrict_manage_posts' );
-			submit_button( __( 'Filter' ), 'secondary', 'post-query-submit', false );
+			submit_button( __( 'Filter' ), 'secondary', false, false, array( 'id' => 'post-query-submit' ) );
 		}
 
 		if ( $this->detached ) {
@@ -122,15 +123,6 @@ class WP_Media_List_Table extends WP_List_Table {
 	}
 
 	function no_items() {
-		if ( $this->detached ) {
-?>
-		<div class="tablenav">
-			<?php $this->extra_tablenav( 'top' ); ?>
-		</div>
-		<br class="clear">
-<?php
-		}
-
 		_e( 'No media attachments found.' );
 	}
 

@@ -258,9 +258,6 @@ function post_format_meta_box( $post, $box ) {
 		<?php foreach ( $post_formats[0] as $format ) : ?>
 		<br /><input type="radio" name="post_format" class="post-format" id="post-format-<?php echo esc_attr( $format ); ?>" value="<?php echo esc_attr( $format ); ?>" <?php checked( $post_format, $format ); ?> /> <label for="post-format-<?php echo esc_attr( $format ); ?>"><?php echo esc_html( get_post_format_string( $format ) ); ?></label>
 		<?php endforeach; ?><br />
-		<?php if ( 'post' == $post->post_type ) : ?>
-		<p class="howto"><?php _e( 'Need help? Use the Help tab in the upper right of your screen.' ); ?></p>
-		<?php endif; ?>
 	</div>
 	<?php endif; endif;
 }
@@ -487,7 +484,7 @@ function post_comment_meta_box($post) {
 
 	wp_nonce_field( 'get-comments', 'add_comment_nonce', false );
 
-	$wp_list_table = get_list_table('WP_Post_Comments_List_Table');
+	$wp_list_table = _get_list_table('WP_Post_Comments_List_Table');
 	$wp_list_table->display( true );
 ?>
 <p class="hide-if-no-js"><a href="#commentstatusdiv" id="show-comments" onclick="commentsBox.get(<?php echo $total; ?>);return false;"><?php _e('Show comments'); ?></a> <img class="waiting" style="display:none;" src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" alt="" /></p>

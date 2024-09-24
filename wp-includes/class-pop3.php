@@ -11,10 +11,11 @@
  * An RFC 1939 compliant wrapper class for the POP3 protocol.
  *
  * Licensed under the GNU GPL. For full terms see the file COPYING.
- *
+ * @license http://opensource.org/licenses/gpl-license.php GNU General Public License
+ * 
  * pop3 class
  *
- * $Id: class-pop3.php 16340 2010-11-13 09:53:55Z nacin $
+ * $Id: class-pop3.php 17312 2011-01-15 17:49:03Z westi $
  */
 
 class POP3 {

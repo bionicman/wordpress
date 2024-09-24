@@ -11,7 +11,7 @@ require_once('./admin.php');
 if ( !current_user_can('edit_posts') )
 	wp_die(__('Cheatin&#8217; uh?'));
 
-$wp_list_table = get_list_table('WP_Comments_List_Table');
+$wp_list_table = _get_list_table('WP_Comments_List_Table');
 $pagenum = $wp_list_table->get_pagenum();
 
 $doaction = $wp_list_table->current_action();
@@ -94,7 +94,7 @@ if ( $doaction ) {
 
 	wp_redirect( $redirect_to );
 	exit;
-} elseif ( ! empty( $_REQUEST['_wp_http_referer'] ) ) {
+} elseif ( ! empty( $_GET['_wp_http_referer'] ) ) {
 	 wp_redirect( remove_query_arg( array( '_wp_http_referer', '_wpnonce' ), stripslashes( $_SERVER['REQUEST_URI'] ) ) );
 	 exit;
 }
@@ -218,7 +218,7 @@ if ( isset($_REQUEST['approved']) || isset($_REQUEST['deleted']) || isset($_REQU
 
 <?php $wp_list_table->views(); ?>
 
-<form id="comments-form" action="" method="post">
+<form id="comments-form" action="" method="get">
 
 <?php $wp_list_table->search_box( __( 'Search Comments' ), 'comment' ); ?>
 

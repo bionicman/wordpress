@@ -12,7 +12,8 @@ require_once( './admin.php' );
 if ( !current_user_can('upload_files') )
 	wp_die( __( 'You do not have permission to upload files.' ) );
 
-$wp_list_table = get_list_table('WP_Media_List_Table');
+$wp_list_table = _get_list_table('WP_Media_List_Table');
+$pagenum = $wp_list_table->get_pagenum();
 
 // Handle bulk actions
 $doaction = $wp_list_table->current_action();
@@ -122,12 +123,18 @@ if ( $doaction ) {
 
 	wp_redirect( $location );
 	exit;
-} elseif ( ! empty( $_REQUEST['_wp_http_referer'] ) ) {
+} elseif ( ! empty( $_GET['_wp_http_referer'] ) ) {
 	 wp_redirect( remove_query_arg( array( '_wp_http_referer', '_wpnonce' ), stripslashes( $_SERVER['REQUEST_URI'] ) ) );
 	 exit;
 }
 
 $wp_list_table->prepare_items();
+
+$total_pages = $wp_list_table->get_pagination_arg( 'total_pages' );
+if ( $pagenum > $total_pages && $total_pages > 0 ) {
+	wp_redirect( add_query_arg( 'paged', $total_pages ) );
+	exit;
+}
 
 $title = __('Media Library');
 $parent_file = 'upload.php';
@@ -154,7 +161,7 @@ require_once('./admin-header.php');
 <div class="wrap">
 <?php screen_icon(); ?>
 <h2><?php echo esc_html( $title ); ?> <a href="media-new.php" class="button add-new-h2"><?php echo esc_html_x('Add New', 'file'); ?></a> <?php
-if ( isset($_GET['s']) && $_GET['s'] )
+if ( isset($_REQUEST['s']) && $_REQUEST['s'] )
 	printf( '<span class="subtitle">' . __('Search results for &#8220;%s&#8221;') . '</span>', get_search_query() ); ?>
 </h2>
 
@@ -204,7 +211,7 @@ if ( !empty($message) ) { ?>
 
 <?php $wp_list_table->views(); ?>
 
-<form id="posts-filter" action="" method="post">
+<form id="posts-filter" action="" method="get">
 
 <?php $wp_list_table->search_box( __( 'Search Media' ), 'media' ); ?>
 

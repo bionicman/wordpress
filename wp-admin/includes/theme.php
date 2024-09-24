@@ -43,17 +43,19 @@ function current_theme_info() {
  * @since 2.8.0
  *
  * @param string $template Template directory of the theme to delete
+ * @param string $redirect Redirect to page when complete.
  * @return mixed
  */
-function delete_theme($template) {
+function delete_theme($template, $redirect = '') {
 	global $wp_filesystem;
 
 	if ( empty($template) )
 		return false;
 
 	ob_start();
-	$url = wp_nonce_url('themes.php?action=delete&template=' . $template, 'delete-theme_' . $template);
-	if ( false === ($credentials = request_filesystem_credentials($url)) ) {
+	if ( empty( $redirect ) )
+		$redirect = wp_nonce_url('themes.php?action=delete&template=' . $template, 'delete-theme_' . $template);
+	if ( false === ($credentials = request_filesystem_credentials($redirect)) ) {
 		$data = ob_get_contents();
 		ob_end_clean();
 		if ( ! empty($data) ){
@@ -389,7 +391,7 @@ function themes_api($action, $args = null) {
 	if ( ! $res ) {
 		$request = wp_remote_post('http://api.wordpress.org/themes/info/1.0/', array( 'body' => array('action' => $action, 'request' => serialize($args))) );
 		if ( is_wp_error($request) ) {
-			$res = new WP_Error('themes_api_failed', __('An Unexpected HTTP Error occurred during the API request.</p> <p><a href="?" onclick="document.location.reload(); return false;">Try again</a>'), $request->get_error_message() );
+			$res = new WP_Error('themes_api_failed', __('An Unexpected HTTP Error occurred during the API request.'), $request->get_error_message() );
 		} else {
 			$res = unserialize($request['body']);
 			if ( ! $res )

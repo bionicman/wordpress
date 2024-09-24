@@ -5,6 +5,7 @@
  * @package WordPress
  * @subpackage List_Table
  * @since 3.1.0
+ * @access private
  */
 class WP_Theme_Install_List_Table extends WP_List_Table {
 
@@ -94,7 +95,7 @@ class WP_Theme_Install_List_Table extends WP_List_Table {
 		$api = themes_api( 'query_themes', $args );
 
 		if ( is_wp_error( $api ) )
-			wp_die( $api->get_error_message() . '</p> <p class="hide-if-no-js"><a href="#" onclick="document.location.reload(); return false;">' . __( 'Try again' ) . '</a>' );
+			wp_die( $api->get_error_message() . '</p> <p><a href="#" onclick="document.location.reload(); return false;">' . __( 'Try again' ) . '</a>' );
 
 		$this->items = $api->themes;
 
@@ -126,6 +127,8 @@ class WP_Theme_Install_List_Table extends WP_List_Table {
 	}
 
 	function display() {
+
+		// wp_nonce_field( "fetch-list-" . get_class( $this ), '_ajax_fetch_list_nonce' );
 ?>
 		<div class="tablenav top">
 			<div class="alignleft actions">
@@ -138,7 +141,7 @@ class WP_Theme_Install_List_Table extends WP_List_Table {
 
 		<table id="availablethemes" cellspacing="0" cellpadding="0">
 			<tbody id="the-list" class="list:themes">
-				<?php $this->display_rows(); ?>
+				<?php $this->display_rows_or_placeholder(); ?>
 			</tbody>
 		</table>
 

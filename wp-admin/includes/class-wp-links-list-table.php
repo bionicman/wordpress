@@ -5,6 +5,7 @@
  * @package WordPress
  * @subpackage List_Table
  * @since 3.1.0
+ * @access private
  */
 class WP_Links_List_Table extends WP_List_Table {
 
@@ -67,7 +68,7 @@ class WP_Links_List_Table extends WP_List_Table {
 				'orderby' => 'name',
 			);
 			wp_dropdown_categories( $dropdown_options );
-			submit_button( __( 'Filter' ), 'secondary', 'post-query-submit', false );
+			submit_button( __( 'Filter' ), 'secondary', false, false, array( 'id' => 'post-query-submit' ) );
 ?>
 		</div>
 <?php
