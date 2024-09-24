@@ -1812,7 +1812,7 @@ $pingback_ping_sig = array(array($xmlrpcString, $xmlrpcString, $xmlrpcString));
 
 $pingback_ping_doc = 'Gets a pingback and registers it as a comment prefixed by &lt;pingback /&gt;';
 
-function pingback_ping($m) { original code by Mort
+function pingback_ping($m) { // original code by Mort
 	// (http://mort.mine.nu:8080)
 	global $tableposts,$tablecomments, $comments_notify, $wpdb; 
 	global $siteurl, $blogfilename,$wp_version, $use_pingback; 
