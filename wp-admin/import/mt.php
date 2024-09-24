@@ -1,5 +1,18 @@
 <?php
+/**
+ * Movable Type and Typepad Importer
+ *
+ * @package WordPress
+ * @subpackage Importer
+ */
 
+/**
+ * Moveable Type and Typepad Importer class
+ *
+ * Upload your exported Movable Type or Typepad entries into WordPress.
+ *
+ * @since unknown
+ */
 class MT_Import {
 
 	var $posts = array ();
@@ -32,7 +45,7 @@ class MT_Import {
 	<input type="hidden" name="upload_type" value="ftp" />
 <?php _e('Or use <code>mt-export.txt</code> in your <code>/wp-content/</code> directory'); ?></p>
 <p class="submit">
-<input type="submit" value="<?php echo attribute_escape(__('Import mt-export.txt')); ?>" />
+<input type="submit" class="button" value="<?php echo attribute_escape(__('Import mt-export.txt')); ?>" />
 </p>
 </form>
 <p><?php _e('The importer is smart enough not to import duplicates, so you can run this multiple times without worry if&#8212;for whatever reason&#8212;it doesn\'t finish. If you get an <strong>out of memory</strong> error try splitting up the import file into pieces.'); ?> </p>
@@ -56,8 +69,35 @@ class MT_Import {
 	</select>
 	<?php
 
-
 	}
+
+	function has_gzip() {
+		return is_callable('gzopen');
+	}
+
+	function fopen($filename, $mode='r') {
+		if ( $this->has_gzip() )
+			return gzopen($filename, $mode);
+		return fopen($filename, $mode);
+	}
+
+	function feof($fp) {
+		if ( $this->has_gzip() )
+			return gzeof($fp);
+		return feof($fp);
+	}
+
+	function fgets($fp, $len=8192) {
+		if ( $this->has_gzip() )
+			return gzgets($fp, $len);
+		return fgets($fp, $len);
+	}
+
+	function fclose($fp) {
+		if ( $this->has_gzip() )
+			return gzclose($fp);
+		return fclose($fp);
+ 	}
 
 	//function to check the authorname and do the mapping
 	function checkauthor($author) {
@@ -90,12 +130,12 @@ class MT_Import {
 		$temp = array();
 		$authors = array();
 
-		$handle = fopen($this->file, 'r');
+		$handle = $this->fopen($this->file, 'r');
 		if ( $handle == null )
 			return false;
 
 		$in_comment = false;
-		while ( $line = fgets($handle) ) {
+		while ( $line = $this->fgets($handle) ) {
 			$line = trim($line);
 
 			if ( 'COMMENT:' == $line )
@@ -118,7 +158,7 @@ class MT_Import {
 				array_push($authors, "$next");
 		}
 
-		fclose($handle);
+		$this->fclose($handle);
 
 		return $authors;
 	}
@@ -171,7 +211,7 @@ class MT_Import {
 			echo '</label></li>';
 		}
 
-		echo '<input type="submit" value="'.__('Submit').'">'.'<br />';
+		echo '<p class="submit"><input type="submit" class="button" value="'.__('Submit').'"></p>'.'<br />';
 		echo '</form>';
 		echo '</ol></div>';
 
@@ -224,10 +264,10 @@ class MT_Import {
 			if ( 0 != count($post->categories) ) {
 				wp_create_categories($post->categories, $post_id);
 			}
-			
+
 			 // Add tags or keywords
 			if ( 1 < strlen($post->post_keywords) ) {
-			 	// Keywords exist. 
+			 	// Keywords exist.
 				printf(__('<br />Adding tags <i>%s</i>...'), stripslashes($post->post_keywords));
 				wp_add_post_tags($post_id, $post->post_keywords);
 			}
@@ -273,7 +313,7 @@ class MT_Import {
 	function process_posts() {
 		global $wpdb;
 
-		$handle = fopen($this->file, 'r');
+		$handle = $this->fopen($this->file, 'r');
 		if ( $handle == null )
 			return false;
 
@@ -286,7 +326,7 @@ class MT_Import {
 
 		echo "<div class='wrap'><ol>";
 
-		while ( $line = fgets($handle) ) {
+		while ( $line = $this->fgets($handle) ) {
 			$line = trim($line);
 
 			if ( '-----' == $line ) {
@@ -414,6 +454,8 @@ class MT_Import {
 				}
 			}
 		}
+
+		$this->fclose($handle);
 
 		echo '</ol>';
 

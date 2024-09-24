@@ -66,7 +66,9 @@ if ( get_option('require_name_email') && !$user->ID ) {
 if ( '' == $comment_content )
 	wp_die( __('Error: please type a comment.') );
 
-$commentdata = compact('comment_post_ID', 'comment_author', 'comment_author_email', 'comment_author_url', 'comment_content', 'comment_type', 'user_ID');
+$comment_parent = isset($_POST['comment_parent']) ? absint($_POST['comment_parent']) : 0;
+
+$commentdata = compact('comment_post_ID', 'comment_author', 'comment_author_email', 'comment_author_url', 'comment_content', 'comment_type', 'comment_parent', 'user_ID');
 
 $comment_id = wp_new_comment( $commentdata );
 
@@ -77,7 +79,10 @@ if ( !$user->ID ) {
 	setcookie('comment_author_url_' . COOKIEHASH, clean_url($comment->comment_author_url), time() + 30000000, COOKIEPATH, COOKIE_DOMAIN);
 }
 
-$location = ( empty($_POST['redirect_to']) ? get_permalink($comment_post_ID) : $_POST['redirect_to'] ) . '#comment-' . $comment_id;
+if ( empty($_POST['redirect_to']) )
+	$postlink = ( 'newest' == get_option('default_comments_page') ) ? get_permalink($comment_post_ID) : add_query_arg( 'cpage', get_comment_pages_count( get_comments( array( 'post_id' => $comment_post_ID ) ) ), get_permalink($comment_post_ID) );
+
+$location = ( empty($_POST['redirect_to']) ? $postlink : $_POST['redirect_to'] ) . '#comment-' . $comment_id;
 $location = apply_filters('comment_post_redirect', $location, $comment);
 
 wp_redirect($location);

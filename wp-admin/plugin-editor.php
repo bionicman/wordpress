@@ -1,4 +1,12 @@
 <?php
+/**
+ * Edit plugin editor administration panel.
+ *
+ * @package WordPress
+ * @subpackage Administration
+ */
+
+/** WordPress Administration Bootstrap */
 require_once('admin.php');
 
 $title = __("Edit Plugins");
@@ -87,13 +95,12 @@ default:
 	<?php } ?>
 </div>
 <?php endif; ?>
- <div class="wrap">
-<div class="bordertitle">
-	<h2><?php _e('Plugin Editor'); ?></h2>
-</div>
+<div class="wrap">
+	<h2><?php echo wp_specialchars( $title ); ?></h2> 
+
 <div class="tablenav">
 <div class="alignleft">
-<big><strong><?php
+<big><?php
 	if ( is_plugin_active($file) ) {
 		if ( is_writeable($real_file) )
 			echo sprintf(__('Editing <strong>%s</strong> (active)'), $file);
@@ -105,7 +112,7 @@ default:
 		else
 			echo sprintf(__('Browsing <strong>%s</strong> (inactive)'), $file);
 	}
-	?></strong></big>
+	?></big>
 </div>
 <br class="clear" />
 </div>

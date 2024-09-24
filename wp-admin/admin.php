@@ -1,4 +1,16 @@
 <?php
+/**
+ * WordPress Administration Bootstrap
+ *
+ * @package WordPress
+ * @subpackage Administration
+ */
+
+/**
+ * In WordPress Administration Panels
+ *
+ * @since unknown
+ */
 define('WP_ADMIN', TRUE);
 
 if ( defined('ABSPATH') )
@@ -45,7 +57,14 @@ do_action('admin_init');
 
 // Handle plugin admin pages.
 if (isset($plugin_page)) {
-	$page_hook = get_plugin_page_hook($plugin_page, $pagenow);
+	if( ! $page_hook = get_plugin_page_hook($plugin_page, $pagenow) ) {
+		$page_hook = get_plugin_page_hook($plugin_page, $plugin_page);
+		// backwards compatibility for plugins using add_management_page
+		if ( empty( $page_hook ) && 'edit.php' == $pagenow && '' != get_plugin_page_hook($plugin_page, 'import.php') ) {
+			wp_redirect('import.php?page=' . $plugin_page);
+			exit;
+		}
+	}
 
 	if ( $page_hook ) {
 		do_action('load-' . $page_hook);
@@ -93,7 +112,7 @@ if (isset($plugin_page)) {
 		include(ABSPATH . "wp-admin/import/$importer.php");
 	}
 
-	$parent_file = 'edit.php';
+	$parent_file = 'users.php';
 	$submenu_file = 'import.php';
 	$title = __('Import');
 
@@ -107,6 +126,10 @@ if (isset($plugin_page)) {
 	call_user_func($wp_importers[$importer][2]);
 
 	include(ABSPATH . 'wp-admin/admin-footer.php');
+
+	// Make sure rules are flushed
+	global $wp_rewrite;
+	$wp_rewrite->flush_rules();
 
 	exit();
 } else {

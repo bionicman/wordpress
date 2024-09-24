@@ -12,9 +12,6 @@ require(dirname(__FILE__) . '/wp-load.php');
 /** Get the POP3 class for which to access the mailbox. */
 require_once(ABSPATH.WPINC.'/class-pop3.php');
 
-// WTF is this? Use constants instead.
-error_reporting(2037);
-
 $time_difference = get_option('gmt_offset') * 3600;
 
 $phone_delim = '::';
@@ -63,7 +60,7 @@ for ($i=1; $i <= $count; $i++) :
 				$content_transfer_encoding = explode(';', $content_transfer_encoding);
 				$content_transfer_encoding = $content_transfer_encoding[0];
 			}
-			if (($content_type == 'multipart/alternative') && (preg_match('/boundary="/', $line)) && ($boundary == '')) {
+			if (($content_type == 'multipart/alternative') && (false !== strpos($line, 'boundary="')) && ($boundary == '')) {
 				$boundary = trim($line);
 				$boundary = explode('"', $boundary);
 				$boundary = $boundary[1];
