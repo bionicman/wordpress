@@ -209,6 +209,15 @@ class wpdb {
 	var $postmeta;
 
 	/**
+	 * WordPress Comment Metadata table
+	 *
+	 * @since 2.9
+	 * @access public
+	 * @var string
+	 */
+	var $commentmeta;
+
+	/**
 	 * WordPress User Metadata table
 	 *
 	 * @since 2.3.0
@@ -252,7 +261,17 @@ class wpdb {
 	 * @var array
 	 */
 	var $tables = array('users', 'usermeta', 'posts', 'categories', 'post2cat', 'comments', 'links', 'link2cat', 'options',
-			'postmeta', 'terms', 'term_taxonomy', 'term_relationships');
+			'postmeta', 'terms', 'term_taxonomy', 'term_relationships', 'commentmeta');
+
+	/**
+	 * List of deprecated WordPress tables
+	 *
+	 * @since 2.9.0
+	 * @access private
+	 * @var array
+	 */
+	var $old_tables = array('categories', 'post2cat', 'link2cat');
+
 
 	/**
 	 * Format specifiers for DB columns. Columns not listed here default to %s.  Initialized in wp-settings.php.
@@ -294,6 +313,15 @@ class wpdb {
 	 * @var bool
 	 */
 	var $real_escape = false;
+
+	/**
+	 * Database Username
+	 *
+	 * @since 2.9.0
+	 * @access private
+	 * @var string
+	 */
+	var $dbuser;
 
 	/**
 	 * Connects to the database server and selects a database
@@ -338,6 +366,8 @@ class wpdb {
 		if ( defined('DB_COLLATE') )
 			$this->collate = DB_COLLATE;
 
+		$this->dbuser = $dbuser;
+
 		$this->dbh = @mysql_connect($dbhost, $dbuser, $dbpassword, true);
 		if (!$this->dbh) {
 			$this->bail(sprintf(/*WP_I18N_DB_CONN_ERROR*/"
@@ -349,7 +379,7 @@ class wpdb {
 	<li>Are you sure that the database server is running?</li>
 </ul>
 <p>If you're unsure what these terms mean you should probably contact your host. If you still need help you can always visit the <a href='http://wordpress.org/support/'>WordPress Support Forums</a>.</p>
-"/*/WP_I18N_DB_CONN_ERROR*/, $dbhost));
+"/*/WP_I18N_DB_CONN_ERROR*/, $dbhost), 'db_connect_fail');
 			return;
 		}
 
@@ -436,7 +466,7 @@ class wpdb {
 <li>Does the user <code>%2$s</code> have permission to use the <code>%1$s</code> database?</li>
 <li>On some systems the name of your database is prefixed with your username, so it would be like <code>username_%1$s</code>. Could that be the problem?</li>
 </ul>
-<p>If you don\'t know how to setup a database you should <strong>contact your host</strong>. If all else fails you may find help at the <a href="http://wordpress.org/support/">WordPress Support Forums</a>.</p>'/*/WP_I18N_DB_SELECT_DB*/, $db, DB_USER));
+<p>If you don\'t know how to setup a database you should <strong>contact your host</strong>. If all else fails you may find help at the <a href="http://wordpress.org/support/">WordPress Support Forums</a>.</p>'/*/WP_I18N_DB_SELECT_DB*/, $db, $this->dbuser), 'db_select_fail');
 			return;
 		}
 	}
@@ -996,13 +1026,14 @@ class wpdb {
 	 *
 	 * @since 1.5.0
 	 *
-	 * @param string $message
+	 * @param string $message The Error message
+	 * @param string $error_code (optional) A Computer readable string to identify the error.
 	 * @return false|void
 	 */
-	function bail($message) {
+	function bail($message, $error_code = '500') {
 		if ( !$this->show_errors ) {
 			if ( class_exists('WP_Error') )
-				$this->error = new WP_Error('500', $message);
+				$this->error = new WP_Error($error_code, $message);
 			else
 				$this->error = $message;
 			return false;
@@ -1035,8 +1066,7 @@ class wpdb {
 	 *
 	 * @return bool True if collation is supported, false if version does not
 	 */
-	function supports_collation()
-	{
+	function supports_collation() {
 		return $this->has_cap( 'collation' );
 	}
 

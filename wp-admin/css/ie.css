@@ -21,6 +21,14 @@ input.button-highlighted {
 	margin-bottom: -1px;
 }
 
+* html .meta-box-sortables .postbox .handlediv {
+	background: transparent url(../images/menu-bits-vs.gif) no-repeat scroll left -111px;
+}
+
+* html .edit-box {
+	display: inline;
+}
+
 * html .inner-sidebar #side-sortables,
 * html .postbox-container .meta-box-sortables {
 	height: 300px;
@@ -399,3 +407,16 @@ table.ie-fixed {
 	position: relative;
 }
 
+* html .media-item .pinkynail {
+	height: 32px;
+	width: 40px;
+}
+
+#wpcontent .button-primary-disabled {
+	color: #9FD0D5;
+	background: #298CBA;
+}
+
+#wpcontent #ajax-loading {
+	vertical-align: baseline;
+}
