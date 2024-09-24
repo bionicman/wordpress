@@ -20,7 +20,7 @@ if (0 == $post_ID) {
 	$form_extra = "<input type='hidden' name='post_ID' value='$post_ID' />";
 }
 
-$form_pingback = '<input type="hidden" name="post_pingback" value="1" id="post_pingback" />';
+$form_pingback = '<input type="hidden" name="post_pingback" value="' . get_option('default_pingback_flag') . '" id="post_pingback" />';
 
 $form_prevstatus = '<input type="hidden" name="prev_status" value="'.$post_status.'" />';
 
@@ -115,7 +115,7 @@ edCanvas = document.getElementById('content');
 <?php 
 if ('publish' != $post_status || 0 == $post_ID) {
 ?>
-<?php if ( 1 < $user_level || (1 == $user_level && 2 == get_option('new_users_can_blog')) ) : ?>
+<?php if ( user_can_create_post($user_ID) ) : ?>
 	<input name="publish" type="submit" id="publish" tabindex="10" value="<?php _e('Publish') ?>" /> 
 <?php endif; ?>
 <?php
@@ -135,7 +135,7 @@ if ('publish' != $post_status || 0 == $post_ID) {
 <table width="100%" cellspacing="2" cellpadding="5" class="editform">
 	<tr>
 		<th scope="row" valign="top"><?php _e('Post Status') ?>:</th>
-		<td><?php if ( 1 < $user_level || (1 == $user_level && 2 == get_option('new_users_can_blog')) ) : ?>
+		<td><?php if ( user_can_create_post($user_ID) ) : ?>
 <label for="post_status_publish" class="selectit"><input id="post_status_publish" name="post_status" type="radio" value="publish" <?php checked($post_status, 'publish'); ?> /> <?php _e('Published') ?></label><br />
 <?php endif; ?>
 	  <label for="post_status_draft" class="selectit"><input id="post_status_draft" name="post_status" type="radio" value="draft" <?php checked($post_status, 'draft'); ?> /> <?php _e('Draft') ?></label><br />
@@ -157,7 +157,7 @@ if ('publish' != $post_status || 0 == $post_ID) {
 		<select name="post_author_override" id="post_author_override">
 		<?php 
 		foreach ($users as $o) :
-			if ( $post_author == $o->ID ) $selected = 'selected="selected"';
+			if ( $post_author == $o->ID || ( empty($post_ID) && $user_ID == $o->ID ) ) $selected = 'selected="selected"';
 			else $selected = '';
 			echo "<option value='$o->ID' $selected>$o->user_login ($o->user_firstname $o->user_lastname)</option>";
 		endforeach;
@@ -172,11 +172,13 @@ if ('publish' != $post_status || 0 == $post_ID) {
 		<td><?php touch_time(($action == 'edit')); ?></td>
 	</tr>
 <?php endif; ?>
+<?php if ('edit' == $action) : ?>
 	<tr>
 		<th scope="row"><?php _e('Delete'); ?>:</th>
-		<td><?php if ('edit' == $action) : ?>
+		<td>
 		<input name="deletepost" class="button" type="submit" id="deletepost" tabindex="10" value="<?php _e('Delete this post') ?>" <?php echo "onclick=\"return confirm('" . sprintf(__("You are about to delete this post \'%s\'\\n  \'Cancel\' to stop, \'OK\' to delete."), addslashes($edited_post_title) ) . "')\""; ?> />
-<?php endif; ?></td>
+</td>
+<?php endif; ?>
 	</tr>
 </table>
 

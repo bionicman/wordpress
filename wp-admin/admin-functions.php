@@ -409,10 +409,9 @@ function update_meta($mid, $mkey, $mvalue) {
 	return $wpdb->query("UPDATE $wpdb->postmeta SET meta_key = '$mkey', meta_value = '$mvalue' WHERE meta_id = '$mid'");
 }
 
-function touch_time($edit = 1) {
-	global $month, $postdata;
-	// echo $postdata['Date'];
-	if ('draft' == $postdata->post_status) {
+function touch_time($edit = 1, $for_post = 1) {
+	global $month, $postdata, $commentdata;
+	if ( $for_post && ('draft' == $postdata->post_status) ) {
 		$checked = 'checked="checked" ';
 		$edit = false;
 	} else {
@@ -422,7 +421,7 @@ function touch_time($edit = 1) {
 	echo '<fieldset><legend><input type="checkbox" class="checkbox" name="edit_date" value="1" id="timestamp" '.$checked.'/> <label for="timestamp">' . __('Edit timestamp') . '</label></legend>';
 	
 	$time_adj = time() + (get_settings('gmt_offset') * 3600);
-	$post_date = $postdata->post_date;
+	$post_date = ($for_post) ? $postdata->post_date : $commentdata['comment_date'];
 	$jj = ($edit) ? mysql2date('d', $post_date) : gmdate('d', $time_adj);
 	$mm = ($edit) ? mysql2date('m', $post_date) : gmdate('m', $time_adj);
 	$aa = ($edit) ? mysql2date('Y', $post_date) : gmdate('Y', $time_adj);
@@ -449,16 +448,29 @@ function touch_time($edit = 1) {
 <input type="text" name="aa" value="<?php echo $aa ?>" size="4" maxlength="5" /> @ 
 <input type="text" name="hh" value="<?php echo $hh ?>" size="2" maxlength="2" /> : 
 <input type="text" name="mn" value="<?php echo $mn ?>" size="2" maxlength="2" /> 
-<input type="hidden" name="ss" value="<?php echo $ss ?>" size="2" maxlength="2" /> <?php _e('Existing timestamp'); ?>: <?php echo "{$month[$mm]} $jj, $aa @ $hh:$mn"; ?></fieldset>
+<input type="hidden" name="ss" value="<?php echo $ss ?>" size="2" maxlength="2" /> 
+<?php _e('Existing timestamp'); ?>: 
+	<?php
+		// We might need to readjust to display proper existing timestamp
+		if ( $for_post && ('draft' == $postdata->post_status) ) {
+			$jj = mysql2date('d', $post_date);
+			$mm = mysql2date('m', $post_date);
+			$aa = mysql2date('Y', $post_date);
+			$hh = mysql2date('H', $post_date);
+			$mn = mysql2date('i', $post_date);
+			$ss = mysql2date('s', $post_date);
+		}
+		echo "{$month[$mm]} $jj, $aa @ $hh:$mn"; ?>
+</fieldset>
 	<?php
 }
 
 function check_admin_referer() {
-  $adminurl = strtolower(get_settings('siteurl')).'/wp-admin';
-  $referer = strtolower($_SERVER['HTTP_REFERER']);
-  if ( !strstr($referer, $adminurl) ) {
-    die('Sorry, you need to enable sending referrers, for this feature to work.');
-  }
+	$adminurl = strtolower( get_settings('siteurl') ) . '/wp-admin';
+	$referer = strtolower( $_SERVER['HTTP_REFERER'] );
+	if ( !strstr($referer, $adminurl) )
+		die(__('Sorry, you need to <a href="http://codex.wordpress.org/Enable_Sending_Referrers">enable sending referrers</a> for this feature to work.'));
+	do_action('check_admin_referer');
 }
 
 // insert_with_markers: Owen Winkler
@@ -614,16 +626,18 @@ function get_page_templates() {
 	$templates = $themes[$theme]['Template Files'];
 	$page_templates = array();
 
-	foreach ($templates as $template) {
-		$template_data = implode('', file(ABSPATH . $template));
-		preg_match("|Template Name:(.*)|i", $template_data, $name);
-		preg_match("|Description:(.*)|i", $template_data, $description);
+	if( is_array( $templates ) ) {
+		foreach ($templates as $template) {
+			$template_data = implode('', file(ABSPATH . $template));
+			preg_match("|Template Name:(.*)|i", $template_data, $name);
+			preg_match("|Description:(.*)|i", $template_data, $description);
 
-		$name = $name[1];
-		$description = $description[1];
+			$name = $name[1];
+			$description = $description[1];
 
-		if (! empty($name)) {
-			$page_templates[trim($name)] = basename($template);
+			if (! empty($name)) {
+				$page_templates[trim($name)] = basename($template);
+			}
 		}
 	}
 
@@ -744,6 +758,7 @@ function get_admin_page_title() {
 
 function get_admin_page_parent() {
 	global $parent_file;
+	global $menu;
 	global $submenu;
 	global $pagenow;
 	global $plugin_page;
@@ -752,6 +767,15 @@ function get_admin_page_parent() {
 		return $parent_file;
 	}
 
+	if ($pagenow == 'admin.php' && isset($plugin_page)) {
+		foreach ($menu as $parent_menu) {
+			if ($parent_menu[2] == $plugin_page) {
+				$parent_file = $plugin_page;
+				return $plugin_page;
+			}
+		}
+	}
+		
 	foreach (array_keys($submenu) as $parent) {
 		foreach ($submenu[$parent] as $submenu_array) {
 			if ($submenu_array[2] == $pagenow) {
@@ -769,10 +793,10 @@ function get_admin_page_parent() {
 }
 
 function plugin_basename($file) {
-	return preg_replace('#^.*wp-content/plugins/#', '', $file);
+	return preg_replace('/^.*wp-content[\\\\\/]plugins[\\\\\/]/', '', $file);
 }
 
-function add_menu_page($page_title, $menu_title, $access_level, $file) {
+function add_menu_page($page_title, $menu_title, $access_level, $file, $function = '') {
 	global $menu, $admin_page_hooks;
 
 	$file = plugin_basename($file);
@@ -780,6 +804,12 @@ function add_menu_page($page_title, $menu_title, $access_level, $file) {
 	$menu[] = array($menu_title, $access_level, $file, $page_title);
 
 	$admin_page_hooks[$file] = sanitize_title($menu_title);
+
+	$hookname = get_plugin_page_hookname($file, '');
+	if ( !empty($function) && !empty($hookname) )
+		add_action($hookname, $function);
+
+	return $hookname;
 }
 
 function add_submenu_page($parent, $page_title, $menu_title, $access_level, $file, $function = '') {
@@ -946,13 +976,13 @@ function get_plugin_data($plugin_file) {
 	$name = trim($name);
 	$plugin = $name;
 	if ('' != $plugin_uri[1] && '' != $name) {
-		$plugin = __("<a href='{$plugin_uri[1]}' title='Visit plugin homepage'>{$plugin}</a>");
+		$plugin = '<a href="' . $plugin_uri[1] . '" title="' . __('Visit plugin homepage') . '">' . $plugin . '</a>';
 	}
 
 	if ('' == $author_uri[1]) {
 		$author = $author_name[1];
 	} else {
-		$author = __("<a href='{$author_uri[1]}' title='Visit author homepage'>{$author_name[1]}</a>");
+		$author = '<a href="' . $author_uri[1] . '" title="' . __('Visit author homepage') . '">' . $author_name[1] . '</a>';
 	}
 
 	return array('Name' => $name, 'Title' => $plugin, 'Description' => $description, 'Author' => $author, 'Version' => $version, 'Template' => $template[1]);
@@ -1014,10 +1044,18 @@ function get_plugins() {
 function get_plugin_page_hookname($plugin_page, $parent_page) {
 	global $admin_page_hooks;
 
-	if ( isset($admin_page_hooks[$parent_page]) )
+	$parent = get_admin_page_parent();
+
+	if ( empty($parent_page) || 'admin.php' == $parent_page ) {
+		if ( isset($admin_page_hooks[$plugin_page]) )
+			$page_type = 'toplevel';
+		else if ( isset($admin_page_hooks[$parent]) )
+			$page_type = $admin_page_hooks[$parent];
+	} else if ( isset($admin_page_hooks[$parent_page]) ) {
 		$page_type = $admin_page_hooks[$parent_page];
-	else
+	} else {
 		$page_type = 'admin';
+	}
 
 	$plugin_name = preg_replace('!\.php!', '', $plugin_page);
 
@@ -1026,13 +1064,22 @@ function get_plugin_page_hookname($plugin_page, $parent_page) {
 
 function get_plugin_page_hook($plugin_page, $parent_page) {
 	global $wp_filter;
-
+	
 	$hook = get_plugin_page_hookname($plugin_page, $parent_page);
-
 	if ( isset($wp_filter[$hook]) )
 		return $hook;
 	else
 		return '';
 }
+
+function pimp_firefox() {
+	if ( strstr( $_SERVER['HTTP_USER_AGENT'], 'Firefox' ) )
+		return;
+	$getit = __('WordPress recommends the open-source Firefox browser');
+	echo '
+	<p id="firefoxlink" style="text-align: center;"><a href="http://spreadfirefox.com/community/?q=affiliates&amp;id=2490&amp;t=1" title="' . $getit . '"><img src="../wp-images/get-firefox.png" alt="Get Firefox" /></a></p>
+	';
+}
+add_action('admin_footer', 'pimp_firefox');
 
 ?>

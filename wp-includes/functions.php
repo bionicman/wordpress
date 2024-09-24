@@ -15,14 +15,14 @@ function get_profile($field, $user = false) {
 	return $wpdb->get_var("SELECT $field FROM $wpdb->users WHERE user_login = '$user'");
 }
 
-function mysql2date($dateformatstring, $mysqlstring, $use_b2configmonthsdays = 1) {
+function mysql2date($dateformatstring, $mysqlstring, $translate = true) {
 	global $month, $weekday, $month_abbrev, $weekday_abbrev;
 	$m = $mysqlstring;
 	if (empty($m)) {
 		return false;
 	}
 	$i = mktime(substr($m,11,2),substr($m,14,2),substr($m,17,2),substr($m,5,2),substr($m,8,2),substr($m,0,4)); 
-	if (!empty($month) && !empty($weekday) && $use_b2configmonthsdays) {
+	if (!empty($month) && !empty($weekday) && $translate) {
 		$datemonth = $month[date('m', $i)];
 		$datemonth_abbrev = $month_abbrev[$datemonth];
 		$dateweekday = $weekday[date('w', $i)];
@@ -59,16 +59,18 @@ function current_time($type, $gmt = 0) {
 }
 
 function date_i18n($dateformatstring, $unixtimestamp) {
-	global $month, $weekday;
+	global $month, $weekday, $month_abbrev, $weekday_abbrev;
 	$i = $unixtimestamp; 
 	if ((!empty($month)) && (!empty($weekday))) {
 		$datemonth = $month[date('m', $i)];
+		$datemonth_abbrev = $month_abbrev[$datemonth];
 		$dateweekday = $weekday[date('w', $i)];
+		$dateweekday_abbrev = $weekday_abbrev[$dateweekday]; 		
 		$dateformatstring = ' '.$dateformatstring;
-		$dateformatstring = preg_replace("/([^\\\])D/", "\\1".backslashit(substr($dateweekday, 0, 3)), $dateformatstring);
+		$dateformatstring = preg_replace("/([^\\\])D/", "\\1".backslashit($dateweekday_abbrev), $dateformatstring);
 		$dateformatstring = preg_replace("/([^\\\])F/", "\\1".backslashit($datemonth), $dateformatstring);
 		$dateformatstring = preg_replace("/([^\\\])l/", "\\1".backslashit($dateweekday), $dateformatstring);
-		$dateformatstring = preg_replace("/([^\\\])M/", "\\1".backslashit(substr($datemonth, 0, 3)), $dateformatstring);
+		$dateformatstring = preg_replace("/([^\\\])M/", "\\1".backslashit($datemonth_abbrev), $dateformatstring);
 		$dateformatstring = substr($dateformatstring, 1, strlen($dateformatstring)-1);
 	}
 	$j = @date($dateformatstring, $i);
@@ -82,13 +84,21 @@ function get_weekstartend($mysqlstring, $start_of_week) {
 	$day = mktime(0,0,0, $md, $mm, $my);
 	$weekday = date('w',$day);
 	$i = 86400;
+
+	if ($weekday < get_settings('start_of_week'))
+		$weekday = 7 - (get_settings('start_of_week') - $weekday);
+
 	while ($weekday > get_settings('start_of_week')) {
 		$weekday = date('w',$day);
+		if ($weekday < get_settings('start_of_week'))
+			$weekday = 7 - (get_settings('start_of_week') - $weekday);
+
 		$day = $day - 86400;
 		$i = 0;
 	}
 	$week['start'] = $day + 86400 - $i;
-	$week['end']   = $day + 691199;
+	//$week['end']   = $day - $i + 691199;
+	$week['end'] = $week['start'] + 604799;
 	return $week;
 }
 
@@ -154,62 +164,10 @@ function user_pass_ok($user_login,$user_pass) {
 	return (md5($user_pass) == $userdata->user_pass);
 }
 
-if ( !function_exists('get_currentuserinfo') ) {
-function get_currentuserinfo() { // a bit like get_userdata(), on steroids
-	global $user_login, $userdata, $user_level, $user_ID, $user_nickname, $user_email, $user_url, $user_pass_md5, $user_identity;
-	// *** retrieving user's data from cookies and db - no spoofing
-
-	if (isset($_COOKIE['wordpressuser_' . COOKIEHASH])) 
-		$user_login = $_COOKIE['wordpressuser_' . COOKIEHASH];
-	$userdata = get_userdatabylogin($user_login);
-	$user_level = $userdata->user_level;
-	$user_ID = $userdata->ID;
-	$user_nickname = $userdata->user_nickname;
-	$user_email = $userdata->user_email;
-	$user_url = $userdata->user_url;
-	$user_pass_md5 = md5($userdata->user_pass);
-
-	$idmode = $userdata->user_idmode;
-	if ($idmode == 'nickname')  $user_identity = $userdata->user_nickname;
-	if ($idmode == 'login')     $user_identity = $userdata->user_login;
-	if ($idmode == 'firstname') $user_identity = $userdata->user_firstname;
-	if ($idmode == 'lastname')  $user_identity = $userdata->user_lastname;
-	if ($idmode == 'namefl')    $user_identity = $userdata->user_firstname.' '.$userdata->user_lastname;
-	if ($idmode == 'namelf')    $user_identity = $userdata->user_lastname.' '.$userdata->user_firstname;
-	if (!$idmode) $user_identity = $userdata->user_nickname;
-}
-}
-
-if ( !function_exists('get_userdata') ) {
-function get_userdata($userid) {
-	global $wpdb, $cache_userdata;
-	$userid = (int) $userid;
-	if ( empty($cache_userdata[$userid]) && $userid != 0) {
-		$cache_userdata[$userid] = $wpdb->get_row("SELECT * FROM $wpdb->users WHERE ID = $userid");
-		$cache_userdata[$cache_userdata[$userid]->user_login] =& $cache_userdata[$userid];
-	} 
-
-    return $cache_userdata[$userid];
-}
-}
-
-if ( !function_exists('get_userdatabylogin') ) {
-function get_userdatabylogin($user_login) {
-	global $cache_userdata, $wpdb;
-	if ( !empty($user_login) && empty($cache_userdata[$user_login]) ) {
-		$user = $wpdb->get_row("SELECT * FROM $wpdb->users WHERE user_login = '$user_login'"); /* todo: get rid of this intermediate var */
-		$cache_userdata[$user->ID] = $user;
-		$cache_userdata[$user_login] =& $cache_userdata[$user->ID];
-	} else {
-		$user = $cache_userdata[$user_login];
-	}
-	return $user;
-}
-}
 
 function get_usernumposts($userid) {
 	global $wpdb;
-	return $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->posts WHERE post_author = '$userid'");
+	return $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->posts WHERE post_author = '$userid' AND post_status = 'publish'");
 }
 
 // examine a url (supposedly from this blog) and try to
@@ -227,9 +185,9 @@ function url_to_postid($url = '') {
 	if ($uri == $siteurl) 
 		return 0;
 		
-	// First, check to see if there is a 'p=N' to match against:
-	preg_match('#[?&]p=(\d+)#', $uri, $values);
-	$p = intval($values[1]);
+	// First, check to see if there is a 'p=N' or 'page_id=N' to match against:
+	preg_match('#[?&](p|page_id)=(\d+)#', $uri, $values);
+	$p = intval($values[2]);
 	if ($p) return $p;
 	
 	// Match $uri against our permalink structure
@@ -277,7 +235,7 @@ function url_to_postid($url = '') {
 	
 	// If using %post_id%, we're done:
 	if (intval($post_id)) return intval($post_id);
-
+	
 	// Otherwise, build a WHERE clause, making the values safe along the way:
 	if ($year) $where .= " AND YEAR(post_date) = '" . intval($year) . "'";
 	if ($monthnum) $where .= " AND MONTH(post_date) = '" . intval($monthnum) . "'";
@@ -292,6 +250,14 @@ function url_to_postid($url = '') {
 		return false;
 	}
 
+	// if all we got was a postname, it's probably a page, so we'll want to check for a possible subpage
+	if ($postname && !$year && !$monthnum && !$day && !$hour && !$minute && !$second) {
+	$postname = rtrim(strstr($uri, $postname), '/');
+	$uri_array = explode('/', $postname);
+	$postname = $uri_array[count($uri_array) - 1];
+	$where = " AND post_name = '" . $wpdb->escape($postname) . "' ";
+	}
+	
 	// Run the query to get the post ID:
 	$id = intval($wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE 1 = 1 " . $where));
 
@@ -303,7 +269,7 @@ function url_to_postid($url = '') {
 
 function get_settings($setting) {
   global $wpdb, $cache_settings, $cache_nonexistantoptions;
-	if ( strstr($_SERVER['REQUEST_URI'], 'wp-admin/install.php') )
+	if ( strstr($_SERVER['REQUEST_URI'], 'wp-admin/install.php') || defined('WP_INSTALLING') )
 		return false;
 
 	if ( empty($cache_settings) )
@@ -511,43 +477,140 @@ meta_key = '$key' AND post_id = '$post_id' AND meta_value = '$prev_value'");
 	return true;
 }
 
+// Deprecated.  Use get_post().
 function get_postdata($postid) {
-	global $post, $wpdb;
-
- 	if ( $postid == $post->ID )
- 		$a_post = $post;
- 	else 
-		$a_post = $wpdb->get_row("SELECT * FROM $wpdb->posts WHERE ID = '$postid'");
+	$post = &get_post($postid);
 	
 	$postdata = array (
-		'ID' => $a_post->ID, 
-		'Author_ID' => $a_post->post_author, 
-		'Date' => $a_post->post_date, 
-		'Content' => $a_post->post_content, 
-		'Excerpt' => $a_post->post_excerpt, 
-		'Title' => $a_post->post_title, 
-		'Category' => $a_post->post_category,
-		'post_status' => $a_post->post_status,
-		'comment_status' => $a_post->comment_status,
-		'ping_status' => $a_post->ping_status,
-		'post_password' => $a_post->post_password,
-		'to_ping' => $a_post->to_ping,
-		'pinged' => $a_post->pinged,
-		'post_name' => $a_post->post_name
+		'ID' => $post->ID, 
+		'Author_ID' => $post->post_author, 
+		'Date' => $post->post_date, 
+		'Content' => $post->post_content, 
+		'Excerpt' => $post->post_excerpt, 
+		'Title' => $post->post_title, 
+		'Category' => $post->post_category,
+		'post_status' => $post->post_status,
+		'comment_status' => $post->comment_status,
+		'ping_status' => $post->ping_status,
+		'post_password' => $post->post_password,
+		'to_ping' => $post->to_ping,
+		'pinged' => $post->pinged,
+		'post_name' => $post->post_name
 	);
+
 	return $postdata;
 }
 
-function get_catname($cat_ID) {
-	global $cache_catnames, $wpdb;
-	if ( !$cache_catnames ) {
-        $results = $wpdb->get_results("SELECT * FROM $wpdb->categories") or die('Oops, couldn\'t query the db for categories.');
-		foreach ($results as $post) {
-			$cache_catnames[$post->cat_ID] = $post->cat_name;
+// Retrieves post data given a post ID or post object. 
+// Handles post caching.
+function &get_post(&$post, $output = OBJECT) {
+	global $post_cache, $wpdb;
+
+	if ( empty($post) ) {
+		if ( isset($GLOBALS['post']) )
+			$post = & $GLOBALS['post'];
+		else
+			$post = null;
+	} elseif (is_object($post) ) {
+		if (! isset($post_cache[$post->ID]))
+			$post_cache[$post->ID] = &$post;
+		$post = & $post_cache[$post->ID];
+	} else {
+		if (isset($post_cache[$post]))
+			$post = & $post_cache[$post];
+		else {
+			$query = "SELECT * FROM $wpdb->posts WHERE ID=$post";
+			$post_cache[$post] = & $wpdb->get_row($query);
+			$post = & $post_cache[$post];
 		}
 	}
-	$cat_name = $cache_catnames[$cat_ID];
-	return $cat_name;
+
+	if ( $output == OBJECT ) {
+		return $post;
+	} elseif ( $output == ARRAY_A ) {
+		return get_object_vars($post);
+	} elseif ( $output == ARRAY_N ) {
+		return array_values(get_object_vars($post));
+	} else {
+		return $post;
+	}
+}
+
+// Retrieves page data given a page ID or page object. 
+// Handles page caching.
+function &get_page(&$page, $output = OBJECT) {
+	global $page_cache, $wpdb;
+
+	if ( empty($page) ) {
+		if ( isset($GLOBALS['page']) )
+			$page = & $GLOBALS['page'];
+		else
+			$page = null;
+	} elseif (is_object($page) ) {
+		if (! isset($page_cache[$page->ID]))
+			$page_cache[$page->ID] = &$page;
+		$page = & $page_cache[$page->ID];
+	} else {
+		if ( isset($GLOBALS['page']) && ($page == $GLOBALS['page']->ID) )
+			$page = & $GLOBALS['page'];
+		elseif (isset($page_cache[$page]))
+			$page = & $page_cache[$page];
+		else {
+			$query = "SELECT * FROM $wpdb->posts WHERE ID=$page";
+			$page_cache[$page] = & $wpdb->get_row($query);
+			$page = & $page_cache[$page];
+		}
+	}
+
+	if ( $output == OBJECT ) {
+		return $page;
+	} elseif ( $output == ARRAY_A ) {
+		return get_object_vars($page);
+	} elseif ( $output == ARRAY_N ) {
+		return array_values(get_object_vars($page));
+	} else {
+		return $page;
+	}
+}
+
+// Retrieves category data given a category ID or category object. 
+// Handles category caching.
+function &get_category(&$category, $output = OBJECT) {
+	global $cache_categories, $wpdb;
+
+	if ( empty($category) )
+		return null;
+
+	if ( ! isset($cache_categories))
+		update_category_cache();
+
+	if (is_object($category)) {
+		if ( ! isset($cache_categories[$category->cat_ID]))
+			$cache_categories[$category->cat_ID] = &$category;
+		$category = & $cache_categories[$category->cat_ID];
+	} else {
+		if ( !isset($cache_categories[$category]) ) {
+			$category = $wpdb->get_row("SELECT * FROM $wpdb->categories WHERE cat_ID = $category");
+			$cache_categories[$category->cat_ID] = & $category;
+		} else {
+			$category = & $cache_categories[$category];
+		}
+	}
+
+	if ( $output == OBJECT ) {
+		return $category;
+	} elseif ( $output == ARRAY_A ) {
+		return get_object_vars($category);
+	} elseif ( $output == ARRAY_N ) {
+		return array_values(get_object_vars($category));
+	} else {
+		return $category;
+	}
+}
+
+function get_catname($cat_ID) {
+	$category = &get_category($cat_ID);
+	return $category->cat_name;
 }
 
 function gzip_compression() {
@@ -576,7 +639,6 @@ function timer_stop($display = 0, $precision = 3) { //if called like timer_stop(
 }
 
 function weblog_ping($server = '', $path = '') {
-
 	global $wp_version;
 	include_once (ABSPATH . WPINC . '/class-IXR.php');
 
@@ -588,8 +650,8 @@ function weblog_ping($server = '', $path = '') {
 	// when set to true, this outputs debug messages by itself
 	$client->debug = false;
 	$home = trailingslashit( get_option('home') );
-	$client->query('weblogUpdates.ping', get_settings('blogname'), $home);
-
+	if ( !$client->query('weblogUpdates.extendedPing', get_settings('blogname'), $home, get_bloginfo('rss2_url') ) ) // then try a normal ping
+		$client->query('weblogUpdates.ping', get_settings('blogname'), $home);
 }
 
 function generic_ping($post_id = 0) {
@@ -608,7 +670,7 @@ function generic_ping($post_id = 0) {
 
 // Send a Trackback
 function trackback($trackback_url, $title, $excerpt, $ID) {
-	global $wpdb;
+	global $wpdb, $wp_version;
 	$title = urlencode($title);
 	$excerpt = urlencode($excerpt);
 	$blog_name = urlencode(get_settings('blogname'));
@@ -620,7 +682,7 @@ function trackback($trackback_url, $title, $excerpt, $ID) {
 	$http_request .= 'Host: '.$trackback_url['host']."\r\n";
 	$http_request .= 'Content-Type: application/x-www-form-urlencoded; charset='.get_settings('blog_charset')."\r\n";
 	$http_request .= 'Content-Length: '.strlen($query_string)."\r\n";
-	$http_request .= "User-Agent: WordPress/" . get_settings('version');
+	$http_request .= "User-Agent: WordPress/" . $wp_version;
 	$http_request .= "\r\n\r\n";
 	$http_request .= $query_string;
 	if ( '' == $trackback_url['port'] )
@@ -748,40 +810,51 @@ function do_enclose( $content, $post_ID ) {
 		endif;
 	endforeach;
 
-	foreach ($post_links as $url){
-                if( $url != '' && in_array($url, $pung) == false ) {
-                    set_time_limit( 60 ); 
-                    $file = str_replace( "http://", "", $url );
-                    $host = substr( $file, 0, strpos( $file, "/" ) );
-                    $file = substr( $file, strpos( $file, "/" ) );
-                    $headers = "HEAD $file HTTP/1.1\r\nHOST: $host\r\n\r\n";
-                    $port    = 80;
-                    $timeout = 3;
-                    $fp = @fsockopen($host, $port, $err_num, $err_msg, $timeout);
-                    if( $fp ) {
-                        fputs($fp, $headers );
-                        $response = '';
-                        while ( !feof($fp) && strpos( $response, "\r\n\r\n" ) == false )
-                            $response .= fgets($fp, 2048);
-                        fclose( $fp );
-                    } else {
-                        $response = '';
-                    }
-                    if( $response != '' ) {
-                        $len = substr( $response, strpos( $response, "Content-Length:" ) + 16 );
-                        $len = substr( $len, 0, strpos( $len, "\n" ) );
-                        $type = substr( $response, strpos( $response, "Content-Type:" ) + 14 );
-                        $type = substr( $type, 0, strpos( $type, "\n" ) + 1 );
-                        $allowed_types = array( 'video', 'audio' );
-                        if( in_array( substr( $type, 0, strpos( $type, "/" ) ), $allowed_types ) ) {
-                            $meta_value = "$url\n$len\n$type\n";
-                            $query = "INSERT INTO `".$wpdb->postmeta."` ( `meta_id` , `post_id` , `meta_key` , `meta_value` )
-                                VALUES ( NULL, '$post_ID', 'enclosure' , '".$meta_value."')";
-                            $wpdb->query( $query );
-                        }
-                    }
-                }
-        }
+	foreach ($post_links as $url) :
+		if ( $url != '' && !$wpdb->get_var("SELECT post_id FROM $wpdb->postmeta WHERE post_id = '$post_ID' AND meta_key = 'enclosure' AND meta_value LIKE ('$url%')") ) {
+			if ( $headers = wp_get_http_headers( $url) ) {
+				$len  = (int) $headers['content-length'];
+				$type = addslashes( $headers['content-type'] );
+				$allowed_types = array( 'video', 'audio' );
+				if( in_array( substr( $type, 0, strpos( $type, "/" ) ), $allowed_types ) ) {
+					$meta_value = "$url\n$len\n$type\n";
+					$wpdb->query( "INSERT INTO `$wpdb->postmeta` ( `post_id` , `meta_key` , `meta_value` )
+					VALUES ( '$post_ID', 'enclosure' , '$meta_value')" );
+				}
+			}
+		}
+	endforeach;
+}
+
+function wp_get_http_headers( $url ) {
+	set_time_limit( 60 ); 
+	$parts = parse_url( $url );
+	$file  = $parts['path'] . $parts['query'];
+	$host  = $parts['host'];
+	if ( !isset( $parts['port'] ) )
+		$parts['port'] = 80;
+
+	$head = "HEAD $file HTTP/1.1\r\nHOST: $host\r\n\r\n";
+
+	$fp = @fsockopen($host, $parts['port'], $err_num, $err_msg, 3);
+	if ( !$fp )
+		return false;
+
+	$response = '';
+	fputs( $fp, $head );
+	while ( !feof( $fp ) && strpos( $response, "\r\n\r\n" ) == false )
+		$response .= fgets( $fp, 2048 );
+	fclose( $fp );
+	preg_match_all('/(.*?): (.*)\r/', $response, $matches);
+	$count = count($matches[1]);
+	for ( $i = 0; $i < $count; $i++) {
+		$key = strtolower($matches[1][$i]);
+		$headers["$key"] = $matches[2][$i];
+	}
+
+	preg_match('/.*([0-9]{3}).*/', $response, $return);
+	$headers['response'] = $return[1]; // HTTP response code eg 204, 200, 404
+	return $headers;
 }
 
 // Deprecated.  Use the new post loop.
@@ -796,32 +869,20 @@ function start_wp() {
 
 // Setup global post data.
 function setup_postdata($post) {
-  global $id, $postdata, $authordata, $day, $preview, $page, $pages, $multipage, $more, $numpages, $wp_query;
+  global $id, $postdata, $authordata, $day, $page, $pages, $multipage, $more, $numpages, $wp_query;
 	global $pagenow;
 
-	if (!$preview) {
-		$id = $post->ID;
-	} else {
-		$id = 0;
-		$postdata = array (
-			'ID' => 0,
-			'Author_ID' => $_GET['preview_userid'],
-			'Date' => $_GET['preview_date'],
-			'Content' => $_GET['preview_content'],
-			'Excerpt' => $_GET['preview_excerpt'],
-			'Title' => $_GET['preview_title'],
-			'Category' => $_GET['preview_category'],
-			'Notify' => 1
-			);
-	}
+	$id = $post->ID;
+
 	$authordata = get_userdata($post->post_author);
 
 	$day = mysql2date('d.m.y', $post->post_date);
 	$currentmonth = mysql2date('m', $post->post_date);
 	$numpages = 1;
+	$page = get_query_var('page');
 	if (!$page)
 		$page = 1;
-	if (isset($p))
+	if (is_single() || is_page())
 		$more = 1;
 	$content = $post->post_content;
 	if (preg_match('/<!--nextpage-->/', $content)) {
@@ -861,52 +922,78 @@ function merge_filters($tag) {
 				$wp_filter[$tag][$priority] = array_merge($wp_filter['all'][$priority], array());
 			$wp_filter[$tag][$priority] = array_unique($wp_filter[$tag][$priority]);
 		}
-
 	}
 
-	if (isset($wp_filter[$tag]))
-		ksort($wp_filter[$tag]);
+	if ( isset($wp_filter[$tag]) )
+		ksort( $wp_filter[$tag] );
 }
 
 function apply_filters($tag, $string) {
 	global $wp_filter;
 	
-	$args = array_slice(func_get_args(), 3);
+	$args = array_slice(func_get_args(), 2);
 
 	merge_filters($tag);
 	
-	if (isset($wp_filter[$tag])) {
-		foreach ($wp_filter[$tag] as $priority => $functions) {
-			if (!is_null($functions)) {
-				foreach($functions as $function) {
-					$string = call_user_func_array($function, array($string) + $args);
+	if (!isset($wp_filter[$tag])) {
+		return $string;
+	}
+	foreach ($wp_filter[$tag] as $priority => $functions) {
+		if (!is_null($functions)) {
+			foreach($functions as $function) {
+
+				$all_args = array_merge(array($string), $args);
+				$function_name = $function['function'];
+				$accepted_args = $function['accepted_args'];
+
+				if($accepted_args == 1) {
+					$the_args = array($string);
+				} elseif ($accepted_args > 1) {
+					$the_args = array_slice($all_args, 0, $accepted_args);
+				} elseif($accepted_args == 0) {
+					$the_args = NULL;
+				} else {
+					$the_args = $all_args;
 				}
+
+				$string = call_user_func_array($function_name, $the_args);
 			}
 		}
 	}
 	return $string;
 }
 
-function add_filter($tag, $function_to_add, $priority = 10) {
+function add_filter($tag, $function_to_add, $priority = 10, $accepted_args = 1) {
 	global $wp_filter;
-	// So the format is wp_filter['tag']['array of priorities']['array of functions']
-	if (!@in_array($function_to_add, $wp_filter[$tag]["$priority"])) {
-		$wp_filter[$tag]["$priority"][] = $function_to_add;
+
+	// check that we don't already have the same filter at the same priority
+	if (isset($wp_filter[$tag]["$priority"])) {
+		foreach($wp_filter[$tag]["$priority"] as $filter) {
+			// uncomment if we want to match function AND accepted_args
+			//if ($filter == array($function, $accepted_args)) {
+			if ($filter['function'] == $function_to_add) {
+				return true;
+			}
+		}
 	}
+
+	// So the format is wp_filter['tag']['array of priorities']['array of ['array (functions, accepted_args)]']
+	$wp_filter[$tag]["$priority"][] = array('function'=>$function_to_add, 'accepted_args'=>$accepted_args);
 	return true;
 }
 
-function remove_filter($tag, $function_to_remove, $priority = 10) {
+function remove_filter($tag, $function_to_remove, $priority = 10, $accepted_args = 1) {
 	global $wp_filter;
-	if (@in_array($function_to_remove, $wp_filter[$tag]["$priority"])) {
-		foreach ($wp_filter[$tag]["$priority"] as $function) {
-			if ($function_to_remove != $function) {
-				$new_function_list[] = $function;
+
+	// rebuild the list of filters
+	if (isset($wp_filter[$tag]["$priority"])) {
+		foreach($wp_filter[$tag]["$priority"] as $filter) {
+			if ($filter['function'] != $function_to_remove) {
+				$new_function_list[] = $filter;
 			}
 		}
 		$wp_filter[$tag]["$priority"] = $new_function_list;
 	}
-	//die(var_dump($wp_filter));
 	return true;
 }
 
@@ -914,50 +1001,62 @@ function remove_filter($tag, $function_to_remove, $priority = 10) {
 
 function do_action($tag, $arg = '') {
 	global $wp_filter;
-
-	if ( is_array($arg) )
-		$args = $arg + array_slice(func_get_args(), 2);
+	$extra_args = array_slice(func_get_args(), 2);
+ 	if ( is_array($arg) )
+ 		$args = array_merge($arg, $extra_args);
 	else
-		$args = array($arg) + array_slice(func_get_args(), 2);
+		$args = array_merge(array($arg), $extra_args);
 	
 	merge_filters($tag);
 	
-	if (isset($wp_filter[$tag])) {
-		foreach ($wp_filter[$tag] as $priority => $functions) {
-			if (!is_null($functions)) {
-				foreach($functions as $function) {
-					$string = call_user_func_array($function, $args);
+	if (!isset($wp_filter[$tag])) {
+		return;
+	}
+	foreach ($wp_filter[$tag] as $priority => $functions) {
+		if (!is_null($functions)) {
+			foreach($functions as $function) {
+
+				$function_name = $function['function'];
+				$accepted_args = $function['accepted_args'];
+
+				if($accepted_args == 1) {
+					if ( is_array($arg) )
+						$the_args = $arg;
+					else
+						$the_args = array($arg);
+				} elseif ($accepted_args > 1) {
+					$the_args = array_slice($args, 0, $accepted_args);
+				} elseif($accepted_args == 0) {
+					$the_args = NULL;
+				} else {
+					$the_args = $args;
 				}
+
+				$string = call_user_func_array($function_name, $the_args);
 			}
 		}
 	}
 }
 
-function add_action($tag, $function_to_add, $priority = 10) {
-	add_filter($tag, $function_to_add, $priority);
+function add_action($tag, $function_to_add, $priority = 10, $accepted_args = 1) {
+	add_filter($tag, $function_to_add, $priority, $accepted_args);
 }
 
-function remove_action($tag, $function_to_remove, $priority = 10) {
-	remove_filter($tag, $function_to_remove, $priority);
+function remove_action($tag, $function_to_remove, $priority = 10, $accepted_args = 1) {
+	remove_filter($tag, $function_to_remove, $priority, $accepted_args);
 }
 
 function get_page_uri($page_id) {
-	global $wpdb, $cache_pages;
-
-	if (!isset($cache_pages[$page_id])) {
-		$cache_pages[$page_id] = $wpdb->get_row("SELECT ID, post_name, post_parent FROM $wpdb->posts WHERE ID = '$page_id'");
-	}
-
-	$page = $cache_pages[$page_id];
+	$page = get_page($page_id);
 	$uri = urldecode($page->post_name);
 
 	// A page cannot be it's own parent.
 	if ($page->post_parent == $page->ID) {
 		return $uri;
 	}
-
+	
 	while ($page->post_parent != 0) {
-		$page = $wpdb->get_row("SELECT post_name, post_parent FROM $wpdb->posts WHERE ID = '$page->post_parent'");
+		$page = get_page($page->post_parent);
 		$uri = urldecode($page->post_name) . "/" . $uri;
 	}
 
@@ -970,9 +1069,8 @@ function get_posts($args) {
 	if (!isset($r['numberposts'])) $r['numberposts'] = 5;
 	if (!isset($r['offset'])) $r['offset'] = 0;
 	if (!isset($r['category'])) $r['category'] = '';
-	// The following not implemented yet
-	if (!isset($r['orderby'])) $r['orderby'] = '';
-	if (!isset($r['order'])) $r['order'] = '';
+	if (!isset($r['orderby'])) $r['orderby'] = 'post_date';
+	if (!isset($r['order'])) $r['order'] = 'DESC';
 
 	$now = current_time('mysql');
 
@@ -981,103 +1079,141 @@ function get_posts($args) {
 		( empty( $r['category'] ) ? "" : ", $wpdb->post2cat " ) .
 		" WHERE post_date <= '$now' AND (post_status = 'publish') ".
 		( empty( $r['category'] ) ? "" : "AND $wpdb->posts.ID = $wpdb->post2cat.post_id AND $wpdb->post2cat.category_id = " . $r['category']. " " ) .
-		" GROUP BY $wpdb->posts.ID ORDER BY post_date DESC LIMIT " . $r['offset'] . ',' . $r['numberposts'] );
-
+		" GROUP BY $wpdb->posts.ID ORDER BY " . $r['orderby'] . " " . $r['order'] . "  LIMIT " . $r['offset'] . ',' . $r['numberposts'] );
+	
     update_post_caches($posts);
 	
 	return $posts;
 }
 
-function query_posts($query) {
-    global $wp_query;
-
-    return $wp_query->query($query);
+function &query_posts($query) {
+	global $wp_query;
+	return $wp_query->query($query);
 }
 
-function update_post_caches($posts) {
-    global $category_cache, $comment_count_cache, $post_meta_cache;
-    global $wpdb;
+function update_post_cache(&$posts) {
+	global $post_cache;
 
-    // No point in doing all this work if we didn't match any posts.
-    if (! $posts) {
-        return;
-    }
+	if ( !$posts )
+		return;
 
-    // Get the categories for all the posts
-    foreach ($posts as $post)
-        $post_id_list[] = $post->ID;
-    $post_id_list = implode(',', $post_id_list);
+	for ($i = 0; $i < count($posts); $i++) {
+		$post_cache[$posts[$i]->ID] = &$posts[$i];
+	}
+}
 
-    $dogs = $wpdb->get_results("SELECT DISTINCT
-        ID, category_id, cat_name, category_nicename, category_description, category_parent
-        FROM $wpdb->categories, $wpdb->post2cat, $wpdb->posts
-        WHERE category_id = cat_ID AND post_id = ID AND post_id IN ($post_id_list)");
-        
-    if (!empty($dogs)) {
-        foreach ($dogs as $catt) {
-					$category_cache[$catt->ID][$catt->category_id] = $catt;
-        }
-    }
+function update_page_cache(&$pages) {
+	global $page_cache;
 
-    // Do the same for comment numbers
-    $comment_counts = $wpdb->get_results("SELECT ID, COUNT( comment_ID ) AS ccount
-        FROM $wpdb->posts
-        LEFT JOIN $wpdb->comments ON ( comment_post_ID = ID  AND comment_approved =  '1')
-        WHERE post_status =  'publish' AND ID IN ($post_id_list)
-        GROUP BY ID");
-    
-    if ($comment_counts) {
-        foreach ($comment_counts as $comment_count) {
-            $comment_count_cache["$comment_count->ID"] = $comment_count->ccount;
-        }
-    }
+	if ( !$pages )
+		return;
+
+	for ($i = 0; $i < count($pages); $i++) {
+		$page_cache[$pages[$i]->ID] = &$pages[$i];
+	}
+}
+
+function update_post_category_cache($post_ids) {
+	global $wpdb, $category_cache, $cache_categories;
+
+	if (empty($post_ids))
+		return;
+
+	if (is_array($post_ids))
+		$post_ids = implode(',', $post_ids);
+
+	$dogs = $wpdb->get_results("SELECT DISTINCT
+	post_id, cat_ID FROM $wpdb->categories, $wpdb->post2cat
+	WHERE category_id = cat_ID AND post_id IN ($post_ids)");
+
+	if (! isset($cache_categories))
+		update_category_cache();
+		
+	if ( !empty($dogs) ) {
+		foreach ($dogs as $catt) {
+			$category_cache[$catt->post_id][$catt->cat_ID] = &$cache_categories[$catt->cat_ID];
+		}
+	}
+}
+
+function update_post_caches(&$posts) {
+	global $post_cache, $category_cache, $comment_count_cache, $post_meta_cache;
+	global $wpdb;
+	
+	// No point in doing all this work if we didn't match any posts.
+	if ( !$posts )
+		return;
+
+	// Get the categories for all the posts
+	for ($i = 0; $i < count($posts); $i++) {
+		$post_id_list[] = $posts[$i]->ID;
+		$post_cache[$posts[$i]->ID] = &$posts[$i];
+	}
+
+	$post_id_list = implode(',', $post_id_list);
+	
+	update_post_category_cache($post_id_list);
+
+	// Do the same for comment numbers
+	$comment_counts = $wpdb->get_results("SELECT ID, COUNT( comment_ID ) AS ccount
+	FROM $wpdb->posts
+	LEFT JOIN $wpdb->comments ON ( comment_post_ID = ID  AND comment_approved =  '1')
+	WHERE ID IN ($post_id_list)
+	GROUP BY ID");
+	
+	if ($comment_counts) {
+		foreach ($comment_counts as $comment_count)
+			$comment_count_cache["$comment_count->ID"] = $comment_count->ccount;
+	}
 
     // Get post-meta info
-    if ( $meta_list = $wpdb->get_results("SELECT post_id, meta_key, meta_value FROM $wpdb->postmeta  WHERE post_id IN($post_id_list) ORDER BY post_id, meta_key", ARRAY_A) ) {
-		
-        // Change from flat structure to hierarchical:
-        $post_meta_cache = array();
-        foreach ($meta_list as $metarow) {
-            $mpid = $metarow['post_id'];
-            $mkey = $metarow['meta_key'];
-            $mval = $metarow['meta_value'];
-			
-            // Force subkeys to be array type:
-            if (!isset($post_meta_cache[$mpid]) || !is_array($post_meta_cache[$mpid]))
-                $post_meta_cache[$mpid] = array();
-            if (!isset($post_meta_cache[$mpid]["$mkey"]) || !is_array($post_meta_cache[$mpid]["$mkey"]))
-                $post_meta_cache[$mpid]["$mkey"] = array();
-			
-            // Add a value to the current pid/key:
-            $post_meta_cache[$mpid][$mkey][] = $mval;
-        }
-    }
+	if ( $meta_list = $wpdb->get_results("SELECT post_id, meta_key, meta_value FROM $wpdb->postmeta  WHERE post_id IN($post_id_list) ORDER BY post_id, meta_key", ARRAY_A) ) {
+		// Change from flat structure to hierarchical:
+		$post_meta_cache = array();
+		foreach ($meta_list as $metarow) {
+			$mpid = $metarow['post_id'];
+			$mkey = $metarow['meta_key'];
+			$mval = $metarow['meta_value'];
+
+			// Force subkeys to be array type:
+			if (!isset($post_meta_cache[$mpid]) || !is_array($post_meta_cache[$mpid]))
+				$post_meta_cache[$mpid] = array();
+			if (!isset($post_meta_cache[$mpid]["$mkey"]) || !is_array($post_meta_cache[$mpid]["$mkey"]))
+				$post_meta_cache[$mpid]["$mkey"] = array();
+
+			// Add a value to the current pid/key:
+			$post_meta_cache[$mpid][$mkey][] = $mval;
+		}
+	}
 }
 
 function update_category_cache() {
-    global $cache_categories, $wpdb;
-    $dogs = $wpdb->get_results("SELECT * FROM $wpdb->categories");
-    foreach ($dogs as $catt) {
-        $cache_categories[$catt->cat_ID] = $catt;
-    }
+	global $cache_categories, $wpdb;
+	$dogs = $wpdb->get_results("SELECT * FROM $wpdb->categories");
+	foreach ($dogs as $catt)
+		$cache_categories[$catt->cat_ID] = $catt;
 }
 
 function update_user_cache() {
-    global $cache_userdata, $wpdb;
-
-    if ( $users = $wpdb->get_results("SELECT * FROM $wpdb->users WHERE user_level > 0") ) :
+	global $cache_userdata, $wpdb;
+	
+	if ( $users = $wpdb->get_results("SELECT * FROM $wpdb->users WHERE user_level > 0") ) :
 		foreach ($users as $user) :
 			$cache_userdata[$user->ID] = $user;
 			$cache_userdata[$user->user_login] =& $cache_userdata[$user->ID];
 		endforeach;
 		return true;
-	else: 
+	else : 
 		return false;
 	endif;
 }
 
 function wp_head() {
 	do_action('wp_head');
+}
+
+function wp_footer() {
+	do_action('wp_footer');
 }
 
 function is_single ($post = '') {
@@ -1227,6 +1363,12 @@ function is_trackback () {
     return $wp_query->is_trackback;
 }
 
+function is_admin () {
+    global $wp_query;
+
+    return $wp_query->is_admin;
+}
+
 function is_home () {
     global $wp_query;
 
@@ -1332,6 +1474,10 @@ function get_theme_data($theme_file) {
 		$version = $version[1];
 	else
 		$version ='';
+	if ( preg_match("|Status:(.*)|i", $theme_data, $status) )
+		$status = $status[1];
+	else
+		$status ='publish';
 
 	$description = wptexturize($description[1]);
 
@@ -1339,16 +1485,16 @@ function get_theme_data($theme_file) {
 	$name = trim($name);
 	$theme = $name;
 	if ('' != $theme_uri[1] && '' != $name) {
-		$theme = __("<a href='{$theme_uri[1]}' title='Visit theme homepage'>{$theme}</a>");
+		$theme = '<a href="' . $theme_uri[1] . '" title="' . __('Visit theme homepage') . '">' . $theme . '</a>';
 	}
 
 	if ('' == $author_uri[1]) {
 		$author = $author_name[1];
 	} else {
-		$author = __("<a href='{$author_uri[1]}' title='Visit author homepage'>{$author_name[1]}</a>");
+		$author = '<a href="' . $author_uri[1] . '" title="' . __('Visit author homepage') . '">' . $author_name[1] . '</a>';
 	}
 
-	return array('Name' => $name, 'Title' => $theme, 'Description' => $description, 'Author' => $author, 'Version' => $version, 'Template' => $template[1]);
+	return array('Name' => $name, 'Title' => $theme, 'Description' => $description, 'Author' => $author, 'Version' => $version, 'Template' => $template[1], 'Status' => $status);
 }
 
 function get_themes() {
@@ -1448,8 +1594,26 @@ function get_themes() {
 
 		if (empty($template_dir)) $template_dir = '/';
 		if (empty($stylesheet_dir)) $stylesheet_dir = '/';
+
+		// Check for theme name collision.  This occurs if a theme is copied to
+		// a new theme directory and the theme header is not updated.  Whichever
+		// theme is first keeps the name.  Subsequent themes get a suffix applied.
+		// The Default and Classic themes always trump their pretenders.
+		if ( isset($themes[$name]) ) {
+			if ( ('WordPress Default' == $name || 'WordPress Classic' == $name) &&
+					 ('default' == $stylesheet || 'classic' == $stylesheet) ) {
+				// If another theme has claimed to be one of our default themes, move
+				// them aside.
+				$suffix = $themes[$name]['Stylesheet'];
+				$new_name = "$name/$suffix";
+				$themes[$new_name] = $themes[$name];
+				$themes[$new_name]['Name'] = $new_name;
+			} else {
+				$name = "$name/$stylesheet";
+			}
+		}
 		
-		$themes[$name] = array('Name' => $name, 'Title' => $title, 'Description' => $description, 'Author' => $author, 'Version' => $version, 'Template' => $template, 'Stylesheet' => $stylesheet, 'Template Files' => $template_files, 'Stylesheet Files' => $stylesheet_files, 'Template Dir' => $template_dir, 'Stylesheet Dir' => $stylesheet_dir);
+		$themes[$name] = array('Name' => $name, 'Title' => $title, 'Description' => $description, 'Author' => $author, 'Version' => $version, 'Template' => $template, 'Stylesheet' => $stylesheet, 'Template Files' => $template_files, 'Stylesheet Files' => $stylesheet_files, 'Template Dir' => $template_dir, 'Stylesheet Dir' => $stylesheet_dir, 'Status' => $theme_data['Status']);
 	}
 
 	// Resolve theme dependencies.
@@ -1487,13 +1651,14 @@ function get_current_theme() {
 	$theme_names = array_keys($themes);
 	$current_template = get_settings('template');
 	$current_stylesheet = get_settings('stylesheet');
-	$current_theme = 'Default';
+	$current_theme = 'WordPress Default';
 
 	if ($themes) {
 		foreach ($theme_names as $theme_name) {
 			if ($themes[$theme_name]['Stylesheet'] == $current_stylesheet &&
 					$themes[$theme_name]['Template'] == $current_template) {
 				$current_theme = $themes[$theme_name]['Name'];
+				break;
 			}
 		}
 	}
@@ -1595,63 +1760,6 @@ function htmlentities2($myHTML) {
 }
 
 
-function wp_mail($to, $subject, $message, $headers = '', $more = '') {
-	if( $headers == '' ) {
-		$headers = "MIME-Version: 1.0\n" .
-		"Content-Type: text/plain; charset=\"" . get_settings('blog_charset') . "\"\n";
-	}
-
-	return @mail($to, $subject, $message, $headers, $more);
-}
-
-if ( !function_exists('wp_login') ) :
-function wp_login($username, $password, $already_md5 = false) {
-	global $wpdb, $error;
-
-	if ( !$username )
-		return false;
-
-	if ( !$password ) {
-		$error = __('<strong>Error</strong>: The password field is empty.');
-		return false;
-	}
-
-	$login = $wpdb->get_row("SELECT ID, user_login, user_pass FROM $wpdb->users WHERE user_login = '$username'");
-
-	if (!$login) {
-		$error = __('<strong>Error</strong>: Wrong login.');
-		return false;
-	} else {
-		// If the password is already_md5, it has been double hashed.
-		// Otherwise, it is plain text.
-		if ( ($already_md5 && $login->user_login == $username && md5($login->user_pass) == $password) || ($login->user_login == $username && $login->user_pass == md5($password)) ) {
-			return true;
-		} else {
-			$error = __('<strong>Error</strong>: Incorrect password.');
-			$pwd = '';
-			return false;
-		}
-	}
-}
-endif;
-
-if ( !function_exists('auth_redirect') ) :
-function auth_redirect() {
-	// Checks if a user is logged in, if not redirects them to the login page
-	if ( (!empty($_COOKIE['wordpressuser_' . COOKIEHASH]) && 
-	!wp_login($_COOKIE['wordpressuser_' . COOKIEHASH], $_COOKIE['wordpresspass_' . COOKIEHASH], true)) ||
-	(empty($_COOKIE['wordpressuser_' . COOKIEHASH])) ) {
-		header('Expires: Mon, 11 Jan 1984 05:00:00 GMT');
-		header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
-		header('Cache-Control: no-cache, must-revalidate, max-age=0');
-		header('Pragma: no-cache');
-	
-		header('Location: ' . get_settings('siteurl') . '/wp-login.php?redirect_to=' . urlencode($_SERVER['REQUEST_URI']));
-		exit();
-	}
-}
-endif;
-
 function is_plugin_page() {
 	global $plugin_page;
 
@@ -1699,7 +1807,11 @@ function add_query_arg() {
 	else if (strstr($uri, '/')) {
 		$base = $uri . '?';
 		$query = '';
+	} else {
+		$base = '';
+		$query = $uri;
 	}
+
 	parse_str($query, $qs);
 	if (is_array(func_get_arg(0))) {
 		$kayvees = func_get_arg(0);
@@ -1746,40 +1858,24 @@ function add_magic_quotes($array) {
 	return $array;
 }
 
-if ( !function_exists('wp_setcookie') ) :
-function wp_setcookie($username, $password, $already_md5 = false, $home = '', $siteurl = '') {
-	if ( !$already_md5 )
-		$password = md5( md5($password) ); // Double hash the password in the cookie.
-
-	if ( empty($home) )
-		$cookiepath = COOKIEPATH;
-	else
-		$cookiepath = preg_replace('|https?://[^/]+|i', '', $home . '/' );
-
-	if ( empty($siteurl) ) {
-		$sitecookiepath = SITECOOKIEPATH;
-		$cookiehash = COOKIEHASH;
+function wp_remote_fopen( $uri ) {
+	if ( function_exists('curl_init') ) {
+		$handle = curl_init();
+		curl_setopt ($handle, CURLOPT_URL, $uri);
+		curl_setopt ($handle, CURLOPT_CONNECTTIMEOUT, 1);
+		curl_setopt ($handle, CURLOPT_RETURNTRANSFER, 1);
+		$buffer = curl_exec($handle);
+		curl_close($handle);
+		return $buffer;
 	} else {
-		$sitecookiepath = preg_replace('|https?://[^/]+|i', '', $siteurl . '/' );
-		$cookiehash = md5($siteurl);
-	}
-
-	setcookie('wordpressuser_'. $cookiehash, $username, time() + 31536000, $cookiepath);
-	setcookie('wordpresspass_'. $cookiehash, $password, time() + 31536000, $cookiepath);
-
-	if ( $cookiepath != $sitecookiepath ) {
-		setcookie('wordpressuser_'. $cookiehash, $username, time() + 31536000, $sitecookiepath);
-		setcookie('wordpresspass_'. $cookiehash, $password, time() + 31536000, $sitecookiepath);
-	}
+		$fp = fopen( $uri, 'r' );
+		if ( !$fp )
+			return false;
+		$linea = '';
+		while( $remote_read = fread($fp, 4096) )
+			$linea .= $remote_read;
+		return $linea;
+	}	
 }
-endif;
 
-if ( !function_exists('wp_clearcookie') ) :
-function wp_clearcookie() {
-	setcookie('wordpressuser_' . COOKIEHASH, ' ', time() - 31536000, COOKIEPATH);
-	setcookie('wordpresspass_' . COOKIEHASH, ' ', time() - 31536000, COOKIEPATH);
-	setcookie('wordpressuser_' . COOKIEHASH, ' ', time() - 31536000, SITECOOKIEPATH);
-	setcookie('wordpresspass_' . COOKIEHASH, ' ', time() - 31536000, SITECOOKIEPATH);
-}
-endif;
 ?>

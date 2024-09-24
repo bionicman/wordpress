@@ -139,12 +139,13 @@ function wp_update_post($postarr = array()) {
 		WHERE ID = $ID";
 		
 	$result = $wpdb->query($sql);
+	$rows_affected = $wpdb->rows_affected;
 
 	wp_set_post_cats('', $ID, $post_category);
 
 	do_action('edit_post', $ID);
 
-	return $wpdb->rows_affected;
+	return $rows_affected;
 }
 
 function wp_get_post_cats($blogid = '1', $post_ID = 0) {
@@ -350,10 +351,10 @@ function user_can_create_draft($user_id, $blog_id = 1, $category_id = 'None') {
 /* returns true if $user_id can edit $post_id */
 function user_can_edit_post($user_id, $post_id, $blog_id = 1) {
 	$author_data = get_userdata($user_id);
-	$post_data   = get_postdata($post_id);
-	$post_author_data = get_userdata($post_data['Author_ID']);
+	$post = get_post($post_id);
+	$post_author_data = get_userdata($post->post_author);
 
-	if ( ($user_id == $post_author_data->ID)
+	if ( (($user_id == $post_author_data->ID) && !($post->post_status == 'publish' &&  $author_data->user_level < 2))
 	     || ($author_data->user_level > $post_author_data->user_level)
 	     || ($author_data->user_level >= 10) ) {
 		return true;
@@ -479,6 +480,18 @@ function wp_new_comment( $commentdata, $spam = false ) {
 	$now     = current_time('mysql');
 	$now_gmt = current_time('mysql', 1);
 
+	if ( $user_id ) {
+		$userdata = get_userdata($user_id);
+		$post_author = $wpdb->get_var("SELECT post_author FROM $wpdb->posts WHERE ID = '$comment_post_ID' LIMIT 1");
+	}
+
+	// Simple duplicate check
+	$dupe = "SELECT comment_ID FROM $wpdb->comments WHERE comment_post_ID = '$comment_post_ID' AND ( comment_author = '$author' ";
+	if ( $email ) $dupe .= "OR comment_author_email = '$email' ";
+	$dupe .= ") AND comment_content = '$comment' LIMIT 1";
+	if ( $wpdb->get_var($dupe) )
+		die( __('Duplicate comment detected; it looks as though you\'ve already said that!') );
+
 	// Simple flood-protection
 	if ( $lasttime = $wpdb->get_var("SELECT comment_date_gmt FROM $wpdb->comments WHERE comment_author_IP = '$user_ip' OR comment_author_email = '$email' ORDER BY comment_date DESC LIMIT 1") ) {
 		$time_lastcomment = mysql2date('U', $lasttime);
@@ -489,13 +502,17 @@ function wp_new_comment( $commentdata, $spam = false ) {
 		}
 	}
 
-	if ( check_comment($author, $email, $url, $comment, $user_ip, $user_agent, $comment_type) )
+	if ( $userdata && ( $user_id == $post_author || $userdata->user_level >= 9 ) ) {
 		$approved = 1;
-	else
-		$approved = 0;
-	if ( wp_blacklist_check($author, $email, $url, $comment, $user_ip, $user_agent) )
-		$approved = 'spam';
-	
+	} else {
+		if ( check_comment($author, $email, $url, $comment, $user_ip, $user_agent, $comment_type) )
+			$approved = 1;
+		else
+			$approved = 0;
+		if ( wp_blacklist_check($author, $email, $url, $comment, $user_ip, $user_agent) )
+			$approved = 'spam';
+	}
+
 	$approved = apply_filters('pre_comment_approved', $approved);
 
 	$result = $wpdb->query("INSERT INTO $wpdb->comments 
@@ -524,14 +541,17 @@ function do_trackbacks($post_id) {
 	$post = $wpdb->get_row("SELECT * FROM $wpdb->posts WHERE ID = $post_id");
 	$to_ping = get_to_ping($post_id);
 	$pinged  = get_pung($post_id);
-	$content = strip_tags($post->post_content);
-	$excerpt = strip_tags($post->post_excerpt);
-	$post_title = strip_tags($post->post_title);
 
-	if ( $excerpt )
-		$excerpt = substr($excerpt, 0, 252) . '...';
+	if (empty($post->post_excerpt))
+		$excerpt = apply_filters('the_content', $post->post_content);
 	else
-		$excerpt = substr($content, 0, 252) . '...';
+		$excerpt = apply_filters('the_excerpt', $post->post_excerpt);
+	$excerpt = str_replace(']]>', ']]&gt;', $excerpt);
+	$excerpt = strip_tags($excerpt);
+	$excerpt = substr($excerpt, 0, 252) . '...';
+
+	$post_title = apply_filters('the_title', $post->post_title);
+	$post_title = strip_tags($post_title);
 
 	if ($to_ping) : foreach ($to_ping as $tb_ping) :
 		$tb_ping = trim($tb_ping);

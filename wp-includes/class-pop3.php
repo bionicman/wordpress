@@ -13,7 +13,7 @@
     *
     * pop3 class
     *
-    * $Id: class-pop3.php,v 1.2 2005/01/07 01:29:49 saxmatt Exp $
+    * $Id: class-pop3.php 2066 2005-01-07 01:29:49Z saxmatt $
     */
 
 class POP3 {

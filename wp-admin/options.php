@@ -53,8 +53,6 @@ case 'update':
             if ($user_level >= $option->option_admin_level) {
                 $old_val = $option->option_value;
                 $new_val = trim($_POST[$option->option_name]);
-                if ( !$new_val && $old_val != 0 )
-                    $new_val = '';
                 if( in_array($option->option_name, $nonbools) && ( $new_val == '0' || $new_val == '') )
 					$new_val = 'closed';
                 if ($new_val !== $old_val) {
@@ -70,6 +68,8 @@ case 'update':
     if ($any_changed) {
 			// If siteurl or home changed, reset cookies.
 			if ( get_settings('siteurl') != $old_siteurl || get_settings('home') != $old_home ) {
+				// If home changed, write rewrite rules to new location.
+				save_mod_rewrite_rules();
 				// Get currently logged in user and password.
 				get_currentuserinfo();
 				// Clear cookies for old paths.
@@ -84,14 +84,14 @@ case 'update':
 		$referred = remove_query_arg('updated' , $_SERVER['HTTP_REFERER']);
 		$goback = add_query_arg('updated', 'true', $_SERVER['HTTP_REFERER']);
 		$goback = preg_replace('|[^a-z0-9-~+_.?#=&;,/:]|i', '', $goback);
-    header('Location: ' . $goback);
+		wp_redirect($goback);
     break;
 
 default:
 	include('admin-header.php'); ?>
 
 <div class="wrap">
-  <h2>All options</h2>
+  <h2><?php _e('All options'); ?></h2>
   <form name="form" action="options.php" method="post">
   <input type="hidden" name="action" value="update" />
   <table width="98%">
@@ -103,7 +103,7 @@ foreach ($options as $option) :
 	echo "
 <tr>
 	<th scope='row'><label for='$option->option_name'>$option->option_name</label></th>
-	<td><input type='text' name='$option->option_name' id='$option->option_name' size='30' value='" . htmlspecialchars($value, ENT_QUOTES) . "' /></td>
+	<td><input type='text' name='$option->option_name' id='$option->option_name' size='30' value='" . $value . "' /></td>
 	<td>$option->option_description</td>
 </tr>";
 endforeach;

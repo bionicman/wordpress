@@ -217,7 +217,7 @@ class WP_Query {
 		$this->query_vars[$query_var] = $value;
 	}
 
-	function get_posts() {
+	function &get_posts() {
 		global $wpdb, $pagenow, $request, $user_ID;
 
 		// Shorthand.
@@ -249,8 +249,15 @@ class WP_Query {
 				$q['nopaging'] = false;
 			}
 		}
-		if ( $this->is_feed )
+		if ( $this->is_feed ) {
 			$q['posts_per_page'] = get_settings('posts_per_rss');
+			$q['what_to_show'] = 'posts';
+		}
+
+		if (isset($q['page'])) {
+			$q['page'] = trim($q['page'], '/');
+			$q['page'] = (int) $q['page'];
+		}
 	
 		$add_hours = intval(get_settings('gmt_offset'));
 		$add_minutes = intval(60 * (get_settings('gmt_offset') - $add_hours));
@@ -491,16 +498,17 @@ class WP_Query {
 		}
 
 		if ($this->is_page) {
-			$where .= ' AND (post_status = "static"';
+			$where .= ' AND (post_status = "static")';
+		} elseif ($this->is_single) {
+			$where .= ' AND (post_status != "static")';
 		} else {
 			$where .= ' AND (post_status = "publish"';
-		}
 
-		// Get private posts
-		if (isset($user_ID) && ('' != intval($user_ID)))
-			$where .= " OR post_author = $user_ID AND post_status != 'draft' AND post_status != 'static')";
-		else
-			$where .= ')';
+			if (isset($user_ID) && ('' != intval($user_ID)))
+				$where .= " OR post_author = $user_ID AND post_status != 'draft' AND post_status != 'static')";
+			else
+				$where .= ')';				
+		}
 
 		// Apply filters on where and join prior to paging so that any
 		// manipulations to them are reflected in the paging by day queries.
@@ -537,18 +545,31 @@ class WP_Query {
 		$where = apply_filters('posts_where_paged', $where);
 		$where .= " GROUP BY $wpdb->posts.ID";
 		$join = apply_filters('posts_join_paged', $join);
-		$request = " SELECT $distinct * FROM $wpdb->posts $join WHERE 1=1".$where." ORDER BY post_" . $q['orderby'] . " $limits";
+		$orderby = "post_" . $q['orderby'];
+		$orderby = apply_filters('posts_orderby', $orderby); 
+		$request = " SELECT $distinct * FROM $wpdb->posts $join WHERE 1=1".$where." ORDER BY " . $orderby . " $limits";
 
-		if ($q['preview']) {
-			$request = 'SELECT 1-1'; // dummy mysql query for the preview
-			// little funky fix for IEwin, rawk on that code
-			$is_winIE = ((preg_match('/MSIE/',$HTTP_USER_AGENT)) && (preg_match('/Win/',$HTTP_USER_AGENT)));
-			if (($is_winIE) && (!isset($IEWin_bookmarklet_fix))) {
-				$preview_content =  preg_replace('/\%u([0-9A-F]{4,4})/e',  "'&#'.base_convert('\\1',16,10).';'", $preview_content);
+		$this->posts = $wpdb->get_results($request);
+
+		// Check post status to determine if post should be displayed.
+		if ($this->is_single) {
+			if ('publish' != $this->posts[0]->post_status) {
+				if ( ! (isset($user_ID) && ('' != intval($user_ID))) ) {
+					// User must be logged in to view unpublished posts.
+					$this->posts = array();
+				} else {
+					if ('draft' == $this->posts[0]->post_status) {
+						// User must have edit permissions on the draft to preview.
+						if (! user_can_edit_post($user_ID, $this->posts[0]->ID))
+							$this->posts = array();
+					} elseif ('private' == $this->posts[0]->post_status) {
+						if ($this->posts[0]->post_author != $user_ID)
+							$this->posts = array();
+					}
+				}
 			}
 		}
 
-		$this->posts = $wpdb->get_results($request);
 		$this->posts = apply_filters('the_posts', $this->posts);
 		$this->post_count = count($this->posts);
 		if ($this->post_count > 0) {
@@ -591,7 +612,7 @@ class WP_Query {
 		}
 	}
     
-	function query($query) {
+	function &query($query) {
 		$this->parse_query($query);
 		return $this->get_posts();
 	}
@@ -605,11 +626,9 @@ class WP_Query {
 		$this->queried_object_id = 0;
 
 		if ($this->is_category) {
-			global $cache_categories;
-			if (isset($cache_categories[$this->get('cat')])) {
-				$this->queried_object = $cache_categories[$this->get('cat')];
-				$this->queried_object_id = $this->get('cat');
-			}
+			$category = &get_category($this->get('cat'));
+			$this->queried_object = &$category;
+			$this->queried_object_id = $this->get('cat');
 		} else if ($this->is_single) {
 			$this->queried_object = $this->post;
 			$this->queried_object_id = $this->post->ID;
@@ -858,23 +877,31 @@ class WP_Rewrite {
 		$endians = array('%year%/%monthnum%/%day%', '%day%/%monthnum%/%year%', '%monthnum%/%day%/%year%');
 
 		$this->date_structure = '';
+		$date_endian = '';
 
 		foreach ($endians as $endian) {
 			if (false !== strpos($this->permalink_structure, $endian)) {
-				$this->date_structure = $this->front . $endian;
+				$date_endian= $endian;
 				break;
 			}
 		} 
 
+		if ( empty($date_endian) )
+			$date_endian = '%year%/%monthnum%/%day%';
+
 		// Do not allow the date tags and %post_id% to overlap in the permalink
 		// structure. If they do, move the date tags to $front/date/.  
 		$front = $this->front;
-		if ( false !== strpos($this->permalink_structure, $this->front . '%post_id%') )
-			$front = $front . 'date/';
-			 
-		if (empty($this->date_structure)) {
-			$this->date_structure = $front . '%year%/%monthnum%/%day%';
+		preg_match_all('/%.+?%/', $this->permalink_structure, $tokens);
+		$tok_index = 1;
+		foreach ($tokens[0] as $token) {
+			if ( ($token == '%post_id%') && ($tok_index <= 3) ) {
+				$front = $front . 'date/';
+				break;
+			}
 		}
+
+		$this->date_structure = $front . $date_endian;
 
 		return $this->date_structure;
 	}
@@ -1024,8 +1051,8 @@ class WP_Rewrite {
 
 	function generate_rewrite_rules($permalink_structure, $page = true, $feed = true, $forcomments = false, $walk_dirs = true) {
 		$feedregex2 = '';
-		foreach ($this->feeds as $feed) {
-			$feedregex2 .= $feed . '|';
+		foreach ($this->feeds as $feed_name) {
+			$feedregex2 .= $feed_name . '|';
 		}
 		$feedregex2 = '(' . trim($feedregex2, '|') .  ')/?$';
 		$feedregex = $this->feed_base  . '/' . $feedregex2;
@@ -1101,7 +1128,8 @@ class WP_Rewrite {
 					$post = 1;
 					$trackbackmatch = $match . $trackbackregex;
 					$trackbackquery = $trackbackindex . '?' . $query . '&tb=1';
-					$match = $match . '?([0-9]+)?/?$';
+					$match = rtrim($match, '/');
+					$match = $match . '(/[0-9]+)?/?$';
 					$query = $index . '?' . $query . '&page=' . $this->preg_index($num_toks + 1);
 				} else {
 					$match .= '?$';

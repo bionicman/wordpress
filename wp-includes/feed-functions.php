@@ -1,8 +1,12 @@
 <?php
 
-function bloginfo_rss($show='') {
-    $info = strip_tags(get_bloginfo($show));
-    echo convert_chars($info);
+function get_bloginfo_rss($show = '') {
+	$info = strip_tags(get_bloginfo($show));
+	return convert_chars($info);
+}
+
+function bloginfo_rss($show = '') {
+	echo get_bloginfo_rss($show);
 }
 
 function the_title_rss() {
@@ -69,20 +73,20 @@ function comment_text_rss() {
 	echo $comment_text;
 }
 
-function comments_rss_link($link_text = 'Comments RSS', $commentsrssfilename = 'wp-commentsrss2.php') {
+function comments_rss_link($link_text = 'Comments RSS', $commentsrssfilename = '') {
 	$url = comments_rss($commentsrssfilename);
 	echo "<a href='$url'>$link_text</a>";
 }
 
-function comments_rss($commentsrssfilename = 'wp-commentsrss2.php') {
+function comments_rss($commentsrssfilename = '') {
 	global $id;
 
 	if ('' != get_settings('permalink_structure'))
 		$url = trailingslashit( get_permalink() ) . 'feed/';
 	else
-		$url = get_settings('siteurl') . "/$commentsrssfilename?p=$id";
+		$url = get_settings('home') . "/$commentsrssfilename?feed=rss2&amp;p=$id";
 
-	return $url;
+	return apply_filters('post_comments_feed_link', $url);
 }
 
 function get_author_rss_link($echo = false, $author_id, $author_nicename) {
@@ -90,28 +94,29 @@ function get_author_rss_link($echo = false, $author_id, $author_nicename) {
        $permalink_structure = get_settings('permalink_structure');
 
        if ('' == $permalink_structure) {
-           $file = get_settings('siteurl') . '/wp-rss2.php';
-           $link = $file . '?author=' . $author_id;
+				 $link = get_settings('home') . '?feed=rss2&amp;author=' . $author_id;
        } else {
-           $link = get_author_link(0, $author_id, $author_nicename);
-           $link = $link . "feed/";
+				 $link = get_author_link(0, $author_id, $author_nicename);
+				 $link = $link . "feed/";
        }
+			 
+			 $link = apply_filters('author_feed_link', $link);
 
        if ($echo) echo $link;
        return $link;
 }
 
-function get_category_rss_link($echo = false, $category_id, $category_nicename) {
-       $cat_ID = $category_id;
+function get_category_rss_link($echo = false, $cat_ID, $category_nicename) {
        $permalink_structure = get_settings('permalink_structure');
 
        if ('' == $permalink_structure) {
-               $file = get_settings('siteurl') . '/wp-rss2.php';
-        $link = $file . '?cat=' . $category_id;
+				 $link = get_settings('home') . '?feed=rss2&amp;cat=' . $cat_ID;
        } else {
-        $link = get_category_link($category_id);
-               $link = $link . "feed/";
+				 $link = get_category_link($cat_ID);
+				 $link = $link . "feed/";
        }
+
+			 $link = apply_filters('category_feed_link', $link);
 
        if ($echo) echo $link;
        return $link;
@@ -132,7 +137,9 @@ function the_category_rss($type = 'rss') {
 }
 
 function rss_enclosure() {
-	global $id;
+	global $id, $post;
+	if (!empty($post->post_password) && ($_COOKIE['wp-postpass_'.COOKIEHASH] != $post->post_password)) return;
+
 	$custom_fields = get_post_custom();
 	if( is_array( $custom_fields ) ) {
 		while( list( $key, $val ) = each( $custom_fields ) ) { 
@@ -140,7 +147,7 @@ function rss_enclosure() {
 				if (is_array($val)) {
 					foreach($val as $enc) {
 						$enclosure = split( "\n", $enc );
-						print "<enclosure url='".trim( $enclosure[ 0 ] )."' length='".trim( $enclosure[ 1 ] )."' type='".trim( $enclosure[ 2 ] )."'/>\n";
+						print "<enclosure url='".trim( htmlspecialchars($enclosure[ 0 ]) )."' length='".trim( $enclosure[ 1 ] )."' type='".trim( $enclosure[ 2 ] )."'/>\n";
 					}
 				}
 			}

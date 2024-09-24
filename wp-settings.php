@@ -69,12 +69,12 @@ require (ABSPATH . WPINC . '/default-filters.php');
 require_once (ABSPATH . WPINC . '/wp-l10n.php');
 
 $wpdb->hide_errors();
-if ( !update_user_cache() && !strstr($_SERVER['PHP_SELF'], 'install.php') ) {
+if ( !update_user_cache() && (!strstr($_SERVER['PHP_SELF'], 'install.php') && !defined('WP_INSTALLING')) ) {
 	if ( strstr($_SERVER['PHP_SELF'], 'wp-admin') )
 		$link = 'install.php';
 	else
 		$link = 'wp-admin/install.php';
-	die("It doesn't look like you've installed WP yet. Try running <a href='$link'>install.php</a>.");
+	die(sprintf(__("It doesn't look like you've installed WP yet. Try running <a href='%s'>install.php</a>."), $link));
 }
 $wpdb->show_errors();
 
@@ -110,11 +110,15 @@ if (get_settings('hack_file')) {
 
 if ( get_settings('active_plugins') ) {
 	$current_plugins = get_settings('active_plugins');
-	foreach ($current_plugins as $plugin) {
-		if ('' != $plugin && file_exists(ABSPATH . 'wp-content/plugins/' . $plugin))
-			include_once(ABSPATH . 'wp-content/plugins/' . $plugin);
+	if ( is_array($current_plugins) ) {
+		foreach ($current_plugins as $plugin) {
+			if ('' != $plugin && file_exists(ABSPATH . 'wp-content/plugins/' . $plugin))
+				include_once(ABSPATH . 'wp-content/plugins/' . $plugin);
+		}
 	}
 }
+
+require (ABSPATH . WPINC . '/pluggable-functions.php');
 
 if ( defined('WP_CACHE') && function_exists('wp_cache_postload') )
 	wp_cache_postload();

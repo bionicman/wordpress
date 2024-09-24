@@ -22,11 +22,16 @@ if (isset($_POST['deletepost'])) {
 $action = "delete";
 }
 
+	// Fix submenu highlighting for pages.
+if (false !== strpos($_SERVER['HTTP_REFERER'], 'edit-pages.php')) $submenu_file = 'page-new.php';
+
+$editing = true;
+
 switch($action) {
 case 'post':
 
 	if ( !user_can_create_draft($user_ID) )
-		die('You are not allowed to create posts or drafts on this blog.');
+		die( __('You are not allowed to create posts or drafts on this blog.') );
 
 	$post_pingback = (int) $_POST['post_pingback'];
 	$content         = apply_filters('content_save_pre',  $_POST['content']);
@@ -58,14 +63,25 @@ case 'post':
 	if ( empty($post_status) )
 		$post_status = 'draft';
 	// Double-check
-	if ( 'publish' == $post_status && (!user_can_create_post($user_ID)) && 2 != get_option('new_users_can_blog') )
+	if ( 'publish' == $post_status && (!user_can_create_post($user_ID)) )
 		$post_status = 'draft';
+		
 	$comment_status = $_POST['comment_status'];
-	if ( empty($comment_status) && !isset($_POST['advanced_view']) )
-		$comment_status = get_option('default_comment_status');
+	if ( empty($comment_status) ) {
+		if ( !isset($_POST['advanced_view']) )
+			$comment_status = get_option('default_comment_status');
+		else
+			$comment_status = 'closed';
+		}
+
 	$ping_status = $_POST['ping_status'];
-	if ( empty($ping_status) && !isset($_POST['advanced_view']) )
-		$ping_status = get_option('default_ping_status');
+	if ( empty($ping_status) ) {
+		if ( !isset($_POST['advanced_view']) )
+			$ping_status = get_option('default_ping_status');			
+		else
+			$ping_status = 'closed';
+		}
+
 	$post_password = $_POST['post_password'];
 	
 	$trackback = $_POST['trackback_url'];
@@ -102,7 +118,8 @@ case 'post':
 	$post_ID = $id_result->Auto_increment;
 
 	if ( empty($post_name) ) {
-		$post_name = sanitize_title($post_title, $post_ID);
+		if ( 'draft' != $post_status )
+			$post_name = sanitize_title($post_title, $post_ID);
 	} else {
 		$post_name = sanitize_title($post_name, $post_ID);
 	}
@@ -201,9 +218,9 @@ case 'edit':
 	$post = $post_ID = $p = (int) $_GET['post'];
 
 	if ( !user_can_edit_post($user_ID, $post_ID) )
-		die ('You are not allowed to edit this post.');
+		die ( __('You are not allowed to edit this post.') );
 		
-	$postdata = $wpdb->get_row("SELECT * FROM $wpdb->posts WHERE ID = '$post_ID'");
+	$postdata = &get_post($post_ID);
 	$content = $postdata->post_content;
 	$content = format_to_edit($content);
 	$content = apply_filters('content_edit_pre', $content);
@@ -224,7 +241,7 @@ case 'edit':
 	$menu_order = $postdata->menu_order;
 
 	if( 'private' == $postdata->post_status && $postdata->post_author != $user_ID )
-		die ('You are not allowed to view other users\' private posts.');
+		die ( __('You are not allowed to view other users\' private posts.') );
 
 	if ($post_status == 'static') {
 		$page_template = get_post_meta($post_ID, '_wp_page_template', true);
@@ -233,11 +250,11 @@ case 'edit':
 		include('edit-form-advanced.php');
 	}
 
-	$post = $wpdb->get_row("SELECT * FROM $wpdb->posts WHERE ID = '$post_ID'");
+	$post = &$postdata;
 	?>
 	<div id='preview' class='wrap'>
 	<h2><?php _e('Post Preview (updated when post is saved)'); ?></h2>
-	<h3 class="storytitle" id="post-<?php the_ID(); ?>"><a href="<?php the_permalink() ?>" rel="bookmark" title="<?php printf(__("Permanent Link: %s"), the_title()); ?>"><?php the_title(); ?></a></h3>
+	<h3 class="storytitle" id="post-<?php the_ID(); ?>"><a href="<?php the_permalink() ?>" rel="bookmark" title="<?php printf(__("Permanent Link: %s"), get_the_title()); ?>"><?php the_title(); ?></a></h3>
 	<div class="meta"><?php _e("Filed under:"); ?> <?php the_category(','); ?> &#8212; <?php the_author() ?> @ <?php the_time() ?></div>
 
 	<div class="storycontent">
@@ -258,7 +275,7 @@ case 'editpost':
 	$post_ID = $_POST['post_ID'];
 
 	if (!user_can_edit_post($user_ID, $post_ID, $blog_ID))
-		die('You are not allowed to edit this post.');
+		die( __('You are not allowed to edit this post.') );
 
 	$post_categories = $_POST['post_category'];
 	if (!$post_categories) $post_categories[] = 1;
@@ -287,9 +304,6 @@ case 'editpost':
 	//if (!$_POST['ping_status']) $ping_status = get_settings('default_ping_status');
 	$post_password = $_POST['post_password'];
 	$post_name = $_POST['post_name'];
-	if (empty($post_name)) {
-		$post_name = $post_title;
-	}
 
 	$post_parent = 0;
 	if (isset($_POST['parent_id'])) {
@@ -302,11 +316,12 @@ case 'editpost':
 	
 	if (isset($_POST['publish'])) $post_status = 'publish';
 	// Double-check
-	if ( 'publish' == $post_status && (!user_can_create_post($user_ID)) && 2 != get_option('new_users_can_blog') )
+	if ( 'publish' == $post_status && (!user_can_create_post($user_ID)) )
 		$post_status = 'draft';
 
-	if (empty($post_name)) {
-		$post_name = sanitize_title($post_title, $post_ID);
+	if ( empty($post_name) ) {
+		if ( 'draft' != $post_status )
+			$post_name = sanitize_title($post_title, $post_ID);
 	} else {
 		$post_name = sanitize_title($post_name, $post_ID);
 	}
@@ -440,11 +455,11 @@ case 'delete':
 	$post_id = (isset($_GET['post']))  ? intval($_GET['post']) : intval($_POST['post_ID']);
 	
 	if (!user_can_delete_post($user_ID, $post_id)) {
-		die('You are not allowed to delete this post.');
+		die( __('You are not allowed to delete this post.') );
 	}
 
 	if (! wp_delete_post($post_id))
-		die(__('Error in deleting...'));
+		die( __('Error in deleting...') );
 
 	$sendback = $_SERVER['HTTP_REFERER'];
 	if (strstr($sendback, 'post.php')) $sendback = get_settings('siteurl') .'/wp-admin/post.php';
@@ -465,7 +480,7 @@ case 'editcomment':
 	$commentdata = get_commentdata($comment, 1, true) or die(sprintf(__('Oops, no comment with this ID. <a href="%s">Go back</a>!'), 'javascript:history.go(-1)'));
 
 	if (!user_can_edit_post_comments($user_ID, $commentdata['comment_post_ID'])) {
-		die('You are not allowed to edit comments on this post.');
+		die( __('You are not allowed to edit comments on this post.') );
 	}
 
 	$content = $commentdata['comment_content'];
@@ -483,11 +498,11 @@ case 'confirmdeletecomment':
 	require_once('./admin-header.php');
 
 	$comment = $_GET['comment'];
-	$p = $_GET['p'];
+	$p = (int) $_GET['p'];
 	$commentdata = get_commentdata($comment, 1, true) or die(sprintf(__('Oops, no comment with this ID. <a href="%s">Go back</a>!'), 'edit.php'));
 
 	if (!user_can_delete_post_comments($user_ID, $commentdata['comment_post_ID'])) {
-		die('You are not allowed to delete comments on this post.');
+		die( __('You are not allowed to delete comments on this post.') );
 	}
 
 	echo "<div class=\"wrap\">\n";
@@ -525,11 +540,11 @@ case 'deletecomment':
 		$noredir = false;
 	}
 
-	$postdata = get_postdata($p) or die(sprintf(__('Oops, no post with this ID. <a href="%s">Go back</a>!'), 'edit.php'));
+	$postdata = get_post($p) or die(sprintf(__('Oops, no post with this ID. <a href="%s">Go back</a>!'), 'edit.php'));
 	$commentdata = get_commentdata($comment, 1, true) or die(sprintf(__('Oops, no comment with this ID. <a href="%s">Go back</a>!'), 'post.php'));
 
 	if (!user_can_delete_post_comments($user_ID, $commentdata['comment_post_ID'])) {
-		die('You are not allowed to edit comments on this post.');
+		die( __('You are not allowed to edit comments on this post.') );
 	}
 
 	wp_set_comment_status($comment, "delete");
@@ -560,7 +575,7 @@ case 'unapprovecomment':
 	$commentdata = get_commentdata($comment) or die(sprintf(__('Oops, no comment with this ID. <a href="%s">Go back</a>!'), 'edit.php'));
 
 	if (!user_can_edit_post_comments($user_ID, $commentdata['comment_post_ID'])) {
-		die('You are not allowed to edit comments on this post, so you cannot disapprove this comment.');
+		die( __('You are not allowed to edit comments on this post, so you cannot disapprove this comment.') );
 	}
 
 	wp_set_comment_status($comment, "hold");
@@ -580,7 +595,7 @@ case 'mailapprovecomment':
 	$commentdata = get_commentdata($comment, 1, true) or die(sprintf(__('Oops, no comment with this ID. <a href="%s">Go back</a>!'), 'edit.php'));
 
 	if (!user_can_edit_post_comments($user_ID, $commentdata['comment_post_ID'])) {
-		die('You are not allowed to edit comments on this post, so you cannot approve this comment.');
+		die( __('You are not allowed to edit comments on this post, so you cannot approve this comment.') );
 	}
 
 	if ('1' != $commentdata['comment_approved']) {
@@ -605,7 +620,7 @@ case 'approvecomment':
 	$commentdata = get_commentdata($comment) or die(sprintf(__('Oops, no comment with this ID. <a href="%s">Go back</a>!'), 'edit.php'));
 
 	if (!user_can_edit_post_comments($user_ID, $commentdata['comment_post_ID'])) {
-		die('You are not allowed to edit comments on this post, so you cannot approve this comment.');
+		die( __('You are not allowed to edit comments on this post, so you cannot approve this comment.') );
 	}
 
 	wp_set_comment_status($comment, "approve");
@@ -632,7 +647,7 @@ case 'editedcomment':
 	$comment_status = $_POST['comment_status'];
 
 	if (!user_can_edit_post_comments($user_ID, $comment_post_ID)) {
-		die('You are not allowed to edit comments on this post, so you cannot edit this comment.');
+		die( __('You are not allowed to edit comments on this post, so you cannot edit this comment.') );
 	}
 
 	if (user_can_edit_post_date($user_ID, $post_ID) && (!empty($_POST['edit_date']))) {
@@ -676,7 +691,7 @@ default:
 	require_once ('./admin-header.php');
 ?>
 <?php if ( isset($_GET['posted']) ) : ?>
-<div class="updated"><p>Post saved. <a href="<?php bloginfo('home'); ?>">View site &raquo;</a></p></div>
+<div class="updated"><p><?php printf(__('Post saved. <a href="%s">View site &raquo;</a>'), get_bloginfo('home')); ?></p></div>
 <?php endif; ?>
 <?php
 	if (user_can_create_draft($user_ID)) {

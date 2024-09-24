@@ -141,6 +141,14 @@ textarea, input, select {
 	padding: 3px;
 }
 
+.alignleft {
+	float: left
+}
+
+.alignright {
+	float: right;
+}
+
 .alternate {
 	background: #eee;
 }
@@ -171,6 +179,13 @@ textarea, input, select {
 
 .hidden {
 	display: none;
+}
+
+.navigation {
+	display: block;
+	text-align: center;
+	margin-top: 10px;
+	margin-bottom: 30px;
 }
 
 .post-categories {
@@ -281,13 +296,13 @@ textarea, input, select {
 #adminmenu2 {
 	background: #a3a3a3;
 	border-bottom: none;
-	height: 21px;
 	margin: 0;
-	padding: 0 2em;
+	padding: 3px 2em 0;
 }
 
 #adminmenu2 .current {
 	background: #f2f2f2;
+	border-top: 1px solid #9a9a9a;
 	border-right: 2px solid #4f4f4f;
 	color: #000;
 }
@@ -296,7 +311,7 @@ textarea, input, select {
 	border: none;
 	color: #fff;
 	font-size: 12px;
-	padding: 3px 5px 4px;
+	padding: .3em .4em .33em;
 }
 
 #adminmenu2 a:hover {
@@ -541,3 +556,11 @@ textarea, input, select {
 	margin: 0 0 .3em .6em;
 	padding: 0 0 0 .6em;
 }
+
+
+/* emeyer additions */
+
+.active td {background: #BEB;}
+.active .name {background: #9C9;}
+.alternate.active td {background: #ADA;}
+.alternate.active .name {background: #8B8;}

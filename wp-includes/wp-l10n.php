@@ -1,8 +1,8 @@
 <?php
 
 if ( defined('WPLANG') && '' != constant('WPLANG') ) {
-	require_once(ABSPATH . 'wp-includes/streams.php');
-	require_once(ABSPATH . 'wp-includes/gettext.php');
+	include_once(ABSPATH . 'wp-includes/streams.php');
+	include_once(ABSPATH . 'wp-includes/gettext.php');
 }
 
 function get_locale() {
@@ -54,7 +54,10 @@ function __ngettext($single, $plural, $number, $domain = 'default') {
 	if (isset($l10n[$domain])) {
 		return $l10n[$domain]->ngettext($single, $plural, $number);
 	} else {
-		return $text;
+		if ($number != 1)
+			return $plural;
+		else
+			return $single;
 	}
 }
 
@@ -66,7 +69,7 @@ function load_textdomain($domain, $mofile) {
 	}
 
 	if ( is_readable($mofile)) {
-    $input = new FileReader($mofile);
+    $input = new CachedFileReader($mofile);
 	}	else {
 		return;
 	}

@@ -1,4 +1,5 @@
 <?php
+if (!file_exists('../wp-config.php')) die("There doesn't seem to be a wp-config.php file. You must install WordPress before you import any entries.");
 
 require_once('../wp-config.php');
 require('upgrade-functions.php');
@@ -19,56 +20,69 @@ for ($i=0; $i<count($wpvarstoreset); $i += 1) {
 	}
 }
 
+header( 'Content-Type: text/html; charset=utf-8' );
+?>
 
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<title>WordPress &rsaquo; Import from GreyMatter</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+<style media="screen" type="text/css">
+	body {
+		font-family: Georgia, "Times New Roman", Times, serif;
+		margin-left: 20%;
+		margin-right: 20%;
+	}
+	#logo {
+		margin: 0;
+		padding: 0;
+		background-image: url(http://wordpress.org/images/logo.png);
+		background-repeat: no-repeat;
+		height: 60px;
+		border-bottom: 4px solid #333;
+	}
+	#logo a {
+		display: block;
+		text-decoration: none;
+		text-indent: -100em;
+		height: 60px;
+	}
+	p {
+		line-height: 140%;
+	}
+	#authors li 	{
+		padding:3px;
+		border: 1px solid #ccc;
+		width: 40%;
+		margin-bottom:2px;
+	}
+	</style>
+</head><body> 
+<h1 id="logo"><a href="http://wordpress.org">WordPress</a></h1> 
+
+<?php
 switch ($action) {
 
 case "step1":
 
-	function gm2autobr($string) { // transforms GM's |*| into b2's <br />\n
+	function gm2autobr($string) { // transforms GM's |*| into wp's <br />\n
 		$string = str_replace("|*|","<br />\n",$string);
 		return($string);
 	}
 
-	if (!chdir($archivespath))
+	if (!@chdir($archivespath))
 		die("Wrong path, $archivespath\ndoesn't exist\non the server");
 
-	if (!chdir($gmpath))
+	if (!@chdir($gmpath))
 		die("Wrong path, $gmpath\ndoesn't exist\non the server");
 ?>
-<html>
-<head>
-<title>GM 2 b2 - converting...</title>
-<link rel="stylesheet" href="wp-admin/b2.css" type="text/css">
-<style type="text/css">
-<!--
-<?php
-if (!preg_match("/Nav/",$HTTP_USER_AGENT)) {
-?>
-textarea,input,select {
-	background-color: #f0f0f0;
-	border-width: 1px;
-	border-color: #cccccc;
-	border-style: solid;
-	padding: 2px;
-	margin: 1px;
-}
-<?php
-}
-?>
--->
-</style>
-</head>
-<body style="margin: 20px;">
-<p><font face="times new roman" style="font-size: 39px;">gm 2 <img src="../wp-images/wpminilogo.png" width="50" height="50" border="0" alt="WP" align="top" /></font></p>
+
 <p>The importer is running...</p>
 <ul>
 <li>importing users... <ul><?php
 
 	chdir($gmpath);
 	$userbase = file("gm-authors.cgi");
-
-	$connexion = mysql_connect($server,$loginsql,$passsql) or die ("Oops, MySQL connection error ! Couldn't connect to $server with the username $loginsql");  
-	$bdd = mysql_select_db(DB_NAME,$connexion) or die ("Oops, can't find any database named DB_NAME here !"); 
 
 	foreach($userbase as $user) {
 		$userdata=explode("|", $user);
@@ -93,8 +107,8 @@ textarea,input,select {
 			continue;
 		}
 
-		$query = "INSERT INTO $wpdb->users (user_login,user_pass,user_nickname,user_email,user_url,user_ip,user_domain,user_browser,dateYMDhour,user_level,user_idmode) VALUES ('$user_login','$pass1','$user_nickname','$user_email','$user_url','$user_ip','$user_domain','$user_browser','$user_joindate','1','nickname')";
-		$result = mysql_query($query);
+		$query = "INSERT INTO $wpdb->users (user_login,user_pass,user_nickname,user_email,user_url,user_ip,user_domain,user_browser,user_registered,user_level,user_idmode) VALUES ('$user_login','$pass1','$user_nickname','$user_email','$user_url','$user_ip','$user_domain','$user_browser','$user_joindate','1','nickname')";
+		$result = $wpdb->query($query);
 		if ($result==false) {
 			die ("<strong>ERROR</strong>: couldn't register an user!");
 		}
@@ -140,8 +154,8 @@ textarea,input,select {
 			$post_author=trim(addslashes($postinfo[1]));
 			// we'll check the author is registered, or if it's a deleted author
 			$sql = "SELECT * FROM $wpdb->users WHERE user_login = '$post_author'";
-			$result = mysql_query($sql);
-			if (!mysql_num_rows($result)) { // if deleted from GM, we register the author as a level 0 user in b2
+			$result = $wpdb->query($sql);
+			if (! $result) { // if deleted from GM, we register the author as a level 0 user in wp
 				$user_ip="127.0.0.1";
 				$user_domain="localhost";
 				$user_browser="server";
@@ -152,18 +166,16 @@ textarea,input,select {
 				$user_email=addslashes("user@deleted.com");
 				$user_url=addslashes("");
 				$user_joindate=addslashes($user_joindate);
-				$query = "INSERT INTO $wpdb->users (user_login,user_pass,user_nickname,user_email,user_url,user_ip,user_domain,user_browser,dateYMDhour,user_level,user_idmode) VALUES ('$user_login','$pass1','$user_nickname','$user_email','$user_url','$user_ip','$user_domain','$user_browser','$user_joindate','0','nickname')";
-				$result = mysql_query($query);
+				$query = "INSERT INTO $wpdb->users (user_login,user_pass,user_nickname,user_email,user_url,user_ip,user_domain,user_browser,user_registered,user_level,user_idmode) VALUES ('$user_login','$pass1','$user_nickname','$user_email','$user_url','$user_ip','$user_domain','$user_browser','$user_joindate','0','nickname')";
+				$result = $wpdb->query($query);
 				if ($result==false) {
 					die ("<strong>ERROR</strong>: couldn't register an user!");
 				}
 				echo ": registered deleted user <i>$user_login</i> at level 0 ";
 			}
 
-			$sql = "SELECT * FROM $wpdb->users WHERE user_login = '$post_author'";
-			$result = mysql_query($sql);
-			$myrow = mysql_fetch_array($result);
-			$post_author_ID=$myrow[0];
+			$sql = "SELECT ID FROM $wpdb->users WHERE user_login = '$post_author'";
+			$post_author_ID = $wpdb->get_var($sql);
 
 			$post_title=gm2autobr($postinfo[2]);
 			$post_title=addslashes($post_title);
@@ -188,15 +200,13 @@ textarea,input,select {
 			$post_karma=$postinfo[12];
 
 			$query = "INSERT INTO $wpdb->posts (post_author,post_date,post_content,post_title) VALUES ('$post_author_ID','$post_date','$post_content','$post_title')";
-			$result = mysql_query($query) or die(mysql_error());
+			$result = $wpdb->query($query);
 
 			if (!$result)
 				die ("Error in posting...");
 			
-			$sql2 = "SELECT * FROM $wpdb->posts ORDER BY ID DESC LIMIT 1";
-			$result2 = mysql_query($sql2);
-			$myrow2 = mysql_fetch_array($result2);
-			$post_ID=$myrow2[0];
+			$query = "SELECT ID FROM $wpdb->posts ORDER BY ID DESC LIMIT 1";
+			$post_ID = $wpdb->get_var($query);
 
 			// Grab a default category.
 			$post_category = $wpdb->get_var("SELECT cat_ID FROM $wpdb->categories LIMIT 1");
@@ -237,7 +247,7 @@ textarea,input,select {
 					$comment_content=addslashes($commentinfo[12]);
 
 					$sql3 = "INSERT INTO $wpdb->comments (comment_post_ID,comment_author,comment_author_email,comment_author_url,comment_author_IP,comment_date,comment_content) VALUES ('$comment_post_ID','$comment_author','$comment_author_email','$comment_author_url','$comment_author_IP','$comment_date','$comment_content')";
-					$result3 = mysql_query($sql3);
+					$result3 = $wpdb->query($sql3);
 					if (!$result3)
 						die ("There is an error with the database, it can't store your comment..");
 				}
@@ -253,48 +263,19 @@ textarea,input,select {
 	?>
 </ul><b>Done</b></li></ul>
 <p>&nbsp;</p>
-<p>Completed GM 2 b2 import !</p>
+<p>Completed GM 2 WordPress import !</p>
 <p>Now you can go and <a href="wp-login.php">log in</a>, have fun !</p>
 	<?php
 	break;
 
-
-
-
-
-
 default:
+?>
 
-	?><html>
-<head>
-<title>GM 2 b2 importer utility</title>
-<link rel="stylesheet" href="wp-admin/b2.css" type="text/css">
-<style type="text/css">
-<!--
-<?php
-if (!preg_match("/Nav/",$HTTP_USER_AGENT)) {
-?>
-textarea,input,select {
-	background-color: #f0f0f0;
-	border-width: 1px;
-	border-color: #cccccc;
-	border-style: solid;
-	padding: 2px;
-	margin: 1px;
-}
-<?php
-}
-?>
--->
-</style>
-</head>
-<body style="margin: 20px;">
-<p><font face="times new roman" style="font-size: 39px;">gm 2 <img src="../wp-images/wpminilogo.png" width="50" height="50" border="0" alt="WP" align="top" /></font></p>
 <p>This is a basic GreyMatter to WordPress import script.</p>
 <p>What it does:</p>
 <ul>
 <li>parses gm-authors.cgi to import authors: everyone is imported at level 1</li>
-<li>parses the entries cgi files to import posts, comments, and karma on posts (although karma is not used on WordPress yet)<br />if authors are found not to be in gm-authors.cgi, imports them at level 0</li>
+<li>parses the entries cgi files to import posts, comments, and karma on posts (although karma is not used on WordPress); if authors are found not to be in gm-authors.cgi, imports them at level 0</li>
 </ul>
 <p>What it does not:</p>
 <ul>
@@ -302,15 +283,14 @@ textarea,input,select {
 <li>import gm-templates. you'll start with the basic template wp.php</li>
 <li>doesn't keep entries on top</li>
 </ul>
-<p>&nbsp;</p>
 
-<h3>First step: install WordPress</h3>
+<h3>First step: Install WordPress</h3>
 <p>Install the WordPress blog as explained in the <a href="../readme.html" target="_blank">ReadMe</a>, then immediately come back here.</p>
 
 <form name="stepOne" method="get">
 <input type="hidden" name="action" value="step1" />
-<h3>Second step: GreyMatter details:</h3>
-<p><table cellpadding="0">
+<h3>Second step: Provide GreyMatter details</h3>
+<table cellpadding="0">
 <tr>
 <td>Path to GM files:</td>
 <td><input type="text" style="width:300px" name="gmpath" value="/home/my/site/cgi-bin/greymatter/" /></td>
@@ -319,15 +299,17 @@ textarea,input,select {
 <td>Path to GM entries:</td>
 <td><input type="text" style="width:300px" name="archivespath" value="/home/my/site/cgi-bin/greymatter/archives/" /></td>
 </tr>
-<tr>
-<td colspan="2"><br />This importer will search for files 00000001.cgi to 000-whatever.cgi,<br />so you need to enter the number of the last GM post here.<br />(if you don't know that number, just log into your FTP and look it out<br />in the entries' folder)</td>
-</tr>
+</table>
+
+<p>This importer will search for files 00000001.cgi to 000-whatever.cgi, so you need to enter the number of the last GM post here. (If you don't know that number, just log into your FTP and look it up in the entries' folder)</p>
+
+<table>
 <tr>
 <td>Last entry's number:</td>
 <td><input type="text" name="lastentry" value="00000001" /></td>
 </tr>
 </table>
-</p>
+
 <p>When you're ready, click OK to start importing: <input type="submit" name="submit" value="OK" class="search" /></p>
 </form>
 
@@ -335,7 +317,6 @@ textarea,input,select {
 </html>
 	<?php
 	break;
-
 }
 
 ?>

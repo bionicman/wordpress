@@ -6,8 +6,8 @@ get_header();
 
 <?php the_date('','<h2>','</h2>'); ?>
 	
-<div class="post">
-	 <h3 class="storytitle" id="post-<?php the_ID(); ?>"><a href="<?php the_permalink() ?>" rel="bookmark"><?php the_title(); ?></a></h3>
+<div class="post" id="post-<?php the_ID(); ?>">
+	 <h3 class="storytitle"><a href="<?php the_permalink() ?>" rel="bookmark"><?php the_title(); ?></a></h3>
 	<div class="meta"><?php _e("Filed under:"); ?> <?php the_category(',') ?> &#8212; <?php the_author() ?> @ <?php the_time() ?> <?php edit_post_link(__('Edit This')); ?></div>
 	
 	<div class="storycontent">
@@ -18,10 +18,6 @@ get_header();
             <?php wp_link_pages(); ?>
             <?php comments_popup_link(__('Comments (0)'), __('Comments (1)'), __('Comments (%)')); ?>
 	</div>
-	
-	<!--
-	<?php trackback_rdf(); ?>
-	-->
 
 </div>
 

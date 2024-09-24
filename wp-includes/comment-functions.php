@@ -20,8 +20,10 @@ function comments_template( $file = '/comments.php' ) {
 
 	get_currentuserinfo();
 
-	if ( file_exists( TEMPLATEPATH . $file ) )
-		require( TEMPLATEPATH . $file );
+	define('COMMENTS_TEMPLATE', true);
+	$include = apply_filters('comments_template', TEMPLATEPATH . $file );
+	if ( file_exists( $include ) )
+		require( $include );
 	else
 		require( ABSPATH . 'wp-content/themes/default/comments.php');
 
@@ -40,11 +42,10 @@ function clean_url( $url ) {
 function get_comments_number( $comment_id ) {
 	global $wpdb, $comment_count_cache;
 	$comment_id = (int) $comment_id;
-	if (!isset($comment_count_cache[$comment_id])) 
-		$number =  $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->comments WHERE comment_post_ID = '$comment_id' AND comment_approved = '1'");
-	else 
-		$number =  $comment_count_cache[$comment_id];
-	return apply_filters('get_comments_number', $number);
+	if (!isset($comment_count_cache[$comment_id]))
+		$comment_count_cache[$comment_id] =  $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->comments WHERE comment_post_ID = '$comment_id' AND comment_approved = '1'");
+	
+	return apply_filters('get_comments_number', $comment_count_cache[$comment_id]);
 }
 
 function comments_number( $zero = 'No Comments', $one = '1 Comment', $more = '% Comments', $number = '' ) {
@@ -92,11 +93,11 @@ function comments_popup_link($zero='No Comments', $one='1 Comment', $more='% Com
     global $comment_count_cache;
 
 	if (! is_single() && ! is_page()) {
-    if ('' == $comment_count_cache["$id"]) {
-        $number = $wpdb->get_var("SELECT COUNT(comment_ID) FROM $wpdb->comments WHERE comment_post_ID = $id AND comment_approved = '1';");
-    } else {
-        $number = $comment_count_cache["$id"];
-    }
+    if ( !isset($comment_count_cache[$id]))
+			$comment_count_cache[$id] = $wpdb->get_var("SELECT COUNT(comment_ID) FROM $wpdb->comments WHERE comment_post_ID = $id AND comment_approved = '1';");
+
+		$number = $comment_count_cache[$id];
+
     if (0 == $number && 'closed' == $post->comment_status && 'closed' == $post->ping_status) {
         echo $none;
         return;
@@ -287,12 +288,13 @@ function comment_date( $d = '' ) {
 	echo get_comment_date( $d );
 }
 
-function get_comment_time( $d = '' ) {
+function get_comment_time( $d = '', $gmt = false ) {
 	global $comment;
+	$comment_date = $gmt? $comment->comment_date_gmt : $comment->comment_date;
 	if ( '' == $d )
-		$date = mysql2date(get_settings('time_format'), $comment->comment_date);
+		$date = mysql2date(get_settings('time_format'), $comment_date);
 	else
-		$date = mysql2date($d, $comment->comment_date);
+		$date = mysql2date($d, $comment_date);
 	return apply_filters('get_comment_time', $date);
 }
 
@@ -465,12 +467,11 @@ function pingback($content, $post_ID) {
 
 			// when set to true, this outputs debug messages by itself
 			$client->debug = false;
-			$client->query('pingback.ping', array($pagelinkedfrom, $pagelinkedto)); 
 			
-			if ( !$client->query('pingback.ping', array($pagelinkedfrom, $pagelinkedto) ) )
-				debug_fwrite($log, "Error.\n Fault code: ".$client->getErrorCode()." : ".$client->getErrorMessage()."\n");
-			else
+			if ( $client->query('pingback.ping', array($pagelinkedfrom, $pagelinkedto) ) )
 				add_ping( $post_ID, $pagelinkedto );
+			else
+				debug_fwrite($log, "Error.\n Fault code: ".$client->getErrorCode()." : ".$client->getErrorMessage()."\n");
 		}
 	}
 
@@ -479,6 +480,7 @@ function pingback($content, $post_ID) {
 }
 
 function discover_pingback_server_uri($url, $timeout_bytes = 2048) {
+	global $wp_version;
 
 	$byte_count = 0;
 	$contents = '';
@@ -614,110 +616,6 @@ function wp_get_comment_status($comment_id) {
 	}
 }
 
-if ( ! function_exists('wp_notify_postauthor') ) {
-function wp_notify_postauthor($comment_id, $comment_type='') {
-    global $wpdb;
-    
-    $comment = $wpdb->get_row("SELECT * FROM $wpdb->comments WHERE comment_ID='$comment_id' LIMIT 1");
-    $post = $wpdb->get_row("SELECT * FROM $wpdb->posts WHERE ID='$comment->comment_post_ID' LIMIT 1");
-    $user = $wpdb->get_row("SELECT * FROM $wpdb->users WHERE ID='$post->post_author' LIMIT 1");
-
-    if ('' == $user->user_email) return false; // If there's no email to send the comment to
-
-	$comment_author_domain = gethostbyaddr($comment->comment_author_IP);
-
-	$blogname = get_settings('blogname');
-	
-	if ( empty( $comment_type ) ) $comment_type = 'comment';
-	
-	if ('comment' == $comment_type) {
-		$notify_message  = "New comment on your post #$comment->comment_post_ID \"".$post->post_title."\"\r\n\r\n";
-		$notify_message .= "Author : $comment->comment_author (IP: $comment->comment_author_IP , $comment_author_domain)\r\n";
-		$notify_message .= "E-mail : $comment->comment_author_email\r\n";
-		$notify_message .= "URI    : $comment->comment_author_url\r\n";
-		$notify_message .= "Whois  : http://ws.arin.net/cgi-bin/whois.pl?queryinput=$comment->comment_author_IP\r\n";
-		$notify_message .= "Comment:\r\n $comment->comment_content \r\n\r\n";
-		$notify_message .= "You can see all comments on this post here: \r\n";
-		$subject = '[' . $blogname . '] Comment: "' .$post->post_title.'"';
-	} elseif ('trackback' == $comment_type) {
-		$notify_message  = "New trackback on your post #$comment_post_ID \"".$post->post_title."\"\r\n\r\n";
-		$notify_message .= "Website: $comment->comment_author (IP: $comment->comment_author_IP , $comment_author_domain)\r\n";
-		$notify_message .= "URI    : $comment->comment_author_url\r\n";
-		$notify_message .= "Excerpt: \n $comment->comment_content \r\n\r\n";
-		$notify_message .= "You can see all trackbacks on this post here: \r\n";
-		$subject = '[' . $blogname . '] Trackback: "' .$post->post_title.'"';
-	} elseif ('pingback' == $comment_type) {
-		$notify_message  = "New pingback on your post #$comment_post_ID \"".$post->post_title."\"\r\n\r\n";
-		$notify_message .= "Website: $comment->comment_author\r\n";
-		$notify_message .= "URI    : $comment->comment_author_url\r\n";
-		$notify_message .= "Excerpt: \n[...] $comment->comment_content [...]\r\n\r\n";
-		$notify_message .= "You can see all pingbacks on this post here: \r\n";
-		$subject = '[' . $blogname . '] Pingback: "' .$post->post_title.'"';
-	}
-	$notify_message .= get_permalink($comment->comment_post_ID) . '#comments';
-	$notify_message .= "\r\n\r\nTo delete this comment:\r\n" . get_settings('siteurl') . "/wp-admin/post.php?action=confirmdeletecomment&p=".$comment->comment_post_ID."&comment=$comment_id";
-
-	if ('' == $comment->comment_author_email || '' == $comment->comment_author) {
-		$from = "From: \"$blogname\" <wordpress@" . $_SERVER['SERVER_NAME'] . '>';
-	} else {
-		$from = 'From: "' . $comment->comment_author . "\" <$comment->comment_author_email>";
-	}
-
-	$message_headers = "MIME-Version: 1.0\n"
-		. "$from\n"
-		. "Content-Type: text/plain; charset=\"" . get_settings('blog_charset') . "\"\n";
-
-	@wp_mail($user->user_email, $subject, $notify_message, $message_headers);
-   
-    return true;
-}
-}
-
-/* wp_notify_moderator
-   notifies the moderator of the blog (usually the admin)
-   about a new comment that waits for approval
-   always returns true
- */
-if ( !function_exists('wp_notify_moderator') ) {
-function wp_notify_moderator($comment_id) {
-    global $wpdb;
-
-    if( get_settings( "moderation_notify" ) == 0 )
-        return true; 
-    
-    $comment = $wpdb->get_row("SELECT * FROM $wpdb->comments WHERE comment_ID='$comment_id' LIMIT 1");
-    $post = $wpdb->get_row("SELECT * FROM $wpdb->posts WHERE ID='$comment->comment_post_ID' LIMIT 1");
-    $user = $wpdb->get_row("SELECT * FROM $wpdb->users WHERE ID='$post->post_author' LIMIT 1");
-
-    $comment_author_domain = gethostbyaddr($comment->comment_author_IP);
-    $comments_waiting = $wpdb->get_var("SELECT count(comment_ID) FROM $wpdb->comments WHERE comment_approved = '0'");
-
-    $notify_message  = "A new comment on the post #$post->ID \"$post->post_title\" is waiting for your approval\r\n";
-	$notify_message .= get_permalink($comment->comment_post_ID);
-    $notify_message .= "\n\nAuthor : $comment->comment_author (IP: $comment->comment_author_IP , $comment_author_domain)\r\n";
-    $notify_message .= "E-mail : $comment->comment_author_email\r\n";
-    $notify_message .= "URL    : $comment->comment_author_url\r\n";
-    $notify_message .= "Whois  : http://ws.arin.net/cgi-bin/whois.pl?queryinput=$comment->comment_author_IP\r\n";
-    $notify_message .= "Comment:\r\n".$comment->comment_content."\r\n\r\n";
-    $notify_message .= "To approve this comment, visit: " . get_settings('siteurl') . "/wp-admin/post.php?action=mailapprovecomment&p=".$comment->comment_post_ID."&comment=$comment_id\r\n";
-    $notify_message .= "To delete this comment, visit: " . get_settings('siteurl') . "/wp-admin/post.php?action=confirmdeletecomment&p=".$comment->comment_post_ID."&comment=$comment_id\r\n";
-    $notify_message .= "Currently $comments_waiting comments are waiting for approval. Please visit the moderation panel:\r\n";
-    $notify_message .= get_settings('siteurl') . "/wp-admin/moderation.php\r\n";
-
-    $subject = '[' . get_settings('blogname') . '] Please moderate: "' .$post->post_title.'"';
-    $admin_email = get_settings("admin_email");
-    $from  = "From: $admin_email";
-
-    $message_headers = "MIME-Version: 1.0\n"
-    	. "$from\n"
-    	. "Content-Type: text/plain; charset=\"" . get_settings('blog_charset') . "\"\n";
-
-    @wp_mail($admin_email, $subject, $notify_message, $message_headers);
-    
-    return true;
-}
-}
-
 function check_comment($author, $email, $url, $comment, $user_ip, $user_agent, $comment_type) {
 	global $wpdb;
 
@@ -727,27 +625,27 @@ function check_comment($author, $email, $url, $comment, $user_ip, $user_agent, $
 		return false; // Check # of external links
 
 	$mod_keys = trim( get_settings('moderation_keys') );
-	if ('' == $mod_keys )
-		return true; // If moderation keys are empty
-	$words = explode("\n", $mod_keys );
+	if ( !empty($mod_keys) ) {
+		$words = explode("\n", $mod_keys );
 
-	foreach ($words as $word) {
-		$word = trim($word);
+		foreach ($words as $word) {
+			$word = trim($word);
 
-		// Skip empty lines
-		if (empty($word)) { continue; }
+			// Skip empty lines
+			if (empty($word)) { continue; }
 
-		// Do some escaping magic so that '#' chars in the 
-		// spam words don't break things:
-		$word = preg_quote($word, '#');
+			// Do some escaping magic so that '#' chars in the 
+			// spam words don't break things:
+			$word = preg_quote($word, '#');
 		
-		$pattern = "#$word#i"; 
-		if ( preg_match($pattern, $author) ) return false;
-		if ( preg_match($pattern, $email) ) return false;
-		if ( preg_match($pattern, $url) ) return false;
-		if ( preg_match($pattern, $comment) ) return false;
-		if ( preg_match($pattern, $user_ip) ) return false;
-		if ( preg_match($pattern, $user_agent) ) return false;
+			$pattern = "#$word#i"; 
+			if ( preg_match($pattern, $author) ) return false;
+			if ( preg_match($pattern, $email) ) return false;
+			if ( preg_match($pattern, $url) ) return false;
+			if ( preg_match($pattern, $comment) ) return false;
+			if ( preg_match($pattern, $user_ip) ) return false;
+			if ( preg_match($pattern, $user_agent) ) return false;
+		}
 	}
 
 	// Comment whitelisting:
@@ -755,10 +653,14 @@ function check_comment($author, $email, $url, $comment, $user_ip, $user_agent, $
 		if ( 'trackback' == $comment_type || 'pingback' == $comment_type ) { // check if domain is in blogroll
 			$uri = parse_url($url);
 			$domain = $uri['host'];
-			if ( $wpdb->get_var("SELECT link_id FROM $wpdb->links WHERE link_url LIKE ('%$domain%') LIMIT 1") )
+			$uri = parse_url( get_option('home') );
+			$home_domain = $uri['host'];
+			if ( $wpdb->get_var("SELECT link_id FROM $wpdb->links WHERE link_url LIKE ('%$domain%') LIMIT 1") || $domain == $home_domain )
 				return true;
+			else
+				return false;
 		} elseif( $author != '' && $email != '' ) {
-			$ok_to_comment = $wpdb->get_var("SELECT comment_approved FROM $wpdb->comments WHERE comment_author = '$author' AND comment_author_email = '$email' and comment_approved = '1' ");
+			$ok_to_comment = $wpdb->get_var("SELECT comment_approved FROM $wpdb->comments WHERE comment_author = '$author' AND comment_author_email = '$email' and comment_approved = '1' LIMIT 1");
 			if ( 1 == $ok_to_comment && false === strpos( $email, get_settings('moderation_keys')) )
 				return true;
 			else

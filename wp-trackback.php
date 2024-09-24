@@ -27,9 +27,9 @@ function trackback_response($error = 0, $error_message = '') {
 // trackback is done by a POST
 $request_array = 'HTTP_POST_VARS';
 
-if (!$tb_id) {
+if ( !$_GET['tb_id'] ) {
 	$tb_id = explode('/', $_SERVER['REQUEST_URI']);
-	$tb_id = intval($tb_id[count($tb_id)-1]);
+	$tb_id = intval( $tb_id[ count($tb_id) - 1 ] );
 }
 
 $tb_url    = $_POST['url'];
@@ -41,7 +41,7 @@ $charset   = $_POST['charset'];
 if ($charset)
 	$charset = strtoupper( trim($charset) );
 else
-	$charset = 'auto';
+	$charset = 'ASCII, UTF-8, ISO-8859-1, JIS, EUC-JP, SJIS';
 
 if ( function_exists('mb_convert_encoding') ) { // For international trackbacks
 	$title     = mb_convert_encoding($title, get_settings('blog_charset'), $charset);
@@ -52,7 +52,7 @@ if ( function_exists('mb_convert_encoding') ) { // For international trackbacks
 if ( is_single() || is_page() ) 
     $tb_id = $posts[0]->ID;
 
-if ( !$tb_id )
+if ( !intval( $tb_id ) )
 	trackback_response(1, 'I really need an ID for this to work.');
 
 if (empty($title) && empty($tb_url) && empty($blog_name)) {
@@ -66,7 +66,7 @@ if ( !empty($tb_url) && !empty($title) && !empty($tb_url) ) {
 
 	$pingstatus = $wpdb->get_var("SELECT ping_status FROM $wpdb->posts WHERE ID = $tb_id");
 
-	if ('open' != $pingstatus)
+	if ( 'open' != $pingstatus )
 		trackback_response(1, 'Sorry, trackbacks are closed for this item.');
 
 	$title =  wp_specialchars( strip_tags( $title ) );

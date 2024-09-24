@@ -3,7 +3,7 @@
 function get_the_password_form() {
     $output = '<form action="' . get_settings('siteurl') . '/wp-pass.php" method="post">
     <p>' . __("This post is password protected. To view it please enter your password below:") . '</p>
-    <p><label>' . __("Password:") . ' <input name="post_password" type="text" size="20" /></label> <input type="submit" name="Submit" value="Submit" /></p>
+    <p><label>' . __("Password:") . ' <input name="post_password" type="password" size="20" /></label> <input type="submit" name="Submit" value="Submit" /></p>
     </form>
     ';
 	return $output;
@@ -16,7 +16,7 @@ function the_ID() {
 
 function the_title($before = '', $after = '', $echo = true) {
 	$title = get_the_title();
-	if (!empty($title)) {
+	if ( strlen($title) > 0 ) {
 		$title = apply_filters('the_title', $before . $title . $after, $before, $after);
 		if ($echo)
 			echo $title;
@@ -26,34 +26,23 @@ function the_title($before = '', $after = '', $echo = true) {
 }
 
 function get_the_title($id = 0) {
-	global $post, $wpdb;
-	
-	if ( 0 != $id ) {
-		$id_post = $wpdb->get_row("SELECT post_title, post_password FROM $wpdb->posts WHERE ID = $id");
-		$title = $id_post->post_title;
-		if (!empty($id_post->post_password))
-			$title = sprintf(__('Protected: %s'), $title);
-	}
-	else {
-		$title = $post->post_title;
-		if (!empty($post->post_password))
-			$title = sprintf(__('Protected: %s'), $title);
-	}
+	$post = &get_post($id);
+
+	$title = $post->post_title;
+	if (!empty($post->post_password))
+		$title = sprintf(__('Protected: %s'), $title);
+
 	return $title;
 }
 
 function get_the_guid( $id = 0 ) {
-	global $post, $wpdb;
-	$guid = $post->guid;
-
-	if ( 0 != $id )
-		$guid = $wpdb->get_var("SELECT guid FROM $wpdb->posts WHERE ID = $id");
-	$guid = apply_filters('get_the_guid', $guid);
-	return $guid;
+	$post = &get_post($id);
+	
+	return apply_filters('get_the_guid', $post->guid);
 }
 
 function the_guid( $id = 0 ) {
-	echo get_the_guid();
+	echo get_the_guid($id);
 }
 
 
@@ -234,6 +223,8 @@ function get_post_custom_values($key='') {
 }
 
 function post_custom( $key = '' ) {
+	global $id, $post_meta_cache;
+	
 	if ( 1 == count($post_meta_cache[$id][$key]) ) return $post_meta_cache[$id][$key][0];
 	else return $post_meta_cache[$id][$key];
 }
@@ -259,69 +250,78 @@ function the_meta() {
 // Pages
 //
 
-function get_pages($args = '') {
-	global $wpdb, $cache_pages;
+function &get_page_children($page_id, $pages) {
+	global $page_cache;
 
-	if (!isset($cache_pages) || empty($cache_pages)) {
+	if ( empty($pages) )
+		$pages = &$page_cache;
 
-		parse_str($args, $r);
-
-		if (!isset($r['child_of'])) $r['child_of'] = 0;
-		if (!isset($r['sort_column'])) $r['sort_column'] = 'post_title';
-		if (!isset($r['sort_order'])) $r['sort_order'] = 'ASC';
-
-		$exclusions = '';
-		if (!empty($r['exclude'])) {
-			$expages = preg_split('/[\s,]+/',$r['exclude']);
-			if (count($expages)) {
-				foreach ($expages as $expage) {
-					$exclusions .= ' AND ID <> ' . intval($expage) . ' ';
-				}
-			}
-		}
-
-		$dates = ",UNIX_TIMESTAMP(post_modified) AS time_modified";
-		$dates .= ",UNIX_TIMESTAMP(post_date) AS time_created";
-	
-		$post_parent = '';
-		if ($r['child_of']) {
-			$post_parent = ' AND post_parent=' . $r['child_of'] . ' ';
-		}
-	
-		$pages = $wpdb->get_results("SELECT " .
-		  "ID, post_title, post_name, post_parent " .
-		  "$dates " .
-		  "FROM $wpdb->posts " .
-		  "WHERE post_status = 'static' " .
-		  "$post_parent" .
-		  "$exclusions " .
-		  "ORDER BY " . $r['sort_column'] . " " . $r['sort_order']);
-
-		$cache_pages = array();
-		if (count($pages)) {
-			foreach($pages as $page) {
-				$cache_pages[$page->ID] = $page;
+	$page_list = array();
+	foreach ($pages as $page) {
+		if ($page->post_parent == $page_id) {
+			$page_list[] = $page;
+			if ( $children = get_page_children($page->ID, $pages)) {
+				$page_list = array_merge($page_list, $children);
 			}
 		}
 	}
 
-	return $cache_pages;
+	return $page_list;
+}
+
+function &get_pages($args = '') {
+	global $wpdb;
+
+	parse_str($args, $r);
+
+	if (!isset($r['child_of'])) $r['child_of'] = 0;
+	if (!isset($r['sort_column'])) $r['sort_column'] = 'post_title';
+	if (!isset($r['sort_order'])) $r['sort_order'] = 'ASC';
+
+	$exclusions = '';
+	if (!empty($r['exclude'])) {
+		$expages = preg_split('/[\s,]+/',$r['exclude']);
+		if (count($expages)) {
+			foreach ($expages as $expage) {
+				$exclusions .= ' AND ID <> ' . intval($expage) . ' ';
+			}
+		}
+	}
+
+	$pages = $wpdb->get_results("SELECT * " .
+															"FROM $wpdb->posts " .
+															"WHERE post_status = 'static' " .
+															"$exclusions " .
+															"ORDER BY " . $r['sort_column'] . " " . $r['sort_order']);
+
+	if ( empty($pages) )
+		return array();
+
+	// Update cache.
+	update_page_cache($pages);
+
+	if ($r['child_of'])
+		$pages = & get_page_children($r['child_of'], $pages);
+
+	return $pages;
 }
 
 function wp_list_pages($args = '') {
 	parse_str($args, $r);
-	if (!isset($r['depth'])) $r['depth'] = 0;
-	if (!isset($r['show_date'])) $r['show_date'] = '';
-	if (!isset($r['child_of'])) $r['child_of'] = 0;
+	if ( !isset($r['depth']) ) $r['depth'] = 0;
+	if ( !isset($r['show_date']) ) $r['show_date'] = '';
+	if ( !isset($r['child_of']) ) $r['child_of'] = 0;
 	if ( !isset($r['title_li']) ) $r['title_li'] = __('Pages');
-
+	if ( !isset($r['echo']) ) $r['echo'] = 1;
+	
+	$output = '';
 
 	// Query pages.
-	$pages = get_pages($args);
+	$pages = & get_pages($args);
 	if ( $pages ) :
 
 	if ( $r['title_li'] )
-		echo '<li id="pagenav">' . $r['title_li'] . '<ul>';
+		$output .= '<li class="pagenav">' . $r['title_li'] . '<ul>';
 	// Now loop over all pages that were selected
 	$page_tree = Array();
 	foreach($pages as $page) {
@@ -336,9 +336,9 @@ function wp_list_pages($args = '') {
 		// ts field.
 		if (! empty($r['show_date'])) {
 			if ('modified' == $r['show_date'])
-				$page_tree[$page->ID]['ts'] = $page->time_modified;
+				$page_tree[$page->ID]['ts'] = $page->post_modified;
 			else
-				$page_tree[$page->ID]['ts'] = $page->time_created;
+				$page_tree[$page->ID]['ts'] = $page->post_date;
 		}
 
 		// The tricky bit!!
@@ -346,20 +346,30 @@ function wp_list_pages($args = '') {
 		// array index we set the curent page as a child of that page.
 		// We can now start looping over the $page_tree array
 		// with any ID which will output the page links from that ID downwards.
-		$page_tree[$page->post_parent]['children'][] = $page->ID;
+		if ( $page->post_parent != $page->ID)
+			$page_tree[$page->post_parent]['children'][] = $page->ID;
 	}
 	// Output of the pages starting with child_of as the root ID.
 	// child_of defaults to 0 if not supplied in the query.
-	_page_level_out($r['child_of'],$page_tree, $r);
+	$output .= _page_level_out($r['child_of'],$page_tree, $r, 0, false);
 	if ( $r['title_li'] )
-		echo '</ul></li>';
+		$output .= '</ul></li>';
 	endif;
+	
+	$output = apply_filters('wp_list_pages', $output);
+	
+	if ( $r['echo'] )
+		echo $output;
+	else 
+		return $output;
 }
 
-function _page_level_out($parent, $page_tree, $args, $depth = 0) {
+function _page_level_out($parent, $page_tree, $args, $depth = 0, $echo = true) {
 	global $wp_query;
 
 	$queried_obj = $wp_query->get_queried_object();
+
+	$output = '';
 
 	if($depth)
 		$indent = str_repeat("\t", $depth);
@@ -374,13 +384,13 @@ function _page_level_out($parent, $page_tree, $args, $depth = 0) {
 			$css_class .= ' current_page_item';
 		}
 
-		echo $indent . '<li class="' . $css_class . '"><a href="' . get_page_link($page_id) . '" title="' . wp_specialchars($title) . '">' . $title . '</a>';
+		$output .= $indent . '<li class="' . $css_class . '"><a href="' . get_page_link($page_id) . '" title="' . wp_specialchars($title) . '">' . $title . '</a>';
 
 		if(isset($cur_page['ts'])) {
 			$format = get_settings('date_format');
 			if(isset($args['date_format']))
 				$format = $args['date_format'];
-			echo " " . gmdate($format,$cur_page['ts']);
+			$output .= " " . mysql2date($format, $cur_page['ts']);
 		}
 		echo "\n";
 
@@ -388,13 +398,17 @@ function _page_level_out($parent, $page_tree, $args, $depth = 0) {
 			$new_depth = $depth + 1;
 
 			if(!$args['depth'] || $depth < ($args['depth']-1)) {
-				echo "$indent<ul>\n";
-				_page_level_out($page_id,$page_tree, $args, $new_depth);
-				echo "$indent</ul>\n";
+				$output .= "$indent<ul>\n";
+				$output .= _page_level_out($page_id, $page_tree, $args, $new_depth, false);
+				$output .= "$indent</ul>\n";
 			}
 		}
-		echo "$indent</li>\n";
+		$output .= "$indent</li>\n";
 	}
+	if ( $echo )
+		echo $output;
+	else
+		return $output;
 }
 
 ?>

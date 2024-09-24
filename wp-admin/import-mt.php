@@ -8,6 +8,7 @@ require('../wp-config.php');
 require ('upgrade-functions.php');
 $step = $_GET['step'];
 if (!$step) $step = 0;
+header( 'Content-Type: text/html; charset=utf-8' );
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
@@ -68,7 +69,7 @@ set_magic_quotes_runtime(0);
 $importdata = file(MTEXPORT); // Read the file into an array
 $importdata = implode('', $importdata); // squish it
 $importdata = preg_replace("/(\r\n|\n|\r)/", "\n", $importdata);
-$importdata = preg_replace("/--------\nAUTHOR/", "--MT-ENTRY--\nAUTHOR", $importdata);
+$importdata = preg_replace("/\n--------\n/", "--MT-ENTRY--\n", $importdata);
 $authors = array();
 $temp = array();
 $posts = explode("--MT-ENTRY--", $importdata);
@@ -179,7 +180,7 @@ set_magic_quotes_runtime(0);
 $importdata = file(MTEXPORT); // Read the file into an array
 $importdata = implode('', $importdata); // squish it
 $importdata = preg_replace("/(\r\n|\n|\r)/", "\n", $importdata);
-$importdata = preg_replace("/--------\nAUTHOR/", "--MT-ENTRY--\nAUTHOR", $importdata);
+$importdata = preg_replace("/\n--------\n/", "--MT-ENTRY--", $importdata);
 $authors = array();
 $temp = array();
 $posts = explode("--MT-ENTRY--", $importdata);

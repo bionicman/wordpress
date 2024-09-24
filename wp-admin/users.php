@@ -24,35 +24,33 @@ switch ($action) {
 case 'adduser':
 	check_admin_referer();
 
-	$user_login     = wp_specialchars($_POST['user_login']);
+	$user_login     = wp_specialchars(trim($_POST['user_login']));
 	$pass1          = $_POST['pass1'];
 	$pass2          = $_POST['pass2'];
-	$user_email     = wp_specialchars($_POST['email']);
-	$user_firstname = wp_specialchars($_POST['firstname']);
-	$user_lastname  = wp_specialchars($_POST['lastname']);
-	$user_uri       = wp_specialchars($_POST['uri']);
+	$user_email     = wp_specialchars(trim($_POST['email']));
+	$user_firstname = wp_specialchars(trim($_POST['firstname']));
+	$user_lastname  = wp_specialchars(trim($_POST['lastname']));
+	$user_uri       = wp_specialchars(trim($_POST['uri']));
 		
-	/* checking login has been typed */
-	if ($user_login == '') {
-		die (__('<strong>ERROR</strong>: Please enter a login.'));
-	}
+	/* checking that username has been typed */
+	if ($user_login == '')
+		die (__('<strong>ERROR</strong>: Please enter a username.'));
 
 	/* checking the password has been typed twice */
-	if ($pass1 == '' || $pass2 == '') {
+	do_action('check_passwords', array($user_login, &$pass1, &$pass2));
+	if ($pass1 == '' || $pass2 == '')
 		die (__('<strong>ERROR</strong>: Please enter your password twice.'));
-	}
 
 	/* checking the password has been typed twice the same */
-	if ($pass1 != $pass2)	{
+	if ($pass1 != $pass2)
 		die (__('<strong>ERROR</strong>: Please type the same password in the two password fields.'));
-	}
+
 	$user_nickname = $user_login;
 
-	/* checking the login isn't already used by another user */
+	/* checking that the username isn't already used by another user */
 	$loginthere = $wpdb->get_var("SELECT user_login FROM $wpdb->users WHERE user_login = '$user_login'");
-    if ($loginthere) {
-		die (__('<strong>ERROR</strong>: This login is already registered, please choose another one.'));
-	}
+    if ($loginthere)
+		die (__('<strong>ERROR</strong>: This username is already registered, please choose another one.'));
 
 	/* checking e-mail address */
 	if (empty($_POST["email"])) {
@@ -75,20 +73,19 @@ case 'adduser':
 	VALUES 
 		('$user_login', MD5('$pass1'), '$user_nickname', '$user_email', '$user_ip', '$user_domain', '$user_browser', '$now', '$new_users_can_blog', 'nickname', '$user_firstname', '$user_lastname', '$user_nicename', '$user_uri')");
 	
-	if ($result == false) {
+	if ($result == false)
 		die (__('<strong>ERROR</strong>: Couldn&#8217;t register you!'));
-	}
 
 	$stars = '';
-	for ($i = 0; $i < strlen($pass1); $i = $i + 1) {
+	for ($i = 0; $i < strlen($pass1); $i = $i + 1)
 		$stars .= '*';
-	}
 
-    $user_login = stripslashes($user_login);
-	$message  = 'New user registration on your blog ' . get_settings('blogname') . ":\r\n\r\n";
-	$message .= "Login: $user_login\r\n\r\nE-mail: $user_email";
+	$user_login = stripslashes($user_login);
+	$message  = sprintf(__('New user registration on your blog %s:'), get_settings('blogname')) . "\r\n\r\n";
+	$message .= sprintf(__('Username: %s'), $user_login) . "\r\n\r\n";
+	$message .= sprintf(__('E-mail: %s'), $user_email) . "\r\n";
 
-	@wp_mail(get_settings('admin_email'), '[' . get_settings('blogname') . '] New User Registration', $message);
+	@wp_mail(get_settings('admin_email'), sprintf(__('[%s] New User Registration'), get_settings('blogname')), $message);
 	header('Location: users.php');
 break;
 
@@ -308,12 +305,17 @@ echo "\n<tr $style>
       <th scope="row"><?php _e('Website') ?></th>
       <td><input name="uri" type="text" id="uri" /></td>
     </tr>
+<?php
+$show_password_fields = apply_filters('show_password_fields', true);
+if ( $show_password_fields ) :
+?>
     <tr>
       <th scope="row"><?php _e('Password (twice)') ?> </th>
       <td><input name="pass1" type="password" id="pass1" />
       <br />
       <input name="pass2" type="password" id="pass2" /></td>
     </tr>
+<?php endif; ?>
   </table>
   <p class="submit">
     <input name="adduser" type="submit" id="adduser" value="<?php _e('Add User') ?> &raquo;" />

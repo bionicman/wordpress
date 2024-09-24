@@ -116,10 +116,10 @@ require('admin-header.php');
             <tr>
               <th scope="row"> <?php _e('friendship') ?> </th>
               <td>
+			    <label for="contact">
+                <input class="valinp" type="radio" name="friendship" value="contact" id="contact" <?php xfn_check('friendship', 'contact', 'radio'); ?> /> <?php _e('contact') ?></label>
                 <label for="acquaintance">
                 <input class="valinp" type="radio" name="friendship" value="acquaintance" id="acquaintance" <?php xfn_check('friendship', 'acquaintance', 'radio'); ?> />  <?php _e('acquaintance') ?></label>
-                <label for="contact">
-                <input class="valinp" type="radio" name="friendship" value="contact" id="contact" <?php xfn_check('friendship', 'contact', 'radio'); ?> /> <?php _e('contact') ?></label>
                 <label id="friend">
                 <input class="valinp" type="radio" name="friendship" value="friend" id="friend" <?php xfn_check('friendship', 'friend', 'radio'); ?> /> <?php _e('friend') ?></label>
                 <label for="friendship">
@@ -160,7 +160,7 @@ require('admin-header.php');
               </td>
             </tr>
             <tr>
-              <th scope="row"> family </th>
+              <th scope="row"> <?php _e('family'); ?> </th>
               <td>
                 <label for="child">
                 <input class="valinp" type="radio" name="family" value="child" id="child" <?php xfn_check('family', 'child', 'radio'); ?>  />

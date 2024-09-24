@@ -17,7 +17,7 @@ $query_vars = array();
 if ((isset($_GET['error']) && $_GET['error'] == '404') ||
 		((! empty($_SERVER['PATH_INFO'])) &&
 		('/' != $_SERVER['PATH_INFO']) &&
-		 (false === strpos($_SERVER['PATH_INFO'], 'index.php'))
+		 (false === strpos($_SERVER['PATH_INFO'], '.php'))
 		)) {
 
 	// If we match a rewrite rule, this will be cleared.
@@ -85,7 +85,7 @@ if ((isset($_GET['error']) && $_GET['error'] == '404') ||
 	}
  }
 
-$wpvarstoreset = array('m','p','posts','w', 'cat','withcomments','s','search','exact', 'sentence','preview','debug', 'calendar','page','paged','more','tb', 'pb','author','order','orderby', 'year', 'monthnum', 'day', 'hour', 'minute', 'second', 'name', 'category_name', 'feed', 'author_name', 'static', 'pagename', 'page_id', 'error', 'comments_popup');
+$wpvarstoreset = array('m','p','posts','w', 'cat','withcomments','s','search','exact', 'sentence', 'debug', 'calendar','page','paged','more','tb', 'pb','author','order','orderby', 'year', 'monthnum', 'day', 'hour', 'minute', 'second', 'name', 'category_name', 'feed', 'author_name', 'static', 'pagename', 'page_id', 'error', 'comments_popup');
 
 $wpvarstoreset = apply_filters('query_vars', $wpvarstoreset);
 
@@ -134,18 +134,17 @@ if ( !empty($error) && '404' == $error ) {
 	else $client_etag = false;
 
 	if ( ($client_last_modified && $client_etag) ?
-	    (($client_last_modified == $wp_last_modified) && ($client_etag == $wp_etag)) :
-	    (($client_last_modified == $wp_last_modified) || ($client_etag == $wp_etag)) ) {
+		((strtotime($client_last_modified) >= strtotime($wp_last_modified)) && ($client_etag == $wp_etag)) :
+		((strtotime($client_last_modified) >= strtotime($wp_last_modified)) || ($client_etag == $wp_etag)) ) {
 		if ( preg_match('/cgi/',php_sapi_name()) ) {
-		    header('Status: 304 Not Modified');
-		    echo "\r\n\r\n";
-		    exit;
+			header('Status: 304 Not Modified');
+			echo "\r\n\r\n";
+			exit;
 		} else {
-		    if ( version_compare(phpversion(), '4.3.0', '>=') ) {
-		        header('Not Modified', TRUE, 304);
-		    } else {
-		        header('HTTP/1.x 304 Not Modified');
-		    }
+			if ( version_compare(phpversion(), '4.3.0', '>=') )
+				header('Not Modified', TRUE, 304);
+			else
+				header('HTTP/1.x 304 Not Modified');
 			exit;
 		}
 	}
@@ -167,14 +166,15 @@ foreach (array_merge($wpvarstoreset, $more_wpvars) as $wpvar) {
 $query_string = apply_filters('query_string', $query_string);
 
 update_category_cache();
+get_currentuserinfo();
 
 // Call query posts to do the work.
-$posts = query_posts($query_string);
+$posts = & query_posts($query_string);
 
 // Extract updated query vars back into global namespace.
 extract($wp_query->query_vars);
 
-if (1 == count($posts)) {
+if ( is_single() || is_page() ) {
 	$more = 1;
 	$single = 1;
 }
@@ -183,8 +183,8 @@ if (1 == count($posts)) {
 // 404 if one was already issued, if the request was a search, or if the
 // request was a regular query string request rather than a permalink request.
 if ( (0 == count($posts)) && !is_404() && !is_search()
-		 && !empty($_SERVER['QUERY_STRING']) &&
-		 (false === strpos($_SERVER['REQUEST_URI'], '?')) ) {
+		&& ( isset($rewrite) || (!empty($_SERVER['QUERY_STRING']) &&
+		(false === strpos($_SERVER['REQUEST_URI'], '?'))) ) ) {
 	$wp_query->is_404 = true;
 	if ( preg_match('/cgi/', php_sapi_name()) )
 		@header('Status: 404 Not Found');

@@ -25,10 +25,10 @@ function get_sidebar() {
 
 
 function wp_loginout() {
-	global $user_level;
+	global $user_ID;
 	get_currentuserinfo();
 
-	if (0 == $user_level) :
+	if ('' == $user_ID) :
 		$link = '<a href="' . get_settings('siteurl') . '/wp-login.php">' . __('Login') . '</a>';
 	else :
 		$link = '<a href="' . get_settings('siteurl') . '/wp-login.php?action=logout">' . __('Logout') . '</a>';
@@ -38,13 +38,13 @@ function wp_loginout() {
 }
 
 function wp_register( $before = '<li>', $after = '</li>' ) {
-	global $user_level;
+	global $user_ID;
 
 	get_currentuserinfo();
 
-	if (0 == $user_level && get_settings('users_can_register') ) :
+	if ('' == $user_ID && get_settings('users_can_register') ) :
 		$link = $before . '<a href="' . get_settings('siteurl') . '/wp-register.php">' . __('Register') . '</a>' . $after;
-	elseif (0 == $user_level && !get_settings('users_can_register') ) : 
+	elseif ('' == $user_ID && !get_settings('users_can_register') ) : 
 		$link = '';
 	else :
 		$link = $before . '<a href="' . get_settings('siteurl') . '/wp-admin/">' . __('Site Admin') . '</a>' . $after;
@@ -193,8 +193,8 @@ function single_post_title($prefix = '', $display = true) {
         if (!$p) {
             $p = $wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE post_name = '$name'");
         }
-        $post_data = get_postdata($p);
-        $title = $post_data['Title'];
+        $post = & get_post($p);
+        $title = $post->post_title;
         $title = apply_filters('single_post_title', $title);
         if ($display) {
             echo $prefix.strip_tags($title);
@@ -275,11 +275,6 @@ function get_archives($type='', $limit='', $format='html', $before = '', $after 
     // this is what will separate dates on weekly archive links
     $archive_week_separator = '&#8211;';
 
-    // archive link url
-    $archive_link_m = get_settings('siteurl') . '/?m=';    # monthly archive;
-    $archive_link_w = get_settings('siteurl') . '/?w=';    # weekly archive;
-    $archive_link_p = get_settings('siteurl') . '/?p=';    # post-by-post archive;
-
     // over-ride general date format ? 0 = no: use the date format set in Options, 1 = yes: over-ride
     $archive_date_format_over_ride = 0;
 
@@ -347,11 +342,11 @@ function get_archives($type='', $limit='', $format='html', $before = '', $after 
             }
         }
     } elseif ('postbypost' == $type) {
-        $arcresults = $wpdb->get_results("SELECT ID, post_date, post_title FROM $wpdb->posts WHERE post_date < '$now' AND post_status = 'publish' ORDER BY post_date DESC" . $limit);
+        $arcresults = $wpdb->get_results("SELECT * FROM $wpdb->posts WHERE post_date < '$now' AND post_status = 'publish' ORDER BY post_date DESC" . $limit);
         if ($arcresults) {
             foreach ($arcresults as $arcresult) {
                 if ($arcresult->post_date != '0000-00-00 00:00:00') {
-                    $url  = get_permalink($arcresult->ID);
+                    $url  = get_permalink($arcresult);
                     $arc_title = $arcresult->post_title;
                     if ($arc_title) {
                         $text = strip_tags($arc_title);

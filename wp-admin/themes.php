@@ -53,9 +53,7 @@ $current_stylesheet = $themes[$current_theme]['Stylesheet'];
 <?php } ?>
 </div>
 
-<h2><?php _e('Other Themes'); ?></h2>
-<p><?php _e('Themes are usually downloaded separately from WordPress. To install a theme you generally just need to put the theme file or files into your <code>wp-content/themes</code> directory. Once a theme is installed, you may select it here.'); ?></p>
-
+<h2><?php _e('Themes Available'); ?></h2>
 <?php if ( 1 < count($themes) ) { ?>
 <table width="100%" cellpadding="3" cellspacing="3">
 	<tr>
@@ -65,7 +63,7 @@ $current_stylesheet = $themes[$current_theme]['Stylesheet'];
 		<th></th>
 	</tr>
 <?php
-	$theme = '';
+	$style = '';
 
 	$theme_names = array_keys($themes);
 	natcasesort($theme_names);
@@ -86,17 +84,20 @@ $current_stylesheet = $themes[$current_theme]['Stylesheet'];
 			$current = false;
 		}
 
-		$theme = ('class="alternate"' == $theme) ? '' : 'class="alternate"';
+		$style = ('class="alternate"' == $style|| 'class="alternate active"' == $style) ? '' : 'alternate';
+		if ($current) $style .= $style == 'alternate' ? ' active' : 'active';
+		if ($style != '') $style = 'class="' . $style . '"';
+
 		echo "
-	  <tr $theme>";
+	  <tr $style>";
 if ( $current )
 	echo "<td><strong>$title $version</strong></td>";
 else
 	echo "<td>$title $version</td>";
 echo "
-	     <td align='center'>$author</td>
-	     <td>$description</td>
-	     <td align='center'>$action</td>
+	     <td class=\"auth\">$author</td>
+	     <td class=\"desc\">$description</td>
+	     <td class=\"togl\">$action</td>
 	  </tr>";
 	}
 ?>
@@ -142,6 +143,9 @@ if (count($broken_themes)) {
 <?php
 }
 ?>
+
+<h2><?php _e('Get More Themes'); ?></h2>
+<p><?php _e('You can find additional themes for your site in the <a href="http://wordpress.org/extend/themes/">WordPress theme directory</a>. To install a theme you generally just need to upload the theme folder into your <code>wp-content/themes</code> directory. Once a theme is uploaded, you may activate it here.'); ?></p>
 
 </div>
 

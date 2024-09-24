@@ -15,8 +15,9 @@ for ($i=0; $i<count($wpvarstoreset); $i += 1) {
 		}
 	}
 }
-	require_once('../wp-config.php');
-	require('upgrade-functions.php');
+require_once('../wp-config.php');
+require('upgrade-functions.php');
+header( 'Content-Type: text/html; charset=utf-8' );
 switch ($action) {
 
 case "step1":
@@ -85,7 +86,7 @@ case "step1":
 					user_ip,
 					user_domain,
 					user_browser,
-					dateYMDhour,
+					user_registered,
 					user_level,
 					user_idmode
 				) VALUES (

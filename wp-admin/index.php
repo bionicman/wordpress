@@ -39,7 +39,7 @@ if ( $scheduled = $wpdb->get_results("SELECT ID, post_title, post_date_gmt FROM 
 foreach ($scheduled as $post) {
 	if ($post->post_title == '')
 		$post->post_title = sprintf(__('Post #%s'), $post->ID);
-	echo "<li><a href='post.php?action=edit&amp;post=$post->ID' title='" . __('Edit this post') . "'>$post->post_title</a> in " . human_time_diff( current_time('timestamp', 1), strtotime($post->post_date_gmt) )  . "</li>";
+	echo "<li>" . sprintf(__('%1$s in %2$s'), "<a href='post.php?action=edit&amp;post=$post->ID' title='" . __('Edit this post') . "'>$post->post_title</a>", human_time_diff( current_time('timestamp', 1), strtotime($post->post_date_gmt. ' GMT') ))  . "</li>";
 }
 ?> 
 </ul>
@@ -54,7 +54,7 @@ if ( $comments = $wpdb->get_results("SELECT comment_author, comment_author_url, 
 <ul>
 <?php 
 foreach ($comments as $comment) {
-	echo '<li>' . sprintf('%s on %s', get_comment_author_link(), '<a href="'. get_permalink($comment->comment_post_ID) . '#comment-' . $comment->comment_ID . '">' . get_the_title($comment->comment_post_ID) . '</a>');
+	echo '<li>' . sprintf(__('%1$s on %2$s'), get_comment_author_link(), '<a href="'. get_permalink($comment->comment_post_ID) . '#comment-' . $comment->comment_ID . '">' . get_the_title($comment->comment_post_ID) . '</a>');
 	edit_comment_link(__("Edit"), ' <small>(', ')</small>'); 
 	echo '</li>';
 }
@@ -81,7 +81,7 @@ if (0 < $numcomms) $numcomms = number_format($numcomms);
 $numcats = $wpdb->get_var("SELECT COUNT(*) FROM $wpdb->categories");
 if (0 < $numcats) $numcats = number_format($numcats);
 ?>
-<p>There are currently <?php echo $numposts ?> <a href="edit.php" title="posts">posts</a> and <?php echo $numcomms ?> <a href="edit-comments.php" title="Comments">comments</a>, contained within <?php echo $numcats ?> <a href="categories.php" title="categories">categories</a>.</p>
+<p><?php printf(__('There are currently %1$s <a href="%2$s" title="Posts">posts</a> and %3$s <a href="%4$s" title="Comments">comments</a>, contained within %5$s <a href="%6$s" title="categories">categories</a>.'), $numposts, 'edit.php',  $numcomms, 'edit-comments.php', $numcats, 'categories.php'); ?></p>
 </div>
 
 <?php
