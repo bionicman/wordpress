@@ -8,7 +8,7 @@
 
 if ( ! empty($link_id) ) {
 	$heading = sprintf( __( '<a href="%s">Links</a> / Edit Link' ), 'link-manager.php' );
-	$submit_text = __('Save Changes');
+	$submit_text = __('Update Link');
 	$form = '<form name="editlink" id="editlink" method="post" action="link.php">';
 	$nonce_action = 'update-bookmark_' . $link_id;
 } else {
@@ -92,7 +92,11 @@ if ( !empty($_GET['action']) && 'edit' == $_GET['action'] && current_user_can('m
 </div>
 
 <div id="publishing-action">
+<?php if ( !empty($link->link_id) ) { ?>
 	<input name="save" type="submit" class="button-primary" id="publish" tabindex="4" accesskey="p" value="<?php _e('Update Link') ?>" />
+<?php } else { ?>
+	<input name="save" type="submit" class="button-primary" id="publish" tabindex="4" accesskey="p" value="<?php _e('Add Link') ?>" />
+<?php } ?>
 </div>
 <div class="clear"></div>
 </div>
@@ -329,7 +333,7 @@ function link_advanced_meta_box($link) {
 </table>
 <?php
 }
-add_meta_box('linkadvanceddiv', __('Advanced'), 'link_advanced_meta_box', 'link', 'normal', 'core'); 
+add_meta_box('linkadvanceddiv', __('Advanced'), 'link_advanced_meta_box', 'link', 'normal', 'core');
 
 do_action('do_meta_boxes', 'link', 'normal', $link);
 do_action('do_meta_boxes', 'link', 'advanced', $link);
@@ -342,7 +346,7 @@ require_once ('admin-header.php');
 
 <div class="wrap">
 <?php screen_icon(); ?>
-<h2><?php echo wp_specialchars( $title ); ?></h2> 
+<h2><?php echo wp_specialchars( $title ); ?></h2>
 
 <?php if ( isset( $_GET['added'] ) ) : ?>
 <div id="message" class="updated fade"><p><?php _e('Link added.'); ?></p></div>
@@ -361,7 +365,7 @@ wp_nonce_field( 'meta-box-order', 'meta-box-order-nonce', false ); ?>
 <div id="poststuff" class="metabox-holder">
 
 <div id="side-info-column" class="inner-sidebar">
-<?php 
+<?php
 
 do_action('submitlink_box');
 $side_meta_boxes = do_meta_boxes( 'link', 'side', $link );
@@ -395,7 +399,7 @@ $side_meta_boxes = do_meta_boxes( 'link', 'side', $link );
 </div>
 </div>
 
-<?php 
+<?php
 
 do_meta_boxes('link', 'normal', $link);
 

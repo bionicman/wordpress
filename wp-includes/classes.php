@@ -731,7 +731,7 @@ class Walker {
 	var $db_fields;
 
 	/**
-	 * Max number of pages walked by the paged walker 
+	 * Max number of pages walked by the paged walker
 	 *
 	 * @since 2.7.0
 	 * @var int
@@ -913,8 +913,8 @@ class Walker {
 		 */
 		if ( empty($top_level_elements) ) {
 
-			$first = array_slice( $elements, 0, 1 ); 
-			$root = $first[0]; 
+			$first = array_slice( $elements, 0, 1 );
+			$root = $first[0];
 
 			$top_level_elements = array();
 			$children_elements  = array();
@@ -1162,7 +1162,7 @@ class Walker_Page extends Walker {
 		$css_class = 'page_item page-item-'.$page->ID;
 		if ( !empty($current_page) ) {
 			$_current_page = get_page( $current_page );
-			if ( in_array($page->ID, (array) $_current_page->ancestors) )
+			if ( isset($_current_page->ancestors) && in_array($page->ID, (array) $_current_page->ancestors) )
 				$css_class .= ' current_page_ancestor';
 			if ( $page->ID == $current_page )
 				$css_class .= ' current_page_item';
@@ -1233,7 +1233,7 @@ class Walker_PageDropdown extends Walker {
 	function start_el(&$output, $page, $depth, $args) {
 		$pad = str_repeat('&nbsp;', $depth * 3);
 
-		$output .= "\t<option value=\"$page->ID\"";
+		$output .= "\t<option class=\"level-$depth\" value=\"$page->ID\"";
 		if ( $page->ID == $args['selected'] )
 			$output .= ' selected="selected"';
 		$output .= '>';

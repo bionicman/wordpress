@@ -142,7 +142,7 @@ jQuery(document).ready( function($) {
 		$('form.validate').submit( function() { return wpAjax.validateForm( $(this) ); } );
 	}
 
-	// Move .updated and .error alert boxes 
+	// Move .updated and .error alert boxes
 	$('div.wrap h2 ~ div.updated, div.wrap h2 ~ div.error').addClass('below-h2');
 	$('div.updated, div.error').not('.below-h2').insertAfter('div.wrap h2:first');
 
@@ -156,7 +156,7 @@ jQuery(document).ready( function($) {
 				$('#show-settings-link').css({'backgroundImage':'url("images/screen-options-right.gif")'});
 				$('#contextual-help-link-wrap').removeClass('invisible');
 				$(this).removeClass('screen-options-open');
-				
+
 			} else {
 				$('#show-settings-link').css({'backgroundImage':'url("images/screen-options-right-up.gif")'});
 				$(this).addClass('screen-options-open');
@@ -164,7 +164,7 @@ jQuery(document).ready( function($) {
 		});
 		return false;
 	});
-	
+
 	// help tab
 	$('#contextual-help-link').click(function () {
 		if ( ! $('#contextual-help-wrap').hasClass('contextual-help-open') ) {
@@ -192,23 +192,38 @@ jQuery(document).ready( function($) {
 			var checks = $( lastClicked ).parents( 'form:first' ).find( ':checkbox' );
 			var first = checks.index( lastClicked );
 			var last = checks.index( this );
+			var checked = $(this).attr('checked');
 			if ( 0 < first && 0 < last && first != last ) {
-				checks.slice( first, last ).attr( 'checked', $( this ).is( ':checked' ) ? 'checked' : '' );
+				checks.slice( first, last ).attr( 'checked', function(){
+					if ( $(this).parents('tr').is(':visible') )
+						return checked ? 'checked' : '';
+
+					return '';
+				});
 			}
 		}
 		lastClicked = this;
 		return true;
 	} );
-
 	$( 'thead :checkbox, tfoot :checkbox' ).click( function(e) {
 		var c = $(this).attr('checked');
-
-		$(this).parents( 'form:first' ).find( 'table tbody:visible, table thead:visible, table tfoot:visible').find( '.check-column :checkbox' ).attr( 'checked', function() {
-			if ( e.shiftKey )
+		if ( 'undefined' == typeof  toggleWithKeyboard)
+			toggleWithKeyboard = false;
+		var toggle = e.shiftKey || toggleWithKeyboard;
+		$(this).parents( 'form:first' ).find( 'table tbody:visible').find( '.check-column :checkbox' ).attr( 'checked', function() {
+			if ( $(this).parents('tr').is(':hidden') )
+				return '';
+			if ( toggle )
 				return $(this).attr( 'checked' ) ? '' : 'checked';
 			else if (c)
 				return 'checked';
-
+			return '';
+		});
+		$(this).parents( 'form:first' ).find( 'table thead:visible, table tfoot:visible').find( '.check-column :checkbox' ).attr( 'checked', function() {
+			if ( toggle )
+				return '';
+			else if (c)
+				return 'checked';
 			return '';
 		});
 	});
@@ -224,7 +239,7 @@ showNotice = {
 
 		return false;
 	},
-	
+
 	note : function(text) {
 		alert(text);
 	}
@@ -233,10 +248,10 @@ showNotice = {
 (function($){
 // sidebar admin menu
 adminMenu = {
-		
+
 	init : function() {
 		$('#adminmenu div.wp-menu-toggle').each( function() {
-			if ( $(this).siblings('.wp-submenu').length ) 
+			if ( $(this).siblings('.wp-submenu').length )
 				$(this).click(function(){ adminMenu.toggle( $(this).siblings('.wp-submenu') ); });
 			else
 				$(this).hide();
@@ -267,7 +282,7 @@ adminMenu = {
 			if ( $(e).hasClass('wp-has-current-submenu') ) return true; // leave the current parent open
 
 			if ( 'o' == v ) $(e).addClass('wp-menu-open');
-			else if ( 'c' == v ) $(e).removeClass('wp-menu-open');	
+			else if ( 'c' == v ) $(e).removeClass('wp-menu-open');
 		});
 	},
 
@@ -282,7 +297,7 @@ adminMenu = {
 
 		return false;
 	},
-	
+
 	fold : function(off) {
 		if (off) {
 			$('#wpcontent').removeClass('folded');
@@ -301,19 +316,19 @@ adminMenu = {
 					}
 					m.addClass('sub-open');
 				},
-				out: function(){ $(this).find('.wp-submenu').removeClass('sub-open'); },
+				out: function(){ $(this).find('.wp-submenu').removeClass('sub-open').css({'marginTop':''}); },
 				timeout: 220,
 				sensitivity: 8,
 				interval: 100
 			});
-			
+
 		}
 	},
-	
+
 	favorites : function() {
 		$('#favorite-inside').width($('#favorite-actions').width()-4);
 		$('#favorite-toggle, #favorite-inside').bind( 'mouseenter', function(){$('#favorite-inside').removeClass('slideUp').addClass('slideDown'); setTimeout(function(){if ( $('#favorite-inside').hasClass('slideDown') ) { $('#favorite-inside').slideDown(100); $('#favorite-first').addClass('slide-down'); }}, 200) } );
-	
+
 		$('#favorite-toggle, #favorite-inside').bind( 'mouseleave', function(){$('#favorite-inside').removeClass('slideDown').addClass('slideUp'); setTimeout(function(){if ( $('#favorite-inside').hasClass('slideUp') ) { $('#favorite-inside').slideUp(100, function(){ $('#favorite-first').removeClass('slide-down'); } ); }}, 300) } );
 	}
 };
@@ -349,3 +364,32 @@ columns = {
 }
 
 })(jQuery);
+
+
+jQuery(document).ready(function($){
+	if ( 'undefined' != typeof google && google.gears ) return;
+
+	var gf = false;
+	if ( 'undefined' != typeof GearsFactory ) {
+		gf = new GearsFactory();
+	} else {
+		try {
+			gf = new ActiveXObject('Gears.Factory');
+			if ( factory.getBuildInfo().indexOf('ie_mobile') != -1 )
+				gf.privateSetGlobalObject(this);
+		} catch (e) {
+			if ( ( 'undefined' != typeof navigator.mimeTypes ) && navigator.mimeTypes['application/x-googlegears'] ) {
+				gf = document.createElement("object");
+				gf.style.display = "none";
+				gf.width = 0;
+				gf.height = 0;
+				gf.type = "application/x-googlegears";
+				document.documentElement.appendChild(gf);
+			}
+		}
+	}
+	if ( gf && gf.hasPermission )
+		return;
+
+	$('.turbo-nag').show();
+});

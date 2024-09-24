@@ -34,12 +34,13 @@ if ( isset($_GET['sidebar']) && isset($wp_registered_sidebars[$_GET['sidebar']])
 	require_once( 'admin-header.php' );
 ?>
 
-	<div class="error">
-		<p><?php _e( 'No Sidebars Defined' ); ?></p>
-	</div>
-
 	<div class="wrap">
-		<p><?php _e( 'You are seeing this message because the theme you are currently using isn&#8217;t widget-aware, meaning that it has no sidebars that you are able to change. For information on making your theme widget-aware, please <a href="http://codex.wordpress.org/Widgetizing_Themes">follow these instructions</a>.' ); ?></p>
+	<?php screen_icon(); ?>
+	<h2><?php echo wp_specialchars( $title ); ?></h2>
+		<div class="error">
+			<p><?php _e( 'No Sidebars Defined' ); ?></p>
+		</div>
+		<p><?php _e( 'The theme you are currently using isn&#8217;t widget-aware, meaning that it has no sidebars that you are able to change. For information on making your theme widget-aware, please <a href="http://codex.wordpress.org/Widgetizing_Themes">follow these instructions</a>.' ); ?></p>
 	</div>
 
 <?php
@@ -234,7 +235,7 @@ require_once( 'admin-header.php' ); ?>
 
 <div class="wrap">
 <?php screen_icon(); ?>
-<h2><?php echo wp_specialchars( $title ); ?></h2> 
+<h2><?php echo wp_specialchars( $title ); ?></h2>
 
 	<form id="widgets-filter" action="" method="get">
 
@@ -306,7 +307,7 @@ require_once( 'admin-header.php' ); ?>
 		<p class="submit">
 			<input type="hidden" id='sidebar' name='sidebar' value="<?php echo $sidebar; ?>" />
 			<input type="hidden" id="generated-time" name="generated-time" value="<?php echo time() - 1199145600; // Jan 1, 2008 ?>" />
-			<input type="submit" name="save-widgets" class="button" value="<?php _e( 'Save Changes' ); ?>" />
+			<input type="submit" name="save-widgets" class="button-primary" value="<?php _e( 'Save Changes' ); ?>" />
 <?php
 			wp_nonce_field( 'edit-sidebar_' . $sidebar );
 ?>

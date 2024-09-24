@@ -421,7 +421,7 @@ function wp_allow_comment($commentdata) {
 		$post_author = $wpdb->get_var($wpdb->prepare("SELECT post_author FROM $wpdb->posts WHERE ID = %d LIMIT 1", $comment_post_ID));
 	}
 
-	if ( $userdata && ( $user_id == $post_author || $user->has_cap('moderate_comments') ) ) {
+	if ( isset($userdata) && ( $user_id == $post_author || $user->has_cap('moderate_comments') ) ) {
 		// The author and the admins get respect.
 		$approved = 1;
 	 } else {
@@ -512,6 +512,9 @@ function &separate_comments(&$comments) {
  */
 function get_comment_pages_count( $comments = null, $per_page = null, $threaded = null ) {
 	global $wp_query;
+
+	if ( null === $comments && null === $per_page && null === $threaded && !empty($wp_query->max_num_comment_pages) )
+		return $wp_query->max_num_comment_pages;
 
 	if ( !$comments || !is_array($comments) )
 		$comments = $wp_query->comments;
@@ -676,6 +679,10 @@ function wp_count_comments( $post_id = 0 ) {
 
 	$post_id = (int) $post_id;
 
+	$stats = apply_filters('wp_count_comments', array(), $post_id);
+	if ( !empty($stats) )
+		return $stats;
+
 	$count = wp_cache_get("comments-{$post_id}", 'counts');
 
 	if ( false !== $count )
@@ -688,11 +695,12 @@ function wp_count_comments( $post_id = 0 ) {
 	$count = $wpdb->get_results( "SELECT comment_approved, COUNT( * ) AS num_comments FROM {$wpdb->comments} {$where} GROUP BY comment_approved", ARRAY_A );
 
 	$total = 0;
-	$stats = array( );
 	$approved = array('0' => 'moderated', '1' => 'approved', 'spam' => 'spam');
+	$known_types = array_keys( $approved );
 	foreach( (array) $count as $row_num => $row ) {
 		$total += $row['num_comments'];
-		$stats[$approved[$row['comment_approved']]] = $row['num_comments'];
+		if ( in_array( $row['comment_approved'], $known_types ) )
+			$stats[$approved[$row['comment_approved']]] = $row['num_comments'];
 	}
 
 	$stats['total_comments'] = $total;
@@ -1488,7 +1496,7 @@ function trackback($trackback_url, $title, $excerpt, $ID) {
 	);
 
 	$response = wp_remote_post($trackback_url, $options);
-	
+
 	if ( is_wp_error( $response ) )
 		return;
 

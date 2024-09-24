@@ -72,9 +72,9 @@ table {
 #wpbody {
 	clear: both;
 	margin-left: 175px;
-} 
+}
 
-div.folded #wpbody {
+.folded #wpbody {
 	margin-left: 60px;
 }
 
@@ -86,12 +86,23 @@ div.folded #wpbody {
 #adminmenu {
 	float: left;
 	clear: left;
-	margin: 15px 5px 15px -160px;
+	width: 145px;
+	margin-top: 15px;
+	margin-right: 5px;
+	margin-bottom: 15px;
+	margin-left: -160px;
 	position: relative;
+	padding: 0;
+	list-style: none;
 }
 
-div.folded #adminmenu {
+.folded #adminmenu {
 	margin-left: -45px;
+}
+
+.folded #adminmenu,
+.folded #adminmenu li.menu-top {
+	width: 28px;
 }
 
 #footer {
@@ -144,6 +155,33 @@ div.folded #adminmenu {
 	width: 59%;
 }
 
+/* utility classes */
+.alignleft {
+	float: left;
+}
+
+.alignright {
+	float: right;
+}
+
+.textleft {
+	text-align: left;
+}
+
+.textright {
+	text-align: right;
+}
+
+.clear {
+	clear: both;
+}
+
+.hidden,
+.closed .inside,
+.hide-if-no-js {
+	display: none;
+}
+
 /* include margin and padding in the width calculation of input and textarea */
 input[type="text"],
 textarea {
@@ -166,7 +204,7 @@ body {
 
 body,
 td {
-	font: 13px "Lucida Grande", "Bitstream Vera Sans", Verdana, Arial, sans-serif;
+	font: 13px "Lucida Grande", Verdana, Arial, "Bitstream Vera Sans", sans-serif;
 }
 
 p {
@@ -197,30 +235,10 @@ dt {
 textarea,
 input,
 select {
-	font: 13px/19px "Lucida Grande", "Bitstream Vera Sans", Verdana, Arial, sans-serif;
+	font: 13px/19px "Lucida Grande", Verdana, Arial, "Bitstream Vera Sans", sans-serif;
 	margin: 1px;
 	padding: 3px;
 }
-
-.alignleft {
-	float: left;
-}
-
-.alignright {
-	float: right;
-}
-
-.textleft {
-	text-align: left;
-}
-
-.textright {
-	text-align: right;
-}
-
-.clear { clear: both; }
-
-.hidden { display: none; }
 
 h1 {
   display: block;

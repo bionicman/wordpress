@@ -106,7 +106,7 @@ class WP_Import {
 				// this doesn't check that the file is perfectly valid but will at least confirm that it's not the wrong format altogether
 				if ( !$is_wxr_file && preg_match('|xmlns:wp="http://wordpress[.]org/export/\d+[.]\d+/"|', $importline) )
 					$is_wxr_file = true;
-				
+
 				if ( false !== strpos($importline, '<wp:base_site_url>') ) {
 					preg_match('|<wp:base_site_url>(.*?)</wp:base_site_url>|is', $importline, $url);
 					$this->base_url = $url[1];
@@ -413,7 +413,7 @@ class WP_Import {
 		if ( $post_exists ) {
 			echo '<li>';
 			printf(__('Post <em>%s</em> already exists.'), stripslashes($post_title));
-			$post_id = $post_exists; 
+			$comment_post_ID = $post_id = $post_exists;
 		} else {
 
 			// If it has parent, process parent first.
@@ -461,6 +461,8 @@ class WP_Import {
 			if (count($categories) > 0) {
 				$post_cats = array();
 				foreach ($categories as $category) {
+					if ( '' == $category )
+						continue;
 					$slug = sanitize_term_field('slug', $category, 0, 'category', 'db');
 					$cat = get_term_by('slug', $slug, 'category');
 					$cat_ID = 0;
@@ -469,6 +471,8 @@ class WP_Import {
 					if ($cat_ID == 0) {
 						$category = $wpdb->escape($category);
 						$cat_ID = wp_insert_category(array('cat_name' => $category));
+						if ( is_wp_error($cat_ID) )
+							continue;
 					}
 					$post_cats[] = $cat_ID;
 				}
@@ -479,6 +483,8 @@ class WP_Import {
 			if (count($tags) > 0) {
 				$post_tags = array();
 				foreach ($tags as $tag) {
+					if ( '' == $tag )
+						continue;
 					$slug = sanitize_term_field('slug', $tag, 0, 'post_tag', 'db');
 					$tag_obj = get_term_by('slug', $slug, 'post_tag');
 					$tag_id = 0;
@@ -487,6 +493,8 @@ class WP_Import {
 					if ( $tag_id == 0 ) {
 						$tag = $wpdb->escape($tag);
 						$tag_id = wp_insert_term($tag, 'post_tag');
+						if ( is_wp_error($tag_id) )
+							continue;
 						$tag_id = $tag_id['term_id'];
 					}
 					$post_tags[] = intval($tag_id);
@@ -550,11 +558,11 @@ class WP_Import {
 	function process_attachment($postdata, $remote_url) {
 		if ($this->fetch_attachments and $remote_url) {
 			printf( __('Importing attachment <em>%s</em>... '), htmlspecialchars($remote_url) );
-			
+
 			// If the URL is absolute, but does not contain http, upload it assuming the base_site_url variable
 			if ( preg_match('/^\/[\w\W]+$/', $remote_url) )
 				$remote_url = rtrim($this->base_url,'/').$remote_url;
-			
+
 			$upload = $this->fetch_remote_file($postdata, $remote_url);
 			if ( is_wp_error($upload) ) {
 				printf( __('Remote file error: %s'), htmlspecialchars($upload->get_error_message()) );

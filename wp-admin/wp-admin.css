@@ -319,7 +319,7 @@ a.button-secondary {
 
 .tablenav select[name="action"],
 .tablenav select[name="action2"] {
-	width: 90px;
+	width: 120px;
 }
 
 .tablenav select[name="m"] {
@@ -771,7 +771,7 @@ div.comment-item:hover .row-actions {
 	text-decoration: none;
 }
 
-#logo50 {
+#header-logo {
 	float: left;
 	margin: 7px 0 0 15px;
 }
@@ -807,12 +807,6 @@ div.comment-item:hover .row-actions {
 	border-style: solid none none;
 }
 
-#adminmenu {
-	padding: 0;
-	width: 12em;
-	list-style: none;
-}
-
 #adminmenu .wp-submenu a {
 	font: normal 11px/18px "Lucida Grande", Verdana, Arial, "Bitstream Vera Sans", sans-serif;
 }
@@ -822,15 +816,10 @@ div.comment-item:hover .row-actions {
 #adminmenu .wp-submenu li.current a:hover {
 	font-weight: bold;
 }
-	
+
 #adminmenu a.menu-top,
 #adminmenu .wp-submenu-head {
 	font: normal 13px/18px Georgia, "Times New Roman", "Bitstream Charter", Times, serif;
-}
-
-.folded #adminmenu,
-.folded #adminmenu li.menu-top {
-	width: 28px;
 }
 
 #adminmenu div.wp-submenu-head {
@@ -973,9 +962,9 @@ div.comment-item:hover .row-actions {
 	cursor: w-resize;
 }
 
-.folded #adminmenu li.wp-menu-separator { 
- 	cursor: e-resize; 
-} 
+.folded #adminmenu li.wp-menu-separator {
+ 	cursor: e-resize;
+}
 
 #adminmenu .wp-menu-separator-last {
 	height: 10px;
@@ -1036,13 +1025,14 @@ div.comment-item:hover .row-actions {
 }
 /* end side admin menu */
 
-/* 2.6 */
-#adminmenu a #awaiting-mod,
-#adminmenu a span.update-plugins,
+/* comments/plugins bubble in menu */
+#adminmenu #awaiting-mod,
+#adminmenu span.update-plugins,
 #sidemenu li a span.update-plugins {
 	position: absolute;
 	font-family: Helvetica, Arial, sans-serif;
-	font-size: 9px;
+	font-size: 7pt;
+	font-weight: bold;
 	margin-top: 2px;
 	margin-left: 2px;
 	-moz-border-radius: 7px;
@@ -1051,21 +1041,23 @@ div.comment-item:hover .row-actions {
 	border-radius: 7px;
 }
 
-#adminmenu li a #awaiting-mod span,
-#adminmenu li a span.update-plugins span,
+#adminmenu li #awaiting-mod span,
+#adminmenu li span.update-plugins span,
 #sidemenu li a span.update-plugins span {
 	float: left;
 	display: block;
 	height: 1.6em;
 	line-height: 1.6em;
-	padding: 0 0.7em;
+	padding: 0 6px;
 }
 
 #adminmenu li span.count-0,
 #sidemenu li a .count-0 {
 	display: none;
 }
+/* end menu stuff */
 
+/* comments bubble */
 .post-com-count-wrapper {
 	min-width: 22px;
 	font-family: Helvetica, Arial, sans-serif;
@@ -1083,17 +1075,18 @@ div.comment-item:hover .row-actions {
 }
 
 .post-com-count span {
+	font-size: 9px;
+	font-weight: bild;
 	height: 1.7em;
-	line-height: 1.7em;
-	padding: 0 0.4em;
-	min-width: 13px;
+	line-height: 1.70em;
+	min-width: 0.7em;
+	padding: 0 6px;
 	display: inline-block;
 	cursor: pointer;
 	-moz-border-radius: 5px;
 	-khtml-border-radius: 5px;
 	-webkit-border-radius: 5px;
 	border-radius: 5px;
-	font-size: 9px;
 }
 
 strong .post-com-count {
@@ -1104,7 +1097,15 @@ strong .post-com-count {
 	background-position: center -3px;
 }
 
-/* end menu stuff */
+.column-response .post-com-count {
+	float: left;
+	margin-right: 5px;
+	text-align: center;
+}
+
+.response-links {
+	margin: 4px 0;
+}
 
 /* Admin Footer */
 #footer {
@@ -1276,7 +1277,7 @@ table.form-table td .updated {
 
 .setting-description, .form-wrap p {
 	font-style: italic;
-	font-family: "Lucida Sans", "Lucida Grande", Verdana, Arial, "Bitstream Vera Sans", sans-serif;
+	font-family: "Lucida Grande", Verdana, Arial, "Bitstream Vera Sans", sans-serif;
 }
 
 .form-wrap .form-field {
@@ -1453,7 +1454,7 @@ table.form-table td .updated {
 .howto {
 	font-style: italic;
 	display: block;
-	font-family: "Lucida Grande", "Bitstream Vera Sans", "Lucida Sans", Verdana, Arial, sans-serif;
+	font-family: "Lucida Grande", Verdana, Arial, "Bitstream Vera Sans", sans-serif;
 }
 
 .ac_results {
@@ -1603,7 +1604,7 @@ table.form-table td .updated {
 #poststuff #titlewrap {
 	border: 0;
 	padding: 0;
-	
+
 }
 
 #titlediv #title {
@@ -1709,14 +1710,6 @@ input#link_url {
 
 #media-buttons img {
 	vertical-align: middle;
-}
-
-.metabox-holder .closed .inside, #poststuff .closed .inside {
-	display: none;
-}
-
-.metabox-holder .closed h3, #poststuff .closed h3 {
-	margin: 0;
 }
 
 .submitbox .submit {
@@ -1979,10 +1972,6 @@ td.action-links, th.action-links {
 	text-align: right;
 }
 
-.hide-if-no-js {
-	display: none;
-}
-
 /* Diff */
 
 table.diff {
@@ -2070,7 +2059,7 @@ fieldset {
 	height: 20px;
 	line-height: 20px;
 	padding: 0;
-} 
+}
 
 #jj, #hh, #mn {
 	width: 2em;
@@ -2262,9 +2251,9 @@ fieldset {
 
 #replyrow #ed_reply_toolbar input {
 	margin: 1px 2px 1px 1px;
-	min-width: 26px;
+	min-width: 24px;
 	padding: 3px 4px;
-	font-size: 12px;
+	font-size: 11px;
 	-moz-border-radius: 3px;
 	-khtml-border-radius: 3px;
 	-webkit-border-radius: 3px;
@@ -2318,8 +2307,7 @@ fieldset {
 
 #screen-options-wrap h5,
 #contextual-help-wrap h5 {
-	padding: 10px 0 0 15px;
-	margin: 0;
+	margin: 8px 0;
 	font-size: 13px;
 }
 
@@ -2329,22 +2317,17 @@ fieldset {
 	border-top: 0 none;
 	border-width: 0 1px 1px;
 	margin: 0 15px;
+	padding: 8px 12px 12px;
 	-moz-border-radius: 0 0 0 4px;
 	-webkit-border-bottom-left-radius: 4px;
 	-khtml-border-bottom-left-radius: 4px;
 	border-bottom-left-radius: 4px;
 }
 
-.metabox-prefs {
-	padding: 5px 10px 10px;
-}
-
 .metabox-prefs label {
-	display: block;
-	float: left;
-	padding: 5px 3px;
+	padding-right: 15px;
 	white-space: nowrap;
-	min-width: 14em;
+	line-height: 30px;
 }
 
 .metabox-prefs label input {
@@ -2834,7 +2817,7 @@ abbr.required {
 #utc-time, #local-time {
 	padding-left: 25px;
 	font-style: italic;
-	font-family: "Lucida Sans", "Lucida Grande", Verdana, Arial, "Bitstream Vera Sans", sans-serif;
+	font-family: "Lucida Grande", Verdana, Arial, "Bitstream Vera Sans", sans-serif;
 }
 
 ul#dismissed-updates {
@@ -2924,4 +2907,14 @@ table.fixed {
 	height: 36px;
 	margin: 14px 6px 0 0;
 	width: 36px;
+}
+
+.key-labels label {
+	line-height: 24px;
+}
+
+.subtitle {
+	font-size: 0.75em;
+	line-height: 1;
+	padding-left: 25px;
 }

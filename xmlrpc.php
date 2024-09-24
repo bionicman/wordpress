@@ -137,7 +137,7 @@ class wp_xmlrpc_server extends IXR_Server {
 			'wp.getPageList'		=> 'this:wp_getPageList',
 			'wp.getAuthors'			=> 'this:wp_getAuthors',
 			'wp.getCategories'		=> 'this:mw_getCategories',		// Alias
-			'wp.getTags'			=> 'this:wp_getTags',		
+			'wp.getTags'			=> 'this:wp_getTags',
 			'wp.newCategory'		=> 'this:wp_newCategory',
 			'wp.deleteCategory'		=> 'this:wp_deleteCategory',
 			'wp.suggestCategories'	=> 'this:wp_suggestCategories',
@@ -1061,6 +1061,7 @@ class wp_xmlrpc_server extends IXR_Server {
 			"author_url"			=> $comment->comment_author_url,
 			"author_email"			=> $comment->comment_author_email,
 			"author_ip"				=> $comment->comment_author_IP,
+			"type"					=> $comment->comment_type,
 		);
 
 		return $comment_struct;
@@ -2577,7 +2578,7 @@ class wp_xmlrpc_server extends IXR_Server {
 			if( $postdata['post_status'] === 'future' ) {
 				$postdata['post_status'] = 'publish';
 			}
-			
+
 			$enclosure = array();
 			foreach ( (array) get_post_custom($post_ID) as $key => $val) {
 				if ($key == 'enclosure') {
@@ -2615,9 +2616,9 @@ class wp_xmlrpc_server extends IXR_Server {
 				'post_status' => $postdata['post_status'],
 				'custom_fields' => $this->get_custom_fields($post_ID)
 			);
-			
+
 			if (!empty($enclosure)) $resp['enclosure'] = $enclosure;
-			
+
 			return $resp;
 		} else {
 			return new IXR_Error(404, __('Sorry, no such post.'));
@@ -2760,7 +2761,7 @@ class wp_xmlrpc_server extends IXR_Server {
 			foreach ( $cats as $cat ) {
 				$struct['categoryId'] = $cat->term_id;
 				$struct['parentId'] = $cat->parent;
-				$struct['description'] = $cat->name;
+				$struct['description'] = $cat->description;
 				$struct['categoryName'] = $cat->name;
 				$struct['htmlUrl'] = wp_specialchars(get_category_link($cat->term_id));
 				$struct['rssUrl'] = wp_specialchars(get_category_feed_link($cat->term_id, 'rss2'));

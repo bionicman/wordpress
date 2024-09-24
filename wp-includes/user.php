@@ -168,10 +168,10 @@ function user_pass_ok($user_login, $user_pass) {
  *
  * @param string $option User option name.
  * @param int $user Optional. User ID.
- * @param bool $check_global Whether to check for a global option if a per-user option does not exist. Default is true.
+ * @param bool $check_blog_options Whether to check for an option in the options table if a per-user option does not exist. Default is true.
  * @return mixed
  */
-function get_user_option( $option, $user = 0, $check_global = true ) {
+function get_user_option( $option, $user = 0, $check_blog_options = true ) {
 	global $wpdb;
 
 	$option = preg_replace('|[^a-z0-9_]|i', '', $option);
@@ -184,7 +184,7 @@ function get_user_option( $option, $user = 0, $check_global = true ) {
 		$result = $user->{$wpdb->prefix . $option};
 	elseif ( isset( $user->{$option} ) ) // User specific and cross-blog
 		$result = $user->{$option};
-	elseif ( $check_global ) // Blog global
+	elseif ( $check_blog_options ) // Blog global
 		$result = get_option( $option );
 	else
 		$result = false;
@@ -429,7 +429,7 @@ function setup_userdata($user_id = '') {
  * <li>order - Default is 'ASC'. Can also be 'DESC'.</li>
  * <li>include - User IDs to include.</li>
  * <li>exclude - User IDs to exclude.</li>
- * <li>multi - Default is 'false'. Whether to skip the ID attribute on the 'select' element.</li> 
+ * <li>multi - Default is 'false'. Whether to skip the ID attribute on the 'select' element.</li>
  * <li>show - Default is 'display_name'. User table column to display. If the selected item is empty then the user_login will be displayed in parentesis</li>
  * <li>echo - Default is '1'. Whether to display or retrieve content.</li>
  * <li>selected - Which User ID is selected.</li>

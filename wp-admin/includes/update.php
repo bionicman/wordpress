@@ -292,7 +292,7 @@ function wp_update_theme($theme, $feedback = '') {
 		return new WP_Error('up_to_date', __('The theme is at the latest version.'));
 
 	$r = $current->response[ $theme ];
-	
+
 	$themes = get_themes();
 	foreach ( (array) $themes as $this_theme ) {
 		if ( $this_theme['Stylesheet'] == $theme ) {
@@ -457,18 +457,18 @@ function wp_update_core($current, $feedback = '') {
 	$result = unzip_file($download_file, $working_dir);
 	// Once extracted, delete the package
 	unlink($download_file);
-	
+
 	if ( is_wp_error($result) ) {
 		$wp_filesystem->delete($working_dir, true);
 		return $result;
 	}
-	
+
 	// Copy update-core.php from the new version into place.
 	if ( !$wp_filesystem->copy($working_dir . '/wordpress/wp-admin/includes/update-core.php', $wp_dir . 'wp-admin/includes/update-core.php', true) ) {
 		$wp_filesystem->delete($working_dir, true);
 		return new WP_Error('copy_failed', __('Could not copy files'));
 	}
-	$wp_filesystem->chmod($wp_dir . 'wp-admin/includes/update-core.php', 0644);
+	$wp_filesystem->chmod($wp_dir . 'wp-admin/includes/update-core.php', FS_CHMOD_FILE);
 
 	require(ABSPATH . 'wp-admin/includes/update-core.php');
 

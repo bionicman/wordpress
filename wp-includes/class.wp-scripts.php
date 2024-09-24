@@ -47,11 +47,15 @@ class WP_Scripts extends WP_Dependencies {
 		echo "\t$object_name = {\n";
 		$eol = '';
 		foreach ( $this->registered[$handle]->extra['l10n'][1] as $var => $val ) {
+			if ( 'l10n_print_after' == $var ) {
+				$after = $val;
+				continue;
+			}
 			echo "$eol\t\t$var: \"" . js_escape( $val ) . '"';
 			$eol = ",\n";
 		}
 		echo "\n\t}\n";
-		echo "try{convertEntities($object_name);}catch(e){};\n";
+		echo isset($after) ? "\t$after\n" : '';
 		echo "/* ]]> */\n";
 		echo "</script>\n";
 

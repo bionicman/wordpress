@@ -62,7 +62,7 @@ if ( isset($_GET['find_detached'] ) ) {
 			if ( false !== strpos($referer, 'upload.php') )
 				$location = $referer;
 		}
-	
+
 		$location = add_query_arg( array( 'detached' => 1, 'attached' => $attached ) , $location );
 		wp_redirect($location);
 		exit;
@@ -164,12 +164,15 @@ if ( isset($_GET['message']) && (int) $_GET['message'] ) {
 
 <div class="wrap">
 <?php screen_icon(); ?>
-<h2><?php echo wp_specialchars( $title ); ?></h2> 
+<h2><?php echo wp_specialchars( $title );
+if ( isset($_GET['s']) && $_GET['s'] )
+	printf( '<span class="subtitle">' . __('Search results for &#8220;%s&#8221;') . '</span>', wp_specialchars( get_search_query() ) ); ?>
+</h2>
 
 <?php
 if ( isset($message) ) { ?>
 <div id="message" class="updated fade"><p><?php echo $message; ?></p></div>
-<?php 
+<?php
 }
 ?>
 
@@ -238,7 +241,7 @@ if ( $page_links ) : ?>
 
 <div class="alignleft actions">
 <select name="action" class="select-action">
-<option value="-1" selected="selected"><?php _e('Actions'); ?></option>
+<option value="-1" selected="selected"><?php _e('Bulk Actions'); ?></option>
 <option value="delete"><?php _e('Delete'); ?></option>
 <?php if ( isset($orphans) ) { ?>
 <option value="attach"><?php _e('Attach to a post'); ?></option>
@@ -391,7 +394,7 @@ if ( $page_links )
 
 <div class="alignleft actions">
 <select name="action2" class="select-action">
-<option value="-1" selected="selected"><?php _e('Actions'); ?></option>
+<option value="-1" selected="selected"><?php _e('Bulk Actions'); ?></option>
 <option value="delete"><?php _e('Delete'); ?></option>
 <?php if ( isset($orphans) ) { ?>
 <option value="attach"><?php _e('Attach to a post'); ?></option>

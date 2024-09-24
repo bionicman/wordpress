@@ -106,7 +106,7 @@ li.widget-list-control-item h4.widget-title a,
 #dragHelper li.widget-list-control-item h4.widget-title a,
 #draghelper li.widget-list-control-item h4.widget-title a:visited,
 .login #backtoblog a:hover,
-#plugin-information .action-button a, 
+#plugin-information .action-button a,
 #plugin-information .action-button a:hover,
 #plugin-information .action-button a:visited {
 	color: #fff;
@@ -131,7 +131,7 @@ li.widget-list-control-item div.widget-control {
 }
 
 .setting-description, .form-wrap p {
-	color: #999;
+	color: #666;
 }
 
 select {
@@ -231,7 +231,7 @@ ul#widget-list li.widget-list-item h4.widget-title {
 .form-input-tip,
 .rss-widget span.rss-date,
 .subsubsub {
-	color: #999;
+	color: #666;
 }
 
 .media-item {
@@ -342,7 +342,7 @@ a:focus {
 	color: #d54e21;
 }
 
-a:hover, 
+a:hover,
 #wphead #viewsite a:hover,
 #adminmenu a:hover,
 #adminmenu ul.wp-submenu a:hover,
@@ -479,9 +479,9 @@ body.press-this .ui-tabs-selected a:hover {
 	color: #d54e21;
 }
 
-#adminmenu li a #awaiting-mod,
-#adminmenu li a span.update-plugins,
-#sidemenu li a span.update-plugins,
+#adminmenu #awaiting-mod,
+#adminmenu .update-plugins,
+#sidemenu a .update-plugins,
 #rightnow .reallynow,
 #plugin-information .action-button {
 	background-color: #d54e21;
@@ -489,14 +489,16 @@ body.press-this .ui-tabs-selected a:hover {
 }
 
 #adminmenu li a:hover #awaiting-mod,
-#adminmenu li a:hover span.update-plugins,
-#sidemenu li a:hover span.update-plugins {
+#adminmenu li a:hover .update-plugins,
+#sidemenu li a:hover .update-plugins {
 	background-color: #264761;
+	color: #fff;
 }
 
 #adminmenu li.current a #awaiting-mod,
-#adminmenu li.current a span.update-plugins,
-#adminmenu li.wp-has-current-submenu span.update-plugins {
+#adminmenu li.current a .update-plugins,
+#adminmenu li.wp-has-current-submenu a .update-plugins,
+#adminmenu li.wp-has-current-submenu a .update-plugins {
 	background-color: #ddd;
 	color: #000;
 	text-shadow: none;
@@ -504,6 +506,14 @@ body.press-this .ui-tabs-selected a:hover {
 	-khtml-box-shadow: rgba(0,0,0,0.2) 0px -1px 0px;
 	-webkit-box-shadow: rgba(0,0,0,0.2) 0px -1px 0px;
 	box-shadow: rgba(0,0,0,0.2) 0px -1px 0px;
+}
+
+#adminmenu li.current a:hover #awaiting-mod,
+#adminmenu li.current a:hover .update-plugins,
+#adminmenu li.wp-has-current-submenu a:hover #awaiting-mod,
+#adminmenu li.wp-has-current-submenu a:hover .update-plugins {
+	background-color: #264761;
+	color: #fff;
 }
 
 div#media-upload-header {
@@ -613,6 +623,18 @@ li.widget-list-control-item h4,
 
 #the-comment-list .unapproved {
 	background-color: #ffffe0;
+}
+
+#the-comment-list .approve a {
+	color: #006505;
+}
+
+#the-comment-list .unapprove a {
+	color: #d98500;
+}
+
+#the-comment-list .delete a {
+	color: #bc0b0b;
 }
 
 .plugins tr {
@@ -1347,7 +1369,7 @@ fieldset.inline-edit-col-right .inline-edit-col {
 	background: #eaf2fa;
 }
 
-.tablenav .tablenav-pages, {
+.tablenav .tablenav-pages {
 	color: #555;
 }
 
@@ -1435,23 +1457,22 @@ fieldset.inline-edit-col-right .inline-edit-col {
 }
 
 #favorite-first {
-	background: #797979 url(../images/fav.png) repeat-x 0 center;
+	background: #797979 url(../images/fav.png) repeat-x left center;
 	border-color: #777 !important;
 	border-bottom-color: #666 !important;
 }
 
 #favorite-inside {
 	border-color: #797979;
-	background: #797979 url(../images/fav-bottom.png) repeat-x 0 bottom;
+	background-color: #797979;
 }
 
 #favorite-toggle {
-	background: transparent url(../images/fav-arrow.png) no-repeat 0 -4px;
+	background: transparent url(../images/fav-arrow.gif) no-repeat 0 -4px;
 }
 
 #favorite-actions a {
 	color: #ddd;
-	text-shadow: rgba(0,0,0,0.2) 0 -1px 0;
 }
 
 #favorite-actions a:hover {
@@ -1478,10 +1499,6 @@ fieldset.inline-edit-col-right .inline-edit-col {
 .button-primary,
 .submit .button-primary {
 	text-shadow: rgba(0,0,0,0.3) 0 -1px 0;
-}
-
-#wphead h1 {
-	text-shadow: rgba(0,0,0,0.6) 0 -1px 0;
 }
 
 #screen-meta a.show-settings {
@@ -1553,4 +1570,8 @@ fieldset.inline-edit-col-right .inline-edit-col {
 
 .view-switch #view-switch-excerpt.current {
 	background: transparent url(../images/list.png) no-repeat -60px 0;
+}
+
+#header-logo {
+	background: transparent url(../images/wp-logo.gif) no-repeat scroll center center;
 }

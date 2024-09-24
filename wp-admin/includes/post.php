@@ -163,7 +163,7 @@ function edit_post( $post_data = null ) {
 	if ( isset($post_data['visibility']) ) {
 		switch ( $post_data['visibility'] ) {
 			case 'public' :
-				unset( $post_data['post_password'] );
+				$post_data['post_password'] = '';
 				break;
 			case 'password' :
 				unset( $post_data['sticky'] );
@@ -900,7 +900,6 @@ function get_sample_permalink($id, $title=null, $name = null) {
 	// drafts, so we will fake, that our post is published
 	if (in_array($post->post_status, array('draft', 'pending'))) {
 		$post->post_status = 'publish';
-		$post->post_date = date('Y-m-d H:i:s');
 		$post->post_name = sanitize_title($post->post_name? $post->post_name : $post->post_title, $post->ID);
 	}
 
@@ -1045,13 +1044,13 @@ function wp_create_post_autosave( $post_id ) {
  *
  * @package WordPress
  * @since 2.7
- * 
+ *
  * @uses wp_write_post()
  * @uses edit_post()
  * @uses get_post()
  * @uses current_user_can()
  * @uses wp_create_post_autosave()
- * 
+ *
  * @return str URL to redirect to show the preview
  */
 function post_preview() {
@@ -1059,13 +1058,13 @@ function post_preview() {
 	$post_ID = (int) $_POST['post_ID'];
 	if ( $post_ID < 1 )
 		wp_die( __('Preview not available. Please save as a draft first.') );
-	
+
 	if ( isset($_POST['catslist']) )
 		$_POST['post_category'] = explode(",", $_POST['catslist']);
-	
+
 	if ( isset($_POST['tags_input']) )
 		$_POST['tags_input'] = explode(",", $_POST['tags_input']);
-	
+
 	if ( $_POST['post_type'] == 'page' || empty($_POST['post_category']) )
 		unset($_POST['post_category']);
 
@@ -1103,7 +1102,7 @@ function post_preview() {
 
 /**
  * Adds the TinyMCE editor used on the Write and Edit screens.
- * 
+ *
  * Has option to output a trimmed down version used in Press This.
  *
  * @package WordPress
@@ -1347,3 +1346,4 @@ tinyMCE.init(tinyMCEPreInit.mceInit);
 
 <?php
 }
+?>
