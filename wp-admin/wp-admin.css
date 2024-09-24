@@ -207,7 +207,6 @@ form p.submit a.cancel:hover {
 
 .preview {
 	float: right;
-	padding: 2px 8px !important;
 }
 
 #major-publishing-actions {
@@ -307,9 +306,9 @@ form p.submit a.cancel:hover {
 a.button,
 a.button-primary,
 a.button-secondary {
-	line-height: 1.4em;
+	line-height: 1.2em;
 	-webkit-border-radius: 10px;
-	padding: 3px 10px;
+	padding: 4px 10px;
 }
 
 #doaction,
@@ -786,6 +785,10 @@ div.comment-item:hover .row-actions {
 #wphead h1.long-title {
 	font: normal 18px Georgia, "Times New Roman", "Bitstream Charter", Times, serif;
 	padding: 12px 10px 5px;
+}
+
+#wphead h1 span {
+	font-size: 50%;
 }
 
 /* side admin menu */
