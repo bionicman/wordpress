@@ -34,13 +34,13 @@ if (!$step) $step = 0;
 		line-height: 140%;
 	}
 	</style>
-</head><body> 
-<h1 id="logo"><a href="http://wordpress.org">WordPress</a></h1> 
+</head><body>
+<h1 id="logo"><a href="http://wordpress.org">WordPress</a></h1>
 <?php
 switch($step) {
 
 	case 0:
-?> 
+?>
 <p>Howdy! We're about to begin the process to import all of your Movable Type entries into WordPress. It's pretty easy, but it can possible take a little bit of time so be patient. Before we get started, you need to edit this file (<code>import-mt.php</code>) and change one line so we know where to find your MT export file. Look for the line that says:</p>
 <p><code>define('MTEXPORT', '');</code></p>
 <p>and change it to</p>
@@ -51,7 +51,7 @@ switch($step) {
 <p>The importer is smart enough not to import duplicates, so you can run this multiple times without worry if for whatever reason it doesn't finish. </p>
 <?php
 	break;
-	
+
 	case 1:
 if ('' != MTEXPORT && !file_exists(MTEXPORT)) die("The file you specified does not seem to exist. Please check the path you've given.");
 if ('' == MTEXPORT) die("You must edit the MTEXPORT line as described on the <a href='import-mt.php'>previous page</a> to continue.");
@@ -80,30 +80,34 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 	$post = preg_replace("/(\r\n|\n|\r)/", "\n", $post);
 	echo "<li>Importing post... ";
 
-	// Take the comments out first
+	// Take the pings out first
+	preg_match("|(-----\n\nPING:.*)|s", $post, $pings);
+	$post = preg_replace("|(-----\n\nPING:.*)|s", '', $post);
+
+	// Then take the comments out
 	preg_match("|(-----\nCOMMENT:.*)|s", $post, $comments);
 	$post = preg_replace("|(-----\nCOMMENT:.*)|s", '', $post);
-	
+
 	// We ignore the keywords
 	$post = preg_replace("|(-----\nKEYWORDS:.*)|s", '', $post);
-	
+
 	// We want the excerpt
 	preg_match("|-----\nEXCERPT:(.*)|s", $post, $excerpt);
 	$excerpt = addslashes(trim($excerpt[1]));
 	$post = preg_replace("|(-----\nEXCERPT:.*)|s", '', $post);
-	
+
 	// We're going to put extended body into main body with a more tag
 	preg_match("|-----\nEXTENDED BODY:(.*)|s", $post, $extended);
 	$extended = trim($extended[1]);
 	if ('' != $extended) $extended = "\n<!--more-->\n$extended";
 	$post = preg_replace("|(-----\nEXTENDED BODY:.*)|s", '', $post);
-	
+
 	// Now for the main body
 	preg_match("|-----\nBODY:(.*)|s", $post, $body);
 	$body = trim($body[1]);
 	$post_content = addslashes($body . $extended);
 	$post = preg_replace("|(-----\nBODY:.*)|s", '', $post);
-	
+
 	// Grab the metadata from what's left
 	$metadata = explode("\n", $post);
 	foreach ($metadata as $line) {
@@ -130,9 +134,9 @@ foreach ($posts as $post) { if ('' != trim($post)) {
             case 'ALLOW COMMENTS':
                 $post_allow_comments = $value;
                 if ($post_allow_comments == 1) {
-                    $post_allow_comments = "open";
+                    $comment_status = 'open';
                 } else {
-                    $post_allow_comments = "closed";
+                    $comment_status = 'closed';
                 }
                 break;
             case 'CONVERT BREAKS':
@@ -141,15 +145,15 @@ foreach ($posts as $post) { if ('' != trim($post)) {
             case 'ALLOW PINGS':
                 $post_allow_pings = trim($meta[2][0]);
                 if ($post_allow_pings == 1) {
-                    $post_allow_pings = "open";
+                    $post_allow_pings = 'open';
                 } else {
-                    $post_allow_pings = "closed";
+                    $post_allow_pings = 'closed';
                 }
                 break;
             case 'PRIMARY CATEGORY':
 				$post_categories[] = addslashes($value);
                 break;
-            case 'CATEGORY':    
+            case 'CATEGORY':
 				$post_categories[] = addslashes($value);
                 break;
 			case 'DATE':
@@ -168,7 +172,7 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 	} else {
 	    $wpdb->query("INSERT INTO $tableposts (
 			post_author, post_date, post_content, post_title, post_excerpt,  post_status, comment_status, ping_status, post_name)
-			VALUES 
+			VALUES
 			('$post_author', '$post_date', '$post_content', '$post_title', '$excerpt', '$post_status', '$comment_status', '$ping_status', '$post_name')");
 		$post_id = $wpdb->get_var("SELECT ID FROM $tableposts WHERE post_title = '$post_title' AND post_date = '$post_date'");
 		if (0 != count($post_categories)) {
@@ -184,7 +188,7 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 			// Double check it's not there already
 			$exists = $wpdb->get_row("SELECT * FROM $tablepost2cat WHERE post_id = $post_id AND category_id = $cat_id");
 
-			 if (!$exists) { 
+			 if (!$exists) {
 				$wpdb->query("
 				INSERT INTO $tablepost2cat
 				(post_id, category_id)
@@ -222,10 +226,10 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 			$comment_date = trim($comment_date[1]);
 			$comment_date = date('Y-m-d H:i:s', strtotime($comment_date));
 			$comment = preg_replace('|(\n?DATE:.*)|', '', $comment);
-		
+
 			$comment_content = addslashes(trim($comment));
 			$comment_content = str_replace('-----', '', $comment_content);
-			
+
 			// Check if it's already there
 			if (!$wpdb->get_row("SELECT * FROM $tablecomments WHERE comment_date = '$comment_date' AND comment_content = '$comment_content'")) {
 				$wpdb->query("INSERT INTO $tablecomments (comment_post_ID, comment_author, comment_author_email, comment_author_url, comment_author_IP, comment_date, comment_content, comment_approved)
@@ -233,6 +237,52 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 				($post_id, '$comment_author', '$comment_email', '$comment_url', '$comment_ip', '$comment_date', '$comment_content', '1')");
 				echo " Comment added.";
 			}
+		}
+		}
+
+		// Finally the pings
+		// fix the double newline on the first one
+		$pings[0] = str_replace("-----\n\n", "-----\n", $pings[0]);
+		$pings = explode("-----\nPING:", $pings[0]);
+		foreach ($pings as $ping) {
+		if ('' != trim($ping)) {
+			// 'Author'
+			preg_match("|BLOG NAME:(.*)|", $ping, $comment_author);
+			$comment_author = addslashes(trim($comment_author[1]));
+			$ping = preg_replace('|(\n?BLOG NAME:.*)|', '', $ping);
+
+			$comment_email = '';
+
+			preg_match("|IP:(.*)|", $ping, $comment_ip);
+			$comment_ip = trim($comment_ip[1]);
+			$ping = preg_replace('|(\n?IP:.*)|', '', $ping);
+
+			preg_match("|URL:(.*)|", $ping, $comment_url);
+			$comment_url = addslashes(trim($comment_url[1]));
+			$ping = preg_replace('|(\n?URL:.*)|', '', $ping);
+
+			preg_match("|DATE:(.*)|", $ping, $comment_date);
+			$comment_date = trim($comment_date[1]);
+			$comment_date = date('Y-m-d H:i:s', strtotime($comment_date));
+			$ping = preg_replace('|(\n?DATE:.*)|', '', $ping);
+
+ 			preg_match("|TITLE:(.*)|", $ping, $ping_title);
+			$ping_title = addslashes(trim($ping_title[1]));
+			$ping = preg_replace('|(\n?TITLE:.*)|', '', $ping);
+
+			$comment_content = addslashes(trim($ping));
+			$comment_content = str_replace('-----', '', $comment_content);
+
+			$comment_content = "<trackback /><strong>$ping_title</strong>\n$comment_content";
+
+			// Check if it's already there
+			if (!$wpdb->get_row("SELECT * FROM $tablecomments WHERE comment_date = '$comment_date' AND comment_content = '$comment_content'")) {
+				$wpdb->query("INSERT INTO $tablecomments (comment_post_ID, comment_author, comment_author_email, comment_author_url, comment_author_IP, comment_date, comment_content, comment_approved)
+				VALUES
+				($post_id, '$comment_author', '$comment_email', '$comment_url', '$comment_ip', '$comment_date', '$comment_content', '1')");
+				echo " Comment added.";
+			}
+
 		}
 		}
 	}
@@ -247,6 +297,6 @@ foreach ($posts as $post) { if ('' != trim($post)) {
 <?php
 	break;
 }
-?> 
+?>
 </body>
 </html>

@@ -662,7 +662,7 @@ $guessurl = str_replace('/wp-admin/install.php?step=2', '', 'http://' . $HTTP_HO
 ?>
   <input name="url" type="text" size="60" value="<?php echo $guessurl; ?>" />
 </p>
-<p>On to 
+<p>On to
     <input type="submit" value="Step 3..." />
 </p>
 </form>
@@ -720,10 +720,7 @@ $query = "INSERT INTO $tableusers (ID, user_login, user_pass, user_firstname, us
 $q = $wpdb->query($query);
 
 // Do final updates
-upgrade_071();
-upgrade_072();
-upgrade_100();
-upgrade_101();
+upgrade_all();
 ?>
 
 <p>User setup successful!</p>

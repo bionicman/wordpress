@@ -6,7 +6,8 @@ if (file_exists('../wp-config.php'))
 
 if (!file_exists('../wp-config-sample.php'))
     die('Sorry, I need a wp-config-sample.php file to work from. Please re-upload this file from your WordPress installation.');
-    
+$configFile = file('../wp-config-sample.php');
+
 if (!is_writable('../')) die("Sorry, I can't write to the directory. You'll have to either change the permissions on your WordPress directory or create your wp-config.php manually.");
 
 $step = $HTTP_GET_VARS['step'];
@@ -60,7 +61,8 @@ switch($step) {
   <li>Database host</li> 
   <li>Table prefix (if you want to run more than one WordPress in a single database) </li>
 </ol> 
-<p>In all likelyhood, these items were supplied to you by your ISP. If you do not have this information, then you will need to contact them before you can continue. If you&#8217;re all ready, <a href="install-config.php?step=1">let&#8217;s go</a>! </p> 
+<p><strong>If for any reason this automatic file creation doens't work, don't worry. All this does is fill in the database information to a configuration file. You may also simply open <code>wp-config-sample.php</code> in a text editor, fill in your information, and save it as <code>wp-config.php</code>. </strong></p>
+<p>In all likelyhood, these items were supplied to you by your ISP. If you do not have this information, then you will need to contact them before you can continue. If you&#8217;re all ready, <a href="install-config.php?step=1">let&#8217;s go</a>! </p>
 <?php
 	break;
 
@@ -117,6 +119,7 @@ switch($step) {
 
     // We'll fail here if the values are no good.
     require_once('../wp-includes/wp-db.php');
+	$handle = fopen('../wp-config.php', 'w');
 
     foreach ($configFile as $line_num => $line) {
         switch (substr($line,0,16)) {

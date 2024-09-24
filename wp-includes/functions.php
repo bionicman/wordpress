@@ -50,7 +50,7 @@ function wptexturize($text) {
 			$curl = preg_replace("/\(r\)/i", '&#174;', $curl);
 			$curl = preg_replace('/&([^#])(?![a-z]{1,8};)/', '&#038;$1', $curl);
 			$curl = str_replace("''", '&#8221;', $curl);
-			
+
 			$curl = preg_replace('/(d+)x(\d+)/', "$1&#215;$2", $curl);
 
 		} elseif (strstr($curl, '<code') || strstr($curl, '<pre') || strstr($curl, '<kbd' || strstr($curl, '<style') || strstr($curl, '<script'))) {
@@ -69,21 +69,21 @@ function wpautop($pee, $br = 1) {
 	$pee = preg_replace('|<br />\s*<br />|', "\n\n", $pee);
 	$pee = preg_replace('!(<(?:table|tr|td|th|div|ul|ol|li|pre|select|form|blockquote|p|h[1-6])[^>]*>)!', "\n$1", $pee); // Space things out a little
 	$pee = preg_replace('!(</(?:table|tr|td|th|div|ul|ol|li|pre|select|form|blockquote|p|h[1-6])>)!', "$1\n", $pee); // Space things out a little
-	$pee = preg_replace("/(\r\n|\r)/", "\n", $pee); // cross-platform newlines 
+	$pee = preg_replace("/(\r\n|\r)/", "\n", $pee); // cross-platform newlines
 	$pee = preg_replace("/\n\n+/", "\n\n", $pee); // take care of duplicates
-	$pee = preg_replace('/\n?(.+?)(?:\n\s*\n|\z)/s', "\t<p>$1</p>\n", $pee); // make paragraphs, including one at the end 
-	$pee = preg_replace('|<p>\s*?</p>|', '', $pee); // under certain strange conditions it could create a P of entirely whitespace 
+	$pee = preg_replace('/\n?(.+?)(?:\n\s*\n|\z)/s', "\t<p>$1</p>\n", $pee); // make paragraphs, including one at the end
+	$pee = preg_replace('|<p>\s*?</p>|', '', $pee); // under certain strange conditions it could create a P of entirely whitespace
 	$pee = preg_replace("|<p>(<li.+?)</p>|", "$1", $pee); // problem with nested lists
 	$pee = preg_replace('|<p><blockquote([^>]*)>|i', "<blockquote$1><p>", $pee);
 	$pee = str_replace('</blockquote></p>', '</p></blockquote>', $pee);
 	$pee = preg_replace('!<p>\s*(</?(?:table|tr|td|th|div|ul|ol|li|pre|select|form|blockquote|p|h[1-6])[^>]*>)!', "$1", $pee);
-	$pee = preg_replace('!(</?(?:table|tr|td|th|div|ul|ol|li|pre|select|form|blockquote|p|h[1-6])[^>]*>)\s*</p>!', "$1", $pee); 
+	$pee = preg_replace('!(</?(?:table|tr|td|th|div|ul|ol|li|pre|select|form|blockquote|p|h[1-6])[^>]*>)\s*</p>!', "$1", $pee);
 	if ($br) $pee = preg_replace('|(?<!<br />)\s*\n|', "<br />\n", $pee); // optionally make line breaks
 	$pee = preg_replace('!(</?(?:table|tr|td|th|div|dl|dd|dt|ul|ol|li|pre|select|form|blockquote|p|h[1-6])[^>]*>)\s*<br />!', "$1", $pee);
 	$pee = preg_replace('!<br />(\s*</?(?:p|li|div|th|pre|td|ul|ol)>)!', '$1', $pee);
 	$pee = preg_replace('/&([^#])(?![a-z]{1,8};)/', '&#038;$1', $pee);
-	
-	return $pee; 
+
+	return $pee;
 }
 
 function sanitize_title($title) {
@@ -153,7 +153,7 @@ function mysql2date($dateformatstring, $mysqlstring, $use_b2configmonthsdays = 1
 	if (empty($m)) {
 		return false;
 	}
-	$i = mktime(substr($m,11,2),substr($m,14,2),substr($m,17,2),substr($m,5,2),substr($m,8,2),substr($m,0,4)); 
+	$i = mktime(substr($m,11,2),substr($m,14,2),substr($m,17,2),substr($m,5,2),substr($m,8,2),substr($m,0,4));
 	if (!empty($month) && !empty($weekday) && $use_b2configmonthsdays) {
 		$datemonth = $month[date('m', $i)];
 		$dateweekday = $weekday[date('w', $i)];
@@ -193,7 +193,7 @@ function addslashes_gpc($gpc) {
 
 function date_i18n($dateformatstring, $unixtimestamp) {
 	global $month, $weekday;
-	$i = $unixtimestamp; 
+	$i = $unixtimestamp;
 	if ((!empty($month)) && (!empty($weekday))) {
 		$datemonth = $month[date('m', $i)];
 		$dateweekday = $weekday[date('w', $i)];
@@ -234,7 +234,7 @@ function convert_chars($content,$flag='obsolete attribute left there for backwar
 	// removes metadata tags
 	$content = preg_replace('/<title>(.+?)<\/title>/','',$content);
 	$content = preg_replace('/<category>(.+?)<\/category>/','',$content);
-	
+
 	if ($use_htmltrans) {
 
 		// converts lone & characters into &#38; (a.k.a. &amp;)
@@ -478,17 +478,17 @@ function url_to_postid($url = '') {
 
 	// on failure, preg_replace just returns the subject string
 	// so if $uri and $siteurl are the same, they didn't match:
-	if ($uri == $siteurl) 
+	if ($uri == $siteurl)
 		return 0;
-		
+
 	// First, check to see if there is a 'p=N' to match against:
 	preg_match('#[?&]p=(\d+)#', $uri, $values);
 	$p = intval($values[1]);
 	if ($p) return $p;
-	
+
 	// Match $uri against our permalink structure
 	$permalink_structure = get_settings('permalink_structure');
-	
+
 	// Matt's tokenizer code
 	$rewritecode = array(
 		'%year%',
@@ -522,7 +522,7 @@ function url_to_postid($url = '') {
 		// Create a variable named $year, $monthnum, $day, $postname, or $post_id:
 		$$name = $value;
 	}
-	
+
 	// If using %post_id%, we're done:
 	if (intval($post_id)) return intval($post_id);
 
@@ -585,14 +585,14 @@ function get_postdata($postid) {
 	global $post, $tableusers, $tablecategories, $tableposts, $tablecomments, $wpdb;
 
 	$post = $wpdb->get_row("SELECT * FROM $tableposts WHERE ID = $postid");
-	
+
 	$postdata = array (
-		'ID' => $post->ID, 
-		'Author_ID' => $post->post_author, 
-		'Date' => $post->post_date, 
-		'Content' => $post->post_content, 
-		'Excerpt' => $post->post_excerpt, 
-		'Title' => $post->post_title, 
+		'ID' => $post->ID,
+		'Author_ID' => $post->post_author,
+		'Date' => $post->post_date,
+		'Content' => $post->post_content,
+		'Excerpt' => $post->post_excerpt,
+		'Title' => $post->post_title,
 		'Category' => $post->post_category,
 		'Lat' => $post->post_lat,
 		'Lon' => $post->post_lon,
@@ -609,7 +609,7 @@ function get_postdata($postid) {
 function get_postdata2($postid=0) { // less flexible, but saves DB queries
 	global $post;
 	$postdata = array (
-		'ID' => $post->ID, 
+		'ID' => $post->ID,
 		'Author_ID' => $post->post_author,
 		'Date' => $post->post_date,
 		'Content' => $post->post_content,
@@ -678,14 +678,14 @@ function dropdown_categories($default = 0) {
 
 	if ($post->ID) {
 		$postcategories = $wpdb->get_col("
-			SELECT category_id 
-			FROM  $tablecategories, $tablepost2cat 
+			SELECT category_id
+			FROM  $tablecategories, $tablepost2cat
 			WHERE $tablepost2cat.category_id = cat_ID AND $tablepost2cat.post_id = $post->ID
 			");
 	} else {
 		$postcategories[] = $default;
 	}
-	
+
 	foreach($categories as $category) {
 		++$i;
 		$category->cat_name = stripslashes($category->cat_name);
@@ -708,7 +708,7 @@ function touch_time($edit = 1) {
 	}
 
 	echo '<p><input type="checkbox" class="checkbox" name="edit_date" value="1" id="timestamp" '.$checked.'/> <label for="timestamp">Edit timestamp</label> <a href="http://wordpress.org/docs/reference/post/#edit_timestamp" title="Help on changing the timestamp">?</a><br />';
-	
+
 	$time_adj = time() + ($time_difference * 3600);
 	$jj = ($edit) ? mysql2date('d', $postdata['Date']) : date('d', $time_adj);
 	$mm = ($edit) ? mysql2date('m', $postdata['Date']) : date('m', $time_adj);
@@ -731,9 +731,9 @@ function touch_time($edit = 1) {
 		echo ">".$month["$ii"]."</option>\n";
 	} ?>
 </select>
-<input type="text" name="aa" value="<?php echo $aa ?>" size="4" maxlength="5" /> @ 
-<input type="text" name="hh" value="<?php echo $hh ?>" size="2" maxlength="2" /> : 
-<input type="text" name="mn" value="<?php echo $mn ?>" size="2" maxlength="2" /> : 
+<input type="text" name="aa" value="<?php echo $aa ?>" size="4" maxlength="5" /> @
+<input type="text" name="hh" value="<?php echo $hh ?>" size="2" maxlength="2" /> :
+<input type="text" name="mn" value="<?php echo $mn ?>" size="2" maxlength="2" /> :
 <input type="text" name="ss" value="<?php echo $ss ?>" size="2" maxlength="2" /> </p>
 	<?php
 }
@@ -743,15 +743,15 @@ function gzip_compression() {
 		if (!$gzip_compressed) {
 		$phpver = phpversion(); //start gzip compression
 		if($phpver >= "4.0.4pl1") {
-			if(extension_loaded("zlib")) { 
-				ob_start("ob_gzhandler"); 
+			if(extension_loaded("zlib")) {
+				ob_start("ob_gzhandler");
 			}
 		} else if($phpver > "4.0") {
 			if(strstr($HTTP_SERVER_VARS['HTTP_ACCEPT_ENCODING'], 'gzip')) {
-				if(extension_loaded("zlib")) { 
-					$do_gzip_compress = TRUE; 
-					ob_start(); 
-					ob_implicit_flush(0); 
+				if(extension_loaded("zlib")) {
+					$do_gzip_compress = TRUE;
+					ob_start();
+					ob_implicit_flush(0);
 					header("Content-Encoding: gzip");
 				}
 			}
@@ -991,7 +991,7 @@ function xmlrpc_getposttitle($content) {
 	}
 	return $post_title;
 }
-	
+
 function xmlrpc_getpostcategory($content) {
 	global $post_default_category;
 	if (preg_match('/<category>(.+?)<\/category>/is', $content, $matchcat)) {
@@ -1062,7 +1062,7 @@ function pingback($content, $post_ID) {
 	// Debug
 	debug_fwrite($log, 'Post contents:');
 	debug_fwrite($log, $content."\n");
-	
+
 	// Step 2.
 	// Walking thru the links array
 	// first we get rid of links pointing to sites, not to specific files
@@ -1222,17 +1222,17 @@ function sanitise_html_attributes($text) {
 
 /*
  balanceTags
- 
+
  Balances Tags of string using a modified stack.
- 
+
  @param text      Text to be balanced
  @return          Returns balanced text
  @author          Leonard Lin (leonard@acm.org)
  @version         v1.1
  @date            November 4, 2001
  @license         GPL v2.0
- @notes           
- @changelog       
+ @notes
+ @changelog
              1.2  ***TODO*** Make better - change loop condition to $text
              1.1  Fixed handling of append/stack pop order of end text
                   Added Cleaning Hooks
@@ -1241,10 +1241,6 @@ function sanitise_html_attributes($text) {
 function balanceTags($text, $is_comment = 0) {
 	global $use_balanceTags;
 
-	if ($is_comment) {
-        $text = sanitise_html_attributes($text);
-	}
-	
 	if ($use_balanceTags == 0) {
 		return $text;
 	}
@@ -1275,7 +1271,7 @@ function balanceTags($text, $is_comment = 0) {
 			$tag = strtolower(substr($regex[1],1));
 
 			// if too many closing tags
-			if($stacksize <= 0) { 
+			if($stacksize <= 0) {
 				$tag = '';
 				//or close to be safe $tag = '/' . $tag;
 			}
@@ -1320,7 +1316,7 @@ function balanceTags($text, $is_comment = 0) {
 
 		$newtext .= substr($text,0,$i) . $tag;
 		$text = substr($text,$i+$l);
-	}  
+	}
 
 	// Clear Tag Queue
 	$newtext = $newtext . $tagqueue;
@@ -1330,7 +1326,7 @@ function balanceTags($text, $is_comment = 0) {
 
 	// Empty Stack
 	while($x = array_pop($tagstack)) {
-		$newtext = $newtext . '</' . $x . '>'; // Add remaining tags to close      
+		$newtext = $newtext . '</' . $x . '>'; // Add remaining tags to close
 	}
 
 	# b2 fix for the bug with HTML comments
@@ -1356,7 +1352,7 @@ function doGeoUrlHeader($posts) {
         }
     } else {
         if($use_default_geourl) {
-            // send the default here 
+            // send the default here
             echo "<meta name=\"ICBM\" content=\"".$default_geourl_lat.", ".$default_geourl_lon."\" />\n";
             echo "<meta name=\"DC.title\" content=\"".convert_chars(strip_tags(get_bloginfo("name")),"unicode")."\" />\n";
             echo "<meta name=\"geo.position\" content=\"".$default_geourl_lat.";".$default_geourl_lon."\" />\n";
@@ -1384,7 +1380,7 @@ function pingGeoURL($blog_ID) {
     $ourUrl = $blodotgsping_url."/index.php?p=".$blog_ID;
     $host="geourl.org";
     $path="/ping/?p=".$ourUrl;
-    getRemoteFile($host,$path); 
+    getRemoteFile($host,$path);
 }
 
 /* wp_set_comment_status:
@@ -1394,7 +1390,7 @@ function pingGeoURL($blog_ID) {
    hold   : set comment_approve field to 0
    approve: set comment_approve field to 1
    delete : remove comment out of database
-   
+
    returns true if change could be applied
    returns false on database error or invalid value for $comment_status
  */
@@ -1414,7 +1410,7 @@ function wp_set_comment_status($comment_id, $comment_status) {
 		default:
 			return false;
     }
-    
+
     if ($wpdb->query($query)) {
 		return true;
     } else {
@@ -1436,7 +1432,7 @@ function wp_set_comment_status($comment_id, $comment_status) {
  */
 function wp_get_comment_status($comment_id) {
     global $wpdb, $tablecomments;
-    
+
     $result = $wpdb->get_var("SELECT comment_approved FROM $tablecomments WHERE comment_ID='$comment_id' LIMIT 1");
     if ($result == NULL) {
         return "deleted";
@@ -1453,7 +1449,7 @@ function wp_notify_postauthor($comment_id, $comment_type='comment') {
     global $wpdb, $tablecomments, $tableposts, $tableusers;
     global $querystring_start, $querystring_equal, $querystring_separator;
     global $blogfilename, $blogname, $siteurl;
-    
+
     $comment = $wpdb->get_row("SELECT * FROM $tablecomments WHERE comment_ID='$comment_id' LIMIT 1");
     $post = $wpdb->get_row("SELECT * FROM $tableposts WHERE ID='$comment->comment_post_ID' LIMIT 1");
     $user = $wpdb->get_row("SELECT * FROM $tableusers WHERE ID='$post->post_author' LIMIT 1");
@@ -1463,7 +1459,7 @@ function wp_notify_postauthor($comment_id, $comment_type='comment') {
 	$comment_author_domain = gethostbyaddr($comment->comment_author_IP);
 
 	$blogname = stripslashes($blogname);
-	
+
 	if ('comment' == $comment_type) {
 		$notify_message  = "New comment on your post #$comment->comment_post_ID \"".stripslashes($post->post_title)."\"\r\n\r\n";
 		$notify_message .= "Author : $comment->comment_author (IP: $comment->comment_author_IP , $comment_author_domain)\r\n";
@@ -1497,7 +1493,7 @@ function wp_notify_postauthor($comment_id, $comment_type='comment') {
 	}
 
 	@mail($user->user_email, $subject, $notify_message, $from);
-   
+
     return true;
 }
 
@@ -1510,7 +1506,7 @@ function wp_notify_moderator($comment_id) {
     global $wpdb, $tablecomments, $tableposts, $tableusers;
     global $querystring_start, $querystring_equal, $querystring_separator;
     global $blogfilename, $blogname, $siteurl;
-    
+
     $comment = $wpdb->get_row("SELECT * FROM $tablecomments WHERE comment_ID='$comment_id' LIMIT 1");
     $post = $wpdb->get_row("SELECT * FROM $tableposts WHERE ID='$comment->comment_post_ID' LIMIT 1");
     $user = $wpdb->get_row("SELECT * FROM $tableusers WHERE ID='$post->post_author' LIMIT 1");
@@ -1534,7 +1530,7 @@ function wp_notify_moderator($comment_id) {
     $from  = "From: $admin_email";
 
     @mail($admin_email, $subject, $notify_message, $from);
-    
+
     return true;
 }
 
@@ -1544,13 +1540,13 @@ if (!function_exists('in_array')) {
 
 	function in_array($needle, $haystack) {
 	    $needle = strtolower($needle);
-	    
+
 	    for ($i = 0; $i < count($haystack); $i++) {
 		if (strtolower($haystack[$i]) == $needle) {
 		    return true;
 		}
 	    }
-	
+
 	    return false;
 	}
 }

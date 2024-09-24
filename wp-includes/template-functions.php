@@ -57,7 +57,7 @@ function get_bloginfo($show='') {
 			break;
 		case "atom_url":
 			$output = $siteurl.'/wp-atom.php';
-			break;		
+			break;
 		case "comments_rss2_url":
 			$output = $siteurl.'/wp-commentsrss2.php';
 			break;
@@ -80,9 +80,11 @@ function wp_title($sep = '&raquo;', $display = true) {
 	global $year, $monthnum, $day, $cat, $p, $name, $month;
 
 	// If there's a category
-	if(!empty($cat)) {
-		$title = stripslashes(get_the_category_by_ID($cat));
-	}
+   if(!empty($cat)) {
+        if (!stristr($cat,'-')) { // category excluded
+            $title = stripslashes(get_the_category_by_ID($cat));
+        }
+    }
 	if (!empty($category_name)) {
 		$title = stripslashes($wpdb->get_var("SELECT cat_name FROM $tablecategories WHERE category_nicename = '$category_name'"));
 	}
@@ -111,12 +113,12 @@ function wp_title($sep = '&raquo;', $display = true) {
 			$year = '' . intval($year);
 			$where .= ' AND YEAR(post_date)=' . $year;
 		}
-		
+
 		if ($monthnum != '') {
 			$monthnum = '' . intval($monthnum);
 			$where .= ' AND MONTH(post_date)=' . $monthnum;
 		}
-		
+
 		if ($day != '') {
 			$day = '' . intval($day);
 			$where .= ' AND DAYOFMONTH(post_date)=' . $day;
@@ -1336,11 +1338,11 @@ function get_the_category() {
 		return $category_cache[$post->ID];
 	} else {
 		$categories = $wpdb->get_results("
-			SELECT category_id, cat_name, category_nicename, category_description 
-			FROM  $tablecategories, $tablepost2cat 
+			SELECT category_id, cat_name, category_nicename, category_description
+			FROM  $tablecategories, $tablepost2cat
 			WHERE $tablepost2cat.category_id = cat_ID AND $tablepost2cat.post_id = $post->ID
 			");
-	
+
 		return $categories;
 	}
 }
@@ -1349,7 +1351,7 @@ function get_category_link($echo = false, $category_id, $category_nicename) {
 	global $wpdb, $tablecategories, $post, $querystring_start, $querystring_equal, $siteurl, $blogfilename;
 	$cat_ID = $category_id;
 	$permalink_structure = get_settings('permalink_structure');
-	
+
 	if ('' == $permalink_structure) {
 		$file = "$siteurl/$blogfilename";
 		$link = $file.$querystring_start.'cat'.$querystring_equal.$cat_ID;
@@ -1498,7 +1500,7 @@ function list_cats($optionall = 1, $all = 'All', $sort_column = 'ID', $sort_orde
     $query  = "
 		SELECT cat_ID, cat_name, category_nicename, category_description
 		FROM $tablecategories
-		WHERE cat_ID > 0 
+		WHERE cat_ID > 0
 		ORDER BY $sort_column $sort_order";
 
 	$categories = $wpdb->get_results($query);
@@ -1657,7 +1659,7 @@ function comment_author() {
 function comment_author_email() {
 	global $comment;
 	$email = stripslashes(stripslashes($comment->comment_author_email));
-	
+
 	echo antispambot(stripslashes($comment->comment_author_email));
 }
 
@@ -1673,7 +1675,7 @@ function comment_author_link() {
 	}
 
 	$url = str_replace('http://url', '', $url);
-	$url = preg_replace('|[^a-z0-9-_.?#=&;,/:]|i', '', $url);
+	$url = preg_replace('|[^a-z0-9-_.?#=&~;,/:]|i', '', $url);
 	if (empty($url) && empty($email)) {
 		echo $author;
 		return;

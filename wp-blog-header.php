@@ -30,11 +30,11 @@ $wpvarstoreset = array('m','p','posts','w','c', 'cat','withcomments','s','search
 
 /* Sending HTTP headers */
 // It is presumptious to think that WP is the only thing that might change on the page.
-@header("Expires: Mon, 26 Jul 1997 05:00:00 GMT"); 				// Date in the past 
-@header("Last-Modified: " . gmdate("D, d M Y H:i:s") . " GMT"); // always modified 
-@header("Cache-Control: no-store, no-cache, must-revalidate"); 	// HTTP/1.1 
-@header("Cache-Control: post-check=0, pre-check=0", false); 
-@header("Pragma: no-cache"); 									// HTTP/1.0 
+@header("Expires: Mon, 26 Jul 1997 05:00:00 GMT"); 				// Date in the past
+@header("Last-Modified: " . gmdate("D, d M Y H:i:s") . " GMT"); // always modified
+@header("Cache-Control: no-store, no-cache, must-revalidate"); 	// HTTP/1.1
+@header("Cache-Control: post-check=0, pre-check=0", false);
+@header("Pragma: no-cache"); 									// HTTP/1.0
 @header ("X-Pingback: $siteurl/xmlrpc.php");
 
 /* Getting settings from db */
@@ -159,6 +159,9 @@ if ((empty($cat)) || ($cat == 'all') || ($cat == '0')) {
     $whichcat .= ' AND (category_id '.$eq.' '.intval($cat_array[0]);
     for ($i = 1; $i < (count($cat_array)); $i = $i + 1) {
         $whichcat .= ' '.$andor.' category_id '.$eq.' '.intval($cat_array[$i]);
+    }
+    if ($eq == '!=') {
+	    $cat = '-'.$cat; //put back the knowledge that we are excluding a category.
     }
     $whichcat .= ')';
 }
@@ -329,11 +332,11 @@ if ($posts) {
     }
     $post_id_list = implode(',', $post_id_list);
 
-    $dogs = $wpdb->get_results("SELECT DISTINCT 
-    	ID, category_id, cat_name, category_nicename, category_description 
-    	FROM $tablecategories, $tablepost2cat, $tableposts 
+    $dogs = $wpdb->get_results("SELECT DISTINCT
+    	ID, category_id, cat_name, category_nicename, category_description
+    	FROM $tablecategories, $tablepost2cat, $tableposts
     	WHERE category_id = cat_ID AND post_id = ID AND post_id IN ($post_id_list)");
-    	
+
     foreach ($dogs as $catt) {
     	$category_cache[$catt->ID][] = $catt;
     }
@@ -341,10 +344,10 @@ if ($posts) {
     // Do the same for comment numbers
 	$comment_counts = $wpdb->get_results("SELECT ID, COUNT( comment_ID ) AS ccount
 		FROM $tableposts
-		LEFT JOIN $tablecomments ON ( comment_post_ID = ID  AND comment_approved =  '1') 
+		LEFT JOIN $tablecomments ON ( comment_post_ID = ID  AND comment_approved =  '1')
 		WHERE post_status =  'publish' AND ID IN ($post_id_list)
 		GROUP BY ID");
-	
+
 	foreach ($comment_counts as $comment_count) {
 		$comment_count_cache["$comment_count->ID"] = $comment_count->ccount;
 	}
