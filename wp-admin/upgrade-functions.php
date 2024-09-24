@@ -1,6 +1,13 @@
 <?php
 // Functions to be called in install and upgrade scripts
 
+function upgrade_all() {
+	upgrade_071();
+	upgrade_072();
+	upgrade_100();
+	upgrade_101();
+}
+
 // General
 function maybe_create_table($table_name, $create_ddl) {
     global $wpdb;
@@ -18,6 +25,25 @@ function maybe_create_table($table_name, $create_ddl) {
         }
     }
     return false;
+}
+
+function drop_index($table, $index) {
+	global $wpdb;
+	$wpdb->hide_errors();
+	$wpdb->query("ALTER TABLE `$table` DROP INDEX `$index`");
+	// Now we need to take out all the extra ones we may have created
+	for ($i = 0; $i < 25; $i++) {
+		$wpdb->query("ALTER TABLE `$table` DROP INDEX `{$index}_$i`");
+	}
+	$wpdb->show_errors();
+	return true;
+}
+
+function add_clean_index($table, $index) {
+	global $wpdb;
+	drop_index($table, $index);
+	$wpdb->query("ALTER TABLE `$table` ADD INDEX ( `$index` )");
+	return true;
 }
 
 /**
@@ -139,8 +165,10 @@ function upgrade_072() {
 			}
 	}
 
+	// Guess a site URI
+$guessurl = preg_replace('|/wp-admin/.*|i', '', 'http://' . $HTTP_HOST . $REQUEST_URI);
 	$option_data = array(		//base options from b2cofig
-		"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (1,'siteurl', 3, 'http://example.com', 'siteurl is your blog\'s URL: for example, \'http://example.com/wordpress\' (no trailing slash !)', 8, 30)",
+		"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (1,'siteurl', 3, '$guessurl', 'siteurl is your blog\'s URL: for example, \'http://example.com/wordpress\'', 8, 30)",
 		"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (2,'blogfilename', 3, 'index.php', 'blogfilename is the name of the default file for your blog', 8, 20)",
 		"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (3,'blogname', 3, 'my weblog', 'blogname is the name of your blog', 8, 20)",
 		"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (4,'blogdescription', 3, 'babblings!', 'blogdescription is the description of your blog', 8, 40)",
@@ -159,7 +187,6 @@ function upgrade_072() {
 		"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (16,'use_smilies', 2, '1', 'set this to true to enable smiley conversion in posts (note: this makes smiley conversion in ALL posts)', 8, 20)",
 		"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (17,'smilies_directory', 3, 'http://example.com/wp-images/smilies', 'the directory where your smilies are (no trailing slash)', 8, 40)",
 		"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (18,'require_name_email', 2, '0', 'set this to true to require e-mail and name, or false to allow comments without e-mail/name', 8, 20)",
-		"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (19,'comment_allowed_tags', 3, '<b><i><strong><em><code><blockquote><p><br><strike><a>', 'here is a list of the tags that are allowed in the comments. You can add tags to the list, just add them in the string, add only the opening tag: for example, only \'&lt;a>\' instead of \'&lt;a href=\"\">&lt;/a>\'', 8, 40)",
 		"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (20,'comments_notify', 2, '1', 'set this to true to let every author be notified about comments on their posts', 8, 20)",
 		//rss/rdf feeds
 		"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES (21,'posts_per_rss', 1, '10', 'number of last posts to syndicate', 8, 20)",
@@ -466,16 +493,13 @@ function upgrade_100() {
 	maybe_add_column($tablecategories, 'category_parent', "ALTER TABLE `$tablecategories` ADD `category_parent` INT(4) NOT NULL");
 	maybe_add_column($tablelinks, 'link_rss', "ALTER TABLE `$tablelinks` ADD `link_rss` VARCHAR( 255 ) NOT NULL;");
 	maybe_add_column($tableusers, 'user_description', "ALTER TABLE `$tableusers` ADD `user_description` TEXT NOT NULL");
+	maybe_add_column($tablecomments, 'comment_approved', "ALTER TABLE $tablecomments ADD COLUMN comment_approved ENUM('0', '1') DEFAULT '1' NOT NULL");
 
 	// Create indicies
-	$wpdb->hide_errors();
-	$wpdb->query("ALTER TABLE `$tableposts` ADD INDEX (`post_name`)");
-	$wpdb->query("ALTER TABLE `$tablecategories` ADD INDEX (`category_nicename`)");
-	$wpdb->show_errors();
+	add_clean_index($tableposts, 'post_name');
+	add_clean_index($tablecategories, 'category_nicename');
+	add_clean_index($tablecomments, 'comment_approved');
 
-	if (maybe_add_column($tablecomments, 'comment_approved', "ALTER TABLE $tablecomments ADD COLUMN comment_approved ENUM('0', '1') DEFAULT '1' NOT NULL")) {
-		$wpdb->query("ALTER TABLE $tablecomments ADD INDEX (comment_approved)");
-	}
 
 	// Options stuff
 	if (!$wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'comment_moderation'")) {
@@ -606,7 +630,7 @@ function upgrade_100() {
 	foreach ($allposts as $post) {
 		// Check to see if it's already been imported
 		$cat = $wpdb->get_row("SELECT * FROM $tablepost2cat WHERE post_id = $post->ID AND category_id = $post->post_category");
-		if (!$cat) { // If there's no result
+		if (!$cat && 0 != $post->post_category) { // If there's no result
 			$wpdb->query("
 				INSERT INTO $tablepost2cat
 				(post_id, category_id)
@@ -615,6 +639,29 @@ function upgrade_100() {
 				");
 		}
 	}
+}
+
+function upgrade_101() {
+	global $wpdb, $tableoptionvalues, $tablelinkcategories, $tableposts, $tablecategories, $tablecomments, $tablelinks;
+	// Fix possible duplicate problem from CVS
+	$option59 = $wpdb->get_results("SELECT * FROM $tableoptionvalues WHERE option_id  = 59");
+	if (1 < count($option59)) {
+		$wpdb->query("DELETE FROM $tableoptionvalues WHERE option_id = 59 AND optionvalue LIKE('%FROM  order%')");
+	}
+	
+	// Remove 'automatic' option for comment moderation until it actually does something
+	$wpdb->query("DELETE FROM $tableoptionvalues WHERE optionvalue = 'auto'");
+	// Less intrusive default
+	$wpdb->query("ALTER TABLE `$tablelinkcategories` CHANGE `show_description` `show_description` ENUM( 'Y', 'N' ) DEFAULT 'N' NOT NULL"); 
+	
+	// Clean up indices, add a few
+	add_clean_index($tableposts, 'post_name');
+	add_clean_index($tableposts, 'post_status');
+	add_clean_index($tablecategories, 'category_nicename');
+	add_clean_index($tablecomments, 'comment_approved');
+	add_clean_index($tablecomments, 'comment_post_ID');
+	add_clean_index($tablelinks , 'link_category');
+	add_clean_index($tablelinks , 'link_visible');
 }
 
 ?>

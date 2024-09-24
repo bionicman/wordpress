@@ -67,8 +67,8 @@ function wptexturize($text) {
 function wpautop($pee, $br = 1) {
 	$pee = $pee . "\n"; // just to make things a little easier, pad the end
 	$pee = preg_replace('|<br />\s*<br />|', "\n\n", $pee);
-	$pee = preg_replace('!(<(?:table|ul|ol|li|pre|form|blockquote|h[1-6])[^>]*>)!', "\n$1", $pee); // Space things out a little
-	$pee = preg_replace('!(</(?:table|ul|ol|li|pre|form|blockquote|h[1-6])>)!', "$1\n", $pee); // Space things out a little
+	$pee = preg_replace('!(<(?:table|tr|td|th|div|ul|ol|li|pre|select|form|blockquote|p|h[1-6])[^>]*>)!', "\n$1", $pee); // Space things out a little
+	$pee = preg_replace('!(</(?:table|tr|td|th|div|ul|ol|li|pre|select|form|blockquote|p|h[1-6])>)!', "$1\n", $pee); // Space things out a little
 	$pee = preg_replace("/(\r\n|\r)/", "\n", $pee); // cross-platform newlines 
 	$pee = preg_replace("/\n\n+/", "\n\n", $pee); // take care of duplicates
 	$pee = preg_replace('/\n?(.+?)(?:\n\s*\n|\z)/s', "\t<p>$1</p>\n", $pee); // make paragraphs, including one at the end 
@@ -88,11 +88,12 @@ function wpautop($pee, $br = 1) {
 
 function sanitize_title($title) {
     $title = strtolower($title);
-	$title = preg_replace('/&.+;/', '', $title); // kill entities
+	$title = preg_replace('/&.+?;/', '', $title); // kill entities
     $title = preg_replace('/[^a-z0-9 -]/', '', $title);
     $title = preg_replace('/\s+/', ' ', $title);
     $title = trim($title);
     $title = str_replace(' ', '-', $title);
+	$title = preg_replace('|-+|', '-', $title);
 	return $title;
 }
 
@@ -550,7 +551,7 @@ function get_settings($setting) {
 		$settings = $cache_settings;
 	}
     if (!isset($settings->$setting)) {
-        error_log("get_settings: Didn't find setting $setting");
+        return false;
     }
     else {
 		return $settings->$setting;
@@ -1660,6 +1661,115 @@ function add_filter($tag, $function_to_add) {
 	}
 	return true;
 }
+
+/* Highlighting code c/o Ryan Boren */
+function get_search_query_terms($engine = 'google') {
+    global $s, $s_array;
+	$referer = urldecode($_SERVER[HTTP_REFERER]);
+	$query_array = array();
+	switch ($engine) {
+	case 'google':
+		// Google query parsing code adapted from Dean Allen's
+		// Google Hilite 0.3. http://textism.com
+		$query_terms = preg_replace('/^.*q=([^&]+)&?.*$/i','$1', $referer);
+		$query_terms = preg_replace('/\'|"/', '', $query_terms);
+		$query_array = preg_split ("/[\s,\+\.]+/", $query_terms);
+		break;
+
+	case 'lycos':
+		$query_terms = preg_replace('/^.*query=([^&]+)&?.*$/i','$1', $referer);
+		$query_terms = preg_replace('/\'|"/', '', $query_terms);
+		$query_array = preg_split ("/[\s,\+\.]+/", $query_terms);
+		break;
+
+	case 'yahoo':
+		$query_terms = preg_replace('/^.*p=([^&]+)&?.*$/i','$1', $referer);
+		$query_terms = preg_replace('/\'|"/', '', $query_terms);
+		$query_array = preg_split ("/[\s,\+\.]+/", $query_terms);
+		break;
+
+    case 'wordpress':
+        // Check the search form vars if the search terms
+        // aren't in the referer.
+        if ( ! preg_match('/^.*s=/i', $referer)) {
+            if (isset($s_array)) {
+                $query_array = $s_array;
+            } else if (isset($s)) {
+                $query_array = array($s);
+            }
+
+            break;
+        }
+
+		$query_terms = preg_replace('/^.*s=([^&]+)&?.*$/i','$1', $referer);
+		$query_terms = preg_replace('/\'|"/', '', $query_terms);
+		$query_array = preg_split ("/[\s,\+\.]+/", $query_terms);
+        break;
+	}
+
+	return $query_array;
+}
+
+function is_referer_search_engine($engine = 'google') {
+    global $siteurl;
+
+	$referer = urldecode($_SERVER[HTTP_REFERER]);
+    //echo "referer is: $referer<br />";
+	if ( ! $engine ) {
+		return 0;
+	}
+
+	switch ($engine) {
+	case 'google':
+		if (preg_match('/^http:\/\/w?w?w?\.?google.*/i', $referer)) {
+			return 1;
+		}
+		break;
+
+    case 'lycos':
+		if (preg_match('/^http:\/\/search\.lycos.*/i', $referer)) {
+			return 1;
+		}
+        break;
+
+    case 'yahoo':
+		if (preg_match('/^http:\/\/search\.yahoo.*/i', $referer)) {
+			return 1;
+		}
+        break;
+
+    case 'wordpress':
+        if (preg_match("#^$siteurl#i", $referer)) {
+            return 1;
+        }
+        break;
+	}
+
+	return 0;
+}
+
+function hilite($text) {
+	$search_engines = array('wordpress', 'google', 'lycos', 'yahoo');
+
+	foreach ($search_engines as $engine) {
+		if ( is_referer_search_engine($engine)) {
+			$query_terms = get_search_query_terms($engine);
+			foreach ($query_terms as $term) {
+				if (!empty($term) && $term != ' ') {
+					if (!preg_match('/<.+>/',$text)) {
+						$text = preg_replace('/(\b'.$term.'\b)/i','<span class="hilite">$1</span>',$text);
+					} else {
+						$text = preg_replace('/(?<=>)([^<]+)?(\b'.$term.'\b)/i','$1<span class="hilite">$2</span>',$text);
+					}
+				}
+			}
+			break;
+		}
+	}
+
+	return $text;
+}
+
 
 // Check for hacks file if the option is enabled
 if (get_settings('hack_file')) {

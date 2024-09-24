@@ -141,6 +141,9 @@ function wp_set_post_cats($blogid = '1', $post_ID = 0, $post_categories = array(
 	global $wpdb, $tablepost2cat;
 	// If $post_categories isn't already an array, make it one:
 	if (!is_array($post_categories)) {
+		if (!$post_categories) {
+			$post_categories = 1;
+		}
 		$post_categories = array($post_categories);
 	}
 
@@ -1248,8 +1251,12 @@ function mwnewpost($params) {
 		$post_date = date("Y-m-d H:i:s", $dateCreated);
 		
 		$catnames = $contentstruct['categories'];
-		foreach ($catnames as $cat) {
-			$post_category[] = get_cat_ID($cat);
+		if ($catnames) {
+			foreach ($catnames as $cat) {
+				$post_category[] = get_cat_ID($cat);
+			}
+		} else {
+			$post_category[] = 1;
 		}
 		
 		// We've got all the data -- post it:
@@ -1805,9 +1812,8 @@ $pingback_ping_sig = array(array($xmlrpcString, $xmlrpcString, $xmlrpcString));
 
 $pingback_ping_doc = 'Gets a pingback and registers it as a comment prefixed by &lt;pingback /&gt;';
 
-$debug = 1; 
-function pingback_ping($m) {
-	// original code by Mort (http://mort.mine.nu:8080) 
+function pingback_ping($m) { original code by Mort
+	// (http://mort.mine.nu:8080)
 	global $tableposts,$tablecomments, $comments_notify, $wpdb; 
 	global $siteurl, $blogfilename,$wp_version, $use_pingback; 
 	global $HTTP_SERVER_VARS, $wpdb;

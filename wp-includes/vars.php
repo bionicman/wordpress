@@ -3,7 +3,7 @@
 /* This file sets various arrays and variables for use in WordPress */
 
 # WordPress version
-$wp_version = '1.0';
+$wp_version = '1.0.1 RC1';
 
 # BBcode search and replace arrays
 $wp_bbcode['in'] = array(
@@ -62,6 +62,7 @@ $wp_htmltransbis = array(
 	'€' => '&#8364;',
 	'&lt;' => '&#60;',	# preserve fake HTML
 	'&gt;' => '&#62;',	# preserve fake HTML
+	'&amp;' => '&#038;',	# preserve fake HTML
 	'&sp;' => '&#32;', '&excl;' => '&#33;', '&quot;' => '&#34;', '&num;' => '&#35;', '&dollar;' => '&#36;', '&percnt;' => '&#37;', '&apos;' => '&#39;', '&lpar;' => '&#40;', '&rpar;' => '&#41;',
 	'&ast;' => '&#42;', '&plus;' => '&#43;', '&comma;' => '&#44;', '&hyphen;' => '&#45;', '&minus;' => '&#45;', '&period;' => '&#46;', '&sol;' => '&#47;', '&colon;' => '&#58;', '&semi;' => '&#59;', '&lt;' => '&#60;',
 	'&equals;' => '&#61;', '&gt;' => '&#62;', '&quest;' => '&#63;', '&commat;' => '&#64;', '&lsqb;' => '&#91;', '&bsol;' => '&#92;', '&rsqb;' => '&#93;', '&circ;' => '&#94;', '&lowbar;' => '&#95;', '&horbar;' => '&#95;',
@@ -262,11 +263,8 @@ uksort($wpsmiliestrans, 'smiliescmp');
 # generates smilies' search & replace arrays
 foreach($wpsmiliestrans as $smiley => $img) {
 	$wp_smiliessearch[] = $smiley;
-	$smiley_masked = '';
-	for ($i = 0; $i < strlen($smiley); $i = $i + 1) {
-		$smiley_masked .= substr($smiley, $i, 1).chr(160);
-	}
-	$wp_smiliesreplace[] = "&nbsp;<img src='$smilies_directory/$img' alt='$smiley_masked' />";
+	$smiley_masked = str_replace(' ', '', $smiley);
+	$wp_smiliesreplace[] = " <img src='$smilies_directory/$img' alt='$smiley_masked' />";
 }
 
 

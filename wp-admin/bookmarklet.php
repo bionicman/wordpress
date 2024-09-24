@@ -52,6 +52,11 @@ window.close()
     } else {
         $post_title = $popuptitle;
     }
+// I'm not sure why we're using $edited_post_title in the edit-form.php, but we are
+// and that is what is being included below. For this reason, I am just duplicating
+// the var instead of changing the assignment on the lines above. 
+// -- Alex King 2004-01-07
+    $edited_post_title = $post_title;
     
     $content = $_REQUEST['content'];
     if (!empty($content)) {
@@ -66,8 +71,9 @@ window.close()
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <title>WordPress > Bookmarklet</title>
-<link rel="stylesheet" href="wp-admin.css" type="text/css" />
 <meta http-equiv="Content-Type" content="text/html; charset=<?php echo $admin_area_charset ?>" />
+<link rel="stylesheet" href="wp-admin.css" type="text/css" />
+<link rel="shortcut icon" href="../wp-images/wp-favicon.png" />
 <script type="text/javascript" language="javascript">
 <!--
 function launchupload() {

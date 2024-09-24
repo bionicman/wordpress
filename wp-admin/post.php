@@ -167,6 +167,8 @@ switch($action) {
             if ($post_pingback) {
                 pingback($content, $post_ID);
             }
+			
+			apply_filters('action_publish_post', $post_ID);
 
 			// Time for trackbacks
 			$to_ping = $wpdb->get_var("SELECT to_ping FROM $tableposts WHERE ID = $post_ID");
@@ -246,6 +248,7 @@ switch($action) {
         }
 			$post_ID = $HTTP_POST_VARS['post_ID'];
 			$post_categories = $HTTP_POST_VARS['post_category'];
+			if (!$post_categories) $post_categories[] = 1;
 			$post_autobr = intval($HTTP_POST_VARS['post_autobr']);
 			$content = balanceTags($HTTP_POST_VARS['content']);
 			$content = format_to_post($content);
@@ -373,8 +376,8 @@ switch($action) {
         if ($user_level == 0)
             die ('Cheatin&#8217; uh?');
 
-        $post_id = $HTTP_GET_VARS['post'];
-        $postdata = get_postdata($post) or die('Oops, no post with this ID. <a href="post.php">Go back</a>!');
+        $post_id = intval($HTTP_GET_VARS['post']);
+        $postdata = get_postdata($post_id) or die('Oops, no post with this ID. <a href="post.php">Go back</a>!');
         $authordata = get_userdata($postdata['Author_ID']);
 
         if ($user_level < $authordata->user_level)
@@ -683,7 +686,7 @@ $bookmarklet_height= ($use_trackback) ? 460 : 420;
 
 if ($is_NS4 || $is_gecko) {
 ?>
-    <a href="javascript:Q=document.selection?document.selection.createRange().text:document.getSelection();void(window.open('<?php echo $siteurl ?>/wp-admin/bookmarklet.php?text='+escape(Q)+'<?php echo $bookmarklet_tbpb ?>&popupurl='+escape(location.href)+'&popuptitle='+escape(document.title),'WordPress bookmarklet','scrollbars=yes,width=600,height=<?php echo $bookmarklet_height ?>,left=100,top=150,status=yes'));">Press It 
+    <a href="javascript:if(navigator.userAgent.indexOf('Safari') >= 0){Q=getSelection();}else{Q=document.selection?document.selection.createRange().text:document.getSelection();}void(window.open('<?php echo $siteurl ?>/wp-admin/bookmarklet.php?text='+escape(Q)+'&popupurl='+escape(location.href)+'&popuptitle='+escape(document.title),'WordPress bookmarklet','scrollbars=yes,width=600,height=460,left=100,top=150,status=yes'));">Press It 
     - <?php echo $blogname ?></a> 
     <?php
 } else if ($is_winIE) {

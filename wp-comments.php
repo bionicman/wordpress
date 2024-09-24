@@ -14,14 +14,14 @@
         $comment_author_email = (isset($HTTP_COOKIE_VARS['comment_author_email_'.$cookiehash])) ? trim($HTTP_COOKIE_VARS['comment_author_email_'.$cookiehash]) : '';
  		$comment_author_url = (isset($HTTP_COOKIE_VARS['comment_author_url_'.$cookiehash])) ? trim($HTTP_COOKIE_VARS['comment_author_url_'.$cookiehash]) : '';
 
-        $comments = $wpdb->get_results("SELECT * FROM $tablecomments WHERE comment_post_ID = $id AND comment_approved = '1' ORDER BY comment_date");
+        $comments = $wpdb->get_results("SELECT * FROM $tablecomments WHERE comment_post_ID = '$id' AND comment_approved = '1' ORDER BY comment_date");
 ?>
 
 <!-- You can start editing here. -->
 
 <h2 id="comments">Comments</h2>
 
-<p><a href="<?php echo $siteurl; ?>/wp-commentsrss2.php?p=<?php echo $id; ?>"><abbr title="Really Simple Syndication">RSS</abbr> feed for comments on this post.</a></p>
+<p><?php comments_rss_link('<abbr title="Really Simple Syndication">RSS</abbr> feed for comments on this post.'); ?></p>
 
 <?php if ('open' == $post->ping_status) { ?>
 <p>The <acronym title="Uniform Resource Identifier">URI</acronym> to TrackBack this entry is: <em><?php trackback_url() ?></em></p>
@@ -44,7 +44,7 @@
 
 <h2>Leave a Comment</h2>
 <?php if ('open' == $post->comment_status) { ?>
-<p>Line and paragraph breaks automatic, website trumps email, <acronym title="Hypertext Markup Language">HTML</acronym> allowed: <code><?php echo htmlentities(str_replace('<', ' <', $comment_allowed_tags)); ?></code></p>
+<p>Line and paragraph breaks automatic, website trumps email, <acronym title="Hypertext Markup Language">HTML</acronym> allowed: <code><?php echo allowed_tags(); ?></code></p>
 
 <form action="<?php echo $siteurl; ?>/wp-comments-post.php" method="post" id="commentform">
 	<p>

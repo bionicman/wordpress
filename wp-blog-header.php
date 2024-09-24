@@ -6,9 +6,9 @@ $use_cache = 1; // No reason not to
 $curpath = dirname(__FILE__).'/';
 
 if (!file_exists($curpath . '/wp-config.php'))
-	die("There doesn't seem to be a <code>wp-config.php</code> file. I need this before we can get started. Need more help? <a href='http://wordpress.org/docs/faq/#wp-config'>We got it</a>.");
+	die("There doesn't seem to be a <code>wp-config.php</code> file. I need this before we can get started. Need more help? <a href='http://wordpress.org/docs/faq/#wp-config'>We got it</a>. You can <a href='wp-admin/install-config.php'>create a <code>wp-config.php</code> file through a web interface</a>, but this doesn't work for all server setups. The safest way is to manually create the file.");
 
-require_once ($curpath.'/wp-config.php');
+require($curpath.'/wp-config.php');
 
 $wpvarstoreset = array('m','p','posts','w','c', 'cat','withcomments','s','search','exact', 'sentence','poststart','postend','preview','debug', 'calendar','page','paged','more','tb', 'pb','author','order','orderby', 'year', 'monthnum', 'day', 'name', 'category_name');
 
@@ -92,7 +92,7 @@ if ($monthnum != '') {
 }
 
 if ($day != '') {
-	$hay = '' . intval($day);
+	$day = '' . intval($day);
 	$where .= ' AND DAYOFMONTH(post_date)=' . $day;
 }
 
@@ -128,7 +128,7 @@ if (!empty($s)) {
 	}
 	if (!$sentence) {
 		$s_array = explode(' ',$s);
-		$search .= '((post_title LIKE \''.$n.$s_array[0].$n.'\') OR (post_content LIKE \''.$s_array[0].'\'))';
+		$search .= '((post_title LIKE \''.$n.$s_array[0].$n.'\') OR (post_content LIKE \''.$n.$s_array[0].$n.'\'))';
 		for ( $i = 1; $i < count($s_array); $i = $i + 1) {
 			$search .= ' AND ((post_title LIKE \''.$n.$s_array[$i].$n.'\') OR (post_content LIKE \''.$n.$s_array[$i].$n.'\'))';
 		}
@@ -158,7 +158,7 @@ if ((empty($cat)) || ($cat == 'all') || ($cat == '0')) {
 	$cat_array = explode(' ',$cat);
     $whichcat .= ' AND (category_id '.$eq.' '.intval($cat_array[0]);
     for ($i = 1; $i < (count($cat_array)); $i = $i + 1) {
-        $whichcat .= ' '.$andor.' post_category '.$eq.' '.intval($cat_array[$i]);
+        $whichcat .= ' '.$andor.' category_id '.$eq.' '.intval($cat_array[$i]);
     }
     $whichcat .= ')';
 }
@@ -167,6 +167,7 @@ if ((empty($cat)) || ($cat == 'all') || ($cat == '0')) {
 
 if ('' != $category_name) {
 	$category_name = preg_replace('|[^a-z0-9-/]|', '', $category_name);
+	$tables = ", $tablepost2cat, $tablecategories";
 	$join = " LEFT JOIN $tablepost2cat ON ($tableposts.ID = $tablepost2cat.post_id) LEFT JOIN $tablecategories ON ($tablepost2cat.category_id = $tablecategories.cat_ID) ";
 	$whichcat = " AND (category_nicename = '$category_name') ";
 	$cat = $wpdb->get_var("SELECT cat_ID FROM $tablecategories WHERE category_nicename = '$category_name'");
@@ -227,7 +228,7 @@ if (empty($orderby)) {
 if ((!$whichcat) && (!$m) && (!$p) && (!$w) && (!$s) && empty($poststart) && empty($postend)) {
 	if ($what_to_show == 'posts') {
 		$limits = ' LIMIT '.$posts_per_page;
-	} elseif ($what_to_show == 'days') {
+	} elseif ($what_to_show == 'days' && empty($monthnum) && empty($year) && empty($day)) {
 		$lastpostdate = get_lastpostdate();
 		$lastpostdate = mysql2date('Y-m-d 00:00:00',$lastpostdate);
 		$lastpostdate = mysql2date('U',$lastpostdate);
@@ -284,7 +285,7 @@ if ($p == 'all') {
 
 $now = date('Y-m-d H:i:s',(time() + ($time_difference * 3600)));
 
-if ($pagenow != 'post.php') {
+if ($pagenow != 'post.php' && $pagenow != 'edit.php') {
 	if ((empty($poststart)) || (empty($postend)) || !($postend > $poststart)) {
 		$where .= ' AND post_date <= \''.$now.'\'';
 	}
@@ -303,6 +304,7 @@ if (isset($user_ID) && ('' != intval($user_ID)))
     $where .= " OR post_author = $user_ID AND post_status != 'draft')";
 else
     $where .= ')';
+$where .= " GROUP BY $tableposts.ID";
 $request = " SELECT $distinct * FROM $tableposts $join WHERE 1=1".$where." ORDER BY post_$orderby $limits";
 
 
@@ -319,14 +321,43 @@ if ($preview) {
 // echo $request;
 $posts = $wpdb->get_results($request);
 
-if (1 == count($posts)) {
-	if ($p || $name) {
-		$more = 1;
-		$c = 1;
-		$single = 1;
+// No point in doing all this work if we didn't match any posts.
+if ($posts) {
+    // Get the categories for all the posts
+    foreach ($posts as $post) {
+    	$post_id_list[] = $post->ID;
+    }
+    $post_id_list = implode(',', $post_id_list);
+
+    $dogs = $wpdb->get_results("SELECT DISTINCT 
+    	ID, category_id, cat_name, category_nicename, category_description 
+    	FROM $tablecategories, $tablepost2cat, $tableposts 
+    	WHERE category_id = cat_ID AND post_id = ID AND post_id IN ($post_id_list)");
+    	
+    foreach ($dogs as $catt) {
+    	$category_cache[$catt->ID][] = $catt;
+    }
+
+    // Do the same for comment numbers
+	$comment_counts = $wpdb->get_results("SELECT ID, COUNT( comment_ID ) AS ccount
+		FROM $tableposts
+		LEFT JOIN $tablecomments ON ( comment_post_ID = ID  AND comment_approved =  '1') 
+		WHERE post_status =  'publish' AND ID IN ($post_id_list)
+		GROUP BY ID");
+	
+	foreach ($comment_counts as $comment_count) {
+		$comment_count_cache["$comment_count->ID"] = $comment_count->ccount;
 	}
-	if ($s) { // If they were doing a search and got one result
-		header('Location: ' . get_permalink($posts[0]->ID));
-	}
+
+    if (1 == count($posts)) {
+    	if ($p || $name) {
+    		$more = 1;
+    		$c = 1;
+    		$single = 1;
+    	}
+    	if ($s && empty($paged)) { // If they were doing a search and got one result
+    		header('Location: ' . get_permalink($posts[0]->ID));
+    	}
+}
 }
 ?>

@@ -24,7 +24,7 @@ define('WPINC', 'wp-includes');
 require (ABSPATH . WPINC . '/wp-db.php');
 
 $wpdb->hide_errors();
-if (!$wpdb->get_row("SELECT * FROM $tableoptions LIMIT 1") && !strstr($HTTP_SERVER_VARS['REQUEST_URI'], 'install.php')) {
+if (!$wpdb->get_row("SELECT * FROM $tableusers LIMIT 1") && !strstr($HTTP_SERVER_VARS['REQUEST_URI'], 'install.php')) {
 	die("It doesn't look like you've installed WP yet. Try running <a href='wp-admin/install.php'>install.php</a>.");
 }
 $wpdb->show_errors();
@@ -44,7 +44,7 @@ require (ABSPATH . WPINC . '/kses.php');
 // We should eventually migrate to either calling
 // get_settings() wherever these are needed OR
 // accessing a single global $all_settings var
-if (!strstr($HTTP_SERVER_VARS['REQUEST_URI'], 'install.php')) {
+if (!strstr($HTTP_SERVER_VARS['REQUEST_URI'], 'install.php') && !strstr($HTTP_SERVER_VARS['REQUEST_URI'], 'wp-admin/import')) {
     $siteurl = get_settings('siteurl');
 	// "When trying to design a foolproof system, 
 	//  never underestimate the ingenuity of the fools :)"
@@ -80,7 +80,6 @@ if (!strstr($HTTP_SERVER_VARS['REQUEST_URI'], 'install.php')) {
     $use_trackback = get_settings('use_trackback');
     $use_pingback = get_settings('use_pingback');
     $require_name_email = get_settings('require_name_email');
-    $comment_allowed_tags = get_settings('comment_allowed_tags');
     $comments_notify = get_settings('comments_notify');
     $use_smilies = get_settings('use_smilies');
     $smilies_directory = get_settings('smilies_directory');
