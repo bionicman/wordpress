@@ -1533,6 +1533,14 @@ function add_theme_page( $page_title, $menu_title, $access_level, $file, $functi
 	return add_submenu_page( 'themes.php', $page_title, $menu_title, $access_level, $file, $function );
 }
 
+function add_users_page( $page_title, $menu_title, $access_level, $file, $function = '' ) {
+	if ( current_user_can('edit_users') )
+		$parent = 'users.php';
+	else
+		$parent = 'profile.php';
+	return add_submenu_page( $parent, $page_title, $menu_title, $access_level, $file, $function );
+}
+
 function validate_file( $file, $allowed_files = '' ) {
 	if ( false !== strpos( $file, './' ))
 		return 1;
@@ -1914,7 +1922,7 @@ function wp_import_upload_form( $action ) {
 	if ( strstr( $size, 'g' ) )
 		$bytes = $size * 1024 * 1024 * 1024;
 ?>
-<form enctype="multipart/form-data" id="import-upload-form" method="post" action="<?php echo $action ?>">
+<form enctype="multipart/form-data" id="import-upload-form" method="post" action="<?php echo attribute_escape($action) ?>">
 <p>
 <label for="upload"><?php _e( 'Choose a file from your computer:' ); ?></label> (<?php printf( __('Maximum size: %s' ), $size ); ?> )
 <input type="file" id="upload" name="import" size="25" />

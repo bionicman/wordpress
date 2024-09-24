@@ -1,5 +1,6 @@
 <?php
 	@ require('../../../wp-config.php');
+	cache_javascript_headers();
 
 	function wp_translate_tinymce_lang($text) {
 		if ( ! function_exists('__') ) {
@@ -73,6 +74,7 @@ initArray = {
 	convert_newlines_to_brs : false,
 	remove_linebreaks : false,
 	fix_list_elements : true,
+	gecko_spellcheck : true,
 	entities : "38,amp,60,lt,62,gt",
 	content_css : "<?php echo $mce_css; ?>",
 	valid_elements : "<?php echo $valid_elements; ?>",

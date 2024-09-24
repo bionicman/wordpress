@@ -17,7 +17,7 @@ class WP_Scripts {
 		$this->add( 'colorpicker', '/wp-includes/js/colorpicker.js', false, '3517' );
 		$this->add( 'tiny_mce', '/wp-includes/js/tinymce/tiny_mce_gzip.php', false, '20061113' );
 		$mce_config = apply_filters('tiny_mce_config_url', '/wp-includes/js/tinymce/tiny_mce_config.php');
-		$this->add( 'wp_tiny_mce', $mce_config, array('tiny_mce'), '20061113' );
+		$this->add( 'wp_tiny_mce', $mce_config, array('tiny_mce'), '20070225' );
 		$this->add( 'prototype', '/wp-includes/js/prototype.js', false, '1.5.0');
 		$this->add( 'autosave', '/wp-includes/js/autosave-js.php', array('prototype', 'sack'), '20070116');
 		$this->add( 'wp-ajax', '/wp-includes/js/wp-ajax-js.php', array('prototype'), '20070118');
@@ -78,7 +78,7 @@ class WP_Scripts {
 					if ( isset($this->args[$handle]) )
 						$ver .= '&amp;' . $this->args[$handle];
 					$src = 0 === strpos($this->scripts[$handle]->src, 'http://') ? $this->scripts[$handle]->src : get_option( 'siteurl' ) . $this->scripts[$handle]->src;
-					$src = add_query_arg('ver', $ver, $src);
+					$src = attribute_escape(add_query_arg('ver', $ver, $src));
 					echo "<script type='text/javascript' src='$src'></script>\n";
 				}
 				$this->printed[] = $handle;

@@ -105,6 +105,7 @@ function &get_post(&$post, $output = OBJECT) {
 			$post_cache[$blog_id][$post->ID] = &$post;
 		$_post = & $post_cache[$blog_id][$post->ID];
 	} else {
+		$post = (int) $post;
 		if ( $_post = wp_cache_get($post, 'pages') )
 			return get_page($_post, $output);
 		elseif ( isset($post_cache[$blog_id][$post]) )
@@ -799,10 +800,11 @@ function wp_set_post_categories($post_ID = 0, $post_categories = array()) {
 
 	if ($add_cats) {
 		foreach ($add_cats as $new_cat) {
+			$new_cat = (int) $new_cat;
 			if ( !empty($new_cat) )
 				$wpdb->query("
 					INSERT INTO $wpdb->post2cat (post_id, category_id) 
-					VALUES ($post_ID, $new_cat)");
+					VALUES ('$post_ID', '$new_cat')");
 		}
 	}
 
@@ -928,6 +930,7 @@ function &get_page(&$page, $output = OBJECT) {
 		wp_cache_add($page->ID, $page, 'pages');
 		$_page = $page;
 	} else {
+		$page = (int) $page;
 		// first, check the cache
 		if ( ! ( $_page = wp_cache_get($page, 'pages') ) ) {
 			// not in the page cache?
