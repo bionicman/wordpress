@@ -1,7 +1,7 @@
 <?php					// -*-c++-*-
 // by Edd Dumbill (C) 1999-2001
 // <edd@usefulinc.com>
-// $Id: class-xmlrpc.php,v 1.3 2004/05/10 08:37:51 saxmatt Exp $
+// $Id: class-xmlrpc.php,v 1.7 2004/05/21 21:29:57 michelvaldrighi Exp $
 
 
 # additional fixes for case of missing xml extension file by Michel Valdrighi <m@tidakada.com>
@@ -612,7 +612,15 @@ class xmlrpcmsg {
   }
 
   function xml_header() {
-	return "<?xml version=\"1.0\"?".">\n<methodCall>\n";
+	/* commenting this out until we get further testing...
+	if (function_exists('get_settings')) {
+		$encoding = ' encoding="'.get_settings('blog_charset').'"';
+	} else {
+		$encoding = '';
+	}
+	*/
+	$encoding = '';
+	return "<?xml version=\"1.0\"$encoding?".">\n<methodCall>\n";
   }
 
   function xml_footer() {
@@ -775,7 +783,27 @@ class xmlrpcval {
   var $mytype=0;
 
   function xmlrpcval($val=-1, $type="") {
-		global $xmlrpcTypes;
+  		global $xmlrpcTypes;
+		// but this doesn't work, so we redefine it. WEIRD BUG ALERT
+		$xmlrpcI4="i4";
+		$xmlrpcInt="int";
+		$xmlrpcBoolean="boolean";
+		$xmlrpcDouble="double";
+		$xmlrpcString="string";
+		$xmlrpcDateTime="dateTime.iso8601";
+		$xmlrpcBase64="base64";
+		$xmlrpcArray="array";
+		$xmlrpcStruct="struct";
+		$xmlrpcTypes=array($xmlrpcI4 => 1,
+				   $xmlrpcInt => 1,
+				   $xmlrpcBoolean => 1,
+				   $xmlrpcString => 1,
+				   $xmlrpcDouble => 1,
+				   $xmlrpcDateTime => 1,
+				   $xmlrpcBase64 => 1,
+				   $xmlrpcArray => 2,
+ 				   $xmlrpcStruct => 3);
+		//   print_r($xmlrpcTypes);
 		$this->me=array();
 		$this->mytype=0;
 		if ($val!=-1 || $type!="") {
@@ -1058,7 +1086,7 @@ function iso8601_decode($idate, $utc=0) {
 ****************************************************************/
 if (!function_exists('phpxmlrpc_decode')) {
 	function phpxmlrpc_decode($xmlrpc_val) {
-	   $kind = $xmlrpc_val->kindOf();
+	   $kind = @$xmlrpc_val->kindOf();
 
 	   if($kind == "scalar") {
 		  return $xmlrpc_val->scalarval();

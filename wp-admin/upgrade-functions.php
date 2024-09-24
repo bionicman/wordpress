@@ -786,7 +786,7 @@ function upgrade_110() {
 	
 	// Now an option for blog pinging
 	if(!$wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'ping_sites'")) {
-		$wpdb->query("INSERT INTO $tableoptions (option_name, option_type, option_value, option_admin_level) VALUES ('ping_sites', 3, '', 8)");
+		$wpdb->query("INSERT INTO $tableoptions (option_name, option_type, option_value, option_admin_level) VALUES ('ping_sites', 3, 'http://rpc.pingomatic.com/', 8)");
 	}
 	
 	// Option for using the advanced edit screen by default
@@ -831,6 +831,8 @@ function upgrade_110() {
 	$wpdb->query("ALTER TABLE `$tableposts` CHANGE `post_status` `post_status` ENUM( 'publish', 'draft', 'private', 'static' ) DEFAULT 'publish' NOT NULL");
 	maybe_add_column($tableposts, 'post_parent', "ALTER TABLE `$tableposts` ADD `post_parent` INT NOT NULL ;");
 
+
+	$wpdb->query("ALTER TABLE `$tablecomments` CHANGE `comment_author_url` `comment_author_url` VARCHAR( 200 ) NOT NULL");
 }
 
 ?>

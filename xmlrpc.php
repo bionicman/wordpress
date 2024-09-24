@@ -46,34 +46,42 @@ logIO("I", $HTTP_RAW_POST_DATA);
  * generic function for inserting data into the posts table.
  */
 function wp_insert_post($postarr = array()) {
-	global $wpdb, $tableposts;
-
+	global $wpdb, $tableposts, $post_default_category;
+	
 	// export array as variables
 	extract($postarr);
 	
 	// Do some escapes for safety
 	$post_title = $wpdb->escape($post_title);
 	$post_name = sanitize_title($post_title);
+	$post_excerpt = $wpdb->escape($post_excerpt);
+	$post_content = $wpdb->escape($post_content);
+	$post_author = (int) $post_author;
+
+	// Make sure we set a valid category
+	if (0 == count($post_category) || !is_array($post_category)) {
+		$post_category = array($post_default_category);
+	}
 
 	$post_cat = $post_category[0];
-
+	
 	if (empty($post_date))
 		$post_date = current_time('mysql');
 	// Make sure we have a good gmt date:
 	if (empty($post_date_gmt)) 
 		$post_date_gmt = get_gmt_from_date($post_date);
-
+	
 	$sql = "INSERT INTO $tableposts 
 		(post_author, post_date, post_date_gmt, post_modified, post_modified_gmt, post_content, post_title, post_excerpt, post_category, post_status, post_name) 
 		VALUES ('$post_author', '$post_date', '$post_date_gmt', '$post_date', '$post_date_gmt', '$post_content', '$post_title', '$post_excerpt', '$post_cat', '$post_status', '$post_name')";
-
+	
 	$result = $wpdb->query($sql);
 	$post_ID = $wpdb->insert_id;
 	
 	wp_set_post_cats('',$post_ID,$post_category);
-
+	
 	// Return insert_id if we got a good result, otherwise return zero.
-	return $result?$post_ID:0;
+	return $result ? $post_ID : 0;
 }
 
 function wp_get_single_post($postid = 0, $mode = OBJECT) {
@@ -111,9 +119,15 @@ function wp_update_post($postarr = array()) {
 	// Now overwrite any changed values being passed in
 	extract($postarr);
 	
+	// Make sure we set a valid category
+	if (0 == count($post_category) || !is_array($post_category)) {
+		$post_category = array($post_default_category);
+	}
+
 	// Do some escapes for safety
 	$post_title = $wpdb->escape($post_title);
 	$post_excerpt = $wpdb->escape($post_excerpt);
+	$post_content = $wpdb->escape($post_content);
 
 	$post_modified = current_time('mysql');
 	$post_modified_gmt = current_time('mysql', 1);
@@ -1395,7 +1409,7 @@ function mweditpost ($params) {	// ($postid, $user, $pass, $content, $publish)
 
 		// Do some timestamp voodoo
 		$dateCreated = $contentstruct['dateCreated'];
-		$dateCreated = $dateCreated ? iso8601_decode($dateCreated) : current_time('timestamp');
+		$dateCreated = $dateCreated ? iso8601_decode($dateCreated) : current_time('timestamp',1);
 		$post_date = date('Y-m-d H:i:s', $dateCreated);
 		$post_date_gmt = get_gmt_from_date($post_date);
 

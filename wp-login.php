@@ -41,8 +41,8 @@ switch($action) {
 
 case 'logout':
 
-	setcookie('wordpressuser_'.$cookiehash);
-	setcookie('wordpresspass_'.$cookiehash);
+    setcookie('wordpressuser_'.$cookiehash, " ", time() - 31536000, COOKIEPATH);
+    setcookie('wordpresspass_'.$cookiehash, " ", time() - 31536000, COOKIEPATH);
 	header('Expires: Wed, 11 Jan 1984 05:00:00 GMT');
 	header('Last-Modified: ' . gmdate('D, d M Y H:i:s') . ' GMT');
 	header('Cache-Control: no-cache, must-revalidate');
@@ -200,6 +200,8 @@ case 'retrievepassword':
 
 	$user_login = $_POST["user_login"];
 	$user_data = get_userdatabylogin($user_login);
+	// redefining user_login ensures we return the right case in the email
+	$user_login = $user_data['user_login'];
 	$user_email = $user_data->user_email;
 
 	if (!$user_email || $user_email != $_POST['email']) die(sprintf(__('Sorry, that user does not seem to exist in our database. Perhaps you have the wrong username or email address? <a href="%s">Try again</a>.'), 'wp-login.php?action=lostpassword'));

@@ -79,7 +79,8 @@ case 'update':
 			die (__("<strong>ERROR</strong>: you typed two different passwords. Go back to correct that."));
 		$newuser_pass = $_POST["pass1"];
 		$updatepassword = "user_pass=MD5('$newuser_pass'), ";
-		setcookie("wordpresspass_".$cookiehash,md5($newuser_pass),time()+31536000);
+		setcookie('wordpresspass_'.$cookiehash, " ", time() - 31536000, COOKIEPATH);
+		setcookie('wordpresspass_'.$cookiehash, md5(md5($newuser_pass)), time() + 31536000, COOKIEPATH);
 	}
 
 	$newuser_firstname=addslashes(stripslashes($_POST['newuser_firstname']));
@@ -230,25 +231,35 @@ default:
 </div>
 <?php } ?>
 <div class="wrap">
+<h2><?php _e('Profile'); ?></h2>
 <form name="profile" id="profile" action="profile.php" method="post">
 	<p>
     <input type="hidden" name="action" value="update" />
     <input type="hidden" name="checkuser_id" value="<?php echo $user_ID ?>" />
   </p>
-  <p><strong><?php _e('Login:') ?></strong> <?php echo $profiledata->user_login ?> | <strong><?php _e('Level:') ?></strong> 
-    <?php echo $profiledata->user_level ?> | <strong><?php _e('Posts:') ?></strong> 
-    <?php
-	$posts = get_usernumposts($user_ID);
-	echo $posts;
-	?>
-    </p>
+
 	<style type="text/css" media="screen">
 	th { text-align: right; }
 	</style>
   <table width="99%"  border="0" cellspacing="2" cellpadding="3">
     <tr>
-      <th width="33%" scope="row"><?php _e('First name:') ?></th>
-      <td width="73%"><input type="text" name="newuser_firstname" id="newuser_firstname" value="<?php echo $profiledata->user_firstname ?>" /></td>
+      <th width="33%" scope="row"><?php _e('Login:') ?></th>
+      <td width="73%"><?php echo $profiledata->user_login; ?></td>
+    </tr>
+    <tr>
+      <th scope="row"><?php _e('Level:') ?></th>
+      <td><?php echo $profiledata->user_level; ?></td>
+    </tr>
+    <tr>
+      <th scope="row"><?php _e('Posts:') ?></th>
+      <td>    <?php
+	$posts = get_usernumposts($user_ID);
+	echo $posts;
+	?></td>
+    </tr>
+    <tr>
+      <th scope="row"><?php _e('First name:') ?></th>
+      <td><input type="text" name="newuser_firstname" id="newuser_firstname" value="<?php echo $profiledata->user_firstname ?>" /></td>
     </tr>
     <tr>
       <th scope="row"><?php _e('Last name:') ?></th>

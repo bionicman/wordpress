@@ -1,9 +1,5 @@
 <?php
 
-function wp_admin_head() {
-	do_action('wp_head', '');
-}
-
 function url_shorten ($url) {
 	$short_url = str_replace('http://', '', stripslashes($url));
 	$short_url = str_replace('www.', '', $short_url);
@@ -35,7 +31,7 @@ function get_nested_categories($default = 0) {
    $checked_categories[] = $default;
  }
 
- $categories = $wpdb->get_results("SELECT * FROM $tablecategories ORDER BY category_parent DESC");
+ $categories = $wpdb->get_results("SELECT * FROM $tablecategories ORDER BY category_parent DESC, cat_name ASC");
  $result = array();
  foreach($categories as $category) {
    $array_category = get_object_vars($category);
@@ -271,14 +267,18 @@ function meta_form() {
 <th><?php _e('Value') ?></th>
 </tr>
 	<tr valign="top">
-		<td align="right" width="18%"><select id="metakeyselect" name="metakeyselect" tabindex="7">
+		<td align="right" width="18%">
+<?php if ($keys) : ?>
+<select id="metakeyselect" name="metakeyselect" tabindex="7">
 <option value="#NONE#">- Select -</option>
 <?php
 	foreach($keys as $key) {
 		echo "\n\t<option value='$key'>$key</option>";
 	}
 ?>
-</select> or </td>
+</select> or 
+<?php endif; ?>
+</td>
 <td><input type="text" id="metakeyinput" name="metakeyinput" tabindex="7" /></td>
 		<td><textarea id="metavalue" name="metavalue" rows="3" cols="25" tabindex="7"></textarea></td>
 	</tr>
@@ -365,6 +365,14 @@ function touch_time($edit = 1) {
 <input type="text" name="mn" value="<?php echo $mn ?>" size="2" maxlength="2" /> : 
 <input type="text" name="ss" value="<?php echo $ss ?>" size="2" maxlength="2" /> </p>
 	<?php
+}
+
+function check_admin_referer() {
+  $adminurl = strtolower(get_settings('siteurl')).'/wp-admin';
+  $referer = strtolower($_SERVER['HTTP_REFERER']);
+  if ( !strstr($referer, $adminurl) ) {
+    die('Sorry, you need to enable sending referrers, for this feature to work.');
+  }
 }
 
 ?>

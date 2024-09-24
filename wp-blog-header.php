@@ -1,11 +1,11 @@
 <?php
 
-$curpath = dirname(__FILE__).'/';
+if (!file_exists(dirname(__FILE__).'/' . 'wp-config.php'))
+    die("There doesn't seem to be a <code>wp-config.php</code> file. I need this before we can get started. Need more help? <a href='http://wordpress.org/docs/faq/#wp-config'>We got it</a>. You can <a href='wp-admin/setup-config.php'>create a <code>wp-config.php</code> file through a web interface</a>, but this doesn't work for all server setups. The safest way is to manually create the file.");
 
-if (!file_exists($curpath . '/wp-config.php'))
-    die(__("There doesn't seem to be a <code>wp-config.php</code> file. I need this before we can get started. Need more help? <a href='http://wordpress.org/docs/faq/#wp-config'>We got it</a>. You can <a href='wp-admin/install-config.php'>create a <code>wp-config.php</code> file through a web interface</a>, but this doesn't work for all server setups. The safest way is to manually create the file."));
+require_once(dirname(__FILE__).'/' . '/wp-config.php');
 
-require_once($curpath . '/wp-config.php');
+require_once(dirname(__FILE__).'/' . 'wp-includes/wp-l10n.php');
 
 // Process PATH_INFO, if set.
 $path_info = array();
@@ -82,7 +82,7 @@ if (!isset($doing_rss) || !$doing_rss) {
 } else {
 
 	// We're showing a feed, so WP is indeed the only thing that last changed
-	$wp_last_modified = mysql2date('D, d M Y H:i:s', get_lastpostmodified('GMT')).' GMT';
+	$wp_last_modified = mysql2date('D, d M Y H:i:s', get_lastpostmodified('GMT'), 0).' GMT';
 	$wp_etag = '"'.md5($wp_last_modified).'"';
 	@header('Last Modified: '.$wp_last_modified);
 	@header('ETag: '.$wp_etag);
@@ -97,9 +97,17 @@ if (!isset($doing_rss) || !$doing_rss) {
 	if ( ($client_last_modified && $client_etag) ?
 	    (($client_last_modified == $wp_last_modified) && ($client_etag == $wp_etag)) :
 	    (($client_last_modified == $wp_last_modified) || ($client_etag == $wp_etag)) ) {
-		header('HTTP/1.1 304 Not Modified');
-		echo "\r\n\r\n";
-		exit;
+		if ( preg_match('/cgi/',php_sapi_name()) ) {
+		    header('HTTP/1.1 304 Not Modified');
+		    echo "\r\n\r\n";
+		    exit;
+		} else {
+		    if (version_compare(phpversion(),'4.3.0','>=')) {
+		        header('Not Modified', TRUE, 304);
+		    } else {
+		        header('HTTP/1.x 304 Not Modified');
+		    }
+		}
 	}
 
 }
@@ -109,7 +117,8 @@ if (isset($doing_rss) && $doing_rss == 1)
     $posts_per_page=get_settings('posts_per_rss');
 if (!isset($posts_per_page) || $posts_per_page == 0)
     $posts_per_page = get_settings('posts_per_page');
-$what_to_show = get_settings('what_to_show');
+if (!isset($what_to_show))
+    $what_to_show = get_settings('what_to_show');
 $archive_mode = get_settings('archive_mode');
 $use_gzipcompression = get_settings('gzipcompression');
 
@@ -180,7 +189,7 @@ if ('' != $day) {
 }
 
 if ('' != $name) {
-    $name = preg_replace('/[^a-z0-9-]/', '', $name);
+    $name = preg_replace('/[^a-z0-9-_]/', '', $name);
     $where .= " AND post_name = '$name'";
 }
 
@@ -275,7 +284,7 @@ if ('' != $category_name) {
         $category_name = $category_name[count($category_name)-2]; // there was a trailling slash
         }
     }
-    $category_name = preg_replace('|[^a-z0-9-]|i', '', $category_name);
+    $category_name = preg_replace('|[^a-z0-9-_]|i', '', $category_name);
     $tables = ", $tablepost2cat, $tablecategories";
     $join = " LEFT JOIN $tablepost2cat ON ($tableposts.ID = $tablepost2cat.post_id) LEFT JOIN $tablecategories ON ($tablepost2cat.category_id = $tablecategories.cat_ID) ";
     $whichcat = " AND (category_nicename = '$category_name'";
@@ -323,7 +332,7 @@ if ('' != $author_name) {
         $author_name = $author_name[count($author_name)-2];#there was a trailling slash
         }
     }
-    $author_name = preg_replace('|[^a-z0-9-]|', '', strtolower($author_name));
+    $author_name = preg_replace('|[^a-z0-9-_]|', '', strtolower($author_name));
     $author = $wpdb->get_var("SELECT ID FROM $tableusers WHERE user_nicename='".$author_name."'");
     $whichauthor .= ' AND (post_author = '.intval($author).')';
 }

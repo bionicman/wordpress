@@ -1,4 +1,8 @@
 <?php
+$parentpath = dirname(dirname(__FILE__));
+ 
+require_once($parentpath.'/wp-config.php');
+
 $curpath = dirname(__FILE__).'/';
 
 $locale = '';
@@ -12,7 +16,7 @@ if (empty($locale)) {
     $locale = 'en_US';
 }
 
-$mofile = $curpath . "/languages/$locale.mo";
+$mofile = $curpath . "languages/$locale.mo";
 
 require($curpath . 'streams.php');
 require($curpath . 'gettext.php');

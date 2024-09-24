@@ -61,13 +61,20 @@ case 'post':
 			}
 		}
 		$post_status = $_POST['post_status'];
-		if (empty($post_status)) $post_status = get_settings('default_post_status');
+		$post_name = $_POST['post_name'];
+
+		if (empty($post_status)) $post_status = 'draft';
 		$comment_status = $_POST['comment_status'];
 		if (empty($comment_status)) $comment_status = get_settings('default_comment_status');
 		$ping_status = $_POST['ping_status'];
 		if (empty($ping_status)) $ping_status = get_settings('default_ping_status');
 		$post_password = addslashes(stripslashes($_POST['post_password']));
-		$post_name = sanitize_title($post_title);
+		
+		if (empty($post_name))
+			$post_name = sanitize_title($post_title);
+		else
+			$post_name = sanitize_title($post_name);
+
 		$trackback = $_POST['trackback_url'];
 	// Format trackbacks
 	$trackback = preg_replace('|\s+|', '\n', $trackback);
@@ -133,7 +140,7 @@ case 'post':
 	} else {
 		$location = 'post.php';
 	}
-	if ('' != $_POST['advanced'])
+	if ( '' != $_POST['advanced'] || isset($_POST['save']) )
 		$location = "post.php?action=edit&post=$post_ID";
 
 	header("Location: $location"); // Send user on their way while we keep working
@@ -315,7 +322,7 @@ case 'editpost':
 		$mn = ($mn > 59) ? $mn - 60 : $mn;
 		$ss = ($ss > 59) ? $ss - 60 : $ss;
 		$datemodif = ", post_date = '$aa-$mm-$jj $hh:$mn:$ss'";
-	$datemodif_gmt = ", post_date = '".get_gmt_from_date("$aa-$mm-$jj $hh:$mn:$ss")."'";
+	$datemodif_gmt = ", post_date_gmt = '".get_gmt_from_date("$aa-$mm-$jj $hh:$mn:$ss")."'";
 	} else {
 		$datemodif = '';
 		$datemodif_gmt = '';
@@ -340,8 +347,10 @@ $now_gmt = current_time('mysql', 1);
 			post_content = '$content',
 			post_excerpt = '$excerpt',
 			post_title = '$post_title'"
+			.$datemodif_gmt
 			.$datemodif.","
 			.$latlonaddition."
+			
 			post_status = '$post_status',
 			comment_status = '$comment_status',
 			ping_status = '$ping_status',
@@ -376,6 +385,9 @@ $now_gmt = current_time('mysql', 1);
 	// are we going from draft/private to published?
 	if ($prev_status != 'publish' && $post_status == 'publish') {
 		generic_ping();
+		if ($post_pingback) {
+			pingback($content, $post_ID);
+		}
 	} // end if moving from draft/private to published
 	if ($post_status == 'publish') {
 		do_action('publish_post', $post_ID);
@@ -423,6 +435,8 @@ case 'delete':
 
 	$standalone = 1;
 	require_once('./admin-header.php');
+
+	check_admin_referer();
 
 	if ($user_level == 0)
 		die ('Cheatin&#8217; uh?');
@@ -522,6 +536,8 @@ case 'deletecomment':
 $standalone = 1;
 require_once('./admin-header.php');
 
+check_admin_referer();
+
 if ($user_level == 0)
 	die (__('Cheatin&#8217; uh?'));
 
@@ -556,6 +572,8 @@ case 'unapprovecomment':
 
 $standalone = 1;
 require_once('./admin-header.php');
+
+check_admin_referer();
 
 if ($user_level == 0)
 	die (__('Cheatin&#8217; uh?'));
@@ -719,7 +737,7 @@ default:
 			<?php
 		}
 		//set defaults
-		$post_status = get_settings('default_post_status');
+		$post_status = 'draft';
 		$comment_status = get_settings('default_comment_status');
 		$ping_status = get_settings('default_ping_status');
 		$post_pingback = get_settings('default_pingback_flag');
