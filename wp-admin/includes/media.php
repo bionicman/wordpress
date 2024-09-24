@@ -203,7 +203,7 @@ function media_upload_form_handler() {
 	check_admin_referer('media-form');
 
 	// Insert media button was clicked
-	if ( !empty($_FILES) ) {
+	if ( isset($_POST['html-upload']) && !empty($_FILES) ) {
 		// Upload File button was clicked
 
 		$id = media_handle_upload('async-upload', $_REQUEST['post_id']);
@@ -259,7 +259,7 @@ function media_upload_form_handler() {
 }
 
 function media_upload_image() {
-	if ( !empty($_FILES) ) {
+	if ( isset($_POST['html-upload']) && !empty($_FILES) ) {
 		// Upload File button was clicked
 		$id = media_handle_upload('async-upload', $_REQUEST['post_id']);
 		unset($_FILES);
@@ -292,11 +292,14 @@ function media_upload_image() {
 			$errors = $return;
 	}
 
+	if ( isset($_POST['save']) )
+		$errors['upload_notice'] = __('Saved.');
+
 	return wp_iframe( 'media_upload_type_form', 'image', $errors, $id );
 }
 
 function media_upload_audio() {
-	if ( !empty($_FILES) ) {
+	if ( isset($_POST['html-upload']) && !empty($_FILES) ) {
 		// Upload File button was clicked
 		$id = media_handle_upload('async-upload', $_REQUEST['post_id']);
 		unset($_FILES);
@@ -326,12 +329,15 @@ function media_upload_audio() {
 		if ( is_array($return) )
 			$errors = $return;
 	}
+
+	if ( isset($_POST['save']) )
+		$errors['upload_notice'] = __('Saved.');
 
 	return wp_iframe( 'media_upload_type_form', 'audio', $errors, $id );
 }
 
 function media_upload_video() {
-	if ( !empty($_FILES) ) {
+	if ( isset($_POST['html-upload']) && !empty($_FILES) ) {
 		// Upload File button was clicked
 		$id = media_handle_upload('async-upload', $_REQUEST['post_id']);
 		unset($_FILES);
@@ -361,12 +367,15 @@ function media_upload_video() {
 		if ( is_array($return) )
 			$errors = $return;
 	}
+
+	if ( isset($_POST['save']) )
+		$errors['upload_notice'] = __('Saved.');
 
 	return wp_iframe( 'media_upload_type_form', 'video', $errors, $id );
 }
 
 function media_upload_file() {
-	if ( !empty($_FILES) ) {
+	if ( isset($_POST['html-upload']) && !empty($_FILES) ) {
 		// Upload File button was clicked
 		$id = media_handle_upload('async-upload', $_REQUEST['post_id']);
 		unset($_FILES);
@@ -396,6 +405,9 @@ function media_upload_file() {
 		if ( is_array($return) )
 			$errors = $return;
 	}
+
+	if ( isset($_POST['save']) )
+		$errors['upload_notice'] = __('Saved.');
 
 	return wp_iframe( 'media_upload_type_form', 'file', $errors, $id );
 }
@@ -499,7 +511,9 @@ function image_media_send_to_editor($html, $attachment_id, $attachment) {
 		else
 			$size = 'medium';
 
-		return get_image_send_to_editor($attachment_id, $attachment['post_excerpt'], $attachment['post_title'], $align, $url, true, $size);
+		$rel = ( $url == get_attachment_link($attachment_id) );
+
+		return get_image_send_to_editor($attachment_id, $attachment['post_excerpt'], $attachment['post_title'], $align, $url, $rel, $size);
 	}
 
 	return $html;
@@ -644,10 +658,12 @@ function get_media_item( $attachment_id, $args = null ) {
 		$toggle_links = '';
 	}
 
+	$display_title = ( !empty( $title ) ) ? $title : $filename; // $title shouldn't ever be empty, but just in case
+
 	$item = "
 	$type
 	$toggle_links
-	<div class='filename new'>$filename</div>
+	<div class='filename new'>$display_title</div>
 	<table class='slidetoggle describe $class'>
 		<tbody class='media-item-info'>
 		<tr>
@@ -755,10 +771,16 @@ function media_upload_form( $errors = null ) {
 	if ( false !== strpos(strtolower($_SERVER['HTTP_USER_AGENT']), 'mac') && apache_mod_loaded('mod_security') )
 		$flash = false;
 
+	$flash = apply_filters('flash_uploader', $flash);
 	$post_id = intval($_REQUEST['post_id']);
 
 ?>
 <input type='hidden' name='post_id' value='<?php echo $post_id; ?>' />
+<div id="media-upload-notice">
+<?php if (isset($errors['upload_notice']) ) { ?>
+	<?php echo $errors['upload_notice']; ?>
+<?php } ?>
+</div>
 <div id="media-upload-error">
 <?php if (isset($errors['upload_error']) && is_wp_error($errors['upload_error'])) { ?>
 	<?php echo $errors['upload_error']->get_error_message(); ?>
@@ -809,7 +831,7 @@ jQuery(function($){
 
 <div id="html-upload-ui">
 	<p>
-	<input type="file" name="async-upload" id="async-upload" /> <input type="submit" class="button" value="<?php echo attribute_escape(__('Upload')); ?>" /> <a href="#" onClick="return top.tb_remove();"><?php _e('Cancel'); ?></a>
+	<input type="file" name="async-upload" id="async-upload" /> <input type="submit" class="button" name="html-upload" value="<?php echo attribute_escape(__('Upload')); ?>" /> <a href="#" onClick="return top.tb_remove();"><?php _e('Cancel'); ?></a>
 	</p>
 	<input type="hidden" name="post_id" id="post_id" value="<?php echo $post_id; ?>" />
 	<br class="clear" />

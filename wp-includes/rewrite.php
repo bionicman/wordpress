@@ -67,7 +67,7 @@ function url_to_postid($url) {
 	$url = apply_filters('url_to_postid', $url);
 
 	// First, check to see if there is a 'p=N' or 'page_id=N' to match against
-	if ( preg_match('#[?&](p|page_id)=(\d+)#', $url, $values) )	{
+	if ( preg_match('#[?&](p|page_id|attachment_id)=(\d+)#', $url, $values) )	{
 		$id = absint($values[2]);
 		if ($id)
 			return $id;
@@ -765,7 +765,7 @@ class WP_Rewrite {
 					//add regexes/queries for attachments, attachment trackbacks and so on
 					if ( ! $page ) //require <permalink>/attachment/stuff form for pages because of confusion with subpages
 						$rewrite = array_merge($rewrite, array($sub1 => $subquery, $sub1tb => $subtbquery, $sub1feed => $subfeedquery, $sub1feed2 => $subfeedquery));
-					$rewrite = array_merge($rewrite, array($sub2 => $subquery, $sub2tb => $subtbquery, $sub2feed => $subfeedquery, $sub2feed2 => $subfeedquery));
+					$rewrite = array_merge(array($sub2 => $subquery, $sub2tb => $subtbquery, $sub2feed => $subfeedquery, $sub2feed2 => $subfeedquery), $rewrite);
 				}
 			} //if($num_toks)
 			//add the rules for this dir to the accumulating $post_rewrite
@@ -924,6 +924,14 @@ class WP_Rewrite {
 		}
 
 		$rules .= "</IfModule>\n";
+
+		// If ModSecurity is loaded, disable it for uploads.
+		$rules .= "\n<IfModule mod_security.c>\n" .
+			"<Files async-upload.php>\n" .
+			"SecFilterEngine Off\n" .
+			"SecFilterScanPOST Off\n" .
+			"</Files>\n" .
+			"</IfModule>\n";
 
 		$rules = apply_filters('mod_rewrite_rules', $rules);
 		$rules = apply_filters('rewrite_rules', $rules);  // Deprecated
