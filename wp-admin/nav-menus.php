@@ -55,7 +55,7 @@ switch ( $action ) {
 	case 'add-menu-item':
 		check_admin_referer( 'add-menu_item', 'menu-settings-column-nonce' );
 		if ( isset( $_REQUEST['nav-menu-locations'] ) )
-			set_theme_mod( 'nav_menu_locations', $_REQUEST['menu-locations'] );
+			set_theme_mod( 'nav_menu_locations', array_map( 'absint', $_REQUEST['menu-locations'] ) );
 		elseif ( isset( $_REQUEST['menu-item'] ) )
 			wp_save_nav_menu_items( $nav_menu_selected_id, $_REQUEST['menu-item'] );
 		break;
@@ -233,12 +233,8 @@ switch ( $action ) {
 		check_admin_referer( 'delete-menu_item_' . $menu_item_id );
 
 
-		if ( is_nav_menu_item( $menu_item_id ) ) {
-			if ( wp_delete_post( $menu_item_id, true ) ) {
-
-				$messages[] = '<div id="message" class="updated"><p>' . __('The menu item has been successfully deleted.') . '</p></div>';
-			}
-		}
+		if ( is_nav_menu_item( $menu_item_id ) && wp_delete_post( $menu_item_id, true ) )
+			$messages[] = '<div id="message" class="updated"><p>' . __('The menu item has been successfully deleted.') . '</p></div>';
 		break;
 	case 'delete':
 		check_admin_referer( 'delete-nav_menu-' . $nav_menu_selected_id );
@@ -250,6 +246,13 @@ switch ( $action ) {
 			if ( is_wp_error($delete_nav_menu) ) {
 				$messages[] = '<div id="message" class="error"><p>' . $delete_nav_menu->get_error_message() . '</p></div>';
 			} else {
+				// Remove this menu from any locations.
+				$locations = get_theme_mod( 'nav_menu_locations' );
+				foreach ( $locations as $location => $menu_id ) {
+					if ( $menu_id == $nav_menu_selected_id )
+						$locations[ $location ] = 0;
+				}
+				set_theme_mod( 'nav_menu_locations', $locations );
 				$messages[] = '<div id="message" class="updated"><p>' . __('The menu has been successfully deleted.') . '</p></div>';
 				// Select the next available menu
 				$nav_menu_selected_id = 0;
@@ -275,7 +278,7 @@ switch ( $action ) {
 
 		// Update menu theme locations
 		if ( isset( $_POST['menu-locations'] ) )
-			set_theme_mod( 'nav_menu_locations', $_POST['menu-locations'] );
+			set_theme_mod( 'nav_menu_locations', array_map( 'absint', $_POST['menu-locations'] ) );
 
 		// Add Menu
 		if ( 0 == $nav_menu_selected_id ) {
@@ -435,12 +438,12 @@ if ( current_theme_supports('nav-menus') ) {
 
 wp_initial_nav_menu_meta_boxes();
 
-$help =  '<p>' . __('This feature is new in version 3.0; to use a custom menu in place of your theme&#8217;s default menus, support for this feature must be registered in the theme&#8217;s functions.php file. If your theme does not support the custom menus feature yet (the new default theme Twenty Ten, does), you can learn about adding support yourself by following the below link.') . '</p>';
+$help =  '<p>' . __('This feature is new in version 3.0; to use a custom menu in place of your theme&#8217;s default menus, support for this feature must be registered in the theme&#8217;s functions.php file. If your theme does not support the custom menus feature yet (the new default theme, Twenty Ten, does), you can learn about adding support yourself by following the below link.') . '</p>';
 $help .= '<p>' . __('You can create custom menus for your site. These menus may contain links to pages, categories, custom links or other content types (use the Screen Options tab to decide which ones to show on the screen). You can specify a different navigation label for a menu item as well as other attributes. You can create multiple menus. If your theme includes more than one menu, you can choose which custom menu to associate with each. You can also use custom menus in conjunction with the Custom Menus widget.') . '</p>';
 $help .= '<p>' . __('To create a new custom menu, click on the + tab, give the menu a name, and click Create Menu. Next, add menu items from the appropriate boxes. You&#8217;ll be able to edit the information for each menu item, and can drag and drop to put them in order. You can also drag a menu item a little to the right to make it a submenu, to create menus with hierarchy. You&#8217;ll see when the position of the drop target shifts over to create the nested placement. Don&#8217;t forget to click Save when you&#8217;re finished.') . '</p>';
-$help .= '<p><strong>' . __('For more information:') . '</strong></p>'; 
-$help .= '<p>' . __('<a href="http://codex.wordpress.org/Appearance_Menus_SubPanel">Menus Documentation</a>') . '</p>';
-$help .= '<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>';
+$help .= '<p><strong>' . __('For more information:') . '</strong></p>';
+$help .= '<p>' . __('<a href="http://codex.wordpress.org/Appearance_Menus_SubPanel" target="_blank">Menus Documentation</a>') . '</p>';
+$help .= '<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>';
 
 add_contextual_help($current_screen, $help);
 
@@ -456,7 +459,7 @@ require_once( 'admin-header.php' );
 	endforeach;
 	?>
 	<div id="nav-menus-frame">
-	<div id="menu-settings-column" class="metabox-holder">
+	<div id="menu-settings-column" class="metabox-holder<?php if ( !$nav_menu_selected_id ) { echo ' metabox-holder-disabled'; } ?>">
 
 		<form id="nav-menu-meta" action="<?php echo admin_url( 'nav-menus.php' ); ?>" class="nav-menu-meta" method="post" enctype="multipart/form-data">
 			<input type="hidden" name="menu" id="nav-menu-meta-object-id" value="<?php echo esc_attr( $nav_menu_selected_id ); ?>" />
@@ -562,22 +565,20 @@ require_once( 'admin-header.php' );
 					</div><!-- END #nav-menu-header -->
 					<div id="post-body">
 						<div id="post-body-content">
-							<?php if ( is_nav_menu( $nav_menu_selected_id ) ) : ?>
-								<ul class="menu" id="menu-to-edit">
-								<?php
+							<?php
+							if ( is_nav_menu( $nav_menu_selected_id ) ) :
 								$edit_markup = wp_get_nav_menu_to_edit( $nav_menu_selected_id  );
-								if ( ! is_wp_error( $edit_markup ) ) {
+								if ( ! is_wp_error( $edit_markup ) ) :
 									echo $edit_markup;
-								}
-								?>
-								</ul>
-							<?php elseif ( empty($nav_menu_selected_id) ):
+								endif;
+							elseif ( empty( $nav_menu_selected_id ) ) :
 								echo '<div class="post-body-plain">';
 								echo '<p>' . __('To create a custom menu, give it a name above and click Create Menu. Then choose items like pages, categories or custom links from the left column to add to this menu.') . '</p>';
 								echo '<p>' . __('After you have added your items, drag and drop to put them in the order you want. You can also click each item to reveal additional configuration options.') . '</p>';
 								echo '<p>' . __('When you have finished building your custom menu, make sure you click the Save Menu button.') . '</p>';
 								echo '</div>';
-							endif; ?>
+							endif;
+							?>
 						</div><!-- /#post-body-content -->
 					</div><!-- /#post-body -->
 				</form><!-- /#update-nav-menu -->

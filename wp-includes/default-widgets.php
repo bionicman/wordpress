@@ -549,7 +549,7 @@ class WP_Widget_Recent_Posts extends WP_Widget {
 		<?php if ( $title ) echo $before_title . $title . $after_title; ?>
 		<ul>
 		<?php  while ($r->have_posts()) : $r->the_post(); ?>
-		<li><a href="<?php the_permalink() ?>" title="<?php echo esc_attr(get_the_title() ? get_the_title() : get_the_ID()); ?>"><?php if ( get_the_title() ) the_title(); else the_ID(); ?> </a></li>
+		<li><a href="<?php the_permalink() ?>" title="<?php echo esc_attr(get_the_title() ? get_the_title() : get_the_ID()); ?>"><?php if ( get_the_title() ) the_title(); else the_ID(); ?></a></li>
 		<?php endwhile; ?>
 		</ul>
 		<?php echo $after_widget; ?>
@@ -1072,7 +1072,7 @@ class WP_Widget_Tag_Cloud extends WP_Widget {
 		if ( !empty($instance['title']) )
 			echo $args['before_title'] . $instance['title'] . $args['after_title'];
 
-		wp_nav_menu( array( 'menu' => $nav_menu ) );
+		wp_nav_menu( array( 'fallback_cb' => '', 'menu' => $nav_menu ) );
 
 		echo $args['after_widget'];
 	}

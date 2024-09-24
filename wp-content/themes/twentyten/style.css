@@ -4,7 +4,7 @@ Theme URI: http://wordpress.org/
 Description: The 2010 default theme for WordPress.
 Author: the WordPress team
 Version: 1.0
-Tags: black, blue, white, two-columns, fixed-width, custom-header, custom-background, theme-options, threaded-comments, sticky-post, translation-ready, microformats, rtl-language-support, editor-style
+Tags: black, blue, white, two-columns, fixed-width, custom-header, custom-background, threaded-comments, sticky-post, translation-ready, microformats, rtl-language-support, editor-style
 */
 
 
@@ -164,6 +164,7 @@ div.menu,
 	width: 940px;
 }
 #wrapper {
+	margin-top: 20px;
 	background: #fff;
 	padding: 0 20px;
 }
@@ -334,7 +335,6 @@ a:hover {
 -------------------------------------------------------------- */
 
 #header {
-	margin-top: 20px;
 	padding: 30px 0 0 0;
 }
 #site-title {
@@ -559,12 +559,6 @@ div.menu li {
 .page-title a:hover {
 	color: #FF4B33;
 }
-.entry-title,
-.entry-meta {
-	clear: left;
-	float: left;
-	margin-right: 68px;
-}
 #content .entry-title {
 	color: #000;
 	font-size: 21px;
@@ -663,6 +657,10 @@ div.menu li {
 .page-link a:active,
 .page-link a:hover {
 	color: #FF4B33;
+}
+.page .edit-link {
+	clear: both;
+	display: block;
 }
 #entry-author-info {
 	background: #F2F7FC;
@@ -785,7 +783,7 @@ div.menu li {
 	margin: 0;
 	max-width: 640px;
 }
-.single-attachment #content img {
+#content .attachment img {
 	max-width: 900px;
 }
 #content .alignleft,
@@ -906,7 +904,9 @@ div.menu li {
 
 /* =Comments
 -------------------------------------------------------------- */
-
+#comments {
+	clear: both;
+}
 #comments .navigation {
 	padding: 0 0 18px 0;
 }
@@ -1000,6 +1000,7 @@ a.comment-edit-link:hover {
 	border: none;
 	margin: 0;
 }
+.nopassword,
 .nocomments {
 	display: none;
 }

@@ -180,7 +180,7 @@ if ( 'category' == $taxonomy || 'post_tag' == $taxonomy ) {
 	$help .= '<ul>' .
 		'<li>' . __('<strong>Name</strong> - The name is how it appears on your site.') . '</li>';
 	if ( ! global_terms_enabled() )
-		$help .= '<li>' . __('<strong>Slug</strong> - The  &#8220;slug&#8221; is the URL-friendly version of the name. It is usually all lowercase and contains only letters, numbers, and hyphens.') . '</li>';
+		$help .= '<li>' . __('<strong>Slug</strong> - The &#8220;slug&#8221; is the URL-friendly version of the name. It is usually all lowercase and contains only letters, numbers, and hyphens.') . '</li>';
 
 	if ( 'category' == $taxonomy )
 		$help .= '<li>' . __('<strong>Parent</strong> - Categories, unlike tags, can have a hierarchy. You might have a Jazz category, and under that have children categories for Bebop and Big Band. Totally optional. To create a subcategory, just choose another category from the Parent dropdown.') . '</li>';
@@ -191,11 +191,11 @@ if ( 'category' == $taxonomy || 'post_tag' == $taxonomy ) {
 		'<p><strong>' . __('For more information:') . '</strong></p>';
 
 	if ( 'category' == $taxonomy )
-		$help .= '<p>' . __('<a href="http://codex.wordpress.org/Manage_Categories_SubPanel">Categories Documentation</a>') . '</p>';
+		$help .= '<p>' . __('<a href="http://codex.wordpress.org/Manage_Categories_SubPanel" target="_blank">Categories Documentation</a>') . '</p>';
 	else
-		$help .= '<p>' . __('<a href="http://codex.wordpress.org/Post_Tags_SubPanel">Tags Documentation</a>') . '</p>';
+		$help .= '<p>' . __('<a href="http://codex.wordpress.org/Post_Tags_SubPanel" target="_blank">Tags Documentation</a>') . '</p>';
 
-	$help .= '<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>';
+	$help .= '<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>';
 
 	add_contextual_help($current_screen, $help);
 	unset($help);

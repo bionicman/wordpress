@@ -45,6 +45,7 @@ function create_initial_taxonomies() {
 		'rewrite' => false,
 		'show_ui' => false,
 		'_builtin' => true,
+		'show_in_nav_menus' => false,
 	) ) ;
 
 	register_taxonomy( 'link_category', 'link', array(
@@ -232,6 +233,9 @@ function is_taxonomy_hierarchical($taxonomy) {
  * show_ui - If the WordPress UI admin tags UI should apply to this taxonomy;
  * defaults to public.
  *
+ * show_in_nav_menus - true makes this taxonomy available for selection in navigation menus.
+ * Defaults to public.
+ *
  * show_tagcloud - false to prevent the taxonomy being listed in the Tag Cloud Widget;
  * defaults to show_ui which defalts to public.
  *
@@ -264,6 +268,7 @@ function register_taxonomy( $taxonomy, $object_type, $args = array() ) {
 						'_builtin' => false,
 						'labels' => array(),
 						'capabilities' => array(),
+						'show_in_nav_menus' => null,
 					);
 	$args = wp_parse_args($args, $defaults);
 
@@ -285,6 +290,10 @@ function register_taxonomy( $taxonomy, $object_type, $args = array() ) {
 
 	if ( is_null($args['show_ui']) )
 		$args['show_ui'] = $args['public'];
+
+	// Whether to show this type in nav-menus.php. Defaults to the setting for public.
+	if ( null === $args['show_in_nav_menus'] )
+		$args['show_in_nav_menus'] = $args['public'];
 
 	if ( is_null($args['show_tagcloud']) )
 		$args['show_tagcloud'] = $args['show_ui'];
@@ -338,7 +347,7 @@ function get_taxonomy_labels( $tax ) {
 		'name' => array( _x( 'Post Tags', 'taxonomy general name' ), _x( 'Categories', 'taxonomy general name' ) ),
 		'singular_name' => array( _x( 'Post Tag', 'taxonomy singular name' ), _x( 'Category', 'taxonomy singular name' ) ),
 		'search_items' => array( __( 'Search Tags' ), __( 'Search Categories' ) ),
-		'popular_items' => array( __( 'Popular Tags' ), __( 'Popular Category' ) ),
+		'popular_items' => array( __( 'Popular Tags' ), __( 'Popular Categories' ) ),
 		'all_items' => array( __( 'All Tags' ), __( 'All Categories' ) ),
 		'parent_item' => array( null, __( 'Parent Category' ) ),
 		'parent_item_colon' => array( null, __( 'Parent Category:' ) ),
@@ -2384,7 +2393,9 @@ function _pad_term_counts(&$terms, $taxonomy) {
 	}
 
 	// Get the object and term ids and stick them in a lookup table
-	$results = $wpdb->get_results("SELECT object_id, term_taxonomy_id FROM $wpdb->term_relationships INNER JOIN $wpdb->posts ON object_id = ID WHERE term_taxonomy_id IN (".join(',', array_keys($term_ids)).") AND post_type = 'post' AND post_status = 'publish'");
+	$tax_obj = get_taxonomy($taxonomy);
+	$object_types = esc_sql($tax_obj->object_type);
+	$results = $wpdb->get_results("SELECT object_id, term_taxonomy_id FROM $wpdb->term_relationships INNER JOIN $wpdb->posts ON object_id = ID WHERE term_taxonomy_id IN (" . implode(',', array_keys($term_ids)) . ") AND post_type IN ('" . implode("', '", $object_types) . "') AND post_status = 'publish'");
 	foreach ( $results as $row ) {
 		$id = $term_ids[$row->term_taxonomy_id];
 		$term_items[$id][$row->object_id] = isset($term_items[$id][$row->object_id]) ? ++$term_items[$id][$row->object_id] : 1;

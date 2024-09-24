@@ -127,7 +127,7 @@ function get_the_title( $id = 0 ) {
  * The guid will appear to be a link, but should not be used as an link to the
  * post. The reason you should not use it as a link, is because of moving the
  * blog across domains.
- * 
+ *
  * Url is escaped to make it xml safe
  *
  * @since 1.5.0
@@ -318,7 +318,7 @@ function get_post_class( $class = '', $post_id = null ) {
 	$classes[] = 'type-' . $post->post_type;
 
 	// sticky for Sticky Posts
-	if ( is_sticky($post->ID) && is_home())
+	if ( is_sticky($post->ID) && is_home() && !is_paged() )
 		$classes[] = 'sticky';
 
 	// hentry for hAtom compliace

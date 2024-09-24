@@ -1432,7 +1432,7 @@ function _post_row($a_post, $pending_comments, $mode) {
 
 		case 'author':
 		?>
-		<td <?php echo $attributes ?>><a href="edit.php?author=<?php the_author_meta('ID'); ?>"><?php the_author() ?></a></td>
+		<td <?php echo $attributes ?>><a href="edit.php?post_type=<?php echo $post->post_type; ?>&amp;author=<?php the_author_meta('ID'); ?>"><?php the_author() ?></a></td>
 		<?php
 		break;
 
@@ -1529,7 +1529,7 @@ foreach ( $posts_columns as $column_name => $column_display_name ) {
 
 	case 'cb':
 		?>
-		<th scope="row" class="check-column"><input type="checkbox" name="post[]" value="<?php the_ID(); ?>" /></th>
+		<th scope="row" class="check-column"><?php if ( current_user_can( $post_type_object->cap->edit_post, $page->ID ) ) { ?><input type="checkbox" name="post[]" value="<?php the_ID(); ?>" /><?php } ?></th>
 		<?php
 		break;
 	case 'date':
@@ -1622,7 +1622,7 @@ foreach ( $posts_columns as $column_name => $column_display_name ) {
 
 	case 'author':
 		?>
-		<td <?php echo $attributes ?>><a href="edit-pages.php?author=<?php the_author_meta('ID'); ?>"><?php the_author() ?></a></td>
+		<td <?php echo $attributes ?>><a href="edit.php?post_type=<?php echo $post_type; ?>&amp;author=<?php the_author_meta('ID'); ?>"><?php the_author() ?></a></td>
 		<?php
 		break;
 
@@ -2401,7 +2401,7 @@ function _list_meta_row( $entry, &$count ) {
 
 	$r .= "\n\t\t<div class='submit'><input name='deletemeta[{$entry['meta_id']}]' type='submit' ";
 	$r .= "class='delete:the-list:meta-{$entry['meta_id']}::_ajax_nonce=$delete_nonce deletemeta' tabindex='6' value='". esc_attr__( 'Delete' ) ."' />";
-	$r .= "\n\t\t<input name='updatemeta' type='submit' tabindex='6' value='". esc_attr__( 'Update' ) ."' class='add:the-list:meta-{$entry['meta_id']}::_ajax_nonce=$update_nonce updatemeta' /></div>";
+	$r .= "\n\t\t<input name='updatemeta' type='submit' tabindex='6' value='". esc_attr__( 'Update' ) ."' class='add:the-list:meta-{$entry['meta_id']}::_ajax_nonce-add-meta=$update_nonce updatemeta' /></div>";
 	$r .= wp_nonce_field( 'change-meta', '_ajax_nonce', false, false );
 	$r .= "</td>";
 

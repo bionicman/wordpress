@@ -10,6 +10,8 @@
  * @subpackage Administration
  */
 
+define( 'WP_NETWORK_ADMIN_PAGE', true );
+
 /** WordPress Administration Bootstrap */
 require_once( './admin.php' );
 
@@ -43,7 +45,7 @@ function network_domain_check() {
  * @return bool Whether subdomain install is allowed
  */
 function allow_subdomain_install() {
-	$domain = preg_replace( '|https?://[^/]|', '', get_option( 'siteurl' ) );
+	$domain = preg_replace( '|https?://([^/]+)|', '$1', get_option( 'siteurl' ) );
 	if( false !== strpos( $domain, '/' ) || 'localhost' == $domain || preg_match( '|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+|', $domain ) )
 		return false;
 
@@ -87,17 +89,17 @@ if ( ! network_domain_check() && ( ! defined( 'WP_ALLOW_MULTISITE' ) || ! WP_ALL
 $title = __( 'Create a Network of WordPress Sites' );
 $parent_file = 'tools.php';
 
-add_contextual_help($current_screen, 
-	'<p>' . __('This screen allows you to configure a network as having subdomains (site1.example.com) or subdirectories (example.com/site1). Subdomains require wildcard subdomains to be enabled in Apache and DNS records, if your host allows it.') . '</p>' .
+add_contextual_help($current_screen,
+	'<p>' . __('This screen allows you to configure a network as having subdomains (<code>site1.example.com</code>) or subdirectories (<code>example.com/site1</code>). Subdomains require wildcard subdomains to be enabled in Apache and DNS records, if your host allows it.') . '</p>' .
 	'<p>' . __('Choose subdomains or subdirectories; this can only be switched afterwards by reconfiguring your install. Fill out the network details, and click install. If this does not work, you may have to add a wildcard DNS record (for subdomains) or change to another setting in Permalinks (for subdirectories).') . '</p>' .
 	'<p>' . __('The next screen for Network will give you individually-generated lines of code to add to your wp-config.php and .htaccess files. Make sure the settings of your FTP client make files starting with a dot visible, so that you can find .htaccess; you may have to create this file if it really is not there. Make backup copies of those two files.') . '</p>' .
-	'<p>' . __('Add a blogs.dir directory under /wp-content/ and add the designated lines of code to wp-config.php (just before /*...stop editing...*/) and .htaccess (replacing the existing WordPress rules).') . '</p>' .
+	'<p>' . __('Add a <code>blogs.dir</code> directory under <code>/wp-content</code> and add the designated lines of code to wp-config.php (just before <code>/*...stop editing...*/</code>) and <code>.htaccess</code> (replacing the existing WordPress rules).') . '</p>' .
 	'<p>' . __('Refreshing your browser will take you to a screen with an archive of those added lines of code. A set of six links under Super Admin will appear at the top of the main left navigation menu. The multisite network is now enabled.') . '</p>' .
 	'<p>' . __('The choice of subdirectory sites is disabled if this setup is more than a month old because of permalink problems with &#8220;/blog/&#8221; from the main site. This disabling will be addressed soon in a future version.') . '</p>' .
 	'<p><strong>' . __('For more information:') . '</strong></p>' .
-	'<p>' . __('<a href="http://codex.wordpress.org/Create_A_Network">General Network Creation Documentation</a>') . '</p>' .
-	'<p>' . __('<a href="http://codex.wordpress.org/Tools_Network_SubPanel">Tools > Network Documentation</a>') . '</p>' .
-	'<p>' . __('<a href="http://wordpress.org/support/">Support Forums</a>') . '</p>'
+	'<p>' . __('<a href="http://codex.wordpress.org/Create_A_Network" target="_blank">General Network Creation Documentation</a>') . '</p>' .
+	'<p>' . __('<a href="http://codex.wordpress.org/Tools_Network_SubPanel" target="_blank">Tools > Network Documentation</a>') . '</p>' .
+	'<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
 );
 
 include( './admin-header.php' );
@@ -116,6 +118,7 @@ include( './admin-header.php' );
  * @since 3.0.0
  */
 function network_step1( $errors = false ) {
+	global $is_apache;
 
 	if ( get_option( 'siteurl' ) != get_option( 'home' ) ) {
 		echo '<div class="error"><p><strong>' . __('Error:') . '</strong> ' . sprintf( __( 'Your <strong>WordPress address</strong> must match your <strong>Site address</strong> before creating a Network. See <a href="%s">General Settings</a>.' ), esc_url( admin_url( 'options-general.php' ) ) ) . '</p></div>';
@@ -126,7 +129,7 @@ function network_step1( $errors = false ) {
 
 	$active_plugins = get_option( 'active_plugins' );
 	if ( ! empty( $active_plugins ) ) {
-		echo '<div class="updated"><p><strong>' . __('Warning:') . '</strong> ' . sprintf( __( 'Please <a href="%s">deactivate your plugins</a> before enabling the Network feature.' ), admin_url( 'plugins.php?plugin_status=active' ) ) . '</p></div><p>' . __(' Once the network is created, you may reactivate your plugins.' ) . '</p>';
+		echo '<div class="updated"><p><strong>' . __('Warning:') . '</strong> ' . sprintf( __( 'Please <a href="%s">deactivate your plugins</a> before enabling the Network feature.' ), admin_url( 'plugins.php?plugin_status=active' ) ) . '</p></div><p>' . __( 'Once the network is created, you may reactivate your plugins.' ) . '</p>';
 		echo '</div>';
 		include( './admin-footer.php' );
 		die();
@@ -166,7 +169,6 @@ function network_step1( $errors = false ) {
 	<p><?php _e( 'Fill in the information below and you&#8217;ll be on your way to creating a network of WordPress sites. We will create configuration files in the next step.' ); ?></p>
 	<?php
 
-	// @todo IIS and ! $is_apache
 	if ( isset( $_POST['subdomain_install'] ) ) {
 		$subdomain_install = (bool) $_POST['subdomain_install'];
 	} elseif ( apache_mod_loaded('mod_rewrite') ) { // assume nothing
@@ -175,11 +177,12 @@ function network_step1( $errors = false ) {
 		$subdomain_install = true;
 	} else {
 		$subdomain_install = false;
-		if ( got_mod_rewrite() ) // dangerous assumptions
+		if ( $got_mod_rewrite = got_mod_rewrite() ) // dangerous assumptions
 			echo '<div class="updated inline"><p><strong>' . __( 'Note:' ) . '</strong> ' . __( 'Please make sure the Apache <code>mod_rewrite</code> module is installed as it will be used at the end of this installation.' ) . '</p>';
-		else
+		elseif ( $is_apache )
 			echo '<div class="error inline"><p><strong>' . __( 'Warning!' ) . '</strong> ' . __( 'It looks like the Apache <code>mod_rewrite</code> module is not installed.' ) . '</p>';
-		echo '<p>' . __( 'If <code>mod_rewrite</code> is disabled, ask your administrator to enable that module, or look at the <a href="http://httpd.apache.org/docs/mod/mod_rewrite.html">Apache documentation</a> or <a href="http://www.google.com/search?q=apache+mod_rewrite">elsewhere</a> for help setting it up.' ) . '</p></div>';
+		if ( $got_mod_rewrite || $is_apache ) // Protect against mod_rewrite mimicry (but ! Apache)
+			echo '<p>' . __( 'If <code>mod_rewrite</code> is disabled, ask your administrator to enable that module, or look at the <a href="http://httpd.apache.org/docs/mod/mod_rewrite.html">Apache documentation</a> or <a href="http://www.google.com/search?q=apache+mod_rewrite">elsewhere</a> for help setting it up.' ) . '</p></div>';
 	}
 
 	if ( allow_subdomain_install() && allow_subdirectory_install() ) : ?>
@@ -307,7 +310,12 @@ function network_step2( $errors = false ) {
 ?>
 		<h3><?php esc_html_e( 'Enabling the Network' ); ?></h3>
 		<p><?php _e( 'Complete the following steps to enable the features for creating a network of sites.' ); ?></p>
-		<div class="updated inline"><p><?php _e( '<strong>Caution:</strong> We recommend you backup your existing <code>wp-config.php</code> and <code>.htaccess</code> files.' ); ?></p></div>
+		<div class="updated inline"><p><?php
+			if ( iis7_supports_permalinks() )
+				_e( '<strong>Caution:</strong> We recommend you back up your existing <code>wp-config.php</code> file.' );
+			else
+				_e( '<strong>Caution:</strong> We recommend you back up your existing <code>wp-config.php</code> and <code>.htaccess</code> files.' );
+		?></p></div>
 <?php
 	}
 ?>
@@ -358,7 +366,8 @@ define( 'BLOG_ID_CURRENT_SITE', 1 );</textarea>
 ?>
 </li>
 <?php
-	if ( iis7_supports_permalinks() ) {
+	if ( iis7_supports_permalinks() ) :
+
 			if ( $subdomain_install ) {
 				$web_config_file =
 '<?xml version="1.0" encoding="UTF-8"?>
@@ -440,8 +449,9 @@ define( 'BLOG_ID_CURRENT_SITE', 1 );</textarea>
 		<?php echo wp_htmledit_pre( $web_config_file ); ?>
 		</textarea></li>
 		</ol>
-	<?php } else {
-		// Construct an htaccess file.
+
+	<?php else : // end iis7_supports_permalinks(). construct an htaccess file instead:
+
 		$htaccess_file = 'RewriteEngine On
 RewriteBase ' . $base . '
 RewriteRule ^index\.php$ - [L]
@@ -464,12 +474,12 @@ RewriteRule ^ - [L]';
 
 		?>
 		<li><p><?php printf( __( 'Add the following to your <code>.htaccess</code> file in <code>%s</code>, replacing other WordPress rules:' ), ABSPATH ); ?></p>
-		<textarea class="code" readonly="readonly" cols="100" rows="<?php echo $subdomain_install ? 11 : 16; ?>"><?php
-		echo wp_htmledit_pre( $htaccess_file );
-		?>
-		</textarea></li>
+		<textarea class="code" readonly="readonly" cols="100" rows="<?php echo $subdomain_install ? 11 : 16; ?>">
+<?php echo wp_htmledit_pre( $htaccess_file ); ?></textarea></li>
 		</ol>
-	<?php }
+
+	<?php endif; // end IIS/Apache code branches.
+
 	if ( !is_multisite() ) { ?>
 		<p><?php printf( __( 'Once you complete these steps, your network is enabled and configured. You will have to log in again.') ); ?> <a href="<?php echo esc_url( site_url( 'wp-login.php' ) ); ?>"><?php _e( 'Log In' ); ?></a></p>
 <?php

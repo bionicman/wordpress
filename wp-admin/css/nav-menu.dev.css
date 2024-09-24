@@ -34,6 +34,14 @@ body {
 	padding:0 10px;
 }
 
+.metabox-holder-disabled .postbox {
+	opacity: 0.5;
+	filter: alpha(opacity=50);
+}
+
+.metabox-holder-disabled .button-controls .select-all {
+	display: none;
+}
 #wpbody {
 	position: relative;
 }
@@ -72,7 +80,7 @@ body {
 
 	#post-body {
 		background: #fff;
-		padding:0 0 10px 10px;
+		padding: 10px;
 		border-width: 0 1px 1px 1px;
 		-moz-border-radius-bottomleft: 6px;
 		-webkit-border-bottom-left-radius: 6px;
@@ -84,12 +92,12 @@ body {
 		border-bottom-right-radius: 6px;
 	}
 
-	#post-body-content {
-		position: relative;
+	#post-body div.updated {
+		margin: 0;
 	}
 
-	.post-body-plain {
-		padding: 10px 10px 0 0;
+	#post-body-content {
+		position: relative;
 	}
 
 	#menu-management .menu-add-new abbr {
@@ -132,7 +140,7 @@ body {
 }
 
 #menu-management .nav-tabs {
-	padding-left: 30px;
+	padding-left: 20px;
 	padding-right: 10px;
 }
 .js #menu-management .nav-tabs {
@@ -310,6 +318,9 @@ body {
 	border-bottom-right-radius: 0;
 	border-bottom-left-radius: 0;
 }
+.no-js .menu-item-edit-active .item-edit {
+	display: none;
+}
 .js .menu-item-handle {
 	cursor: move;
 }
@@ -383,7 +394,7 @@ body.js .item-order {
 .item-controls .menu-item-delete:hover { color: #ff0000; }
 
 .item-edit {
-	background: url("../images/menu-bits.gif") no-repeat scroll 0 -105px;
+	background: url("../images/menu-bits.gif?ver=20100531") no-repeat scroll 0 -105px;
 	position: absolute;
 	right: -20px;
 	top: 0;
@@ -518,6 +529,14 @@ body.js .item-order {
 	color: #fff;
 }
 
+.major-publishing-actions .form-invalid {
+	border-radius: 4px;
+	-webkit-border-radius: 4px;
+	-moz-border-radius: 4px;
+	-khtml-border-radius: 4px;
+	padding-left: 4px;
+	margin-left: -4px;
+}
 
 /* Clearfix */
 #menu-item-name-wrap:after,

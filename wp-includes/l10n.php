@@ -365,9 +365,11 @@ function unload_textdomain( $domain ) {
 function load_default_textdomain() {
 	$locale = get_locale();
 
-	$mofile = WP_LANG_DIR . "/$locale.mo";
+	load_textdomain( 'default', WP_LANG_DIR . "/$locale.mo" );
 
-	return load_textdomain( 'default', $mofile );
+	if ( is_multisite() || ( defined( 'WP_NETWORK_ADMIN_PAGE' ) && WP_NETWORK_ADMIN_PAGE ) ) {
+		load_textdomain( 'default', WP_LANG_DIR . "/ms-$locale.mo" );
+	}
 }
 
 /**
@@ -509,9 +511,8 @@ function get_available_languages( $dir = null ) {
 	$languages = array();
 
 	foreach( (array)glob( ( is_null( $dir) ? WP_LANG_DIR : $dir ) . '/*.mo' ) as $lang_file ) {
-		if ( false === strpos( $lang_file, 'continents-cities' ) ) {
+		if ( false === strpos( $lang_file, 'continents-cities' ) && 0 !== strpos( $lang_file, 'ms-' ) )
 			$languages[] = basename($lang_file, '.mo');
-		}
 	}
 
 	return $languages;
