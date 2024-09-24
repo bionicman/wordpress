@@ -1,7 +1,7 @@
 <div class="wrap">
 <?php
 
-require_once('../b2config.php');
+require_once('../wp-config.php');
 
 if (!$showposts) {
 	if ($posts_per_page) {
@@ -10,6 +10,8 @@ if (!$showposts) {
 		$showposts=10;
 		$posts_per_page=$showposts;
 	}
+} else {
+	$posts_per_page = $showposts;
 }
 
 if ((!empty($poststart)) && (!empty($postend)) && ($poststart == $postend)) {
@@ -48,6 +50,7 @@ if ($previousXstart < 0) {
 <?php
 if ($previousXstart > 0) {
 ?>
+              <input type="hidden" name="showposts" value="<?php echo $showposts; ?>" />
               <input type="hidden" name="poststart" value="<?php echo $previousXstart; ?>" />
               <input type="hidden" name="postend" value="<?php echo $previousXend; ?>" />
               <input type="submit" name="submitprevious" class="search" value="< <?php echo $showposts ?>" />
@@ -58,6 +61,7 @@ if ($previousXstart > 0) {
           </td>
           <td>
             <form name="nextXposts" method="get" action="">
+              <input type="hidden" name="showposts" value="<?php echo $showposts; ?>" />
               <input type="hidden" name="poststart" value="<?php echo $nextXstart; ?>" />
               <input type="hidden" name="postend" value="<?php echo $nextXend; ?>" />
               <input type="submit" name="submitnext" class="search" value="<?php echo $showposts ?> >" />
@@ -70,7 +74,7 @@ if ($previousXstart > 0) {
   <tr>
     <td valign="top" width="200"><!-- show X first/last posts -->
       <form name="showXfirstlastposts" method="get" action="">
-        <input type="text" name="posts" value="<?php echo $showposts ?>" style="width:40px;" /?>
+        <input type="text" name="showposts" value="<?php echo $showposts ?>" style="width:40px;" /?>
 <?php
 if (!isset($order))
   $order="DESC";
@@ -135,7 +139,7 @@ if ($i == "ASC")
 		echo "<option value=\"".$category->cat_ID."\"";
 		if ($category->cat_ID == $postdata["Category"])
 			echo " selected='selected'";
-		echo ">".$row->cat_name."</option>";
+		echo ">".$category->cat_name."</option>";
 	}
 		?>
 		</select>
@@ -148,10 +152,9 @@ if ($i == "ASC")
 
 	if ($archive_mode == "monthly") {
 		echo "<select name=\"m\" style=\"width:120px;\">";
-		$arc_sql="SELECT DISTINCT YEAR(post_date), MONTH(post_date) FROM $tableposts ORDER BY post_date DESC";
 		$querycount++;
-		$arc_result=mysql_query($arc_sql) or die($arc_sql."<br />".mysql_error());
-		while($arc_row = mysql_fetch_array($arc_result)) {
+		$arc_result=$wpdb->get_results("SELECT DISTINCT YEAR(post_date), MONTH(post_date) FROM $tableposts ORDER BY post_date DESC",ARRAY_A);
+		foreach ($arc_result as $arc_row) {
 			$arc_year  = $arc_row["YEAR(post_date)"];
 			$arc_month = $arc_row["MONTH(post_date)"];
 			echo "<option value=\"$arc_year".zeroise($arc_month,2)."\">";
@@ -161,10 +164,9 @@ if ($i == "ASC")
 	} elseif ($archive_mode == "daily") {
 		echo "<select name=\"d\" style=\"width:120px;\">";
 		$archive_day_date_format = "Y/m/d";
-		$arc_sql="SELECT DISTINCT YEAR(post_date), MONTH(post_date), DAYOFMONTH(post_date) FROM $tableposts ORDER BY post_date DESC";
 		$querycount++;
-		$arc_result=mysql_query($arc_sql) or die($arc_sql."<br />".mysql_error());
-		while($arc_row = mysql_fetch_array($arc_result)) {
+		$arc_result=$wpdb->get_results("SELECT DISTINCT YEAR(post_date), MONTH(post_date), DAYOFMONTH(post_date) FROM $tableposts ORDER BY post_date DESC", ARRAY_A);
+		foreach ($arc_result as $arc_row) {
 			$arc_year  = $arc_row["YEAR(post_date)"];
 			$arc_month = $arc_row["MONTH(post_date)"];
 			$arc_dayofmonth = $arc_row["DAYOFMONTH(post_date)"];
@@ -180,11 +182,10 @@ if ($i == "ASC")
 		$archive_week_start_date_format = "Y/m/d";
 		$archive_week_end_date_format   = "Y/m/d";
 		$archive_week_separator = " - ";
-		$arc_sql="SELECT DISTINCT YEAR(post_date), MONTH(post_date), DAYOFMONTH(post_date), WEEK(post_date) FROM $tableposts ORDER BY post_date DESC";
 		$querycount++;
-		$arc_result=mysql_query($arc_sql) or die($arc_sql."<br />".mysql_error());
+		$arc_result=$wpdb->geT_results("SELECT DISTINCT YEAR(post_date), MONTH(post_date), DAYOFMONTH(post_date), WEEK(post_date) FROM $tableposts ORDER BY post_date DESC", ARRAY_A);
 		$arc_w_last = '';
-		while($arc_row = mysql_fetch_array($arc_result)) {
+        foreach ($arc_result as $arc_row) {
 			$arc_year = $arc_row["YEAR(post_date)"];
 			$arc_w = $arc_row["WEEK(post_date)"];
 			if ($arc_w != $arc_w_last) {
@@ -201,10 +202,9 @@ if ($i == "ASC")
 	} elseif ($archive_mode == "postbypost") {
 		echo '<input type="hidden" name="more" value="1" />';
 		echo '<select name="p" style="width:120px;">';
-		$requestarc = " SELECT ID,post_date,post_title FROM $tableposts ORDER BY post_date DESC";
-		$querycount++;
-		$resultarc = mysql_query($requestarc);
-		while($row=mysql_fetch_object($resultarc)) {
+        $querycount++;
+		$resultarc = $wpdb->get_results("SELECT ID,post_date,post_title FROM $tableposts ORDER BY post_date DESC");
+		foreach ($resultarc as $row) {
 			if ($row->post_date != "0000-00-00 00:00:00") {
 				echo "<option value=\"".$row->ID."\">";
 				if (strip_tags($row->post_title)) {
@@ -229,8 +229,9 @@ if ($i == "ASC")
 	// these lines are b2's "motor", do not alter nor remove them
 	include($abspath.'blog.header.php');
 
+	if ($posts) {
 	foreach ($posts as $post) {
-        $posts_per_page = 10;
+        //$posts_per_page = 10;
         start_b2(); ?>
 			<p>
 				<strong><?php the_time('Y/m/d @ H:i:s'); ?></strong> [ <a href="b2edit.php?p=<?php echo $id ?>&c=1"><?php comments_number('no comments', '1 comment', "% comments") ?></a>
@@ -319,6 +320,17 @@ if ($i == "ASC")
 	<?php
 
 	} // end b2 loop
+	
+	} else {
+
+		?>
+		<p>
+		<strong>No results found.</strong>
+		</p>
+		
+		<?php
+	} // end if ($posts)
+
 	?>
 
 </div>
@@ -334,6 +346,7 @@ if ($i == "ASC")
             <form name="previousXposts" method="get"><?php
 if ($previousXstart > -1) {
 ?>
+              <input type="hidden" name="showposts" value="<?php echo $showposts; ?>" />
               <input type="hidden" name="poststart" value="<?php echo $previousXstart; ?>" />
               <input type="hidden" name="postend" value="<?php echo $previousXend; ?>" />
               <input type="submit" name="submitprevious" class="search" value="< Previous <?php echo $showposts ?>" /><?php
@@ -343,6 +356,7 @@ if ($previousXstart > -1) {
           </td>
           <td>
             <form name="nextXposts" method="get">
+              <input type="hidden" name="showposts" value="<?php echo $showposts; ?>" />
               <input type="hidden" name="poststart" value="<?php echo $nextXstart; ?>" />
               <input type="hidden" name="postend" value="<?php echo $nextXend; ?>" />
               <input type="submit" name="submitnext" class="search" value="Next <?php echo $showposts ?> >" />
@@ -355,7 +369,7 @@ if ($previousXstart > -1) {
   <tr>
     <td valign="top" width="200"><!-- show X first/last posts -->
       <form name="showXfirstlastposts" method="get">
-        <input type="text" name="posts" value="<?php echo $showposts ?>" style="width:40px;" /?>
+        <input type="text" name="showposts" value="<?php echo $showposts ?>" style="width:40px;" /?>
         <select name="order">&nbsp;<option value="DESC" <?php
 $i = $order;
 if ($i == "DESC")

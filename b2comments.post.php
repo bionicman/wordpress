@@ -1,13 +1,8 @@
 <?php
-
-# if you want to change the paths here, remember to put your new path BEFORE $b2inc,
-#  like this: "b2/$b2inc/b2functions.php"
-
-require('b2config.php');
-require($abspath.$b2inc.'/b2template.functions.php');
-include($abspath.$b2inc.'/b2vars.php');
-include($abspath.$b2inc.'/b2functions.php');
-
+require_once('wp-config.php');
+require_once($abspath.$b2inc.'/b2template.functions.php');
+require_once($abspath.$b2inc.'/b2vars.php');
+require_once($abspath.$b2inc.'/b2functions.php');
 
 function add_magic_quotes($array) {
 	foreach ($array as $k => $v) {
@@ -82,8 +77,8 @@ $ok=1;
 if (!empty($lasttime)) {
 	$time_lastcomment= mysql2date('U', $lasttime);
 	$time_newcomment= mysql2date('U', "$now");
-	if (($time_newcomment - $time_lastcomment) < 30)
-		$ok=0;
+	if (($time_newcomment - $time_lastcomment) < 10)
+		$ok = 0;
 }
 /* end flood-protection */
 
@@ -93,7 +88,7 @@ if ($ok) {
 
 	$wpdb->query("INSERT INTO $tablecomments VALUES ('0','$comment_post_ID','$author','$email','$url','$user_ip','$now','$comment','0')");
 
-	if ($comments_notify) {
+	if ($comments_notify && '' != $comment_author_email) {
 
 		$notify_message  = "New comment on your post #$comment_post_ID ".stripslashes($postdata['Title'])."\r\n\r\n";
 		$notify_message .= "Author : $comment_author (IP: $user_ip , $user_domain)\r\n";
@@ -102,7 +97,7 @@ if ($ok) {
 		$notify_message .= "Whois  : http://ws.arin.net/cgi-bin/whois.pl?queryinput=$user_ip\r\n";
 		$notify_message .= "Comment: \n".stripslashes($original_comment)."\r\n\r\n";
 		$notify_message .= "You can see all comments on this post here: \r\n";
-		$notify_message .= "$siteurl/?p=$comment_post_ID&c=1";
+		$notify_message .= $siteurl.'/'.$blogfilename.$querystring_start.'p'.$querystring_equal.$id.$querystring_separator.'c'.$querystring_equal.'1#comments';
  
 		$postdata = get_postdata($comment_post_ID);
 		$authordata = get_userdata($postdata['Author_ID']);
@@ -127,10 +122,13 @@ if ($ok) {
 	header('Cache-Control: no-cache, must-revalidate');
 	header('Pragma: no-cache');
 	$location = (!empty($HTTP_POST_VARS['redirect_to'])) ? $HTTP_POST_VARS['redirect_to'] : $HTTP_SERVER_VARS["HTTP_REFERER"];
-	header("Location: $location");
-
+	if ($is_IIS) {
+		header("Refresh: 0;url=$location");
+	} else {
+		header("Location: $location");
+	}
 } else {
-	die('Sorry, you can only post a new comment once every 30 seconds.');
+	die('Sorry, you can only post a new comment once every 10 seconds.');
 }
 
 ?>

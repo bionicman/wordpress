@@ -1,5 +1,5 @@
 <?php
-// $Id: links.import.php,v 1.2 2003/06/01 09:01:04 saxmatt Exp $
+// $Id: links.import.php,v 1.5 2003/08/09 23:10:14 mikelittle Exp $
 //
 // Links
 // Copyright (C) 2002 Mike Little -- mike@zed1.com
@@ -26,11 +26,11 @@
 //
 // Mike Little (mike@zed1.com)
 // *****************************************************************
-require('../b2config.php');
-include_once('../wp-links/links.config.php');
+require_once('../wp-config.php');
 include_once("../wp-links/links.php");
 
 $title = 'Import Blogroll';
+$this_file = 'links.import.php';
 
 $step = $HTTP_GET_VARS['step'];
 if (!$step) $step = 0;
@@ -41,7 +41,7 @@ switch ($step) {
     {
         $standalone = 0;
         include_once('b2header.php');
-        if ($user_level < $minadminlevel)
+        if ($user_level < get_settings('links_minadminlevel'))
             die ("Cheatin&#8217; uh?");
 ?>
 <div class="wrap">
@@ -52,15 +52,15 @@ switch ($step) {
     <li>Go to <a href="http://www.blogrolling.com">Blogrolling.com</a>
     and sign in. Once you've done that, click on <strong>Get Code</strong>, and then
     look for the <strong><abbr title="Outline Processor Markup Language">OPML</abbr>
-    code</strong>.</li>
+    code</strong><?php echo gethelp_link($this_file,'opml_code');?>.</li>
 
     <li>Select that and copy it into the box below.<br />
     
        <input type="hidden" name="step" value="1" />
-       Your OPML code: <input type="text" name="opml_url" size="65" />
+       Your OPML code:<?php echo gethelp_link($this_file,'opml_code');?> <input type="text" name="opml_url" size="65" />
 	   </li>
     <li>Now select a category you want to put these links in.<br />
-	Category: <select name="cat_id">
+	Category: <?php echo gethelp_link($this_file,'link_category');?><select name="cat_id">
 <?php
 	$categories = $wpdb->get_results("SELECT cat_id, cat_name, auto_toggle FROM $tablelinkcategories ORDER BY cat_id");
 	foreach ($categories as $category) {
@@ -73,7 +73,7 @@ switch ($step) {
 	
 	</li>
 
-    <li><input type="submit" name="submit" value="Import!" /></li>
+    <li><input type="submit" name="submit" value="Import!" /><?php echo gethelp_link($this_file,'import');?></li>
 	</ol>
     </form>
 
@@ -85,7 +85,7 @@ switch ($step) {
     case 1: {
                 $standalone = 0;
                 include_once('b2header.php');
-                if ($user_level < $minadminlevel)
+                if ($user_level < get_settings('links_minadminlevel'))
                     die ("Cheatin' uh ?");
 ?>
 <div class="wrap">

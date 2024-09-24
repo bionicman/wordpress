@@ -34,7 +34,7 @@ for ($i=0; $i<count($b2varstoreset); $i += 1) {
 	}
 }
 
-require_once('../b2config.php');
+require_once('../wp-config.php');
 require_once($abspath.$b2inc.'/b2functions.php');
 
 switch($action) {
@@ -96,7 +96,7 @@ case 'update':
 	$query = "UPDATE $tableusers SET user_firstname='$newuser_firstname', ".$updatepassword."user_lastname='$newuser_lastname', user_nickname='$newuser_nickname', user_icq='$newuser_icq', user_email='$newuser_email', user_url='$newuser_url', user_aim='$newuser_aim', user_msn='$newuser_msn', user_yim='$newuser_yim', user_idmode='$newuser_idmode' WHERE ID = $user_ID";
 	$result = $wpdb->query($query);
 	if (!$result) {
-		die ("<strong>ERROR</strong>: couldn't update your profile... please contact the <a href=\"mailto:$admin_email\">webmaster</a> !<br /><br />$query<br /><br />".mysql_error());
+		die ("<strong>ERROR</strong>: couldn't update your profile... please contact the <a href=\"mailto:$admin_email\">webmaster</a> !<br /><br />$query<br /><br />");
 	}
 
 	?>
@@ -176,7 +176,7 @@ case 'viewprofile':
   <?php if ($profiledata->user_icq > 0) { echo make_clickable("icq:".$profiledata->user_icq); } ?>
 </p>
   
-<p> <strong>AIM:</strong> <?php echo make_clickable("aim:".$profiledata->user_aim) ?> 
+<p> <strong>AIM:</strong> <?php echo "<a href='aim:goim?screenname=". str_replace(' ', '+', $profiledata->user_aim) ."&message=Howdy'>$profiledata->user_aim</a>"; ?> 
 </p>
   
 <p> <strong>MSN IM:</strong> <?php echo $profiledata->user_msn ?> </p>
@@ -197,7 +197,7 @@ case 'IErightclick':
 
 	$bookmarklet_tbpb  = ($use_trackback) ? '&trackback=1' : '';
 	$bookmarklet_tbpb .= ($use_pingback)  ? '&pingback=1'  : '';
-	$bookmarklet_height= ($use_trackback) ? 340 : 300;
+	$bookmarklet_height= ($use_trackback) ? 590 : 550;
 
 	?>
 
@@ -236,7 +236,7 @@ default:
 
 	$bookmarklet_tbpb  = ($use_trackback) ? '&trackback=1' : '';
 	$bookmarklet_tbpb .= ($use_pingback)  ? '&pingback=1'  : '';
-	$bookmarklet_height= ($use_trackback) ? 340 : 300;
+	$bookmarklet_height= ($use_trackback) ? 480 : 440;
 
 	?>
 <h1 id="wphead"><a href="http://wordpress.org" rel="external"><span>WordPress</span></a></h1> 
@@ -324,12 +324,12 @@ default:
     <?php
 if ($is_NS4 || $is_gecko) {
 ?>
-    <a href="javascript:Q=document.selection?document.selection.createRange().text:document.getSelection();void(window.open('<?php echo $path ?>/wp-admin/b2bookmarklet.php?text='+escape(Q)+'<?php echo $bookmarklet_tbpb ?>&popupurl='+escape(location.href)+'&popuptitle='+escape(document.title),'b2 bookmarklet','scrollbars=no,width=480,height=<?php echo $bookmarklet_height ?>,left=100,top=150,status=yes'));">WordPress 
+    <a href="javascript:Q=document.selection?document.selection.createRange().text:document.getSelection();void(window.open('<?php echo $siteurl ?>/wp-admin/b2bookmarklet.php?text='+escape(Q)+'<?php echo $bookmarklet_tbpb ?>&popupurl='+escape(location.href)+'&popuptitle='+escape(document.title),'WordPress bookmarklet','scrollbars=no,width=480,height=<?php echo $bookmarklet_height ?>,left=100,top=150,status=yes'));">WordPress 
     - <?php echo $blogname ?></a> 
     <?php
 } else if ($is_winIE) {
 ?>
-    <a href="javascript:Q='';if(top.frames.length==0)Q=document.selection.createRange().text;void(btw=window.open('<?php echo $path ?>/wp-admin/b2bookmarklet.php?text='+escape(Q)+'<?php echo $bookmarklet_tbpb ?>&popupurl='+escape(location.href)+'&popuptitle='+escape(document.title),'b2bookmarklet','scrollbars=no,width=480,height=<?php echo $bookmarklet_height ?>,left=100,top=150,status=yes'));btw.focus();">WordPress 
+    <a href="javascript:Q='';if(top.frames.length==0)Q=document.selection.createRange().text;void(btw=window.open('<?php echo $siteurl ?>/wp-admin/b2bookmarklet.php?text='+escape(Q)+'<?php echo $bookmarklet_tbpb ?>&popupurl='+escape(location.href)+'&popuptitle='+escape(document.title),'b2bookmarklet','scrollbars=no,width=480,height=<?php echo $bookmarklet_height ?>,left=100,top=150,status=yes'));btw.focus();">WordPress 
     - <?php echo $blogname ?></a> 
     <script type="text/javascript" language="JavaScript">
 <!--
@@ -345,12 +345,12 @@ function oneclickbookmarklet(blah) {
     <?php
 } else if ($is_opera) {
 ?>
-    <a href="javascript:void(window.open('<?php echo $path ?>/wp-admin/b2bookmarklet.php?popupurl='+escape(location.href)+'&popuptitle='+escape(document.title)+'<?php echo $bookmarklet_tbpb ?>','b2bookmarklet','scrollbars=no,width=480,height=<?php echo $bookmarklet_height ?>,left=100,top=150,status=yes'));">WordPress 
+    <a href="javascript:void(window.open('<?php echo $siteurl ?>/wp-admin/b2bookmarklet.php?popupurl='+escape(location.href)+'&popuptitle='+escape(document.title)+'<?php echo $bookmarklet_tbpb ?>','b2bookmarklet','scrollbars=no,width=480,height=<?php echo $bookmarklet_height ?>,left=100,top=150,status=yes'));">WordPress 
     - <?php echo $blogname ?></a> 
     <?php
 } else if ($is_macIE) {
 ?>
-    <a href="javascript:Q='';if(top.frames.length==0);void(btw=window.open('<?php echo $path ?>/wp-admin/b2bookmarklet.php?text='+escape(document.getSelection())+'&popupurl='+escape(location.href)+'&popuptitle='+escape(document.title)+'<?php echo $bookmarklet_tbpb ?>','b2bookmarklet','scrollbars=no,width=480,height=<?php echo $bookmarklet_height ?>,left=100,top=150,status=yes'));btw.focus();">WordPress 
+    <a href="javascript:Q='';if(top.frames.length==0);void(btw=window.open('<?php echo $siteurl ?>/wp-admin/b2bookmarklet.php?text='+escape(document.getSelection())+'&popupurl='+escape(location.href)+'&popuptitle='+escape(document.title)+'<?php echo $bookmarklet_tbpb ?>','b2bookmarklet','scrollbars=no,width=480,height=<?php echo $bookmarklet_height ?>,left=100,top=150,status=yes'));btw.focus();">WordPress 
     - <?php echo $blogname ?></a> 
     <?php
 }

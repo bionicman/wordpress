@@ -1,17 +1,17 @@
 <?php
 $_wp_installing = 1;
-require_once('../wp-config.php');
+require('../wp-config.php');
+require('wp-install-helper.php');
 
-
+$thisfile = 'upgrade-071-to-072.php';
 $step = $HTTP_GET_VARS['step'];
 if (!$step) $step = 0;
 ?>
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml">
-	<title>WordPress > Installation</title>
+	<title>WordPress > .71 to .72 Upgrade</title>
 	<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1" />
 	<style media="screen" type="text/css">
-    <!--
 	body {
 		font-family: Georgia, "Times New Roman", Times, serif;
 		margin-left: 15%;
@@ -35,7 +35,6 @@ if (!$step) $step = 0;
 	p {
 		line-height: 140%;
 	}
-    -->
 	</style>
 </head>
 <body>
@@ -44,238 +43,229 @@ if (!$step) $step = 0;
 switch($step) {
 
 	case 0:
+    {
 ?>
-<p>Welcome to WordPress. We&#8217;re now going to go through a few steps to get
-  you up and running with the latest in personal publishing platforms. Before
-  we get started, remember that we require a PHP version of at least 4.0.6, you
-  have <?php echo phpversion(); ?>. Look good? You also need to set up the database
-  connection information in <code>wp-config.php</code>. Have you looked at the
-  <a href="../readme.html">readme</a>? If you&#8217;re all ready, <a href="wp-install.php?step=1">let's
-  go</a>! </p>
-<?php
-	break;
+<p>Welcome to WordPress. You're already part of the family so this should be familiar 
+  to you now. We think you'll find to like in this latest version, here are some 
+  things to watch out for:</p>
+<ul>
 
-	case 1:
+  <li>One of the biggest changes is that b2config.php has been removed! <strong>But</strong> we
+  will use it <em>one last time</em> as part of this upgrade process. Some other files
+  have been eliminated, so it's generally safest to delete all your old files
+  (apart from b2config.php) before re-uploading the new ones.</li>
+
+  <li>The new configuration file is called wp-config.php. We provide a
+  <em>sample</em> version of this file. The only things you will have to
+  configure in this file is your database connection info, and your table names.
+  All other configuration info is now held in the database.</li>
+
+  <li>If you have any troubles try out the <a
+  href="http://wordpress.org/support/">support forums</a>.</li>
+
+  <li><strong>Back up</strong> your database before you do anything. Yes, you.
+  Right now.</li>
+
+</ul>
+<p><code></code>Have you looked at the <a href="../readme.html">readme</a>? If 
+  you&#8217;re all ready, <a href="<?php echo $thisfile;?>?step=1">let's go</a>! </p>
+<?php
+        break;
+    }
+
+    case 1:
+    {
 ?>
 <h1>Step 1</h1>
-<p>Okay first we&#8217;re going to set up the links database. This will allow you to host your own blogroll, complete with Weblogs.com updates.</p>
+<p>There are some changes we need to make to the links tables with this version, so lets get those out of 
+  the way.</p>
 <?php
-
-$got_links = false;
-$got_cats = false;
-$got_row = false;
-?>
-<p>Installing WP-Links.</p>
-<p>Checking for tables...</p>
-<?php
-$result = mysql_list_tables(DB_NAME);
-if (!$result) {
-    print "DB Error, could not list tables\n";
-    print 'MySQL Error: ' . mysql_error();
-    exit;
-}
-
-while ($row = mysql_fetch_row($result)) {
-    if ($row[0] == $tablelinks)
-        $got_links = true;
-    if ($row[0] == $tablelinkcategories)
-        $got_cats = true;
-    //print "Table: $row[0]<br />\n";
-}
-if (!$got_cats) {
-    echo "<p>Can't find table '$tablelinkcategories', gonna create it...</p>\n";
-    $sql = "CREATE TABLE $tablelinkcategories ( " .
-           " cat_id int(11) NOT NULL auto_increment, " .
-           " cat_name tinytext NOT NULL, ".
-           " auto_toggle enum ('Y','N') NOT NULL default 'N', ".
-           " show_images enum ('Y','N') NOT NULL default 'Y',        " .
-           " show_description enum ('Y','N') NOT NULL default 'Y',   " .
-           " show_rating enum ('Y','N') NOT NULL default 'Y',        " .
-           " show_updated enum ('Y','N') NOT NULL default 'Y',       " .
-           " sort_order varchar(64) NOT NULL default 'name',         " .
-           " sort_desc enum('Y','N') NOT NULL default 'N',           " .
-           " text_before_link varchar(128) not null default '<li>',  " .
-           " text_after_link  varchar(128) not null default '<br />'," .
-           " text_after_all  varchar(128) not null default '</li>',  " .
-           " list_limit int not null default -1,                     " .
-           " PRIMARY KEY (cat_id) ".
-           ") ";
-    $result = mysql_query($sql) or print ("Can't create the table '$tablelinkcategories' in the database.<br />" . $sql . "<br />" . mysql_error());
-    if ($result != false) {
-        echo "<p>Table '$tablelinkcategories' created OK</p>\n";
-        $got_cats = true;
-    }
+$error_count = 0;
+$tablename = $tablelinks;
+$ddl = "ALTER TABLE $tablelinks ADD COLUMN link_notes MEDIUMTEXT NOT NULL DEFAULT '' ";
+maybe_add_column($tablename, 'link_notes', $ddl);
+if (check_column($tablename, 'link_notes', 'mediumtext')) {
+    $res .= $tablename . ' - ok <br />'."\n";
 } else {
-    echo "<p>Found table '$tablelinkcategories', don't need to create it...</p>\n";
-        $got_cats = true;
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
 }
-if (!$got_links) {
-    echo "<p>Can't find '$tablelinks', gonna create it...</p>\n";
-    $sql = "CREATE TABLE $tablelinks ( " .
-           " link_id int(11) NOT NULL auto_increment,           " .
-           " link_url varchar(255) NOT NULL default '',         " .
-           " link_name varchar(255) NOT NULL default '',        " .
-           " link_image varchar(255) NOT NULL default '',       " .
-           " link_target varchar(25) NOT NULL default '',       " .
-           " link_category int(11) NOT NULL default 0,          " .
-           " link_description varchar(255) NOT NULL default '', " .
-           " link_visible enum ('Y','N') NOT NULL default 'Y',  " .
-           " link_owner int NOT NULL DEFAULT '1',               " .
-           " link_rating int NOT NULL DEFAULT '0',              " .
-           " link_updated DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00', " .
-           " link_rel varchar(255) NOT NULL default '',         " .
-           " link_notes MEDIUMTEXT NOT NULL default '',         " .
-           " PRIMARY KEY (link_id)                              " .
-           ") ";
-    $result = mysql_query($sql) or print ("Can't create the table '$tablelinks' in the database.<br />" . $sql . "<br />" . mysql_error());
-	$links = mysql_query("INSERT INTO $tablelinks VALUES ('', 'http://wordpress.org', 'WordPress', '', '', 1, '', 'Y', 1, 0, '0000-00-00 00:00:00', '');");
-	$links = mysql_query("INSERT INTO $tablelinks VALUES ('', 'http://cafelog.com', 'b2', '', '', 1, '', 'Y', 1, 0, '0000-00-00 00:00:00', '');");
-	$links = mysql_query("INSERT INTO $tablelinks VALUES ('', 'http://photomatt.net', 'Matt', '', '', 1, '', 'Y', 1, 0, '0000-00-00 00:00:00', '');");
-	$links = mysql_query("INSERT INTO $tablelinks VALUES ('', 'http://zed1.com/b2/', 'Mike', '', '', 1, '', 'Y', 1, 0, '0000-00-00 00:00:00', '');");
 
-
-
-    if ($result != false) {
-        echo "<p>Table '$tablelinks' created OK</p>\n";
-        $got_links = true;
-    }
+$tablename = $tablelinkcategories;
+$ddl = "ALTER TABLE $tablelinkcategories ADD COLUMN show_images enum('Y','N') NOT NULL default 'Y'";
+maybe_add_column($tablename, 'show_images', $ddl);
+if (check_column($tablename, 'show_images', "enum('Y','N')")) {
+    $res .= $tablename . ' - ok <br />'."\n";
 } else {
-    echo "<p>Found table '$tablelinks', don't need to create it...</p>\n";
-        $got_links = true;
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
 }
 
-if ($got_links && $got_cats) {
-    echo "<p>Looking for category 1...</p>\n";
-    $sql = "SELECT * FROM $tablelinkcategories WHERE cat_id=1 ";
-    $result = mysql_query($sql) or print ("Can't query '$tablelinkcategories'.<br />" . $sql . "<br />" . mysql_error());
-    if ($result != false) {
-        if ($row = mysql_fetch_object($result)) {
-            echo "<p>You have at least 1 category. Good!</p>\n";
-            $got_row = true;
-        } else {
-            echo "<p>Gonna insert category 1...</p>\n";
-            $sql = "INSERT INTO $tablelinkcategories (cat_id, cat_name) VALUES (1, 'General')";
-            $result = mysql_query($sql) or print ("Can't query insert category.<br />" . $sql . "<br />" . mysql_error());
-            if ($result != false) {
-                echo "<p>Inserted category Ok</p>\n";
-                $got_row = true;
-            }
-        }
-    }
+$tablename = $tablelinkcategories;
+$ddl = "ALTER TABLE $tablelinkcategories ADD COLUMN show_description enum('Y','N') NOT NULL default 'Y'";
+maybe_add_column($tablename, 'show_description', $ddl);
+if (check_column($tablename, 'show_description', "enum('Y','N')")) {
+    $res .= $tablename . ' - ok <br />'."\n";
+} else {
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
 }
 
-if ($got_row) {
-    echo "<p>All done!</p>\n";
+$tablename = $tablelinkcategories;
+$ddl = "ALTER TABLE $tablelinkcategories ADD COLUMN show_rating enum('Y','N') NOT NULL default 'Y'";
+maybe_add_column($tablename, 'show_rating', $ddl);
+if (check_column($tablename, 'show_rating', "enum('Y','N')")) {
+    $res .= $tablename . ' - ok <br />'."\n";
+} else {
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
 }
+
+$tablename = $tablelinkcategories;
+$ddl = "ALTER TABLE $tablelinkcategories ADD COLUMN show_updated enum('Y','N') NOT NULL default 'Y'";
+maybe_add_column($tablename, 'show_updated', $ddl);
+if (check_column($tablename, 'show_updated', "enum('Y','N')")) {
+    $res .= $tablename . ' - ok <br />'."\n";
+} else {
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
+}
+
+$tablename = $tablelinkcategories;
+$ddl = "ALTER TABLE $tablelinkcategories ADD COLUMN sort_order varchar(64) NOT NULL default 'name'";
+maybe_add_column($tablename, 'sort_order', $ddl);
+if (check_column($tablename, 'sort_order', "varchar(64)")) {
+    $res .= $tablename . ' - ok <br />'."\n";
+} else {
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
+}
+
+$tablename = $tablelinkcategories;
+$ddl = "ALTER TABLE $tablelinkcategories ADD COLUMN sort_desc enum('Y','N') NOT NULL default 'N'";
+maybe_add_column($tablename, 'sort_desc', $ddl);
+if (check_column($tablename, 'sort_desc', "enum('Y','N')")) {
+    $res .= $tablename . ' - ok <br />'."\n";
+} else {
+    $res .= 'AAA There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
+}
+
+$tablename = $tablelinkcategories;
+$ddl = "ALTER TABLE $tablelinkcategories ADD COLUMN text_before_link varchar(128) not null default '<li>'";
+maybe_add_column($tablename, 'text_before_link', $ddl);
+if (check_column($tablename, 'text_before_link', 'varchar(128)')) {
+    $res .= $tablename . ' - ok <br />'."\n";
+} else {
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
+}
+
+$tablename = $tablelinkcategories;
+$ddl = "ALTER TABLE $tablelinkcategories ADD COLUMN text_after_link  varchar(128) not null default '<br />'";
+maybe_add_column($tablename, 'text_after_link', $ddl);
+if (check_column($tablename, 'text_after_link', 'varchar(128)')) {
+    $res .= $tablename . ' - ok <br />'."\n";
+} else {
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
+}
+
+$tablename = $tablelinkcategories;
+$ddl = "ALTER TABLE $tablelinkcategories ADD COLUMN text_after_all  varchar(128) not null default '</li>'";
+maybe_add_column($tablename, 'text_after_all', $ddl);
+if (check_column($tablename, 'text_after_all', 'varchar(128)')) {
+    $res .= $tablename . ' - ok <br />'."\n";
+} else {
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
+}
+
+$tablename = $tablelinkcategories;
+$ddl = "ALTER TABLE $tablelinkcategories ADD COLUMN list_limit int not null default -1";
+maybe_add_column($tablename, 'list_limit', $ddl);
+if (check_column($tablename, 'list_limit', 'int(11)')) {
+    $res .= $tablename . ' - ok <br />'."\n";
+} else {
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
+}
+
+if ($error_count > 0) {
+    echo("<p>$res</p>");
 ?>
-<p>Did you defeat the boss monster at the end? Great! You&#8217;re ready for <a href="wp-install.php?step=2">Step
-  2</a>.</p>
+<p>Hmmm... there was some kind of error. If you cannot figure out
+   see from the output above how to correct the problems please
+   visit our <a href="http://wordpress.org/support/">support
+   forums</a> and report your problem.</p>
 <?php
-	break;
-	case 2:
+} else {
+?>
+<p>OK, that wasn't too bad was it? Let's move on to <a href="<?php echo $thisfile;?>?step=2">step 2</a>!</p>
+<?php
+}
+        break;
+    } // end case 1
+
+    case 2:
+    {
 ?>
 <h1>Step 2</h1>
-<p>First we&#8217;re going to create the necessary blog tables in the database...</p>
-
+<p>There are some changes we need to make to the post table, we'll do those next.</p>
 <?php
-# Note: if you want to start again with a clean b2 database,
-#       just remove the // in this file
+$error_count = 0;
+$tablename = $tableposts;
 
-// $query = "DROP TABLE IF EXISTS $tableposts";
-// $q = mysql_query($query) or die ("doh, can't drop the table \"$tableposts\" in the database.");
+$ddl = "ALTER TABLE $tableposts ADD COLUMN post_lon float ";
+maybe_add_column($tablename, 'post_lon', $ddl);
+if (check_column($tablename, 'post_lon', 'float')) {
+    $res .= $tablename . ' - ok <br />'."\n";
+} else {
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
+}
 
-$query = "CREATE TABLE $tableposts (
-  ID int(10) unsigned NOT NULL auto_increment,
-  post_author int(4) NOT NULL default '0',
-  post_date datetime NOT NULL default '0000-00-00 00:00:00',
-  post_content text NOT NULL,
-  post_title text NOT NULL,
-  post_category int(4) NOT NULL default '0',
-  post_excerpt text NOT NULL,
-  post_lat float,
-  post_lon float,
-  post_status enum('publish','draft','private') NOT NULL default 'publish',
-  comment_status enum('open','closed') NOT NULL default 'open',
-  ping_status enum('open','closed') NOT NULL default 'open',
-  post_password varchar(20) NOT NULL default '',
-  PRIMARY KEY  (ID),
-  KEY post_status (post_status)
-)
-";
-$q = $wpdb->query($query);
+$ddl = "ALTER TABLE $tableposts ADD COLUMN post_lat float ";
+maybe_add_column($tablename, 'post_lat', $ddl);
+if (check_column($tablename, 'post_lat', 'float')) {
+    $res .= $tablename . ' - ok <br />'."\n";
+} else {
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
+}
+
+
+if ($error_count > 0) {
+    echo("<p>$res</p>");
 ?>
-
-<p>The first table has been created! ...</p>
-
+<p>Hmmm... there was some kind of error. If you cannot figure out
+   see from the output above how to correct the problems please
+   visit our <a href="http://wordpress.org/support/">support
+   forums</a> and report your problem.</p>
 <?php
-$now = date('Y-m-d H:i:s');
-$query = "INSERT INTO $tableposts (post_author, post_date, post_content, post_title, post_category) VALUES ('1', '$now', 'Welcome to WordPress. This is the first post. Edit or delete it, then start blogging!', 'Hello world!', '1')";
-
-$q = $wpdb->query($query);
+} else {
 ?>
-
-<p>The test post has been inserted correctly...</p>
-
+<p>OK, another step completed. Let's move on to <a href="<?php echo $thisfile;?>?step=3">step 3</a>.</p>
 <?php
-// $query = "DROP TABLE IF EXISTS $tablecategories";
-// $q = mysql_query($query) or mysql_doh("doh, can't drop the table \"$tablecategories\" in the database.");
-
-$query = "
-CREATE TABLE $tablecategories (
-  cat_ID int(4) NOT NULL auto_increment,
-  cat_name varchar(55) NOT NULL default '',
-  PRIMARY KEY  (cat_ID),
-  UNIQUE (cat_name)
-)
-";
-$q = $wpdb->query($query);
-
-$query = "INSERT INTO $tablecategories (cat_ID, cat_name) VALUES ('0', 'General')";
-$q = $wpdb->query($query);
-
-$query = "UPDATE $tableposts SET post_category = 1";
-$result = $wpdb->query($query);
+}
+        break;
+    } // end case 2
+    
+	case 3:
+    {
 ?>
-
-<p>Categories are up and running...</p>
-
+<h1>Step 3</h1>
+<p>There are a few new database tables with this version, so lets get those out of 
+  the way.</p>
 <?php
-// $query = "DROP TABLE IF EXISTS $tablecomments";
-// $q = mysql_query($query) or mysql_doh("doh, can't drop the table \"$tablecomments\" in the database.");
-
-$query = "
-CREATE TABLE $tablecomments (
-  comment_ID int(11) unsigned NOT NULL auto_increment,
-  comment_post_ID int(11) NOT NULL default '0',
-  comment_author tinytext NOT NULL,
-  comment_author_email varchar(100) NOT NULL default '',
-  comment_author_url varchar(100) NOT NULL default '',
-  comment_author_IP varchar(100) NOT NULL default '',
-  comment_date datetime NOT NULL default '0000-00-00 00:00:00',
-  comment_content text NOT NULL,
-  comment_karma int(11) NOT NULL default '0',
-  PRIMARY KEY  (comment_ID)
-)
-";
-$q = $wpdb->query($query);
-
-$now = date('Y-m-d H:i:s');
-$query = "INSERT INTO $tablecomments (comment_post_ID, comment_author, comment_author_email, comment_author_url, comment_author_IP, comment_date, comment_content) VALUES ('1', 'Mr WordPress', 'mr@wordpress.org', 'http://wordpress.org', '127.0.0.1', '$now', 'Hi, this is a comment.<br />To delete a comment, just log in, and view the posts\' comments, there you will have the option to edit or delete them.')";
-$q = $wpdb->query($query);
-?>
-
-<p>Comments are groovy...</p>
-
-<?php
-// $query = "DROP TABLE IF EXISTS $tableoptions";
-// $q = mysql_query($query) or mysql_doh("doh, can't drop the table \"$tableoptions\" in the database.");
-
-$query = "
+$error_count = 0;
+$tablename = $tableoptions;
+$ddl = "
 CREATE TABLE $tableoptions (
   option_id int(11) NOT NULL auto_increment,
   blog_id int(11) NOT NULL default 0,
   option_name varchar(64) NOT NULL default '',
-  option_can_override enum ('Y','N') NOT NULL default 'Y',
+  option_can_override enum('Y','N') NOT NULL default 'Y',
   option_type int(11) NOT NULL default 1,
   option_value varchar(255) NOT NULL default '',
   option_width int NOT NULL default 20,
@@ -285,25 +275,32 @@ CREATE TABLE $tableoptions (
   PRIMARY KEY (option_id, blog_id, option_name)
 )
 ";
-$q = $wpdb->query($query);
 
-// $query = "DROP TABLE IF EXISTS $tableoptiontypes";
-// $q = mysql_query($query) or mysql_doh("doh, can't drop the table \"$tableoptiontypes\" in the database.");
+if (maybe_create_table($tablename, $ddl) == true) {
+    $res .= $tablename . ' - ok <br />'."\n";
+} else {
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
+}
 
-$query = "
+$tablename = $tableoptiontypes;
+$ddl = "
 CREATE TABLE $tableoptiontypes (
   optiontype_id int(11) NOT NULL auto_increment,
   optiontype_name varchar(64) NOT NULL,
   PRIMARY KEY (optiontype_id)
 )
 ";
-$q = $wpdb->query($query);
 
+if (maybe_create_table($tablename, $ddl) == true) {
+    $res .= $tablename . ' - ok <br />'."\n";
+} else {
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
+}
 
-// $query = "DROP TABLE IF EXISTS $tableoptiongroups";
-// $q = mysql_query($query) or mysql_doh("doh, can't drop the table \"$tableoptiongroups\" in the database.");
-
-$query = "
+$tablename = $tableoptiongroups;
+$ddl = "
 CREATE TABLE $tableoptiongroups (
   group_id int(11) NOT NULL auto_increment,
   group_name varchar(64) not null,
@@ -312,13 +309,16 @@ CREATE TABLE $tableoptiongroups (
   PRIMARY KEY (group_id)
 )
 ";
-$q = $wpdb->query($query);
 
+if (maybe_create_table($tablename, $ddl) == true) {
+    $res .= $tablename . ' - ok <br />'."\n";
+} else {
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
+}
 
-// $query = "DROP TABLE IF EXISTS $tableoptiongroup_options";
-// $q = mysql_query($query) or mysql_doh("doh, can't drop the table \"$tableoptiongroup_options\" in the database.");
-
-$query = "
+$tablename = $tableoptiongroup_options;
+$ddl = "
 CREATE TABLE $tableoptiongroup_options (
   group_id int(11) NOT NULL,
   option_id int(11) NOT NULL,
@@ -326,13 +326,16 @@ CREATE TABLE $tableoptiongroup_options (
   PRIMARY KEY (group_id, option_id)
 )
 ";
-$q = $wpdb->query($query);
 
+if (maybe_create_table($tablename, $ddl) == true) {
+    $res .= $tablename . ' - ok <br />'."\n";
+} else {
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
+}
 
-// $query = "DROP TABLE IF EXISTS $tableoptionvalues";
-// $q = mysql_query($query) or mysql_doh("doh, can't drop the table \"$tableoptionvalues\" in the database.");
-
-$query = "
+$tablename = $tableoptionvalues;
+$ddl = "
 CREATE TABLE $tableoptionvalues (
   option_id int(11) NOT NULL,
   optionvalue tinytext,
@@ -344,13 +347,31 @@ CREATE TABLE $tableoptionvalues (
   INDEX (option_id, optionvalue_seq)
 )
 ";
-$q = $wpdb->query($query);
+
+if (maybe_create_table($tablename, $ddl) == true) {
+    $res .= $tablename . ' - ok <br />'."\n";
+} else {
+    $res .= 'There was a problem with ' . $tablename . '<br />'."\n";
+    ++$error_count;
+}
 
 ?>
 
-<p>Option Tables created okay.</p>
+<p><?php echo $res ?></p>
 
 <?php
+if ($error_count > 0) {
+?>
+<p>Hmmm... there was some kind of error. If you cannot figure out
+   see from the output above how to correct the problems please
+   visit our <a href="http://wordpress.org/support/">support
+   forums</a> and report your problem.</p>
+<?php
+} else {
+?>
+<p>OK, the tables got created, now to populate them with data.</p>
+<?php
+}
 
 $option_data = array(
 "INSERT INTO $tableoptiontypes (optiontype_id, optiontype_name) VALUES (1, 'integer')",
@@ -360,8 +381,6 @@ $option_data = array(
 "INSERT INTO $tableoptiontypes (optiontype_id, optiontype_name) VALUES (5, 'select')",
 "INSERT INTO $tableoptiontypes (optiontype_id, optiontype_name) VALUES (6, 'range')",
 "INSERT INTO $tableoptiontypes (optiontype_id, optiontype_name) VALUES (7, 'sqlselect')",
-"INSERT INTO $tableoptiontypes (optiontype_id, optiontype_name) VALUES (8, 'float')",
-
 //base options from b2cofig
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(1,'siteurl', 3, 'http://example.com', 'siteurl is your blog\'s URL: for example, \'http://example.com/wordpress\' (no trailing slash !)', 8, 30)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(2,'blogfilename', 3, 'index.php', 'blogfilename is the name of the default file for your blog', 8, 20)",
@@ -379,7 +398,7 @@ $option_data = array(
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(13,'use_quicktags', 2, '1', 'buttons for HTML tags (they won\'t work on IE Mac yet)', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(14,'use_htmltrans', 2, '1', 'IMPORTANT! set this to false if you are using Chinese, Japanese, Korean, or other double-bytes languages', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(15,'use_balanceTags', 2, '1', 'this could help balance your HTML code. if it gives bad results, set it to false', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(16,'use_smilies', 2, '1', 'set this to 1 to enable smiley conversion in posts (note: this makes smiley conversion in ALL posts)', 8, 20)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(16,'use_smilies', 2, '1', 'set this to true to enable smiley conversion in posts (note: this makes smiley conversion in ALL posts)', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(17,'smilies_directory', 3, 'http://example.com/b2-img/smilies', 'the directory where your smilies are (no trailing slash)', 8, 40)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(18,'require_name_email', 2, '0', 'set this to true to require e-mail and name, or false to allow comments without e-mail/name', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(19,'comment_allowed_tags', 3, '<b><i><strong><em><code><blockquote><p><br><strike><a>', 'here is a list of the tags that are allowed in the comments. You can add tags to the list, just add them in the string, add only the opening tag: for example, only \'&lt;a>\' instead of \'&lt;a href=\"\">&lt;/a>\'', 8, 40)",
@@ -393,8 +412,8 @@ $option_data = array(
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(26,'use_weblogsping', 2, '0', 'set this to true if you want your site to be listed on http://weblogs.com when you add a new post', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(27,'use_blodotgsping', 2, '0', 'set this to true if you want your site to be listed on http://blo.gs when you add a new post', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(28,'blodotgsping_url', 3, 'http://example.com', 'You shouldn\'t need to change this.', 8, 30)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(29,'use_trackback', 2, '1', 'set this to 0 or 1, whether you want to allow your posts to be trackback\'able or not note: setting it to zero would also disable sending trackbacks', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(30,'use_pingback', 2, '1', 'set this to 0 or 1, whether you want to allow your posts to be pingback\'able or not note: setting it to zero would also disable sending pingbacks', 8, 20)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(29,'use_trackback', 2, '1', 'set this to false or true, whether you want to allow your posts to be trackback\'able or not note: setting it to false would also disable sending trackbacks', 8, 20)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(30,'use_pingback', 2, '1', 'set this to false or true, whether you want to allow your posts to be pingback\'able or not note: setting it to false would also disable sending pingbacks', 8, 20)",
 //file upload
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(31,'use_fileupload', 2, '0', 'set this to false to disable file upload, or true to enable it', 8, 20)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(32,'fileupload_realpath', 3, '/home/your/site/wordpress/images', 'enter the real path of the directory where you\'ll upload the pictures \nif you\'re unsure about what your real path is, please ask your host\'s support staff \nnote that the  directory must be writable by the webserver (chmod 766) \nnote for windows-servers users: use forwardslashes instead of backslashes', 8, 40)",
@@ -552,36 +571,59 @@ $option_data = array(
 foreach ($option_data as $query) {
     $q = $wpdb->query($query);
 }
+
+?>
+<?php
+$geo_option_data = array(
+// data for geo settings
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(84,'use_geo_positions', 2, '1', 'Turns on the geo url features of WordPress', 8, 20)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(85,'use_default_geourl', 2, '1','enables placement of default GeoURL ICBM location even when no other specified', 8, 20)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(86,'default_geourl_lat ', 8, 0.0, 'The default Latitude ICBM value - <a href=\"http://www.geourl.org/resources.html\" target=\"_blank\">see here</a>', 8, 20)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(87,'default_geourl_lon', 8, 0.0, 'The default Longitude ICBM value', 8, 20)",
+
+"INSERT INTO $tableoptiongroups (group_id, group_name, group_desc) VALUES(9, 'Geo Options', 'Settings which control the posting and display of Geo Options')",
+
+"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES(9,84,1)",
+"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES(9,85,1)",
+"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES(9,86,1)",
+"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES(9,87,1)",
+);
+
+foreach ($geo_option_data as $query) {
+    $q = $wpdb->query($query);
+}
 ?>
 
-<p>Option Data inserted okay.</p>
+<p>Geo option data inserted okay.</p>
 
+
+<p>Good, the option data was inserted okay.</p>
 
 <?php
 $links_option_data = array(
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(60,'links_minadminlevel',    1, '5', 'The minimum admin level to edit links', 8, 10)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(61,'links_use_adminlevels',  2, '1', 'set this to false to have all links visible and editable to everyone in the link manager', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(62,'links_rating_type',      5, 'image', 'Set this to the type of rating indication you wish to use', 8, 10)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(63,'links_rating_char',      3, '*', 'If we are set to \'char\' which char to use.', 8, 5)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(64,'links_rating_ignore_zero', 2, '1', 'What do we do with a value of zero? set this to true to output nothing, 0 to output as normal (number/image)', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(65,'links_rating_single_image',  2, '1', 'Use the same image for each rating point? (Uses links_rating_image[0])', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(66,'links_rating_image0',  3, 'wp-links/links-images/tick.png', 'Image for rating 0 (and for single image)', 8, 40)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(67,'links_rating_image1',  3, 'wp-links/links-images/rating-1.gif', 'Image for rating 1', 8, 40)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(68,'links_rating_image2',  3, 'wp-links/links-images/rating-2.gif', 'Image for rating 2', 8, 40)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(69,'links_rating_image3',  3, 'wp-links/links-images/rating-3.gif', 'Image for rating 3', 8, 40)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(70,'links_rating_image4',  3, 'wp-links/links-images/rating-4.gif', 'Image for rating 4', 8, 40)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(71,'links_rating_image5',  3, 'wp-links/links-images/rating-5.gif', 'Image for rating 5', 8, 40)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(72,'links_rating_image6',  3, 'wp-links/links-images/rating-6.gif', 'Image for rating 6', 8, 40)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(73,'links_rating_image7',  3, 'wp-links/links-images/rating-7.gif', 'Image for rating 7', 8, 40)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(74,'links_rating_image8',  3, 'wp-links/links-images/rating-8.gif', 'Image for rating 8', 8, 40)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(75,'links_rating_image9',  3, 'wp-links/links-images/rating-9.gif', 'Image for rating 9', 8, 40)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(76,'weblogs_cache_file',   3, 'weblogs.com.changes.cache', 'path/to/cachefile needs to be writable by web server', 8, 40)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(77,'weblogs_xml_url',      3, 'http://www.weblogs.com/changes.xml', 'Which file to grab from weblogs.com', 8, 40)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(78,'weblogs_cacheminutes', 1, '60', 'cache time in minutes (if it is older than this get a new copy)', 8, 10)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(79,'links_updated_date_format',  3, '%d/%m/%Y %h:%i', 'The date format for the updated tooltip', 8, 25)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(60,'links_minadminlevel',             1, '5', 'The minimum admin level to edit links', 8, 10)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(61,'links_use_adminlevels',           2, '1', 'set this to false to have all links visible and editable to everyone in the link manager', 8, 20)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(62,'links_rating_type',               5, 'image', 'Set this to the type of rating indication you wish to use', 8, 10)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(63,'links_rating_char',               3, '*', 'If we are set to \'char\' which char to use.', 8, 5)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(64,'links_rating_ignore_zero',        2, '1', 'What do we do with a value of zero? set this to true to output nothing, 0 to output as normal (number/image)', 8, 20)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(65,'links_rating_single_image',       2, '1', 'Use the same image for each rating point? (Uses links_rating_image[0])', 8, 20)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(66,'links_rating_image0',             3, 'wp-links/links-images/tick.png', 'Image for rating 0 (and for single image)', 8, 40)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(67,'links_rating_image1',             3, 'wp-links/links-images/rating-1.gif', 'Image for rating 1', 8, 40)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(68,'links_rating_image2',             3, 'wp-links/links-images/rating-2.gif', 'Image for rating 2', 8, 40)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(69,'links_rating_image3',             3, 'wp-links/links-images/rating-3.gif', 'Image for rating 3', 8, 40)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(70,'links_rating_image4',             3, 'wp-links/links-images/rating-4.gif', 'Image for rating 4', 8, 40)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(71,'links_rating_image5',             3, 'wp-links/links-images/rating-5.gif', 'Image for rating 5', 8, 40)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(72,'links_rating_image6',             3, 'wp-links/links-images/rating-6.gif', 'Image for rating 6', 8, 40)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(73,'links_rating_image7',             3, 'wp-links/links-images/rating-7.gif', 'Image for rating 7', 8, 40)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(74,'links_rating_image8',             3, 'wp-links/links-images/rating-8.gif', 'Image for rating 8', 8, 40)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(75,'links_rating_image9',             3, 'wp-links/links-images/rating-9.gif', 'Image for rating 9', 8, 40)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(76,'weblogs_cache_file',              3, 'weblogs.com.changes.cache', 'path/to/cachefile needs to be writable by web server', 8, 40)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(77,'weblogs_xml_url',                 3, 'http://www.weblogs.com/changes.xml', 'Which file to grab from weblogs.com', 8, 40)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(78,'weblogs_cacheminutes',            1, '60', 'cache time in minutes (if it is older than this get a new copy)', 8, 10)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(79,'links_updated_date_format',       3, '%d/%m/%Y %h:%i', 'The date format for the updated tooltip', 8, 25)",
 "INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(80,'links_recently_updated_prepend',  3, '&gt;&gt;', 'The text to prepend to a recently updated link', 8, 10)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(81,'links_recently_updated_append',  3, '&lt;&lt;', 'The text to append to a recently updated link', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(82,'links_recently_updated_time',  1, '120', 'The time in minutes to consider a link recently updated', 8, 20)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(81,'links_recently_updated_append',   3, '&lt;&lt;', 'The text to append to a recently updated link', 8, 20)",
+"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(82,'links_recently_updated_time',     1, '120', 'The time in minutes to consider a link recently updated', 8, 20)",
 
 //group them together
 "INSERT INTO $tableoptiongroups (group_id,  group_name, group_desc) VALUES(8, 'Link Manager Settings', 'Various settings for the link manager.')",
@@ -618,106 +660,162 @@ $links_option_data = array(
 foreach ($links_option_data as $query) {
     $q = $wpdb->query($query);
 }
-?>
 
+?>
 <p>Links option data inserted okay.</p>
-
+<p>Now to grab your settings from links.config.php</p>
 <?php
-$geo_option_data = array(
-// data for geo settings
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(84,'use_geo_positions', 2, '1', 'Turns on the geo url features of WordPress', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(85,'use_default_geourl', 2, '1','enables placement of default GeoURL ICBM location even when no other specified', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(86,'default_geourl_lat ', 8, 0.0, 'The default Latitude ICBM value - <a href=\"http://www.geourl.org/resources.html\" target=\"_blank\">see here</a>', 8, 20)",
-"INSERT INTO $tableoptions (option_id, option_name, option_type, option_value, option_description, option_admin_level, option_width) VALUES(87,'default_geourl_lon', 8, 0.0, 'The default Longitude ICBM value', 8, 20)",
-
-"INSERT INTO $tableoptiongroups (group_id, group_name, group_desc) VALUES(9,'Geo Options', 'Settings which control the posting and display of Geo Options')",
-
-"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES(9,84,1)",
-"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES(9,85,1)",
-"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES(9,86,1)",
-"INSERT INTO $tableoptiongroup_options (group_id, option_id, seq) VALUES(9,87,1)",
-
-);
-
-foreach ($geo_option_data as $query) {
-    $q = $wpdb->query($query);
-}
+    // pull in the old settings to define them globally
+    if (file_exists('../wp-links/links.config.php')) {
+        include('../wp-links/links.config.php');
+    
+        // now update the database with those settings
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_minadminlevel           )."' WHERE option_id=60"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_use_adminlevels         )."' WHERE option_id=61"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_rating_type             )."' WHERE option_id=62"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_rating_char             )."' WHERE option_id=63"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_rating_ignore_zero      )."' WHERE option_id=64"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_rating_single_image     )."' WHERE option_id=65"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_rating_image0           )."' WHERE option_id=66"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_rating_image1           )."' WHERE option_id=67"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_rating_image2           )."' WHERE option_id=68"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_rating_image3           )."' WHERE option_id=69"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_rating_image4           )."' WHERE option_id=70"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_rating_image5           )."' WHERE option_id=71"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_rating_image6           )."' WHERE option_id=72"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_rating_image7           )."' WHERE option_id=73"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_rating_image8           )."' WHERE option_id=74"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_rating_image9           )."' WHERE option_id=75"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($weblogs_cache_file            )."' WHERE option_id=76"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($weblogs_xml_url               )."' WHERE option_id=77"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($weblogs_cacheminutes          )."' WHERE option_id=78"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_updated_date_format     )."' WHERE option_id=79"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_recently_updated_prepend)."' WHERE option_id=80"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_recently_updated_append )."' WHERE option_id=81"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($links_recently_updated_time   )."' WHERE option_id=82"; $q = $wpdb->query($query);
+?>
+<p>OK. All settings transferred. You can now delete <strong>wp-links/links.config.php</strong></p>
+<?php
+    // end if links.config.php exists
+    } else {
+?>
+<p>Hmm... I couldn't find links.config.php so I couldn't transfer all your settings.
+    You need to check them on the <a href="wp-options.php?option_group_id=8">admin options page</a>.</p>
+<?php
+    } // end else no links.config
 ?>
 
-<p>Geo option data inserted okay.</p>
-
-
-<p>OK. We're nearly done now. We just need to ask you a couple of things:</p>
-<form action="wp-install.php?step=3" method="post">
-<input type="hidden" name="step" value="3" />
-What is the url for your blog? <input type="text" name="url" length="50" />, now on to <input type="submit" value="Step 3" >
-</form>
+<p>Now to grab your settings from b2config</p>
 
 <?php
-	break;
-	case 3:
+    // pull in the old settings to define them globally
+    if (file_exists('../b2config.php')) {
+        include('../b2config.php');
+
+        // now update the database with those settings
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($siteurl                 )."' WHERE option_id=1"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($blogfilename            )."' WHERE option_id=2"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($blogname                )."' WHERE option_id=3"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($blogdescription         )."' WHERE option_id=4"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($admin_email             )."' WHERE option_id=54"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($new_users_can_blog      )."' WHERE option_id=7"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($users_can_register      )."' WHERE option_id=8"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($start_of_week           )."' WHERE option_id=9"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($use_preview             )."' WHERE option_id=10"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($use_bbcode              )."' WHERE option_id=11"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($use_gmcode              )."' WHERE option_id=12"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($use_quicktags           )."' WHERE option_id=13"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($use_htmltrans           )."' WHERE option_id=14"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($use_balanceTags         )."' WHERE option_id=15"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($use_fileupload          )."' WHERE option_id=31"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($fileupload_realpath     )."' WHERE option_id=32"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($fileupload_url          )."' WHERE option_id=33"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($fileupload_allowedtypes )."' WHERE option_id=34"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($fileupload_maxk         )."' WHERE option_id=35"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($fileupload_minlevel     )."' WHERE option_id=36"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($fileupload_allowedusers )."' WHERE option_id=37"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($posts_per_rss           )."' WHERE option_id=21"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($rss_language            )."' WHERE option_id=22"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($rss_encoded_html        )."' WHERE option_id=23"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($rss_excerpt_length      )."' WHERE option_id=24"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($rss_use_excerpt         )."' WHERE option_id=25"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($use_weblogsping         )."' WHERE option_id=26"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($use_blodotgsping        )."' WHERE option_id=27"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($blodotgsping_url        )."' WHERE option_id=28"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($use_trackback           )."' WHERE option_id=29"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($use_pingback            )."' WHERE option_id=30"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($require_name_email      )."' WHERE option_id=18"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($comment_allowed_tags    )."' WHERE option_id=19"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($comments_notify         )."' WHERE option_id=20"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($use_smilies             )."' WHERE option_id=16"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($smilies_directory       )."' WHERE option_id=17"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($mailserver_url          )."' WHERE option_id=38"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($mailserver_login        )."' WHERE option_id=39"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($mailserver_pass         )."' WHERE option_id=40"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($mailserver_port         )."' WHERE option_id=41"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($default_category        )."' WHERE option_id=42"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($subjectprefix           )."' WHERE option_id=43"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($bodyterminator          )."' WHERE option_id=44"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($emailtestonly           )."' WHERE option_id=45"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($use_phoneemail          )."' WHERE option_id=46"; $q = $wpdb->query($query);
+        $query = "UPDATE $tableoptions SET option_value='".addslashes($phoneemail_separator    )."' WHERE option_id=47"; $q = $wpdb->query($query);
+
+        // now pickup the old settings table data
+        $v = $wpdb->get_var("SELECT posts_per_page from $tablesettings");
+        if ($v != null) {
+            $query = "UPDATE $tableoptions SET option_value='".addslashes($v)."' WHERE option_id=48";
+            $q = $wpdb->query($query);
+        }
+
+        $v = $wpdb->get_var("SELECT what_to_show from $tablesettings");
+        if ($v != null) {
+            $query = "UPDATE $tableoptions SET option_value='".addslashes($v)."' WHERE option_id=49";
+            $q = $wpdb->query($query);
+        }
+
+        $v = $wpdb->get_var("SELECT archive_mode from $tablesettings");
+        if ($v != null) {
+            $query = "UPDATE $tableoptions SET option_value='".addslashes($v)."' WHERE option_id=50";
+            $q = $wpdb->query($query);
+        }
+
+        $v = $wpdb->get_var("SELECT time_difference from $tablesettings");
+        if ($v != null) {
+            $query = "UPDATE $tableoptions SET option_value='".addslashes($v)."' WHERE option_id=51";
+            $q = $wpdb->query($query);
+        }
+
+        $v = $wpdb->get_var("SELECT date_format from $tablesettings");
+        if ($v != null) {
+            $query = "UPDATE $tableoptions SET option_value='".addslashes($v)."' WHERE option_id=52";
+            $q = $wpdb->query($query);
+        }
+
+        $v = $wpdb->get_var("SELECT time_format from $tablesettings");
+        if ($v != null) {
+            $query = "UPDATE $tableoptions SET option_value='".addslashes($v)."' WHERE option_id=53";
+            $q = $wpdb->query($query);
+        }
+
+        // ok it can go now
+        $query = "DROP TABLE $tablesettings";
+        $q = $wpdb->query($query);
 ?>
-<h1>Step 3</h1>
-
-
+    <p>OK. All settings transferred.</p>
+    <p>Congratulations! You have updated to the latest version of WordPress</p>
+    <p>You can now delete your b2config.php file, and go play with your
+        <a href="<?php echo $siteurl; ?>">updated blog</a> </p>
 <?php
-$url = $HTTP_POST_VARS['url'];
-if (isset($url)) {
-    $query= "UPDATE $tableoptions set option_value='$url' where option_id=1"; //siteurl
-    $q = $wpdb->query($query);
-    $query= "UPDATE $tableoptions set option_value='$url' where option_id=28"; //blodotgsping_url
-    $q = $wpdb->query($query);
-    $query= "UPDATE $tableoptions set option_value='$url/b2-img/smilies' where option_id=17"; //smilies_directory
-    $q = $wpdb->query($query);
-}
-
-// $query = "DROP TABLE IF EXISTS $tableusers";
-// $q = mysql_query($query) or mysql_doh("doh, can't drop the table \"$tableusers\" in the database.");
-
-$query = "
-CREATE TABLE $tableusers (
-  ID int(10) unsigned NOT NULL auto_increment,
-  user_login varchar(20) NOT NULL default '',
-  user_pass varchar(20) NOT NULL default '',
-  user_firstname varchar(50) NOT NULL default '',
-  user_lastname varchar(50) NOT NULL default '',
-  user_nickname varchar(50) NOT NULL default '',
-  user_icq int(10) unsigned NOT NULL default '0',
-  user_email varchar(100) NOT NULL default '',
-  user_url varchar(100) NOT NULL default '',
-  user_ip varchar(15) NOT NULL default '',
-  user_domain varchar(200) NOT NULL default '',
-  user_browser varchar(200) NOT NULL default '',
-  dateYMDhour datetime NOT NULL default '0000-00-00 00:00:00',
-  user_level int(2) unsigned NOT NULL default '0',
-  user_aim varchar(50) NOT NULL default '',
-  user_msn varchar(100) NOT NULL default '',
-  user_yim varchar(50) NOT NULL default '',
-  user_idmode varchar(20) NOT NULL default '',
-  PRIMARY KEY  (ID),
-  UNIQUE KEY (user_login)
-)
-";
-$q = $wpdb->query($query);
-
-$random_password = substr(md5(uniqid(microtime())),0,6);
-
-$query = "INSERT INTO $tableusers (ID, user_login, user_pass, user_firstname, user_lastname, user_nickname, user_icq, user_email, user_url, user_ip, user_domain, user_browser, dateYMDhour, user_level, user_aim, user_msn, user_yim, user_idmode) VALUES ( '1', 'admin', '$random_password', '', '', 'admin', '0', '$admin_email', '', '127.0.0.1', '127.0.0.1', '', '00-00-0000 00:00:01', '10', '', '', '', 'nickname')";
-$q = $wpdb->query($query);
-
+    // end if b2config exists
+    } else {
 ?>
-
-<p>User setup successful!</p>
-
-<p>Now you can <a href="../b2login.php">log in</a> with the <strong>login</strong>
-  "admin" and <strong>password</strong> "<?php echo $random_password; ?>".</p>
-<p><strong><em>Note that password</em></strong> carefully! It is a <em>random</em>
-  password that was generated just for you. If you lose it, you
-  will have to delete the tables from the database yourself, and re-install WordPress.
-</p>
-<p>Were you expecting more steps? Sorry to disappoint. All done!</p>
+<p>Hmm... I couldn't find b2config.php so I couldn't transfer all your settings.
+    You need to check them on the <a href="wp-options.php?option_group_id=6">admin options page</a>.</p>
+<p>You can now go play with your <a href="<?php echo $siteurl ? $siteurl : '../index.php'; ?>">updated blog</a> </p>
 <?php
-	break;
+    } // end else no b2config
+        break;
+    } // end case 3
 }
 ?>
 </body>

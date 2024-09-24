@@ -1,5 +1,5 @@
 <?php
-// $Id: links.php,v 1.9 2003/06/08 20:30:00 mikelittle Exp $
+// $Id: links.php,v 1.17 2003/08/15 19:27:31 saxmatt Exp $
 //
 // Links
 // Copyright (C) 2002 Mike Little -- mike@zed1.com
@@ -27,7 +27,6 @@
 // Mike Little (mike@zed1.com)
 // *****************************************************************
 
-require_once(dirname(__FILE__).'/links.config.php');
 
 /** function get_linksbyname()
  ** Gets the links associated with category 'cat_name'.
@@ -58,14 +57,64 @@ function get_linksbyname($cat_name = "noname", $before = '', $after = '<br />',
     global $tablelinkcategories, $wpdb;
     $cat_id = -1;
     $results = $wpdb->get_results("SELECT cat_id FROM $tablelinkcategories WHERE cat_name='$cat_name'");
-    foreach ($results as $result) {
-        $cat_id = $result->cat_id;
+    if ($results) {
+        foreach ($results as $result) {
+            $cat_id = $result->cat_id;
+        }
     }
     get_links($cat_id, $before, $after, $between, $show_images, $orderby,
               $show_description, $show_rating, $limit, $show_updated);
 }
 
+function bool_from_yn($yn) {
+    if ($yn == 'Y') return 1;
+    return 0;
+}
 
+/** function wp_get_linksbyname()
+ ** Gets the links associated with the named category.
+ ** Parameters:
+ **   category (no default)  - The category to use.
+ **/
+function wp_get_linksbyname($category) {
+    global $wpdb, $tablelinkcategories;
+
+    $cat = $wpdb->get_row("SELECT cat_id, cat_name, auto_toggle, show_images, show_description, "
+         . " show_rating, show_updated, sort_order, sort_desc, text_before_link, text_after_link, "
+         . " text_after_all, list_limit FROM $tablelinkcategories WHERE cat_name='$category'");
+    if ($cat) {
+        if ($cat->sort_desc == 'Y') {
+            $row->sort_order = '_'.$row->sort_order;
+        }
+        get_links($cat->cat_id, $cat->text_before_link, $cat->text_after_all,
+                  $cat->text_after_link, bool_from_yn($cat->show_images), $cat->sort_order,
+                   bool_from_yn($cat->show_description), bool_from_yn($cat->show_rating),
+                   $cat->list_limit, bool_from_yn($cat->show_updated));
+    }
+} // end wp_get_linksbyname
+
+/** function wp_get_links()
+ ** Gets the links associated with category n.
+ ** Parameters:
+ **   category (no default)  - The category to use.
+ **/
+function wp_get_links($category) {
+    global $wpdb, $tablelinkcategories;
+
+    $cat = $wpdb->get_row("SELECT cat_id, cat_name, auto_toggle, show_images, show_description, "
+         . " show_rating, show_updated, sort_order, sort_desc, text_before_link, text_after_link, "
+         . " text_after_all, list_limit FROM $tablelinkcategories WHERE cat_id=$category");
+    if ($cat) {
+        if ($cat->sort_desc == 'Y') {
+            $row->sort_order = '_'.$row->sort_order;
+        }
+        get_links($cat->cat_id, $cat->text_before_link, $cat->text_after_all,
+                  $cat->text_after_link, bool_from_yn($cat->show_images), $cat->sort_order,
+                   bool_from_yn($cat->show_description), bool_from_yn($cat->show_rating),
+                   $cat->list_limit, bool_from_yn($cat->show_updated));
+    }
+} // end wp_get_links
+    
 /** function get_links()
  ** Gets the links associated with category n.
  ** Parameters:
@@ -91,24 +140,24 @@ function get_linksbyname($cat_name = "noname", $before = '', $after = '<br />',
 function get_links($category = -1, $before = '', $after = '<br />',
                    $between = " ", $show_images = true, $orderby = 'name',
                    $show_description = true, $show_rating = false,
-                   $limit = -1, $show_updated = 0) {
+                   $limit = -1, $show_updated = 1) {
 
-    global $tablelinks, $links_rating_type, $links_rating_char,
-        $links_rating_image, $links_rating_ignore_zero,
-        $links_rating_single_image, $wpdb;
+    global $tablelinks, $wpdb;
 
     $direction = ' ASC';
     $category_query = "";
     if ($category != -1) {
         $category_query = " AND link_category = $category ";
     }
-    if ($show_updated) {
-        $get_updated = ", DATE_FORMAT(link_updated, '%d/%m/%Y %h:%i') AS link_updated ";
+    if (get_settings('links_recently_updated_time')) {
+        $recently_updated_test = ", IF (DATE_ADD(link_updated, INTERVAL ".get_settings('links_recently_updated_time')." MINUTE) >= NOW(), 1,0) as recently_updated ";
     }
-
-    $sql = "SELECT link_url, link_name, link_image, link_target, 
-            link_description, link_rating, link_rel $get_updated 
-            FROM $tablelinks 
+    if ($show_updated) {
+        $get_updated = ", UNIX_TIMESTAMP(link_updated) AS link_updated_f ";
+    }
+    $sql = "SELECT link_url, link_name, link_image, link_target,
+            link_description, link_rating, link_rel $recently_updated_test $get_updated
+            FROM $tablelinks
             WHERE link_visible = 'Y' " .
            $category_query;
     if ($orderby == '')
@@ -127,10 +176,16 @@ function get_links($category = -1, $before = '', $after = '<br />',
     /* The next 2 lines implement LIMIT TO processing */
     if ($limit != -1)
         $sql .= " LIMIT $limit";
-
+    //echo $sql;
     $results = $wpdb->get_results($sql);
+    if (!$results) {
+        return;
+    }
     foreach ($results as $row) {
         echo($before);
+        if ($row->recently_updated) {
+            echo get_settings('links_recently_updated_prepend');
+        }
         $the_link = '#';
         if (($row->link_url != null) && ($row->link_url != '')) {
             $the_link = htmlspecialchars(stripslashes($row->link_url));
@@ -141,9 +196,9 @@ function get_links($category = -1, $before = '', $after = '<br />',
         }
         $desc = htmlspecialchars(stripslashes($row->link_description), ENT_QUOTES);
         if ($show_updated) {
-            if (substr($row->link_updated,0,2) != '00') {
-                $desc .= ": Last updated $row->link_updated";;
-            }
+           //if (substr($row->link_updated_f,0,2) != '00') {
+                $desc .= ' Last updated ' . date(get_settings('links_updated_date_format'), $row->link_updated_f);
+           // }
         }
         if ('' != $desc) {
             $desc = " title='$desc'";
@@ -164,7 +219,10 @@ function get_links($category = -1, $before = '', $after = '<br />',
             echo(stripslashes($row->link_name));
         }
         echo('</a>');
-        
+        if ($row->recently_updated) {
+            echo get_settings('links_recently_updated_append');
+        }
+
         if ($show_description) {
             echo("$between" . stripslashes($row->link_description));
         }
@@ -172,24 +230,25 @@ function get_links($category = -1, $before = '', $after = '<br />',
         // now do the rating
         if ($show_rating) {
             echo($between);
-            if ($links_rating_type == 'number') {
-                if (($row->link_rating != 0) || ($links_rating_ignore_zero != 1)) {
+            if (get_settings('links_rating_type') == 'number') {
+                if (($row->link_rating != 0) || (get_settings('links_rating_ignore_zero') != 1)) {
                     echo(" $row->link_rating\n");
                 }
-            } else if ($links_rating_type == 'char') {
+            } else if (get_settings('links_rating_type') == 'char') {
                 for ($r = $row->link_rating; $r > 0; $r--) {
-                    echo($links_rating_char);
+                    echo($get_settings('links_rating_char'));
                 }
-            } else if ($links_rating_type == 'image') {
-                if ($links_rating_single_image) {
+            } else if (get_settings('links_rating_type') == 'image') {
+                if (get_settings('links_rating_single_image')) {
                     for ($r = $row->link_rating; $r > 0; $r--) {
-                        echo(' <img src="'.$links_rating_image[0].'" alt="' .
+                        echo(' <img src="'.get_settings('links_rating_image0').'" alt="' .
                              $row->link_rating.'" />'."\n");
                     }
                 } else {
-                    if (($row->link_rating != 0) || ($links_rating_ignore_zero != 1)) {
+                    if (($row->link_rating != 0) || (get_settings('links_rating_ignore_zero') != 1)) {
+                        $b = 'links_rating_image'.$row->link_rating;
                         echo(' <img src="' .
-                             $links_rating_image[$row->link_rating].'" alt="' .
+                             get_settings($b).'" alt="' .
                              $row->link_rating.'" />'."\n");
                     }
                 }
@@ -198,6 +257,143 @@ function get_links($category = -1, $before = '', $after = '<br />',
         echo("$after\n");
     } // end while
 }
+
+
+/** function get_linkobjectsbyname()
+ ** Gets an array of link objects associated with category 'cat_name'.
+ ** Parameters:
+ **   cat_name (default 'noname')  - The category name to use. If no
+ **     match is found uses all
+ **   orderby (default 'id') - the order to output the links. E.g. 'id', 'name',
+ **     'url', 'description', or 'rating'. Or maybe owner. If you start the
+ **     name with an underscore the order will be reversed.
+ **     You can also specify 'rand' as the order which will return links in a
+ **     random order.
+ **   limit (default -1) - Limit to X entries. If not specified, all entries
+ **     are shown.
+ **
+ ** Use this like:
+ ** $links = get_linkobjectsbyname('fred');
+ ** foreach ($links as $link) {
+ **   echo '<li>'.stripslashes($link->link_name).'</li>';
+ ** }
+ **/
+function get_linkobjectsbyname($cat_name = "noname" , $orderby = 'name', $limit = -1) {
+    global $tablelinkcategories, $wpdb;
+    $cat_id = -1;
+    $results = $wpdb->get_results("SELECT cat_id FROM $tablelinkcategories WHERE cat_name='$cat_name'");
+    if ($results) {
+        foreach ($results as $result) {
+            $cat_id = $result->cat_id;
+        }
+    }
+    return get_linkobjects($cat_id, $orderby, $limit);
+}
+
+/** function get_linkobjects()
+ ** Gets an array of link objects associated with category n.
+ ** Parameters:
+ **   category (default -1)  - The category to use. If no category supplied
+ **      uses all
+ **   orderby (default 'id') - the order to output the links. E.g. 'id', 'name',
+ **     'url', 'description', or 'rating'. Or maybe owner. If you start the
+ **     name with an underscore the order will be reversed.
+ **     You can also specify 'rand' as the order which will return links in a
+ **     random order.
+ **   limit (default -1) - Limit to X entries. If not specified, all entries
+ **     are shown.
+ **
+ ** Use this like:
+ ** $links = get_linkobjects(1);
+ ** if ($links) {
+ **   foreach ($links as $link) {
+ **     echo '<li>'.$link->link_name.'<br />'.$link->link_description.'</li>';
+ **   }
+ ** }
+ ** Fields are:
+ ** link_id
+ ** link_url
+ ** link_name
+ ** link_image
+ ** link_target
+ ** link_category
+ ** link_description
+ ** link_visible
+ ** link_owner
+ ** link_rating
+ ** link_updated
+ ** link_rel
+ ** link_notes
+ **/
+function get_linkobjects($category = -1, $orderby = 'name', $limit = -1) {
+    global $tablelinks, $wpdb;
+
+    $sql = "SELECT * FROM $tablelinks WHERE link_visible = 'Y'";
+    if ($category != -1) {
+        $sql .= " AND link_category = $category ";
+    }
+    if ($orderby == '')
+        $orderby = 'id';
+    if (substr($orderby,0,1) == '_') {
+        $direction = ' DESC';
+        $orderby = substr($orderby,1);
+    }
+    if (strcasecmp('rand',$orderby) == 0) {
+        $orderby = 'rand()';
+    } else {
+        $orderby = " link_" . $orderby;
+    }
+    $sql .= ' ORDER BY ' . $orderby;
+    $sql .= $direction;
+    /* The next 2 lines implement LIMIT TO processing */
+    if ($limit != -1)
+        $sql .= " LIMIT $limit";
+
+    $results = $wpdb->get_results($sql);
+    if ($results) {
+        foreach ($results as $result) {
+            $result->link_url         = stripslashes($result->link_url);
+            $result->link_name        = stripslashes($result->link_name);
+            $result->link_description = stripslashes($result->link_description);
+            $result->link_notes       = stripslashes($result->link_notes);
+            $newresults[] = $result;
+        }
+    }
+    return $newresults;
+}
+
+/** function get_linkrating()
+ ** Returns the appropriate html for the link rating based on the configuration.
+ ** Parameters:
+ **   link  - The link object returned from get_linkobjects
+ **/
+function get_linkrating($link) {
+    if (get_settings('links_rating_type') == 'number') {
+        if (($link->link_rating != 0) || (get_settings('links_rating_ignore_zero') != 1)) {
+            $s = "$link->link_rating";
+        }
+    } else if (get_settings('links_rating_type') == 'char') {
+        for ($r = $link->link_rating; $r > 0; $r--) {
+            $s .= get_settings('links_rating_char');
+        }
+    } else if (get_settings('links_rating_type') == 'image') {
+        if (get_settings('links_rating_single_image')) {
+            for ($r = $link->link_rating; $r > 0; $r--) {
+                $s .= '<img src="'.get_settings('links_rating_image0').'" alt="' .
+                      $link->link_rating.'" />'."\n";
+            }
+        } else {
+            if (($link->link_rating != 0) || (get_settings('links_rating_ignore_zero') != 1)) {
+                $b = 'links_rating_image'.$row->link_rating;
+                $s = ' <img src="' .
+                     get_settings($b).'" alt="' .
+                     $link->link_rating.'" />'."\n";
+            }
+        }
+    } // end if image
+    return $s;
+}
+    
 
 /** function get_linksbyname_withrating()
  ** Gets the links associated with category 'cat_name' and display rating stars/chars.

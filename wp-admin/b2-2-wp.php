@@ -1,5 +1,6 @@
 <?php
-require('../b2config.php');
+$_wp_installing = 1;
+require_once('../wp-config.php');
 
 $step = $HTTP_GET_VARS['step'];
 if (!$step) $step = 0;
@@ -50,9 +51,8 @@ switch($step) {
   <li>The templates are so much better, and there is so much more going on than 
     before it's probably worth it to start from scratch and work back to your 
     design.</li>
-  <li>You can keeep your <code>b2config.php</code> file if you want to, but it 
-    is <strong>very important</strong> that you take the last few lines from the 
-    WordPress one and add those in, otherwise, nothing will work.</li>
+  <li>You need to transfer some of your settings from your old <code>b2config.php</code>
+    to <code>wp-config.php</code> file [NEED MORE INFO].</li>
   <li>WordPress issues should be discussed in our <a href="http://wordpress.org/support/">support 
     forums</a>.</li>
   <li><strong>Back up</strong> your database before you do anything. Yes, you. 
@@ -68,7 +68,6 @@ switch($step) {
 <h1>Step 1</h1>
 <p>Okay first we&#8217;re going to set up the links database. This will allow you to host your own blogroll, complete with Weblogs.com updates.</p>
 <?php
-require_once('../wp-links/links.config.php');
 
 $got_links = false;
 $got_cats = false;
@@ -123,6 +122,7 @@ if (!$got_links) {
            " link_rating int NOT NULL DEFAULT '0',              " .
            " link_updated DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00', " .
            " link_rel varchar(255) NOT NULL default '',         " .
+           " link_notes MEDIUMTEXT NOT NULL default '',         " .
            " PRIMARY KEY (link_id)                              " .
            ") ";
     $result = mysql_query($sql) or print ("Can't create the table '$tablelinks' in the database.<br />" . $sql . "<br />" . mysql_error());
@@ -201,9 +201,10 @@ if ($got_row) {
 
 $query = "ALTER TABLE $tableposts ADD COLUMN post_excerpt text NOT NULL;";
 $q = $wpdb->query($query);
-$query = "ALTER TABLE $tableposts ADD `post_status` ENUM('publish','draft','private') NOT NULL,
-ADD `comment_status` ENUM('open','closed') NOT NULL,
-ADD `ping_status` ENUM('open','closed') NOT NULL,
+// 0.71 mods
+$query = "ALTER TABLE $tableposts ADD post_status ENUM('publish','draft','private') NOT NULL,
+ADD comment_status ENUM('open','closed') NOT NULL,
+ADD ping_status ENUM('open','closed') NOT NULL,
 ADD post_password varchar(20) NOT NULL;";
 $q = $wpdb->query($query);
 ?>
@@ -211,7 +212,7 @@ $q = $wpdb->query($query);
 <p>That went well! Now let's clean up the b2 database structure a bit...</p>
 
 <?php
-$query = "ALTER TABLE $tableposts DROP INDEX `ID`";
+$query = "ALTER TABLE $tableposts DROP INDEX ID";
 
 $q = $wpdb->query($query);
 ?>
@@ -220,7 +221,7 @@ $q = $wpdb->query($query);
 
 <?php
 
-$query="ALTER TABLE $tablesettings DROP INDEX `ID`";
+$query="ALTER TABLE $tablesettings DROP INDEX ID";
 $q = $wpdb->query($query);
 
 ?>
@@ -228,7 +229,7 @@ $q = $wpdb->query($query);
 <p>So far so good.</p>
 <?php
 
-$query="ALTER TABLE $tablesettings DROP `post_karma`";
+$query="ALTER TABLE $tableposts DROP post_karma";
 $q = $wpdb->query($query);
 
 ?>
@@ -237,7 +238,7 @@ $q = $wpdb->query($query);
 
 <?php
 
-$query = "ALTER TABLE $tableusers DROP INDEX `ID`";
+$query = "ALTER TABLE $tableusers DROP INDEX ID";
 
 $q = $wpdb->query($query);
 
@@ -247,6 +248,7 @@ $q = $wpdb->query($query);
 
 <p>Don't forget to CHMOD the <code>weblogs.com.changes.cache</code> file and you'll 
   be A-okay. Welcome to the family.</p>
+<p>Now there is one more step to the upgrade process. <a href="upgrade-071-to-072.php">Continue upgrade</a></p>
 <?php
 	break;
 }

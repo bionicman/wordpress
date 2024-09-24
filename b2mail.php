@@ -3,20 +3,18 @@
 # pop3-2-b2 mail to blog
 # v0.3 20020716
 
-require('b2config.php');
-require($abspath.$b2inc."/b2template.functions.php");
-require($abspath.$b2inc.'/b2vars.php');
-require($abspath.$b2inc.'/class.POP3.php');
-require($abspath.$b2inc.'/b2functions.php');
-require($abspath.$b2inc."/xmlrpc.inc");
-require($abspath.$b2inc."/xmlrpcs.inc");
+require_once('wp-config.php');
+require_once($abspath.$b2inc."/b2template.functions.php");
+require_once($abspath.$b2inc.'/b2vars.php');
+require_once($abspath.$b2inc.'/class.POP3.php');
+require_once($abspath.$b2inc.'/b2functions.php');
+require_once($abspath.$b2inc."/xmlrpc.inc");
+require_once($abspath.$b2inc."/xmlrpcs.inc");
 
-dbconnect();
 timer_start();
 
 $use_cache = 1;
 $output_debugging_info = 0;	# =1 if you want to output debugging info
-$autobr = get_settings('AutoBR');
 $time_difference = get_settings('time_difference');
 
 if ($use_phoneemail) {
@@ -126,7 +124,7 @@ for ($iCount=1; $iCount<=$Count; $iCount++) {
 	ob_start();
 
 	if ($ddate_difference_days > 14) {
-		echo 'too old<br />';
+		echo 'Too old<br />';
 		continue;
 	}
 
@@ -148,7 +146,7 @@ for ($iCount=1; $iCount<=$Count; $iCount++) {
 		$content = trim($content);
 
 		echo "<p><b>Content-type:</b> $content_type, <b>boundary:</b> $boundary</p>\n";
-		echo "<p><b>Raw content:</b><br /><xmp>".$content.'</xmp></p>';
+		echo "<p><b>Raw content:</b><br /><pre>".$content.'</pre></p>';
 		
 		$btpos = strpos($content, $bodyterminator);
 		if ($btpos) {
@@ -158,6 +156,7 @@ for ($iCount=1; $iCount<=$Count; $iCount++) {
 
 		$blah = explode("\n", $content);
 		$firstline = $blah[0];
+		$secondline = $blah[1];
 
 		if ($use_phoneemail) {
 			$btpos = strpos($firstline, $phoneemail_separator);
@@ -176,6 +175,24 @@ for ($iCount=1; $iCount<=$Count; $iCount++) {
 			$contentfirstline = '';
 		}
 
+        $flat = 999.0;
+        $flon = 999.0;
+        $secondlineParts = explode(':',$secondline);
+        if(strncmp($secondlineParts[0],"POS",3)==0) {
+            echo "Found POS:<br>\n";
+            //echo "Second parts is:".$secondlineParts[1];
+            // the second line is the postion listing line
+            $secLineParts = explode(',',$secondlineParts[1]);
+            $flatStr = $secLineParts[0];
+            $flonStr = $secLineParts[1];
+            //echo "String are ".$flatStr.$flonStr; 
+            $flat = floatval($secLineParts[0]);
+            $flon = floatval($secLineParts[1]);
+            //echo "values are ".$flat." and ".$flon;
+            // ok remove that position... we should not have it in the final output
+            $content = str_replace($secondline,'',$content);
+        }
+
 		$blah = explode(':', $userpassstring);
 		$user_login = $blah[0];
 		$user_pass = $blah[1];
@@ -186,16 +203,15 @@ for ($iCount=1; $iCount<=$Count; $iCount++) {
 		echo "<p><b>Login:</b> $user_login, <b>Pass:</b> $user_pass</p>";
 
 		$sql = "SELECT ID, user_level FROM $tableusers WHERE user_login='$user_login' AND user_pass='$user_pass' ORDER BY ID DESC LIMIT 1";
-		$result = mysql_query($sql);
+		$result = $wpdb->get_row($sql);
 
-		if (!mysql_num_rows($result)) {
+		if (!$result) {
 			echo '<p><b>Wrong login or password.</b></p></div>';
 			continue;
 		}
 
-		$row = mysql_fetch_object($result);
-		$user_level = $row->user_level;
-		$post_author = $row->ID;
+		$user_level = $result->user_level;
+		$post_author = $result->ID;
 
 		if ($user_level > 0) {
 
@@ -209,41 +225,46 @@ for ($iCount=1; $iCount<=$Count; $iCount++) {
 				$post_category = $default_category;
 			}
 
-			if ($autobr) {
-				$content = autobrize($content);
-			}
-
 			if (!$thisisforfunonly) {
 				$post_title = addslashes(trim($post_title));
 				$content = addslashes(trim($content));
-				$sql = "INSERT INTO $tableposts (post_author, post_date, post_content, post_title, post_category) VALUES ($post_author, '$post_date', '$content', '$post_title', $post_category)";
-				$result = mysql_query($sql) or die('Couldn\'t add post: '.mysql_error());
-				$post_ID = mysql_insert_id();
+                if($flat > 500) {
+                    $sql = "INSERT INTO $tableposts (post_author, post_date, post_content, post_title, post_category) VALUES ($post_author, '$post_date', '$content', '$post_title', $post_category)";
+                } else {
+                    $sql = "INSERT INTO $tableposts (post_author, post_date, post_content, post_title, post_category, post_lat, post_lon) VALUES ($post_author, '$post_date', '$content', '$post_title', $post_category, $flat, $flon)";
+                }
+				$result = $wpdb->query($sql);
+				$post_ID = $wpdb->insert_id;
 
 				if (isset($sleep_after_edit) && $sleep_after_edit > 0) {
 					sleep($sleep_after_edit);
 				}
 
 				$blog_ID = 1;
-				rss_update($blog_ID);
+				if($flat < 500) {
+					pingGeoUrl($post_ID);	
+				}
+                // HACK HACK HACK this next line is commented out because I don't know what the word-press replacement
+                // is.  right now it's undefined and does not work				
+				//rss_update($blog_ID);
 				pingWeblogs($blog_ID);
 				pingCafelog($cafelogID, $post_title, $post_ID);
 				pingBlogs($blog_ID);
 				pingback($content, $post_ID);
 			}
 			echo "\n<p><b>Posted title:</b> $post_title<br />";
-			echo "\n<b>Posted content:</b><br /><xmp>".$content.'</xmp></p>';
+			echo "\n<b>Posted content:</b><br /><pre>".$content.'</pre></p>';
 
 			if(!$pop3->delete($iCount)) {
-				echo '<p>oops '.$pop3->ERROR.'</p></div>';
+				echo '<p>Oops '.$pop3->ERROR.'</p></div>';
 				$pop3->reset();
 				exit;
 			} else {
-				echo "<p>Mission complete, message <b>$iCount</b> deleted </p>";
+				echo "<p>Mission complete, message <strong>$iCount</strong> deleted.</p>";
 			}
 
 		} else {
-			echo '<p><b>Level 0 users can\'t post.</b></p>';
+			echo '<p><strong>Level 0 users can\'t post.</strong></p>';
 		}
 		echo '</div>';
 		if ($output_debugging_info) {

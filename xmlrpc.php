@@ -3,7 +3,7 @@
 # fix for mozBlog and other cases where '<?xml' isn't on the very first line
 $HTTP_RAW_POST_DATA = trim($HTTP_RAW_POST_DATA);
 
-include('b2config.php');
+include('wp-config.php');
 
 require_once($abspath.$b2inc."/xmlrpc.inc");
 require_once($abspath.$b2inc."/xmlrpcs.inc");
@@ -12,7 +12,7 @@ require_once($abspath.$b2inc."/b2functions.php");
 require_once($abspath.$b2inc."/b2vars.php");
 
 $use_cache = 1;
-$post_autobr = 1;
+$post_autobr = 0;
 $post_default_title = ""; // posts submitted via the xmlrpc interface get that title
 $post_default_category = 1; // posts submitted via the xmlrpc interface go into that category
 
@@ -37,6 +37,239 @@ function starify($string) {
 
 logIO("I",$HTTP_RAW_POST_DATA);
 
+/**** DB Functions ****/
+
+/*
+ * generic function for inserting data into the posts table.
+ */
+function wp_insert_post($postarr = array()) {
+	global $wpdb, $tableposts;
+
+	// export array as variables
+	extract($postarr);
+	
+	// Do some escapes for safety
+	$post_content = $wpdb->escape($post_content);
+	$post_title = $wpdb->escape($post_title);
+	
+	$sql = "INSERT INTO $tableposts 
+		(post_author, post_date, post_content, post_title, post_excerpt, post_category, post_status) 
+		VALUES ('$post_author','$post_date','$post_content','$post_title', '$post_excerpt','$post_category', '$post_status')";
+
+	$result = $wpdb->query($sql);
+
+	// Return insert_id if we got a good result, otherwise return zero.
+	return $result?$wpdb->insert_id:0;
+}
+
+function wp_get_single_post($postid = 0, $mode = OBJECT) {
+	global $wpdb, $tableposts;
+
+	$sql = "SELECT * FROM $tableposts WHERE ID=$postid";
+	$result = $wpdb->get_row($sql, $mode);
+
+	return $result;
+}
+
+function wp_get_recent_posts($num = 10) {
+	global $wpdb, $tableposts;
+
+	// Set the limit clause, if we got a limit
+	if ($num) {
+		$limit = "LIMIT $num";
+	}
+
+	$sql = "SELECT * FROM $tableposts ORDER BY post_date DESC $limit";
+	$result = $wpdb->get_results($sql,ARRAY_A);
+
+	return $result?$result:array();
+}
+
+function wp_update_post($postarr = array()) {
+	global $wpdb, $tableposts;
+	
+	// export array as variables
+	extract($postarr);
+	
+	// Do some escapes for safety
+	$post_content = $wpdb->escape($post_content);
+	$post_title = $wpdb->escape($post_title);
+	
+	$sql = "UPDATE $tableposts 
+		SET post_content = '$post_content',
+		post_title = '$post_title',
+		post_category = $post_category,
+		post_status = '$post_status',
+		post_date = '$post_date',
+		post_excerpt = '$post_excerpt'
+		WHERE ID = $ID";
+		
+	$result = $wpdb->query($sql);
+
+	return $wpdb->rows_affected;
+}
+
+function wp_delete_post($postid = 0) {
+	global $wpdb, $tableposts;
+	
+	$sql = "DELETE FROM $tableposts WHERE ID = $postid";
+	
+	$wpdb->query($sql);
+
+	$result = $wpdb->rows_affected;
+	
+	return $result;
+}
+
+/**** /DB Functions ****/
+
+/**** Misc ****/
+
+// get peramalink from post ID
+function post_permalink($post_ID=0, $mode = 'id') {
+    global $wpdb;
+	global $tableposts;
+	global $siteurl, $blogfilename, $querystring_start, $querystring_equal, $querystring_separator;
+
+	$blog_URL = $siteurl.'/'.$blogfilename;
+
+	$postdata = get_postdata($post_ID);
+
+	// this will probably change to $blog_ID = $postdata['Blog_ID'] one day.
+	$blog_ID = 1;
+
+	if (!($postdata===false)) {
+	
+		switch(strtolower($mode)) {
+			case 'title':
+				$title = preg_replace('/[^a-zA-Z0-9_\.-]/', '_', $postdata['Title']);
+				break;
+			case 'id':
+			default:
+				$title = "post-$post_ID";
+				break;
+		}
+
+		// this code is blatantly derived from permalink_link()
+		$archive_mode = get_settings('archive_mode');
+		switch($archive_mode) {
+			case 'daily':
+				$post_URL = $blog_URL.$querystring_start.'m'.$querystring_equal.substr($postdata['Date'],0,4).substr($postdata['Date'],5,2).substr($postdata['Date'],8,2).'#'.$title;
+				break;
+			case 'monthly':
+				$post_URL = $blog_URL.$querystring_start.'m'.$querystring_equal.substr($postdata['Date'],0,4).substr($postdata['Date'],5,2).'#'.$title;
+				break;
+			case 'weekly':
+				if((!isset($cacheweekly)) || (empty($cacheweekly[$postdata['Date']]))) {
+					$sql = "SELECT WEEK('".$postdata['Date']."') as wk";
+	                    $row = $wpdb->get_row($sql);
+					$cacheweekly[$postdata['Date']] = $row->wk;
+				}
+				$post_URL = $blog_URL.$querystring_start.'m'.$querystring_equal.substr($postdata['Date'],0,4).$querystring_separator.'w'.$querystring_equal.$cacheweekly[$postdata['Date']].'#'.$title;
+				break;
+			case 'postbypost':
+				$post_URL = $blog_URL.$querystring_start.'p'.$querystring_equal.$post_ID;
+				break;
+		}
+	} 
+
+	return $post_URL;
+}
+
+// Get the name of a category from its ID
+function get_cat_name($cat_id) {
+	global $wpdb,$tablecategories;
+	
+	$cat_id -= 0; 	// force numeric
+	$name = $wpdb->get_var("SELECT cat_name FROM $tablecategories WHERE cat_ID=$cat_id");
+	
+	return $name;
+}
+
+// Get the ID of a category from its name
+function get_cat_ID($cat_name='General') {
+	global $wpdb,$tablecategories;
+	
+	$cid = $wpdb->get_var("SELECT cat_ID FROM $tablecategories WHERE cat_name='$cat_name'");
+
+	return $cid?$cid:1;	// default to cat 1
+}
+
+// Get author's preferred display name
+function get_author_name($auth_id) {
+	$authordata = get_userdata($auth_id);
+
+	switch($authordata["user_idmode"]) {
+		case "nickname":
+			$authorname = $authordata["user_nickname"];
+
+		case "login":
+			$authorname = $authordata["user_login"];
+			break;
+	
+		case "firstname":
+			$authorname = $authordata["user_firstname"];
+			break;
+
+		case "lastname":
+			$authorname = $authordata["user_lastname"];
+			break;
+
+		case "namefl":
+			$authorname = $authordata["user_firstname"]." ".$authordata["user_lastname"];
+			break;
+
+		case "namelf":
+			$authorname = $authordata["user_lastname"]." ".$authordata["user_firstname"];
+			break;
+
+		default:
+			$authorname = $authordata["user_nickname"];
+			break;
+	}
+
+	return $authorname;
+}
+
+// get extended entry info (<!--more-->)
+function get_extended($post) {
+	list($main,$extended) = explode('<!--more-->',$post);
+
+	// Strip leading and trailing whitespace
+	$main = preg_replace('/^[\s]*(.*)[\s]*$/','\\1',$main);
+	$extended = preg_replace('/^[\s]*(.*)[\s]*$/','\\1',$extended);
+
+	return array('main' => $main, 'extended' => $extended);
+}
+
+// do trackbacks for a list of urls
+// borrowed from b2edit.php
+// accepts a comma-separated list of trackback urls and a post id
+function trackback_url_list($tb_list, $post_id) {
+	if (!empty($tb_list)) {
+		// get post data
+		$postdata = wp_get_single_post($post_id, ARRAY_A);
+
+		// import postdata as variables
+		extract($postdata);
+		
+		// form an excerpt
+		$excerpt = strip_tags($post_excerpt?$post_excerpt:$post_content);
+		
+		if (strlen($excerpt) > 255) {
+			$exerpt = substr($excerpt,0,252) . '...';
+		}
+		
+		$trackback_urls = explode(',', $tb_list);
+		foreach($trackback_urls as $tb_url) {
+		    $tb_url = trim($tb_url);
+		    trackback($tb_url, stripslashes($post_title), $excerpt, $post_id);
+		}
+    }
+}
+
+/**** /Misc ****/
+
 /**** B2 API ****/
 
 
@@ -55,6 +288,7 @@ $b2newpost_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcS
 $b2newpost_doc='Adds a post, blogger-api like, +title +category +postdate';
 
 function b2newpost($m) {
+    global $wpdb;
 
 	global $xmlrpcerruser; // import user errcode value
 	global $blog_ID,$cache_userdata,$tableposts,$use_rss,$use_weblogsping,$post_autobr;
@@ -62,7 +296,6 @@ function b2newpost($m) {
 	global $cafelogID, $sleep_after_edit;
 	$err="";
 
-	dbconnect();
 
 	$username=$m->getParam(2);
 	$password=$m->getParam(3);
@@ -75,39 +308,42 @@ function b2newpost($m) {
 	$password = $password->scalarval();
 	$content = $content->scalarval();
 	$title = $title->scalarval();
-	$category = $category->scalarval();
+	$post_category = $category->scalarval();
 	$postdate = $postdate->scalarval();
 
 
 	if (user_pass_ok($username,$password)) {
 
 		$userdata = get_userdatabylogin($username);
-		$user_ID = $userdata["ID"];
-		$user_level = $userdata["user_level"];
+		$post_author = $userdata->ID;
+		$user_level = $userdata->user_level;
 		if ($user_level < 1) {
 			return new xmlrpcresp(0, $xmlrpcerruser+1, // user error 1
-           "Sorry, level 0 users can not post");
+	   "Sorry, level 0 users can not post");
 		}
 
-		
-		$content = format_to_post($content);
+
+		$post_content = format_to_post($content);
 		$post_title = addslashes($title);
+
 
 		$time_difference = get_settings("time_difference");
 		if ($postdate != "") {
-			$now = $postdate;
+			$post_date = $postdate;
 		} else {
-			$now = date("Y-m-d H:i:s",(time() + ($time_difference * 3600)));
+			$post_date = date("Y-m-d H:i:s",(time() + ($time_difference * 3600)));
 		}
 
-		$sql = "INSERT INTO $tableposts (post_author, post_date, post_content, post_title, post_category) VALUES ('$user_ID','$now','$content','$post_title','$category')";
-		$result = mysql_query($sql);
+		$post_data = compact('post_content','post_title','post_date','post_author','post_category');
+		
+		$result = wp_insert_post($post_data);
 
 		if (!$result)
 			return new xmlrpcresp(0, $xmlrpcerruser+2, // user error 2
-           "For some strange yet very annoying reason, your entry couldn't be posted.");
+	   "For some strange yet very annoying reason, your entry couldn't be posted.");
 
-		$post_ID = mysql_insert_id();
+
+		$post_ID = $wpdb->insert_id;
 
 		if (!isset($blog_ID)) { $blog_ID = 1; }
 
@@ -115,17 +351,20 @@ function b2newpost($m) {
 			sleep($sleep_after_edit);
 		}
 
-		rss_update($blog_ID);
+
+
 		pingWeblogs($blog_ID);
 		pingCafelog($cafelogID, $post_title, $post_ID);
 		pingBlogs($blog_ID);
 		pingback($content, $post_ID);
 
+
 		return new xmlrpcresp(new xmlrpcval("$post_ID"));
 
 	} else {
+
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
-           'Wrong username/password combination '.$username.' / '.starify($password));
+	   'Wrong username/password combination '.$username.' / '.starify($password));
 	}
 }
 
@@ -138,9 +377,9 @@ $b2getcategories_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $x
 $b2getcategories_doc='given a blogID, gives a struct that list categories in that blog, using categoryID and categoryName. categoryName is there so the user would choose a category name from the client, rather than just a number. however, when using b2.newPost, only the category ID number should be sent.';
 
 function b2getcategories($m) {
+    global $wpdb;
 	global $xmlrpcerruser,$tablecategories;
 
-	dbconnect();
 
 	$blogid=$m->getParam(0);
 	$blogid = $blogid->scalarval(); // we dot not use that yet, that will be used with multiple blogs
@@ -156,11 +395,10 @@ function b2getcategories($m) {
 
 	if (user_pass_ok($username,$password)) {
 
-		$sql = "SELECT * FROM $tablecategories ORDER BY cat_ID ASC";
-		$result = mysql_query($sql) or die($sql);
-
+		$results = $wpdb->get_results("SELECT * FROM $tablecategories ORDER BY cat_ID ASC");
+	if (!$results) die("Error getting data");
 		$i = 0;
-		while($row = mysql_fetch_object($result)) {
+	foreach($results as $row) {
 			$cat_name = $row->cat_name;
 			$cat_ID = $row->cat_ID;
 
@@ -181,7 +419,7 @@ function b2getcategories($m) {
 
 	} else {
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
-           'Wrong username/password combination '.$username.' / '.starify($password));
+	   'Wrong username/password combination '.$username.' / '.starify($password));
 	}
 }
 
@@ -194,10 +432,10 @@ $b2_getPostURL_sig = array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $x
 $b2_getPostURL_doc = 'Given a blog ID, username, password, and a post ID, returns the URL to that post.';
 
 function b2_getPostURL($m) {
+    global $wpdb;
 	global $xmlrpcerruser, $tableposts;
 	global $siteurl, $blogfilename, $querystring_start, $querystring_equal, $querystring_separator;
 
-	dbconnect();
 
 	// ideally, this would be used:
 	// $blog_ID = $m->getParam(0);
@@ -216,7 +454,7 @@ function b2_getPostURL($m) {
 
 	$userdata = get_userdatabylogin($username);
 
-	if ($userdata["user_level"] < 1) {
+	if ($userdata->user_level < 1) {
 		return new xmlrpcresp(0, $xmlrpcerruser+1, // user error 1
 	   "Sorry, users whose level is zero, can not use this method.");
 	}
@@ -242,10 +480,9 @@ function b2_getPostURL($m) {
 					break;
 				case 'weekly':
 					if((!isset($cacheweekly)) || (empty($cacheweekly[$postdata['Date']]))) {
-						$sql = "SELECT WEEK('".$postdata['Date']."')";
-						$result = mysql_query($sql);
-						$row = mysql_fetch_row($result);
-						$cacheweekly[$postdata['Date']] = $row[0];
+						$sql = "SELECT WEEK('".$postdata['Date']."') as wk";
+			$row = $wpdb->get_row($sql);
+						$cacheweekly[$postdata['Date']] = $row->wk;
 					}
 					$post_URL = $blog_URL.$querystring_start.'m'.$querystring_equal.substr($postdata['Date'],0,4).$querystring_separator.'w'.$querystring_equal.$cacheweekly[$postdata['Date']].'#'.$title;
 					break;
@@ -265,7 +502,7 @@ function b2_getPostURL($m) {
 
 	} else {
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
-           'Wrong username/password combination '.$username.' / '.starify($password));
+	   'Wrong username/password combination '.$username.' / '.starify($password));
 	}
 
 }
@@ -292,6 +529,7 @@ $bloggernewpost_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $xm
 $bloggernewpost_doc='Adds a post, blogger-api like';
 
 function bloggernewpost($m) {
+    global $wpdb;
 
 	global $xmlrpcerruser; // import user errcode value
 	global $blog_ID,$cache_userdata,$tableposts,$use_rss,$use_weblogsping,$post_autobr;
@@ -299,43 +537,44 @@ function bloggernewpost($m) {
 	global $cafelogID, $sleep_after_edit;
 	$err="";
 
-	dbconnect();
 
 	$username=$m->getParam(2);
 	$password=$m->getParam(3);
 	$content=$m->getParam(4);
+	$publish=$m->getParam(5);
 
 	$username = $username->scalarval();
 	$password = $password->scalarval();
 	$content = $content->scalarval();
-
+	// publish flag sets post status appropriately
+	$post_status = $publish->scalarval()?'publish':'draft';
+	
 	if (user_pass_ok($username,$password)) {
 
 		$userdata = get_userdatabylogin($username);
-		$user_ID = $userdata["ID"];
-		$user_level = $userdata["user_level"];
+		$post_author = $userdata->ID;
+		$user_level = $userdata->user_level;
 		if ($user_level < 1) {
 			return new xmlrpcresp(0, $xmlrpcerruser+1, // user error 1
-           "Sorry, level 0 users can not post");
+	   "Sorry, level 0 users can not post");
 		}
 
 		$post_title = addslashes(xmlrpc_getposttitle($content));
 		$post_category = xmlrpc_getpostcategory($content);
 
 		$content = xmlrpc_removepostdata($content);
-		$content = format_to_post($content);
+		$post_content = format_to_post($content);
 
 		$time_difference = get_settings("time_difference");
-		$now = date("Y-m-d H:i:s",(time() + ($time_difference * 3600)));
+		$post_date = date("Y-m-d H:i:s",(time() + ($time_difference * 3600)));
+		
+		$postdata = compact('post_author', 'post_date', 'post_content', 'post_title', 'post_category', 'post_status');
 
-		$sql = "INSERT INTO $tableposts (post_author, post_date, post_content, post_title, post_category) VALUES ('$user_ID','$now','$content','$post_title','$post_category')";
-		$result = mysql_query($sql);
+		$post_ID = wp_insert_post($postdata);
 
-		if (!$result)
+		if (!$post_ID)
 			return new xmlrpcresp(0, $xmlrpcerruser+2, // user error 2
-           "For some strange yet very annoying reason, your entry couldn't be posted.");
-
-		$post_ID = mysql_insert_id();
+	   "For some strange yet very annoying reason, your entry couldn't be posted.");
 
 		if (!isset($blog_ID)) { $blog_ID = 1; }
 
@@ -343,7 +582,7 @@ function bloggernewpost($m) {
 			sleep($sleep_after_edit);
 		}
 
-		rss_update($blog_ID);
+
 		pingWeblogs($blog_ID);
 		pingCafelog($cafelogID, $post_title, $post_ID);
 		pingBlogs($blog_ID);
@@ -355,7 +594,7 @@ function bloggernewpost($m) {
 	} else {
 		logIO("O","Wrong username/password combination <b>$username / $password</b>");
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
-           'Wrong username/password combination '.$username.' / '.starify($password));
+	   'Wrong username/password combination '.$username.' / '.starify($password));
 	}
 }
 
@@ -368,65 +607,67 @@ $bloggereditpost_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $x
 $bloggereditpost_doc='Edits a post, blogger-api like';
 
 function bloggereditpost($m) {
+    global $wpdb;
 
 	global $xmlrpcerruser; // import user errcode value
 	global $blog_ID,$cache_userdata,$tableposts,$use_rss,$use_weblogsping,$post_autobr;
 	global $post_default_title,$post_default_category, $sleep_after_edit;
 	$err="";
 
-	dbconnect();
 
 	$post_ID=$m->getParam(1);
 	$username=$m->getParam(2);
 	$password=$m->getParam(3);
 	$newcontent=$m->getParam(4);
+	$publish=$m->getParam(5);
 
-	$post_ID = $post_ID->scalarval();
+	$ID = $post_ID->scalarval();
 	$username = $username->scalarval();
 	$password = $password->scalarval();
 	$newcontent = $newcontent->scalarval();
+	$post_status = $publish->scalarval()?'publish':'draft';
 
-	$sql = "SELECT * FROM $tableposts WHERE ID = '$post_ID'";
-	$result = @mysql_query($sql);
+	$result = wp_get_single_post($ID);
 
 	if (!$result)
 		return new xmlrpcresp(0, $xmlrpcerruser+2, // user error 2
-          "No such post.");
+	  "No such post '$ID'.");
 
 	$userdata = get_userdatabylogin($username);
-	$user_ID = $userdata["ID"];
-	$user_level = $userdata["user_level"];
+	$user_ID = $userdata->ID;
+	$user_level = $userdata->user_level;
 
-	$postdata=get_postdata($post_ID);
+	$postdata=get_postdata($ID);
 	$post_authordata=get_userdata($postdata["Author_ID"]);
 	$post_author_ID=$postdata["Author_ID"];
 
-	if (($user_ID != $post_author_ID) && ($user_level <= $post_authordata["user_level"])) {
+	if (($user_ID != $post_author_ID) && ($user_level <= $post_authordata->user_level)) {
 			return new xmlrpcresp(0, $xmlrpcerruser+1, // user error 1
-           "Sorry, you do not have the right to edit this post");
+	   "Sorry, you do not have the right to edit this post");
 	}
 
 	if (user_pass_ok($username,$password)) {
 
 		if ($user_level < 1) {
 			return new xmlrpcresp(0, $xmlrpcerruser+1, // user error 1
-           "Sorry, level 0 users can not edit posts");
+	   "Sorry, level 0 users can not edit posts");
 		}
 
 		$content = $newcontent;
 
-		$post_title = addslashes(xmlrpc_getposttitle($content));
+		$post_title = xmlrpc_getposttitle($content);
 		$post_category = xmlrpc_getpostcategory($content);
 
 		$content = xmlrpc_removepostdata($content);
-		$content = format_to_post($content);
+		$post_content = format_to_post($content);
+		
+		$postdata = compact('ID','post_content','post_title','post_category','post_status');
 
-		$sql = "UPDATE $tableposts SET post_content='$content', post_title='$post_title', post_category='$post_category' WHERE ID = '$post_ID'";
-		$result = mysql_query($sql);
+		$result = wp_update_post($postdata);
 
 		if (!$result)
 			return new xmlrpcresp(0, $xmlrpcerruser+2, // user error 2
-           "For some strange yet very annoying reason, the entry couldn't be edited.");
+	   "For some strange yet very annoying reason, the entry couldn't be edited.");
 
 		if (!isset($blog_ID)) { $blog_ID = 1; }
 
@@ -434,14 +675,14 @@ function bloggereditpost($m) {
 			sleep($sleep_after_edit);
 		}
 
-		rss_update($blog_ID);
+
 		pingWeblogs($blog_ID);
 
 		return new xmlrpcresp(new xmlrpcval("1", "boolean"));
 
 	} else {
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
-           'Wrong username/password combination '.$username.' / '.starify($password));
+	   'Wrong username/password combination '.$username.' / '.starify($password));
 	}
 }
 
@@ -449,18 +690,18 @@ function bloggereditpost($m) {
 
 ### blogger.deletePost ###
 
-$bloggerdeletepost_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcBoolean));
+$bloggerdeletepost_sig=array(array($xmlrpcBoolean, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcBoolean));
 
 $bloggerdeletepost_doc='Deletes a post, blogger-api like';
 
 function bloggerdeletepost($m) {
+    global $wpdb;
 
 	global $xmlrpcerruser; // import user errcode value
 	global $blog_ID,$cache_userdata,$tableposts,$use_rss,$use_weblogsping,$post_autobr;
 	global $post_default_title,$post_default_category, $sleep_after_edit;
 	$err="";
 
-	dbconnect();
 
 	$post_ID=$m->getParam(1);
 	$username=$m->getParam(2);
@@ -473,38 +714,36 @@ function bloggerdeletepost($m) {
 	$newcontent = $newcontent->scalarval();
 
 	$sql = "SELECT * FROM $tableposts WHERE ID = '$post_ID'";
-	$result = @mysql_query($sql);
-
+    $result = $wpdb->get_results($sql);
 	if (!$result)
 		return new xmlrpcresp(0, $xmlrpcerruser+2, // user error 2
-          "No such post.");
+	  "No such post '$post_ID'.");
 
 	$userdata = get_userdatabylogin($username);
-	$user_ID = $userdata["ID"];
-	$user_level = $userdata["user_level"];
+	$user_ID = $userdata->ID;
+	$user_level = $userdata->user_level;
 
 	$postdata=get_postdata($post_ID);
 	$post_authordata=get_userdata($postdata["Author_ID"]);
 	$post_author_ID=$postdata["Author_ID"];
 
-	if (($user_ID != $post_author_ID) && ($user_level <= $post_authordata["user_level"])) {
+	if (($user_ID != $post_author_ID) && ($user_level <= $post_authordata->user_level)) {
 			return new xmlrpcresp(0, $xmlrpcerruser+1, // user error 1
-           "Sorry, you do not have the right to delete this post");
+	   "Sorry, you do not have the right to delete this post");
 	}
 
 	if (user_pass_ok($username,$password)) {
 
 		if ($user_level < 1) {
 			return new xmlrpcresp(0, $xmlrpcerruser+1, // user error 1
-           "Sorry, level 0 users can not delete posts");
+	   "Sorry, level 0 users can not delete posts");
 		}
 
-		$sql = "DELETE FROM $tableposts WHERE ID = '$post_ID'";
-		$result = mysql_query($sql);
+		$result = wp_delete_post($post_ID);
 
 		if (!$result)
 			return new xmlrpcresp(0, $xmlrpcerruser+2, // user error 2
-           "For some strange yet very annoying reason, the entry couldn't be deleted.");
+	   "For some strange yet very annoying reason, the entry couldn't be deleted.");
 
 		if (!isset($blog_ID)) { $blog_ID = 1; }
 
@@ -512,14 +751,14 @@ function bloggerdeletepost($m) {
 			sleep($sleep_after_edit);
 		}
 
-		rss_update($blog_ID);
+
 		pingWeblogs($blog_ID);
 
-		return new xmlrpcresp(new xmlrpcval(1));
+		return new xmlrpcresp(new xmlrpcval(1,'boolean'));
 
 	} else {
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
-           'Wrong username/password combination '.$username.' / '.starify($password));
+	   'Wrong username/password combination '.$username.' / '.starify($password));
 	}
 }
 
@@ -532,6 +771,7 @@ $bloggergetusersblogs_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcStrin
 $bloggergetusersblogs_doc='returns the user\'s blogs - this is a dummy function, just so that BlogBuddy and other blogs-retrieving apps work';
 
 function bloggergetusersblogs($m) {
+    global $wpdb;
 	// this function will have a real purpose with CafeLog's multiple blogs capability
 
 	global $xmlrpcerruser,$siteurl,$blogfilename,$blogname;
@@ -540,12 +780,12 @@ function bloggergetusersblogs($m) {
 	$user_login = $m->getParam(1);
 	$user_login = $user_login->scalarval();
 
-	dbconnect();
 
 	$sql = "SELECT user_level FROM $tableusers WHERE user_login = '$user_login' AND user_level > 3";
-	$result = mysql_query($sql) or die($sql."<br />".mysql_error());
+    $result = $wpdb->get_results($sql);
 
-	$is_admin = mysql_num_rows($result);
+
+	$is_admin = $wpdb->num_rows;
 
 	$struct = new xmlrpcval(array("isAdmin" => new xmlrpcval($is_admin,"boolean"),
 									"url" => new xmlrpcval($siteurl."/".$blogfilename),
@@ -568,7 +808,6 @@ $bloggergetuserinfo_doc='gives the info about a user';
 function bloggergetuserinfo($m) {
 	global $xmlrpcerruser,$tableusers;
 
-	dbconnect();
 
 	$username=$m->getParam(1);
 	$username = $username->scalarval();
@@ -579,19 +818,19 @@ function bloggergetuserinfo($m) {
 	$userdata = get_userdatabylogin($username);
 
 	if (user_pass_ok($username,$password)) {
-		$struct = new xmlrpcval(array("nickname" => new xmlrpcval($userdata["user_nickname"]),
-									  "userid" => new xmlrpcval($userdata["ID"]),
-									  "url" => new xmlrpcval($userdata["user_url"]),
-									  "email" => new xmlrpcval($userdata["user_email"]),
-									  "lastname" => new xmlrpcval($userdata["user_lastname"]),
-									  "firstName" => new xmlrpcval($userdata["user_firstname"])
+		$struct = new xmlrpcval(array("nickname" => new xmlrpcval($userdata->user_nickname),
+									  "userid" => new xmlrpcval($userdata->ID),
+									  "url" => new xmlrpcval($userdata->user_url),
+									  "email" => new xmlrpcval($userdata->user_email),
+									  "lastname" => new xmlrpcval($userdata->user_lastname),
+									  "firstname" => new xmlrpcval($userdata->user_firstname)
 									  ),"struct");
 		$resp = $struct;
 		return new xmlrpcresp($resp);
 
 	} else {
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
-           'Wrong username/password combination '.$username.' / '.starify($password));
+	   'Wrong username/password combination '.$username.' / '.starify($password));
 	}
 }
 
@@ -606,7 +845,6 @@ $bloggergetpost_doc='fetches a post, blogger-api like';
 function bloggergetpost($m) {
 	global $xmlrpcerruser,$tableposts;
 
-	dbconnect();
 
 	$post_ID=$m->getParam(1);
 	$post_ID = $post_ID->scalarval();
@@ -621,9 +859,10 @@ function bloggergetpost($m) {
 		$postdata = get_postdata($post_ID);
 
 		if ($postdata["Date"] != "") {
-
-			$post_date = mysql2date("U", $postdata["Date"]);
-			$post_date = gmdate("Ymd", $post_date)."T".gmdate("H:i:s", $post_date);
+			// Don't convert to GMT
+			//$post_date = mysql2date("U", $postdata["Date"]);
+			$post_date = strtotime($postdata['Date']);
+			$post_date = date("Ymd", $post_date)."T".date("H:i:s", $post_date);
 
 			$content  = "<title>".stripslashes($postdata["Title"])."</title>";
 			$content .= "<category>".$postdata["Category"]."</category>";
@@ -639,11 +878,11 @@ function bloggergetpost($m) {
 			return new xmlrpcresp($resp);
 		} else {
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 4
-           "No such post #$post_ID");
+	   "No such post #$post_ID");
 		}
 	} else {
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
-           'Wrong username/password combination '.$username.' / '.starify($password));
+	   'Wrong username/password combination '.$username.' / '.starify($password));
 	}
 }
 
@@ -656,14 +895,14 @@ $bloggergetrecentposts_sig=array(array($xmlrpcString, $xmlrpcString, $xmlrpcStri
 $bloggergetrecentposts_doc='fetches X most recent posts, blogger-api like';
 
 function bloggergetrecentposts($m) {
+    global $wpdb;
 	global $xmlrpcerruser,$tableposts;
 
 	error_reporting(0); // there is a bug in phpxmlrpc that makes it say there are errors while the output is actually valid, so let's disable errors for that function
 
-	dbconnect();
 
 	$blogid = 1;	// we don't need that yet
-	
+
 	$numposts=$m->getParam(4);
 	$numposts = $numposts->scalarval();
 
@@ -682,33 +921,37 @@ function bloggergetrecentposts($m) {
 	if (user_pass_ok($username,$password)) {
 
 		$sql = "SELECT * FROM $tableposts WHERE post_category > 0 ORDER BY post_date DESC".$limit;
-		$result = mysql_query($sql);
+		$result = $wpdb->get_results($sql);
 		if (!$result)
 			return new xmlrpcresp(0, $xmlrpcerruser+2, // user error 2
-           "For some strange yet very annoying reason, the entries couldn't be fetched.".mysql_error());
-		
+	   "For some strange yet very annoying reason, the entries couldn't be fetched.");
+
 		$data = new xmlrpcval("","array");
 
 		$i = 0;
-		while($row = mysql_fetch_object($result)) {
+		foreach ($result as $row) {
 			$postdata = array(
-				"ID" => $row->ID, 
-				"Author_ID" => $row->post_author, 
-				"Date" => $row->post_date, 
+				"ID" => $row->ID,
+				"Author_ID" => $row->post_author,
+				"Date" => $row->post_date,
 				"Content" => $row->post_content,
-				"Title" => $row->post_title, 
+				"Title" => $row->post_title,
 				"Category" => $row->post_category
 			);
 
-			$post_date = mysql2date("U", $postdata["Date"]);
-			$post_date = gmdate("Ymd", $post_date)."T".gmdate("H:i:s", $post_date);
+			// Don't convert to GMT
+			//$post_date = mysql2date("U", $postdata["Date"]);
+			$post_date = strtotime($postdata['Date']);
+			$post_date = date("Ymd", $post_date)."T".date("H:i:s", $post_date);
 
 			$content  = "<title>".stripslashes($postdata["Title"])."</title>";
-			$content .= "<category>".$postdata["Category"]."</category>";
+			$content .= "<category>".get_cat_name($postdata["Category"])."</category>";
 			$content .= stripslashes($postdata["Content"]);
 
-#			$content = convert_chars($content,"html");
-#			$content = $postdata["Title"];
+//			$content = convert_chars($content,"html");
+//			$content = $postdata["Title"];
+
+			$category = new xmlrpcval($postdata['Category']);
 
 			$authordata = get_userdata($postdata["Author_ID"]);
 			switch($authordata["user_idmode"]) {
@@ -739,7 +982,8 @@ function bloggergetrecentposts($m) {
 										"userid" => new xmlrpcval($postdata["Author_ID"]),
 										"dateCreated" => new xmlrpcval($post_date,"dateTime.iso8601"),
 										"content" => new xmlrpcval($content),
-										"postid" => new xmlrpcval($postdata["ID"])
+										"postid" => new xmlrpcval($postdata["ID"]),
+										'category' => $category
 										),"struct");
 			$i = $i + 1;
 		}
@@ -755,7 +999,7 @@ function bloggergetrecentposts($m) {
 
 	} else {
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
-           'Wrong username/password combination '.$username.' / '.starify($password));
+	   'Wrong username/password combination '.$username.' / '.starify($password));
 	}
 }
 
@@ -774,7 +1018,6 @@ function bloggergettemplate($m) {
 
 	error_reporting(0); // there is a bug in phpxmlrpc that makes it say there are errors while the output is actually valid, so let's disable errors for that function
 
-	dbconnect();
 
 	$blogid = 1;	// we do not need this yet
 
@@ -789,13 +1032,13 @@ function bloggergettemplate($m) {
 
 	$userdata = get_userdatabylogin($username);
 
-	if ($userdata["user_level"] < 3) {
+	if ($userdata->user_level < 3) {
 		return new xmlrpcresp(0, $xmlrpcerruser+1, // user error 1
 	   "Sorry, users whose level is less than 3, can not edit the template.");
 	}
 
 	if (user_pass_ok($username,$password)) {
-	
+
 	if ($templateType == "main") {
 		if ($blogfilename != "") {
 			$file = $blogfilename;
@@ -816,7 +1059,7 @@ function bloggergettemplate($m) {
 
 	} else {
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
-           'Wrong username/password combination '.$username.' / '.starify($password));
+	   'Wrong username/password combination '.$username.' / '.starify($password));
 	}
 }
 
@@ -835,7 +1078,6 @@ function bloggersettemplate($m) {
 
 	error_reporting(0); // there is a bug in phpxmlrpc that makes it say there are errors while the output is actually valid, so let's disable errors for that function
 
-	dbconnect();
 
 	$blogid = 1;	// we do not need this yet
 
@@ -853,13 +1095,13 @@ function bloggersettemplate($m) {
 
 	$userdata = get_userdatabylogin($username);
 
-	if ($userdata["user_level"] < 3) {
+	if ($userdata->user_level < 3) {
 		return new xmlrpcresp(0, $xmlrpcerruser+1, // user error 1
 	   "Sorry, users whose level is less than 3, can not edit the template.");
 	}
 
 	if (user_pass_ok($username,$password)) {
-	
+
 	if ($templateType == "main") {
 		if ($blogfilename != "") {
 			$file = $blogfilename;
@@ -878,12 +1120,561 @@ function bloggersettemplate($m) {
 
 	} else {
 		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
-           'Wrong username/password combination '.$username.' / '.starify($password));
+	   'Wrong username/password combination '.$username.' / '.starify($password));
 	}
 }
 
 /**** /Blogger API ****/
 
+
+
+/**** metaWeblog API ****/
+
+/**********************
+ *
+ * metaWeblog API extensions
+ * added by 
+ *  Dougal Campbell <dougal@gunters.org> 
+ *  http://dougal.gunters.org/
+ *
+ **********************/
+
+$mwnewpost_sig =  array(array($xmlrpcString,$xmlrpcString,$xmlrpcString,$xmlrpcString,$xmlrpcStruct,$xmlrpcBoolean));
+$mwnewpost_doc = 'Add a post, MetaWeblog API-style';
+
+function mwnewpost($params) {
+	global $xmlrpcerruser;
+	global $blog_ID, $cache_userdata,$tableposts;
+	global $use_rss,$use_weblogsping,$post_autobr,$post_default_title;
+	global $post_default_category,$cafelogID,$sleep_after_edit;
+
+	$xblogid = $params->getParam(0);
+	$xuser = $params->getParam(1);
+	$xpass = $params->getParam(2);
+	$xcontent = $params->getParam(3);
+	$xpublish = $params->getParam(4);
+	
+	$blogid = $xblogid->scalarval();
+	$username = $xuser->scalarval();
+	$password = $xpass->scalarval();
+	$contentstruct = xmlrpc_decode($xcontent);
+	$post_status = $xpublish->scalarval()?'publish':'draft';
+
+	// Check login
+	if (user_pass_ok($username,$password)) {
+		$userdata = get_userdatabylogin($username);
+		$post_author = $userdata->ID;
+		$user_level = $userdata->user_level;
+		if ($user_level < 1) {
+			return new xmlrpcresp(0, $xmlrpcerruser+1,
+			  "Sorry, level 0 users cannot post");
+		}
+
+
+		$post_title = $contentstruct['title'];
+		$post_content = format_to_post($contentstruct['description']);
+
+		$post_excerpt = $contentstruct['mt_excerpt'];
+		$post_more = $contentstruct['mt_text_more'];
+
+		$comment_status = $contentstruct['mt_allow_comments']?'open':'closed';
+		$ping_status = $contentstruct['mt_allow_pings']?'open':'closed';
+
+		if ($post_more) {
+			$post_content = $post_content . "\n<!--more-->\n" . $post_more;
+		}
+		
+		$time_difference = get_settings("time_difference");
+		$dateCreated = $contentstruct['dateCreated'];
+		$dateCreated = $dateCreated?iso8601_decode($dateCreated):(time()+($time_difference * 3600));
+		$post_date = date("Y-m-d H:i:s", $dateCreated);
+		
+		$post_category = get_cat_ID($contentstruct['categories'][0]);
+		
+		// We've got all the data -- post it:
+		$postarr = compact('post_author','post_date','post_content','post_title','post_category','post_status','post_excerpt','comment_status','ping_status');
+
+		$post_ID = wp_insert_post($postarr);
+		
+		if (!$post_ID) {
+			return new xmlrpcresp(0, $xmlrpcerruser+2, "For some strange yet very annoying reason, your entry could not be posted.");
+		}
+
+		if (!isset($blog_ID)) { $blog_ID = 1; }
+
+		if (isset($sleep_after_edit) && $sleep_after_edit > 0) {
+			sleep($sleep_after_edit);
+		}
+
+		pingWeblogs($blog_ID);
+		pingCafelog($cafelogID, $post_title, $post_ID);
+		pingBlogs($blog_ID);
+		pingback($content, $post_ID);
+		trackback_url_list($content_struct['mt_tb_ping_urls'],$post_ID);
+
+		logIO("O","(MW) Posted ! ID: $post_ID");
+		$myResp = new xmlrpcval($post_ID,"string");
+
+		return new xmlrpcresp($myResp);
+
+	} else {
+		logIO("O","(MW) Wrong username/password combination <b>$username / $password</b>");
+		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
+	   'Wrong username/password combination '.$username.' / '.starify($password));
+	}
+}
+
+$mweditpost_sig =  array(array($xmlrpcBoolean,$xmlrpcString,$xmlrpcString,$xmlrpcString,$xmlrpcStruct,$xmlrpcBoolean));
+$mweditpost_doc = 'Edit a post, MetaWeblog API-style';
+
+function mweditpost ($params) {	// ($postid, $user, $pass, $content, $publish) 
+	global $xmlrpcerruser;
+
+	$xpostid = $params->getParam(0);
+	$xuser = $params->getParam(1);
+	$xpass = $params->getParam(2);
+	$xcontent = $params->getParam(3);
+	$xpublish = $params->getParam(4);
+	
+	$ID = $xpostid->scalarval();
+	$username = $xuser->scalarval();
+	$password = $xpass->scalarval();
+	$contentstruct = xmlrpc_decode($xcontent);
+	$postdata = wp_get_single_post($ID);
+
+	if (!$postdata)
+		return new xmlrpcresp(0, $xmlrpcerruser+2, // user error 2
+			"No such post $ID.");
+			
+	$userdata = get_userdatabylogin($username);
+	$user_ID = $userdata->ID;
+	$user_level = $userdata->user_level;
+	
+	$post_author_ID = $postdata->post_author;
+	$post_authordata = get_userdata($post_author_ID);
+
+	if (($user_ID != $post_author_ID) && ($user_level <= $post_authordata->user_level)) {
+		return new xmlrpcresp(0, $xmlrpcerruser+1, // user error 1
+			"Sorry, you do not have the right to edit this post.");
+	}
+		
+	// Check login
+	if (user_pass_ok($username,$password)) {
+		if ($user_level < 1) {
+			return new xmlrpcresp(0, $xmlrpcerruser+1,
+			  "Sorry, level 0 users cannot edit posts");
+		}
+
+		extract($postdata);
+
+		$post_title = $contentstruct['title'];
+		$post_content = format_to_post($contentstruct['description']);
+		$post_category = get_cat_ID($contentstruct['categories'][0]);
+		$post_excerpt = $contentstruct['mt_excerpt'];
+		$post_more = $contentstruct['mt_text_more'];
+		$post_status = $xpublish->scalarval()?'publish':'draft';
+		if ($post_more) {
+			$post_content = $post_content . "\n<!--more-->\n" . $post_more;
+		}
+		$comment_status = $contentstruct['mt_allow_comments']?'open':'closed';
+		$ping_status = $contentstruct['mt_allow_pings']?'open':'closed';
+
+		
+		$time_difference = get_settings("time_difference");
+		$dateCreated = $contentstruct['dateCreated'];
+		$dateCreated = $dateCreated?iso8601_decode($contentstruct['dateCreated']):(time()+($time_difference * 3600));
+		$post_date = date("Y-m-d H:i:s", $dateCreated);
+
+		// We've got all the data -- post it:
+		$newpost = compact('ID','post_content','post_title','post_category','post_status','post_excerpt','comment_status','ping_status','post_date');
+
+		$newpost_ID = wp_update_post($newpost);
+		
+		if (!$newpost_ID) {
+			return new xmlrpcresp(0, $xmlrpcerruser+2, "For some strange yet very annoying reason, your entry could not be posted.");
+		}
+
+		if (!isset($blog_ID)) { $blog_ID = 1; }
+
+		if (isset($sleep_after_edit) && $sleep_after_edit > 0) {
+			sleep($sleep_after_edit);
+		}
+
+		pingWeblogs($blog_ID);
+		pingCafelog($cafelogID, $post_title, $post_ID);
+		pingBlogs($blog_ID);
+		pingback($content, $post_ID);
+		trackback_url_list($content_struct['mt_tb_ping_urls'],$post_ID);
+
+		logIO("O","(MW) Edited ! ID: $post_ID");
+		$myResp = new xmlrpcval($ID,"string");
+
+		return new xmlrpcresp($myResp);
+
+	} else {
+		logIO("O","(MW) Wrong username/password combination <b>$username / $password</b>");
+		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
+	   'Wrong username/password combination '.$username.' / '.starify($password));
+	}
+}
+
+$mwgetpost_sig =  array(array($xmlrpcStruct,$xmlrpcString,$xmlrpcString,$xmlrpcString));
+$mwegetpost_doc = 'Get a post, MetaWeblog API-style';
+
+function mwgetpost ($params) {	// ($postid, $user, $pass) 
+	global $xmlrpcerruser;
+	
+	$xpostid = $params->getParam(0);
+	$xuser = $params->getParam(1);
+	$xpass = $params->getParam(2);
+	
+	$post_ID = $xpostid->scalarval();
+	$username = $xuser->scalarval();
+	$password = $xpass->scalarval();
+
+	// Check login
+	if (user_pass_ok($username,$password)) {
+		$postdata = get_postdata($post_ID);
+
+		if ($postdata["Date"] != "") {
+
+			// why were we converting to GMT here? spec doesn't call for that.
+			//$post_date = mysql2date("U", $postdata["Date"]);
+			//$post_date = gmdate("Ymd", $post_date)."T".gmdate("H:i:s", $post_date);
+			$post_date = strtodate($postdata['Date']);
+			$post_date = date("Ymd", $post_date)."T".date("H:i:s", $post_date);
+			
+			$catid = $postdata['Category'];
+			$catname = get_cat_name($catid);
+			$catnameenc = new xmlrpcval($catname);
+			$catlist = array($catnameenc);
+			
+			$post = get_extended($postdata['Content']);
+			$allow_comments = 'open' == $postdata['comment_status']?1:0;
+			$allow_pings = 'open' == $postdata['ping_status']?1:0;
+
+			$resp = array(
+				'link' => new xmlrpcval(post_permalink($post_ID)),
+				'title' => new xmlrpcval($postdata["Title"]),
+				'description' => new xmlrpcval(stripslashes($post['main'])),
+				'dateCreated' => new xmlrpcval($post_date,'dateTime.iso8601'),
+				'userid' => new xmlrpcval($postdata["Author_ID"]),
+				'postid' => new xmlrpcval($postdata["ID"]),
+				'content' => new xmlrpcval($postdata["Content"]),
+				'permalink' => new xmlrpcval(post_permalink($post_ID)),
+				'categories' => new xmlrpcval($catlist,'array'),
+				'mt_excerpt' => new xmlrpcval($postdata['Excerpt']),
+				'mt_allow_comments' => new xmlrpcval($allow_comments,'int'),
+				'mt_allow_pings' => new xmlrpcval($allow_pings,'int'),
+				'mt_text_more' => new xmlrpcval($post['extended'])
+			);
+			
+			$resp = new xmlrpcval($resp,'struct');
+			
+			return new xmlrpcresp($resp);
+		} else {
+		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 4
+			"No such post #$post_ID");
+		}
+	} else {
+		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
+	   'Wrong username/password combination '.$username.' / '.starify($password));
+	}
+
+}
+
+$mwrecentposts_sig =  array(array($xmlrpcArray,$xmlrpcString,$xmlrpcString,$xmlrpcString,$xmlrpcInt));
+$mwerecentposts_doc = 'Get recent posts, MetaWeblog API-style';
+
+function mwrecentposts ($params) {	// ($blogid, $user, $pass, $num) 
+	global $xmlrpcerruser;
+
+	$xblogid = $params->getParam(0);
+	$xuser = $params->getParam(1);
+	$xpass = $params->getParam(2);
+	$xnum = $params->getParam(3);
+	
+	$blogid = $xblogid->scalarval();
+	$username = $xuser->scalarval();
+	$password = $xpass->scalarval();
+	$num = $xnum->scalarval();
+
+	// Check login
+	if (user_pass_ok($username,$password)) {
+
+		$postlist = wp_get_recent_posts($num);
+		
+		// Build response packet. We can't just use xmlrpc_encode,
+		// because of the dateCreated field, which must be a date type.
+		
+		// Encode each entry of the array.
+		foreach($postlist as $entry) {
+			// convert the date
+			//$mdate = mysql2date('U',$entry['post_date']);
+			$mdate = strtotime($entry['post_date']);
+			// spec doesn't call for GMT conversion
+			//$isoString = gmdate('Ymd',$mdate).'T'.gmdate('H:i:s',$mdate);
+			$isoString = date('Ymd',$mdate).'T'.date('H:i:s',$mdate);
+			$date = new xmlrpcval($isoString,"dateTime.iso8601");
+			$userid = new xmlrpcval($entry['post_author']);
+			$content = new xmlrpcval($entry['post_content']);
+			$excerpt = new xmlrpcval($entry['post_excerpt']);
+			
+			// Something still isn't right with categories....
+			$pcat = get_cat_name($entry['post_category']);
+			
+			//$catstruct['description'] = $pcat;
+			//$catstruct['categoryId'] = $entry['post_category'];
+			//$catstruct['categoryName'] = $pcat;
+			//$catstruct['isPrimary'] = TRUE;
+			
+			//$catstruct2 = xmlrpc_encode($catstruct);
+			
+			$categories = new xmlrpcval(array(new xmlrpcval($pcat)),'array');
+
+			$post = get_extended($entry['post_content']);
+
+			$postid = new xmlrpcval($entry['ID']);
+			$title = new xmlrpcval($entry['post_title']);
+			$description = new xmlrpcval($post['main']);
+			$link = new xmlrpcval(post_permalink($entry['ID']));
+			$permalink = $link;
+
+			$extended = new xmlrpcval($post['extended']);
+
+			$allow_comments = (('open' == $entry['comment_status'])?1:0);
+			$allow_pings = (('open' == $entry['ping_status'])?1:0);
+
+			$encode_arr = array(
+				'dateCreated' => $date,
+				'userid' => $userid,
+				'postid' => $postid,
+				'categories' => $categories,
+				'title' => $title,
+				'description' => $description,
+				'link' => $link,
+				'permalink' => $permalink,
+				'mt_excerpt' => $excerpt,
+				'mt_allow_comments' => $allow_comments,
+				'mt_allow_pings' => $allow_pings,
+				'mt_text_more' => $extended
+			);
+			
+			$xmlrpcpostarr[] = new xmlrpcval($encode_arr,"struct");
+		}	
+
+		// Now convert that to an xmlrpc array type
+		$myResp = new xmlrpcval($xmlrpcpostarr,"array");
+
+		return new xmlrpcresp($myResp);
+	} else {
+		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
+	   'Wrong username/password combination '.$username.' / '.starify($password));
+	}
+}
+
+
+$mwgetcats_sig =  array(array($xmlrpcArray,$xmlrpcString,$xmlrpcString,$xmlrpcString));
+$mwgetcats_doc = 'Get a post, MetaWeblog API-style';
+
+function mwgetcats ($params) {	// ($blogid, $user, $pass) 
+	global $xmlrpcerruser,$wpdb,$tablecategories;
+	global $querystring_start, $querystring_equal, $querystring_separator;
+	global $siteurl,$blogfilename;
+	
+	$blog_URL = $siteurl . '/' . $blogfilename;
+	
+	if ($cats = $wpdb->get_results("SELECT cat_ID,cat_name FROM $tablecategories",ARRAY_A)) {
+		foreach ($cats as $cat) {
+			$struct['categoryId'] = $cat['cat_ID'];
+			$struct['description'] = $cat['cat_name'];
+			$struct['categoryName'] = $cat['cat_name'];
+			$struct['htmlUrl'] = htmlspecialchars($blog_URL . $querystring_start . 'cat' . $querystring_equal . $cat['cat_ID']);
+			$struct['rssUrl'] = ''; // will probably hack alexking's stuff in here
+			
+			$arr[] = xmlrpc_encode($struct);
+		}
+	}
+	
+	$resp = new xmlrpcval($arr,'array');
+
+	return new xmlrpcresp($resp);
+}
+
+
+$mwnewmedia_sig =  array(array($xmlrpcStruct,$xmlrpcString,$xmlrpcString,$xmlrpcString,$xmlrpcStruct));
+$mwnewmedia_doc = 'Upload image or other binary data, MetaWeblog API-style (unimplemented)';
+
+function mwnewmedia($params) {	// ($blogid, $user, $pass, $struct) 
+	global $xmlrpcerruser;
+	
+	return new xmlrpcresp(0, $xmlrpcerruser+10, // user error 10
+	  'metaWeblog.newMediaObject not implemented (yet)');
+}
+
+
+/**** /MetaWeblog API ****/
+
+
+/**** MovableType API ****/
+
+/**********************
+ *
+ * MovableType API extensions
+ * added by 
+ *  Dougal Campbell <dougal@gunters.org> 
+ *  http://dougal.gunters.org/
+ *
+ * DONE:
+ *  mt.getCategoryList
+ *  mt.setPostCategories
+ *  mt.supportedMethods
+ *  mt.getPostCategories
+ *  mt.publishPost
+ *
+ * PARTIALLY DONE:
+ *  mt.supportedTextFilters	      // empty stub
+ *  extend metaWeblog.newPost
+ *  extend metaWeblog.editPost
+ *  extend metaWeblog.getPost
+ *  extend metaWeblog.getRecentPosts
+ *
+ * NOT DONE:
+ *  mt.getRecentPostTitles
+ *  mt.getTrackbackPings
+ *
+ *
+ **********************/
+
+$mt_supportedMethods_sig = array(array($xmlrpcArray));
+$mt_supportedMethods_doc = 'Retrieve information about the XML-RPC methods supported by the server.';
+
+// ripped out of system.listMethods
+function mt_supportedMethods($params) {
+    global $dispatch_map, $xmlrpcerr, $xmlrpcstr, $_xmlrpcs_dmap;
+    $v=new xmlrpcval();
+    $dmap=$dispatch_map;
+    $outAr=array();
+    for(reset($dmap); list($key, $val)=each($dmap); ) {
+	$outAr[]=new xmlrpcval($key, "string");
+    }
+    $dmap=$_xmlrpcs_dmap;
+    for(reset($dmap); list($key, $val)=each($dmap); ) {
+	$outAr[]=new xmlrpcval($key, "string");
+    }
+    $v->addArray($outAr);
+    return new xmlrpcresp($v);
+
+}
+
+$mt_getPostCategories_sig = array(array($xmlrpcArray, $xmlrpcString, $xmlrpcString, $xmlrpcString));
+$mt_getPostCategories_doc = "Returns a list of all categories to which the post is assigned.";
+
+function mt_getPostCategories($params) {
+	global $xmlrpcusererr;
+
+	$xpostid = $params->getParam(0);
+	$xuser = $params->getParam(1);
+	$xpass = $params->getParam(2);
+	
+	$post_ID = $xpostid->scalarval();
+	$username = $xuser->scalarval();
+	$password = $xpass->scalarval();
+
+	if (user_pass_ok($username,$password)) {
+		$postdata = wp_get_single_post($post_ID,ARRAY_A);
+	
+		$struct['categoryId'] = $postdata['post_category'];
+		$struct['categoryName'] = get_cat_name($struct['categoryId']);
+		$struct['isPrimary'] = TRUE;
+		
+		// Return an array of structs	
+		$resp_struct = xmlrpc_encode($struct);
+		$resp_array = new xmlrpcval(array($resp_struct),'array');
+		
+		return new xmlrpcresp($resp_array);
+
+	} else {
+		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
+	   'Wrong username/password combination '.$username.' / '.starify($password));
+	}
+}
+
+$mt_setPostCategories_sig = array(array($xmlrpcBoolean, $xmlrpcString, $xmlrpcString, $xmlrpcString, $xmlrpcArray));
+$mt_setPostCategories_doc = "Sets the categories for a post";
+
+function mt_setPostCategories($params) {
+	global $xmlrpcusererr;
+	
+	$xpostid = $params->getParam(0);
+	$xuser = $params->getParam(1);
+	$xpass = $params->getParam(2);
+	$xcats = $params->getParam(3);
+	
+	$post_ID = $xpostid->scalarval();
+	$username = $xuser->scalarval();
+	$password = $xpass->scalarval();
+	$cats = xmlrpc_decode($xcats);
+
+	// WP currently only supports single cats. Grab the first one:
+	$primarycat = $cats[0];
+	$cat_ID = $primarycat['categoryId'];
+	
+	if (user_pass_ok($username,$password)) {
+		$postdata = wp_get_single_post($post_ID,ARRAY_A);
+	
+		$postdata['post_category'] = $cat_ID;
+			
+		$result = wp_update_post($postdata);
+
+		return new xmlrpcresp(new xmlrpcval($result,'boolean'));
+	} else {
+		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
+	   'Wrong username/password combination '.$username.' / '.starify($password));
+	}
+}
+
+$mt_publishPost_sig = array(array($xmlrpcBoolean, $xmlrpcString, $xmlrpcString, $xmlrpcString));
+$mt_publishPost_doc = "Publish (rebuild) all of the static files related to an entry. Equivalent to saving an entry in the system (but without the ping).";
+
+function mt_publishPost($params) {
+	global $xmlrpcusererr;
+	
+	$xpostid = $params->getParam(0);
+	$xuser = $params->getParam(1);
+	$xpass = $params->getParam(2);
+	
+	$post_ID = $xpostid->scalarval();
+	$username = $xuser->scalarval();
+	$password = $xpass->scalarval();
+
+	if (user_pass_ok($username,$password)) {
+		$postdata = wp_get_single_post($post_ID,ARRAY_A);
+		
+		$postdata['post_status'] = 'publish';
+	
+		$result = wp_update_post($postdata);
+
+		return new xmlrpcresp(new xmlrpcval($result,'boolean'));
+	} else {
+		return new xmlrpcresp(0, $xmlrpcerruser+3, // user error 3
+	   'Wrong username/password combination '.$username.' / '.starify($password));
+	}
+}
+
+$mt_supportedTextFilters_sig = array(array($xmlrpcArray));
+$mt_supportedTextFilters_doc = "Retrieve information about the text formatting plugins supported by the server.";
+
+function mt_supportedTextFilters($params) {
+	// This should probably check the status of the 'use_bbcode' 
+	// and 'use_gmcode' config options.
+	
+	return new xmlrpcresp(new xmlrpcval(array(),'array'));
+}
+
+
+
+/**** /MovableType API ****/
 
 
 /**** PingBack functions ****/
@@ -893,16 +1684,15 @@ $pingback_ping_sig = array(array($xmlrpcString, $xmlrpcString, $xmlrpcString));
 $pingback_ping_doc = 'gets a pingback and registers it as a comment prefixed by &lt;pingback /&gt;';
 
 function pingback_ping($m) {
-	// original code by Mort (http://mort.mine.nu:8080)
-	global $tableposts, $tablecomments, $comments_notify, $wpdb;
-	global $siteurl, $blogfilename, $b2_version, $use_pingback;
-	global $HTTP_SERVER_VARS;
-
+	// original code by Mort (http://mort.mine.nu:8080) 
+	global $tableposts,$tablecomments, $comments_notify, $wpdb; 
+	global $siteurl, $blogfilename,$b2_version, $use_pingback; 
+	global $HTTP_SERVER_VARS, $wpdb;
+    
 	if (!$use_pingback) {
 		return new xmlrpcresp(new xmlrpcval('Sorry, this weblog does not allow you to pingback its posts.'));
 	}
 
-	dbconnect();
 
 	$log = debug_fopen('./xmlrpc.log', 'w');
 
@@ -955,9 +1745,7 @@ function pingback_ping($m) {
 				// ...or a string #title, a little more complicated
 				$title = preg_replace('/[^a-zA-Z0-9]/', '.', $urltest['fragment']);
 				$sql = "SELECT ID FROM $tableposts WHERE post_title RLIKE '$title'";
-				$result = mysql_query($sql) or die("Query: $sql\n\nError: ".mysql_error());
-				$blah = mysql_fetch_array($result);
-				$post_ID = $blah['ID'];
+				$post_ID = $wpdb->get_var($sql) or die("Query: $sql\n\nError: ");
 				$way = 'from the fragment (title)';
 			}
 		} else {
@@ -967,18 +1755,18 @@ function pingback_ping($m) {
 		debug_fwrite($log, "Found post ID $way: $post_ID\n");
 
 		$sql = 'SELECT post_author FROM '.$tableposts.' WHERE ID = '.$post_ID;
-		$result = mysql_query($sql);
+		$result = $wpdb->get_results($sql);
 
-		if (mysql_num_rows($result)) {
+		if ($wpdb->num_rows) {
 
 			debug_fwrite($log, 'Post exists'."\n");
 
 			// Let's check that the remote site didn't already pingback this entry
 			$sql = 'SELECT * FROM '.$tablecomments.' WHERE comment_post_ID = '.$post_ID.' AND comment_author_url = \''.$pagelinkedfrom.'\' AND comment_content LIKE \'%<pingback />%\'';
-			$result = mysql_query($sql);
+			$result = $wpdb->get_results($sql);
+	    
+			if ($wpdb->num_rows || (1==1)) {
 
-			if (mysql_num_rows($result) || (1==1)) {
-			
 				// very stupid, but gives time to the 'from' server to publish !
 				sleep(1);
 
@@ -1025,7 +1813,7 @@ function pingback_ping($m) {
 					$original_title = $title;
 					$title = addslashes(strip_tags(trim($title)));
 					$sql = "INSERT INTO $tablecomments (comment_post_ID, comment_author, comment_author_url, comment_date, comment_content) VALUES ($post_ID, '$title', '$pagelinkedfrom', NOW(), '$context')";
-					$consulta = mysql_query($sql);
+					$consulta = $wpdb->query($sql);
 
 					if ($comments_notify) {
 
@@ -1042,7 +1830,7 @@ function pingback_ping($m) {
 						$subject = "pingback on post #$post_ID \"".$postdata['Title'].'"';
 
 						@mail($recipient, $subject, $notify_message, "From: b2@".$HTTP_SERVER_VARS['SERVER_NAME']."\r\n"."X-Mailer: b2 $b2_version - PHP/" . phpversion());
-						
+
 					}
 				} else {
 					// URL pattern not found
@@ -1147,7 +1935,7 @@ $stringecho_sig=array(array($xmlrpcString, $xmlrpcString));
 $stringecho_doc='Accepts a string parameter, returns the string.';
 
 function stringecho($m) {
-  // just sends back a string 
+  // just sends back a string
   $s=$m->getParam(0);
   return new xmlrpcresp(new xmlrpcval($s->scalarval()));
 }
@@ -1191,14 +1979,14 @@ function bitflipper($m) {
 	for($j=0; $j<$sz; $j++) {
 		$b=$v->arraymem($j);
 		if ($b->scalarval()) {
-			
+
 			$rv->addScalar(false, "boolean");
 		} else {
-			
+
 			$rv->addScalar(true, "boolean");
 		}
 	}
- 
+
 	return new xmlrpcresp($rv);
 }
 
@@ -1251,7 +2039,7 @@ function agesorter($m) {
   $agar=array();
 
   if (isset($sno) && $sno->kindOf()=="array") {
-	$max=$sno->arraysize(); 
+	$max=$sno->arraysize();
 	// TODO: create debug method to print can work once more
 	// print "<!-- found $max array elements -->\n";
 	for($i = 0; $i < $max; $i = $i + 1) {
@@ -1263,21 +2051,21 @@ function agesorter($m) {
 	  // extract name and age from struct
 	  $n=$rec->structmem("name");
 	  $a=$rec->structmem("age");
-	  // $n and $a are xmlrpcvals, 
+	  // $n and $a are xmlrpcvals,
 	  // so get the scalarval from them
 	  $agar[$n->scalarval()]=$a->scalarval();
 	}
 
-	$agesorter_arr=$agar; 
+	$agesorter_arr=$agar;
 	// hack, must make global as uksort() won't
 	// allow us to pass any other auxilliary information
 	uksort($agesorter_arr, agesorter_compare);
 	$outAr=array();
 	while (list( $key, $val ) = each( $agesorter_arr ) ) {
 	  // recreate each struct element
-	  $outAr[]=new xmlrpcval(array("name" => 
+	  $outAr[]=new xmlrpcval(array("name" =>
 								   new xmlrpcval($key),
-								   "age" => 
+								   "age" =>
 								   new xmlrpcval($val, "int")), "struct");
 	}
 	// add this array to the output value
@@ -1324,8 +2112,8 @@ function mail_send($m) {
 	$mCc=$m->getParam(4);
 	$mBcc=$m->getParam(5);
 	$mMime=$m->getParam(6);
-	
-	if ($mTo->scalarval()=="") 
+
+	if ($mTo->scalarval()=="")
 		$err="Error, no 'To' field specified";
 
 	if ($mFrom->scalarval()=="")
@@ -1345,9 +2133,9 @@ function mail_send($m) {
 
 	if ($err=="") {
 		/*
-		if (!mail("", 
-							$mSub->scalarval(), 
-							$mBody->scalarval(), 
+		if (!mail("",
+							$mSub->scalarval(),
+							$mBody->scalarval(),
 							$msghdr)) {
 			$err="Error, could not send the mail.";
 		}
@@ -1429,7 +2217,7 @@ function v1_moderateSizeArrayCheck($m) {
 	$sz=$ar->arraysize();
 	$first=$ar->arraymem(0);
 	$last=$ar->arraymem($sz-1);
-	return new xmlrpcresp(new xmlrpcval($first->scalarval() . 
+	return new xmlrpcresp(new xmlrpcval($first->scalarval() .
 																			$last->scalarval(), "string"));
 }
 
@@ -1446,7 +2234,7 @@ function v1_simpleStructReturn($m) {
 																						"times100" =>
 																						new xmlrpcval($v*100, "int"),
 																						"times1000" =>
-																						new xmlrpcval($v*1000, "int")), 
+																						new xmlrpcval($v*1000, "int")),
 																			"struct"));
 }
 
@@ -1508,7 +2296,7 @@ function v1_countTheEntities($m) {
 														 "ctApostrophes" =>
 														 new xmlrpcval($ap, "int"),
 														 "ctQuotes" =>
-														 new xmlrpcval($qu, "int")), 
+														 new xmlrpcval($qu, "int")),
 											 "struct"));
 }
 
@@ -1581,74 +2369,129 @@ function i_whichToolkit($m) {
 
 /**** SERVER FUNCTIONS ARRAY ****/
 
-$s=new xmlrpc_server( array( "blogger.newPost" => 
+$dispatch_map =  array( "blogger.newPost" =>
 							 array("function" => "bloggernewpost",
 										 "signature" => $bloggernewpost_sig,
 										 "docstring" => $bloggernewpost_doc),
-  
 
-							 "blogger.editPost" => 
+
+							 "blogger.editPost" =>
 							 array("function" => "bloggereditpost",
 										 "signature" => $bloggereditpost_sig,
 										 "docstring" => $bloggereditpost_doc),
-  
 
-							 "blogger.deletePost" => 
+
+							 "blogger.deletePost" =>
 							 array("function" => "bloggerdeletepost",
 										 "signature" => $bloggerdeletepost_sig,
 										 "docstring" => $bloggerdeletepost_doc),
-  
 
-							 "blogger.getUsersBlogs" => 
+
+							 "blogger.getUsersBlogs" =>
 							 array("function" => "bloggergetusersblogs",
 										 "signature" => $bloggergetusersblogs_sig,
 										 "docstring" => $bloggergetusersblogs_doc),
-  
-							 "blogger.getUserInfo" => 
+
+							 "blogger.getUserInfo" =>
 							 array("function" => "bloggergetuserinfo",
 										 "signature" => $bloggergetuserinfo_sig,
 										 "docstring" => $bloggergetuserinfo_doc),
 
- 							 "blogger.getPost" => 
+ 							 "blogger.getPost" =>
 							 array("function" => "bloggergetpost",
 										 "signature" => $bloggergetpost_sig,
 										 "docstring" => $bloggergetpost_doc),
 
-							 "blogger.getRecentPosts" => 
+							 "blogger.getRecentPosts" =>
 							 array("function" => "bloggergetrecentposts",
 										 "signature" => $bloggergetrecentposts_sig,
 										 "docstring" => $bloggergetrecentposts_doc),
 
-							 "blogger.getTemplate" => 
+							 "blogger.getTemplate" =>
 							 array("function" => "bloggergettemplate",
 										 "signature" => $bloggergettemplate_sig,
 										 "docstring" => $bloggergettemplate_doc),
 
-							 "blogger.setTemplate" => 
+							 "blogger.setTemplate" =>
 							 array("function" => "bloggersettemplate",
 										 "signature" => $bloggersettemplate_sig,
 										 "docstring" => $bloggersettemplate_doc),
 
-							 "b2.newPost" => 
+							 "metaWeblog.newPost" =>
+							 array("function" => "mwnewpost",
+										 "signature" => $mwnewpost_sig,
+										 "docstring" => $mwnewpost_doc),
+
+							 "metaWeblog.editPost" =>
+							 array("function" => "mweditpost",
+										 "signature" => $mweditpost_sig,
+										 "docstring" => $mweditpost_doc),
+
+							 "metaWeblog.getPost" =>
+							 array("function" => "mwgetpost",
+										 "signature" => $mwgetpost_sig,
+										 "docstring" => $mwgetpost_doc),
+
+							 "metaWeblog.getRecentPosts" =>
+							 array("function" => "mwrecentposts",
+										 "signature" => $mwrecentposts_sig,
+										 "docstring" => $mwrecentposts_doc),
+
+							 "metaWeblog.getCategories" =>
+							 array("function" => "mwgetcats",
+										 "signature" => $mwgetcats_sig,
+										 "docstring" => $mwgetcats_doc),
+
+							 "mt.getCategoryList" =>
+							 array("function" => "mwgetcats",
+										 "signature" => $mwgetcats_sig,
+										 "docstring" => $mwgetcats_doc),
+
+							 "mt.getPostCategories" =>
+							 array("function" => "mt_getPostCategories",
+										 "signature" => $mt_getPostCategories_sig,
+										 "docstring" => $mt_getPostCategories_doc),
+
+							 "mt.setPostCategories" =>
+							 array("function" => "mt_setPostCategories",
+										 "signature" => $mt_setPostCategories_sig,
+										 "docstring" => $mt_setPostCategories_doc),
+
+							 "mt.publishPost" =>
+							 array("function" => "mt_publishPost",
+										 "signature" => $mt_publishPost_sig,
+										 "docstring" => $mt_publishPost_doc),
+
+							 "mt.supportedMethods" =>
+							 array("function" => "mt_supportedMethods",
+										 "signature" => $mt_supportedMethods_sig,
+										 "docstring" => $mt_supportedMethods_doc),
+
+							 "mt.supportedTextFilters" =>
+							 array("function" => "mt_supportedTextFilters",
+										 "signature" => $mt_supportedTextFilters_sig,
+										 "docstring" => $mt_supportedTextFilters_doc),
+
+							 "b2.newPost" =>
 							 array("function" => "b2newpost",
 										 "signature" => $b2newpost_sig,
 										 "docstring" => $b2newpost_doc),
-							 "b2.getCategories" => 
+							 "b2.getCategories" =>
 							 array("function" => "b2getcategories",
 										 "signature" => $b2getcategories_sig,
 										 "docstring" => $b2getcategories_doc),
 
-							 "b2.ping" => 
+							 "b2.ping" =>
 							 array("function" => "b2ping",
 										 "signature" => $b2ping_sig,
 										 "docstring" => $b2ping_doc),
 
-							 "pingback.ping" => 
+							 "pingback.ping" =>
 							 array("function" => "pingback_ping",
 										 "signature" => $pingback_ping_sig,
 										 "docstring" => $pingback_ping_doc),
 
-							 "b2.getPostURL" => 
+							 "b2.getPostURL" =>
 							 array("function" => "pingback_getPostURL",
 										 "signature" => $b2_getPostURL_sig,
 										 "docstring" => $b2_getPostURL_doc),
@@ -1659,36 +2502,36 @@ $s=new xmlrpc_server( array( "blogger.newPost" =>
 										 "signature" => $findstate_sig,
 										 "docstring" => $findstate_doc),
 
-							 "examples.sortByAge" => 
+							 "examples.sortByAge" =>
 							 array("function" => "agesorter",
 										 "signature" => $agesorter_sig,
 										 "docstring" => $agesorter_doc),
-							 
+
 							 "examples.addtwo" =>
 							 array("function" => "addtwo",
 										 "signature" => $addtwo_sig,
 										 "docstring" => $addtwo_doc),
-											 
+
 							 "examples.addtwodouble" =>
 							 array("function" => "addtwodouble",
 										 "signature" => $addtwodouble_sig,
 										 "docstring" => $addtwodouble_doc),
-							 
+
 							 "examples.stringecho" =>
 							 array("function" => "stringecho",
 										 "signature" => $stringecho_sig,
 										 "docstring" => $stringecho_doc),
-							 
+
 							 "examples.echo" =>
 							 array("function" => "echoback",
 										 "signature" => $echoback_sig,
 										 "docstring" => $echoback_doc),
-							 
+
 							 "examples.decode64" =>
 							 array("function" => "echosixtyfour",
 										 "signature" => $echosixtyfour_sig,
 										 "docstring" => $echosixtyfour_doc),
-							 
+
 							 "examples.invertBooleans" =>
 							 array("function" => "bitflipper",
 										 "signature" => $bitflipper_sig,
@@ -1727,12 +2570,12 @@ $s=new xmlrpc_server( array( "blogger.newPost" =>
 							 array("function" => "v1_simpleStructReturn",
 										 "signature" => $v1_simpleStructReturn_sig,
 										 "docstring" => $v1_simpleStructReturn_doc),
-							 
+
 							 "validator1.nestedStructTest" =>
 							 array("function" => "v1_nestedStruct",
 										 "signature" => $v1_nestedStruct_sig,
 										 "docstring" => $v1_nestedStruct_doc),
-							 
+
 							 "validator1.countTheEntities" =>
 							 array("function" => "v1_countTheEntities",
 										 "signature" => $v1_countTheEntities_sig,
@@ -1798,7 +2641,13 @@ $s=new xmlrpc_server( array( "blogger.newPost" =>
 										 // no sig as no parameters
 										 "docstring" => $i_whichToolkit_doc),
 
-							 
-						));
+
+						);
+
+
+
+$s=new xmlrpc_server($dispatch_map);
+						
+						
 
 ?>

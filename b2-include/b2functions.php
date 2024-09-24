@@ -1,19 +1,16 @@
 <?php
 
-/* new and improved ! now with more querystring stuff ! */
-
-if (!isset($querystring_start)) {
-	$querystring_start = '?';
-	$querystring_equal = '=';
-	$querystring_separator = '&amp;';
-}
-
 if (!function_exists('_')) {
 	function _($string) {
 		return $string;
 	}
 }
 
+if (!function_exists('floatval')) {
+	function floatval($string) {
+		return ((float) $string);
+	}
+}
 
 /* functions... */
 
@@ -69,18 +66,19 @@ function wptexturize($text) {
 
 function wpautop($pee, $br=1) { 
 	$pee = preg_replace('|<br />\s*<br />|', "\n\n", $pee);
+	$pee = preg_replace('!(<(?:table|ul|ol|li|pre|select|form|blockquote)[^>]*>)!', "\n$1", $pee); // Space things out a little
 	$pee = preg_replace("/(\r\n|\n|\r)/", "\n", $pee); // cross-platform newlines 
 	$pee = preg_replace("/\n\n+/", "\n\n", $pee); // take care of duplicates
 	$pee = preg_replace('/\n?(.+?)(\n\n|\z)/s', "<p>$1</p>\n", $pee); // make paragraphs, including one at the end 
-	$pee = str_replace('<br /></p>', '</p>', $pee);
-	$pee = str_replace('<p><p>', '<p>', $pee);
-	$pee = str_replace('</p></p>', '</p>', $pee);
-	$pee = preg_replace('!<p>\s*(</?(?:table|ul|ol|li|pre|select|form|blockquote)>)!', "$1", $pee);
-	$pee = preg_replace('!(</?(?:table|ul|ol|li|pre|select|form|blockquote)>)\s*</p>!', "$1", $pee); 
-	if ($br) $pee = preg_replace('|(?<!<br />)\s*\n|', "<br />\n", $pee); // optionally make line breaks
-	$pee = preg_replace('!(</?(?:table|ul|ol|li|pre|select|form|blockquote|p)>)<br />!', "$1", $pee);
+	$pee = preg_replace('|<br />\s*</p>|', '</p>', $pee);
+	$pee = preg_replace('|<p>\s*<p>|', '<p>', $pee);
+	$pee = preg_replace('|</p>\s*</p>|', '</p>', $pee);
 	$pee = preg_replace('|<p><blockquote([^>]*)>|i', "<blockquote$1><p>", $pee);
 	$pee = str_replace('</blockquote></p>', '</p></blockquote>', $pee);
+	$pee = preg_replace('!<p>\s*(</?(?:table|ul|ol|li|pre|select|form|blockquote)[^>]*>)!', "$1", $pee);
+	$pee = preg_replace('!(</?(?:table|ul|ol|li|pre|select|form|blockquote)>)\s*</p>!', "$1", $pee); 
+	if ($br) $pee = preg_replace('|(?<!<br />)\s*\n|', "<br />\n", $pee); // optionally make line breaks
+	$pee = preg_replace('!(</?(?:table|ul|ol|li|pre|select|form|blockquote|p)[^>]*>)<br />!', "$1", $pee);
 	$pee = preg_replace('/&([^#])(?![a-z]{1,8};)/', '&#038;$1', $pee);
 	
 	return $pee; 
@@ -204,76 +202,36 @@ function get_weekstartend($mysqlstring, $start_of_week) {
 	return $week;
 }
 
-function convert_chars($content,$flag="html") { // html/unicode entities output, defaults to html
-	$newcontent = "";
+function convert_chars($content,$flag='obsolete attribute left there for backwards compatibility') { // html/unicode entities output
 
-	global $convert_chars2unicode, $convert_entities2unicode, $leavecodealone, $use_htmltrans;
-	global $b2_htmltrans, $b2_htmltranswinuni;
+	global $use_htmltrans, $b2_htmltrans, $b2_htmltranswinuni;
 
-	### this is temporary - will be replaced by proper config stuff
-	$convert_chars2unicode = 1;
-	if (($leavecodealone) || (!$use_htmltrans)) {
-		$convert_chars2unicode = 0;
-	}
-	###
-
-
-	// converts HTML-entities to their display values in order to convert them again later
-
-	$content = preg_replace("/<title>(.+?)<\/title>/","",$content);
-	$content = preg_replace("/<category>(.+?)<\/category>/","",$content);
+	// removes metadata tags
+	$content = preg_replace('/<title>(.+?)<\/title>/','',$content);
+	$content = preg_replace('/<category>(.+?)<\/category>/','',$content);
 	
-#	$content = str_replace("&amp;","&#38;",$content);
-	$content = strtr($content, $b2_htmltrans);
+	if ($use_htmltrans) {
 
-	return $content;
-	
-	// the following is the slowest. code. ever.
-	/*
-	for ($i=0; $i<strlen($content); $i=$i+1) {
-		$j = substr($content,$i,1);
-		$jnext = substr($content,$i+1,1);
-		$jord = ord($j);
-		if ($convert_chars2unicode) {
-			switch($flag) {
-				case "unicode":
-	//				$j = str_replace("&","&#38;",$j);
-					if (($jord>=128) || ($j == "&") || (($jord>=128) && ($jord<=159))) {
-						$j = "&#".$jord.";";
-					}
-					break;
-				case "html":
-					if (($jord>=128) || (($jord>=128) && ($jord<=159))) {
-						$j = "&#".$jord.";"; // $j = htmlentities($j);
-					} elseif (($j == "&") && ($jnext != "#")) {
-						$j = "&amp;";
-					}
-					break;
-				case "xml":
-					if ($jord>=128) {
-						$j = "&#".$jord.";"; // $j = htmlentities($j);
-	//					$j = htmlentities($j);
-					} elseif (($j == "&") && ($jnext != "#")) {
-						$j = "&#38;";
-					}
-					break;
-			}
-		}
+		// converts lone & characters into &#38; (a.k.a. &amp;)
+		$content = preg_replace('/&[^#](?![a-z]*;)/ie', '"&#38;".substr("\0",1)', $content);
 
-		$newcontent .= $j;
+		// converts HTML-entities to their display values in order to convert them again later
+		$content = preg_replace('/['.chr(127).'-'.chr(255).']/e', '"&#".ord(\0).";"', $content );
+		$content = strtr($content, $b2_htmltrans);
+
+		// now converting: Windows CP1252 => Unicode (valid HTML)
+		// (if you've ever pasted text from MSWord, you'll understand)
+
+		$content = strtr($content, $b2_htmltranswinuni);
+
 	}
-
-	// now converting: Windows CP1252 => Unicode (valid HTML)
-	// (if you've ever pasted text from MSWord, you'll understand)
-
-	$newcontent = strtr($newcontent, $b2_htmltranswinuni);
 
 	// you can delete these 2 lines if you don't like <br /> and <hr />
-	$newcontent = str_replace("<br>","<br />",$newcontent);
-	$newcontent = str_replace("<hr>","<hr />",$newcontent);
+	$content = str_replace("<br>","<br />",$content);
+	$content = str_replace("<hr>","<hr />",$content);
 
-	return $newcontent;
-	*/
+	return $content;
+
 }
 
 function convert_bbcode($content) {
@@ -378,7 +336,7 @@ function strip_all_but_one_link($text, $mylink) {
 
 
 function get_lastpostdate() {
-	global $tableposts, $cache_lastpostdate, $use_cache, $time_difference, $pagenow;
+	global $tableposts, $cache_lastpostdate, $use_cache, $time_difference, $pagenow, $wpdb;
 	if ((!isset($cache_lastpostdate)) OR (!$use_cache)) {
 		$now = date("Y-m-d H:i:s",(time() + ($time_difference * 3600)));
 		if ($pagenow != 'b2edit.php') {
@@ -386,11 +344,8 @@ function get_lastpostdate() {
 		} else {
 			$showcatzero = '';
 		}
-		$sql = "SELECT * FROM $tableposts WHERE $showcatzero post_date <= '$now' ORDER BY post_date DESC LIMIT 1";
-		$result = mysql_query($sql) or die("Your SQL query: <br />$sql<br /><br />MySQL said:<br />".mysql_error());
+		$lastpostdate = $wpdb->get_var("SELECT post_date FROM $tableposts WHERE $showcatzero post_date <= '$now' ORDER BY post_date DESC LIMIT 1");
 		++$querycount;
-		$myrow = mysql_fetch_object($result);
-		$lastpostdate = $myrow->post_date;
 		$cache_lastpostdate = $lastpostdate;
 //		echo $lastpostdate;
 	} else {
@@ -406,7 +361,7 @@ function user_pass_ok($user_login,$user_pass) {
 	} else {
 		$userdata = $cache_userdata[$user_login];
 	}
-	return ($user_pass == $userdata['user_pass']);
+	return ($user_pass == $userdata->user_pass);
 }
 
 function get_currentuserinfo() { // a bit like get_userdata(), on steroids
@@ -426,7 +381,12 @@ function get_userdata($userid) {
 	global $wpdb, $querycount, $cache_userdata, $use_cache, $tableusers;
 	if ((empty($cache_userdata[$userid])) || (!$use_cache)) {
 		$user = $wpdb->get_row("SELECT * FROM $tableusers WHERE ID = $userid");
-		++$querycount;
+        $user->user_nickname = stripslashes($user->user_nickname);
+        $user->user_firstname = stripslashes($user->user_firstname);
+        $user->user_lastname = stripslashes($user->user_lastname);
+        $user->user_firstname =  stripslashes($user->user_firstname);
+        $user->user_lastname = stripslashes($user->user_lastname);
+        ++$querycount;
 		$cache_userdata[$userid] = $user;
 	} else {
 		$user = $cache_userdata[$userid];
@@ -479,19 +439,33 @@ function get_usernumposts($userid) {
 }
 
 function get_settings($setting) {
-	global $tablesettings, $wpdb, $cache_settings, $use_cache, $querycount;
+	global $wpdb, $cache_settings, $use_cache, $querycount;
 	if ((empty($cache_settings)) OR (!$use_cache)) {
-		$settings = $wpdb->get_row("SELECT * FROM $tablesettings");
-		++$querycount;
+		$settings = get_alloptions();
 		$cache_settings = $settings;
 	} else {
 		$settings = $cache_settings;
 	}
+    if (!isset($settings->$setting)) {
+        error_log("get_settings: Didn't find setting $setting");
+    }
 	return $settings->$setting;
 }
 
+function get_alloptions() {
+    global $tableoptions, $wpdb;
+    $options = $wpdb->get_results("SELECT option_name, option_value FROM $tableoptions");
+    ++$querycount;
+    if ($options) {
+        foreach ($options as $option) {
+            $all_options->{$option->option_name} = $option->option_value;
+        }
+    }
+    return $all_options;
+}
+    
 function get_postdata($postid) {
-	global $tableusers, $tablesettings, $tablecategories, $tableposts, $tablecomments, $querycount, $wpdb;
+	global $tableusers, $tablecategories, $tableposts, $tablecomments, $querycount, $wpdb;
 	$post = $wpdb->get_row("SELECT * FROM $tableposts WHERE ID = $postid");
 	++$querycount;
 	
@@ -503,6 +477,8 @@ function get_postdata($postid) {
 		'Excerpt' => $post->post_excerpt, 
 		'Title' => $post->post_title, 
 		'Category' => $post->post_category,
+		'Lat' => $post->post_lat,
+		'Lon' => $post->post_lon,
 		'post_status' => $post->post_status,
 		'comment_status' => $post->comment_status,
 		'ping_status' => $post->ping_status,
@@ -511,7 +487,7 @@ function get_postdata($postid) {
 	return $postdata;
 }
 
-function get_postdata2($postid=0) { // less flexible, but saves mysql queries
+function get_postdata2($postid=0) { // less flexible, but saves DB queries
 	global $post;
 	$postdata = array (
 		'ID' => $post->ID, 
@@ -521,6 +497,8 @@ function get_postdata2($postid=0) { // less flexible, but saves mysql queries
 		'Excerpt' => $post->post_excerpt,
 		'Title' => $post->post_title,
 		'Category' => $post->post_category,
+		'Lat' => $post->post_lat,
+		'Lon' => $post->post_lon,
 		'post_status' => $post->post_status,
 		'comment_status' => $post->comment_status,
 		'ping_status' => $post->ping_status,
@@ -529,13 +507,11 @@ function get_postdata2($postid=0) { // less flexible, but saves mysql queries
 	return $postdata;
 }
 
-function get_commentdata($comment_ID,$no_cache=0) { // less flexible, but saves mysql queries
-	global $postc,$id,$commentdata,$tablecomments,$querycount;
+function get_commentdata($comment_ID,$no_cache=0) { // less flexible, but saves DB queries
+	global $postc,$id,$commentdata,$tablecomments,$querycount, $wpdb;
 	if ($no_cache) {
-		$query="SELECT * FROM $tablecomments WHERE comment_ID = $comment_ID";
-		$result=mysql_query($query);
+        $myrow = $wpdb->get_row("SELECT * FROM $tablecomments WHERE comment_ID = $comment_ID", ARRAY_A);
 		++$querycount;
-		$myrow = mysql_fetch_array($result);
 	} else {
 		$myrow['comment_ID']=$postc->comment_ID;
 		$myrow['comment_post_ID']=$postc->comment_post_ID;
@@ -558,12 +534,11 @@ function get_commentdata($comment_ID,$no_cache=0) { // less flexible, but saves 
 }
 
 function get_catname($cat_ID) {
-	global $tablecategories,$cache_catnames,$use_cache,$querycount;
+	global $tablecategories,$cache_catnames,$use_cache,$querycount, $wpdb;
 	if ((!$cache_catnames) || (!$use_cache)) {
-		$sql = "SELECT * FROM $tablecategories";
-		$result = mysql_query($sql) or die('Oops, couldn\'t query the db for categories.');
-		$querycount;
-		while ($post = mysql_fetch_object($result)) {
+        $results = $wpdb->get_results("SELECT * FROM $tablecategories") or die('Oops, couldn\'t query the db for categories.');
+		$querycount++;
+		foreach ($results as $post) {
 			$cache_catnames[$post->cat_ID] = $post->cat_name;
 		}
 	}
@@ -576,16 +551,19 @@ function profile($user_login) {
 	echo "<a href='b2profile.php?user=".$user_data->user_login."' onclick=\"javascript:window.open('b2profile.php?user=".$user_data->user_login."','Profile','toolbar=0,status=1,location=0,directories=0,menuBar=1,scrollbars=1,resizable=0,width=480,height=320,left=100,top=100'); return false;\">$user_login</a>";
 }
 
-function dropdown_categories($blog_ID=1) {
-	global $postdata,$tablecategories,$mode,$querycount;
+function dropdown_categories($blog_ID=1, $default=1) {
+	global $postdata,$tablecategories,$mode,$querycount, $wpdb;
 	$query="SELECT * FROM $tablecategories";
-	$result=mysql_query($query);
+	$results = $wpdb->get_results($query);
 	++$querycount;
 	$width = ($mode=="sidebar") ? "100%" : "170px";
 	echo '<select name="post_category" style="width:'.$width.';" tabindex="2" id="category">';
-	while($post = mysql_fetch_object($result)) {
+    if ($postdata["Category"] != '') {
+        $default = $postdata["Category"];
+    }
+	foreach($results as $post) {
 		echo "<option value=\"".$post->cat_ID."\"";
-		if ($post->cat_ID == $postdata["Category"])
+		if ($post->cat_ID == $default)
 			echo " selected";
 		echo ">".$post->cat_name."</option>";
 	}
@@ -602,7 +580,7 @@ function touch_time($edit = 1) {
 		$checked = ' ';
 	}
 
-	echo '<p><input type="checkbox" class="checkbox" name="edit_date" value="1" id="timestamp" '.$checked.'/> <label for="timestamp">Edit timestamp</label><br />';
+	echo '<p><input type="checkbox" class="checkbox" name="edit_date" value="1" id="timestamp" '.$checked.'/> <label for="timestamp">Edit timestamp</label> <a href="http://wordpress.org/docs/reference/post/#edit_timestamp" title="Help on changing the timestamp">?</a><br />';
 	
 	$time_adj = time() + ($time_difference * 3600);
 	$jj = ($edit) ? mysql2date('d', $postdata['Date']) : date('d', $time_adj);
@@ -702,26 +680,26 @@ function redirect_js($url,$title="...") {
 // functions to count the page generation time (from phpBB2)
 // ( or just any time between timer_start() and timer_stop() )
 
-	function timer_start() {
-		global $timestart;
-		$mtime = microtime();
-		$mtime = explode(" ",$mtime);
-		$mtime = $mtime[1] + $mtime[0];
-		$timestart = $mtime;
-		return true;
-	}
+function timer_start() {
+    global $timestart;
+    $mtime = microtime();
+    $mtime = explode(" ",$mtime);
+    $mtime = $mtime[1] + $mtime[0];
+    $timestart = $mtime;
+    return true;
+}
 
-	function timer_stop($display=0,$precision=3) { //if called like timer_stop(1), will echo $timetotal
-		global $timestart,$timeend;
-		$mtime = microtime();
-		$mtime = explode(" ",$mtime);
-		$mtime = $mtime[1] + $mtime[0];
-		$timeend = $mtime;
-		$timetotal = $timeend-$timestart;
-		if ($display)
-			echo number_format($timetotal,$precision);
-		return $timetotal;
-	}
+function timer_stop($display=0,$precision=3) { //if called like timer_stop(1), will echo $timetotal
+    global $timestart,$timeend;
+    $mtime = microtime();
+    $mtime = explode(" ",$mtime);
+    $mtime = $mtime[1] + $mtime[0];
+    $timeend = $mtime;
+    $timetotal = $timeend-$timestart;
+    if ($display)
+        echo number_format($timetotal,$precision);
+    return $timetotal;
+}
 
 
 // pings Weblogs.com
@@ -1105,6 +1083,20 @@ function pingback($content, $post_ID) {
 	debug_fclose($log);
 }
 
+/**
+ ** sanitise HTML attributes, remove frame/applet/*script/mouseovers,etc. tags
+ ** so that this kind of thing cannot be done:
+ ** This is how we can do <b onmouseover="alert('badbadbad')">bad stuff</b>!
+ **/
+function sanitise_html_attributes($text) {
+    $text = preg_replace('#( on[a-z]{1,}|style|class|id)="(.*?)"#i', '', $text);
+    $text = preg_replace('#( on[a-z]{1,}|style|class|id)=\'(.*?)\'#i', '', $text);
+    $text = preg_replace('#( on[a-z]{1,}|style|class|id)[ \t]*=[ \t]*([^ \t\>]*?)#i', '', $text);
+    $text = preg_replace('#([a-z]{1,})="(( |\t)*?)(javascript|vbscript|about):(.*?)"#i', '$1=""', $text);
+    $text = preg_replace('#([a-z]{1,})=\'(( |\t)*?)(javascript|vbscript|about):(.*?)\'#i', '$1=""', $text);
+    $text = preg_replace('#\<(\/{0,1})([a-z]{0,2})(frame|applet)(.*?)\>#i', '', $text);
+    return $text;
+}
 
 /*
  balanceTags
@@ -1124,9 +1116,13 @@ function pingback($content, $post_ID) {
                   Added Cleaning Hooks
              1.0  First Version
 */
-
 function balanceTags($text, $is_comment = 0) {
 	global $use_balanceTags;
+
+	if ($is_comment) {
+        $text = sanitise_html_attributes($text);
+	}
+	
 	if ($use_balanceTags == 0) {
 		return $text;
 	}
@@ -1227,5 +1223,51 @@ function balanceTags($text, $is_comment = 0) {
 
 	return $newtext;
 }
+
+function doGeoUrlHeader($posts) {
+    global $use_default_geourl,$default_geourl_lat,$default_geourl_lon;
+    if (count($posts) == 1) {
+        // there's only one result  see if it has a geo code
+        $row = $posts[0];
+        $lat = $row->post_lat;
+        $lon = $row->post_lon;
+        $title = $row->post_title;
+        if(($lon != null) && ($lat != null) ) {
+            echo "<meta name=\"ICBM\" content=\"".$lat.", ".$lon."\" >\n";
+            echo "<meta name=\"DC.title\" content=\"".convert_chars(strip_tags(get_bloginfo("name")),"unicode")." - ".$title."\">\n";
+            return;
+        }
+    } else {
+        if($use_default_geourl) {
+            // send the default here 
+            echo "<meta name=\"ICBM\" content=\"".$default_geourl_lat.", ".$default_geourl_lon."\" >\n";
+            echo "<meta name=\"DC.title\" content=\"".convert_chars(strip_tags(get_bloginfo("name")),"unicode")."\">\n";
+        }
+    }
+}
+
+function getRemoteFile($host,$path) {
+    $fp = fsockopen($host, 80, &$errno, &$errstr);
+    if ($fp) {
+        fputs($fp,"GET $path HTTP/1.0\r\nHost: $host\r\n\r\n");
+        while ($line = fgets($fp, 4096)) {
+            $lines[] = $line;
+        }
+        fclose($fp);
+        return $lines;
+    } else {
+        return false;
+    }
+}
+
+function pingGeoURL($blog_ID) {
+    global $blodotgsping_url;
+
+    $ourUrl = $blodotgsping_url."/index.php?p=".$blog_ID;
+    $host="geourl.org";
+    $path="/ping/?p=".$ourUrl;
+    getRemoteFile($host,$path); 
+}
+
 
 ?>

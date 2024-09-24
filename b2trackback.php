@@ -2,8 +2,7 @@
 <!-- you can START editing here -->
 
 	<?php // don't touch these 2 lines
-	$queryc = "SELECT * FROM $tablecomments WHERE comment_post_ID = $id AND comment_content LIKE '%<trackback />%' ORDER BY comment_date";
-	$resultc = mysql_query($queryc); if ($resultc) {
+	$resultc = $wpdb->get_results("SELECT * FROM $tablecomments WHERE comment_post_ID = $id AND comment_content LIKE '%<trackback />%' ORDER BY comment_date"); if ($resultc) {
 	?>
 
 <h2>Trackbacks</h2>
@@ -12,7 +11,7 @@
 <p><em><?php trackback_url() ?></em></p>
 
 <ol id="trackbacks">
-	<?php /* this line is b2's motor, do not delete it */ while($rowc = mysql_fetch_object($resultc)) { $commentdata = get_commentdata($rowc->comment_ID); ?>
+	<?php /* this line is b2's motor, do not delete it */ foreach ($resultc as $rowc) { $commentdata = get_commentdata($rowc->comment_ID); ?>
 	<li id="trackback-<?php comment_ID() ?>">
 	<?php comment_text() ?>
 	
@@ -57,7 +56,7 @@ if ((strlen(''.$tb_id)) && (empty($HTTP_GET_VARS['__mode'])) && (strlen(''.$tb_u
 	@header('Content-Type: text/xml');
 
 
-	require_once('b2config.php');
+	require_once('wp-config.php');
 	require_once($abspath.$b2inc.'/b2template.functions.php');
 	require_once($abspath.$b2inc.'/b2vars.php');
 	require_once($abspath.$b2inc.'/b2functions.php');
