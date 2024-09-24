@@ -223,9 +223,7 @@ function format_to_edit($content) {
 
 function format_to_post($content) {
 	global $wpdb;
-	$content = stripslashes(stripslashes($content));
 	$content = apply_filters('format_to_post', $content);
-	$content = $wpdb->escape($content);
 	return $content;
 }
 
@@ -307,7 +305,7 @@ function convert_smilies($text) {
 
 
 function is_email($user_email) {
-	$chars = "/^([a-z0-9_]|\\-|\\.)+@(([a-z0-9_]|\\-)+\\.)+[a-z]{2,4}\$/i";
+	$chars = "/^([a-z0-9+_]|\\-|\\.)+@(([a-z0-9_]|\\-)+\\.)+[a-z]{2,6}\$/i";
 	if(strstr($user_email, '@') && strstr($user_email, '.')) {
 		if (preg_match($chars, $user_email)) {
 			return true;

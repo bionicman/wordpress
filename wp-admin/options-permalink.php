@@ -22,11 +22,15 @@ for ($i=0; $i<count($wpvarstoreset); $i += 1) {
 
 require_once('./optionhandler.php');
 
-if ($_POST['submit']) {
+if (isset($_POST['submit'])) {
 	update_option('permalink_structure', $_POST['permalink_structure']);
 	$permalink_structure = $_POST['permalink_structure'];
+
+	update_option('category_base', $_POST['category_base']);
+	$category_base = $_POST['category_base'];
 } else {
 	$permalink_structure = get_settings('permalink_structure');
+	$category_base = get_settings('category_base');
 }
 
 
@@ -37,19 +41,48 @@ if ($_POST['submit']) {
 	}
 	require('./options-head.php');
 ?>
-<?php if ($_POST['submit']) : ?>
+<?php if (isset($_POST['submit'])) : ?>
 <div class="updated"><p><?php _e('Permalink structure updated.'); ?></p></div>
 <?php endif; ?>
 <div class="wrap"> 
   <h2><?php _e('Edit Permalink Structure') ?></h2> 
   <?php _e('<p>WordPress offers you the ability to create a custom URI structure for your permalinks and archives. The following &#8220;tags&#8221; are available:</p>')?> 
-  <ul> 
-    <li><code>%year%</code> --- <?php _e('The year of the post, 4 digits, for example <code>2004</code>') ?> </li> 
-    <li><code>%monthnum%</code> --- <?php _e('Month of the year, for example <code>05</code>') ?></li> 
-    <li><code>%day% </code>--- <?php _e('Day of the month, for example <code>28</code>') ?></li> 
-    <li><code>%postname%</code> --- <?php _e('A sanitized version of the title of the post. So &#8220;This Is A Great Post!&#8221; becomes &#8220;<code>this-is-a-great-post</code>&#8221; in the URI') ?> </li> 
-    <li><code>%post_id%</code> --- <?php _e('The unique ID # of the post, for example <code>423</code>') ?></li> 
-  </ul> 
+
+<dl>
+	<dt><code>%year%</code></dt>
+	<dd>
+		<?php _e('The year of the post, 4 digits, for example <code>2004</code>') ?>
+	</dd>
+	<dt><code>%monthnum%</code></dt>
+	<dd>
+		<?php _e('Month of the year, for example <code>05</code>') ?>
+	</dd>
+	<dt><code>%day%</code></dt>
+	<dd>
+		<?php _e('Day of the month, for example <code>28</code>') ?>
+	</dd>
+	<dt><code>%hour%</code></dt>
+	<dd>
+		<?php _e('Hour of the day, for example <code>15</code>') ?>
+	</dd>
+	<dt><code>%minute%</code></dt>
+	<dd>
+		<?php _e('Minute of the hour, for example <code>43</code>') ?>
+	</dd>
+	<dt><code>%second%</code></dt>
+	<dd>
+		<?php _e('Second of the minute, for example <code>33</code>') ?>
+	</dd>
+	<dt><code>%postname%</code></dt>
+	<dd>
+		<?php _e('A sanitized version of the title of the post. So &#8220;This Is A Great Post!&#8221; becomes &#8220;<code>this-is-a-great-post</code>&#8221; in the URI') ?>
+	</dd>
+	<dt><code>%post_id%</code></dt>
+	<dd>
+		<?php _e('The unique ID # of the post, for example <code>423</code>') ?>
+	</dd>
+</dl>
+
   <?php _e('<p>So for example a value like:</p>
   <p><code>/archives/%year%/%monthnum%/%day%/%postname%/</code> </p>
   <p>would give you a permalink like:</p>
@@ -58,10 +91,14 @@ if ($_POST['submit']) {
   <p><code>/index.php/archives/%year%/%monthnum%/%day%/%postname%/</code> </p>
   <p>If you use this option you can ignore the mod_rewrite rules. </p>') ?>
   <form name="form" action="options-permalink.php" method="post"> 
-    <?php _e('<p>Use the template tags above to create a virtual site structure:</p>') ?> 
+    <p><?php _e('Use the template tags above to create a virtual site structure:') ?></p>
     <p> 
       <input name="permalink_structure" type="text" style="width: 98%;" value="<?php echo $permalink_structure; ?>" /> 
     </p> 
+	<p><?php _e('If you like, you may enter a custom prefix for your category URIs here. For example, <code>/taxonomy/categorias</code> would make your category links like <code>http://example.org/taxonomy/categorias/general/</code>. If you leave this blank the default will be used.') ?></p>
+	<p> 
+  <input name="category_base" type="text" style="width: 98%;" value="<?php echo $category_base; ?>" /> 
+     </p> 
     <p class="submit"> 
       <input type="submit" name="submit" value="<?php _e('Update Permalink Structure &raquo;') ?>"> 
     </p> 
@@ -69,7 +106,7 @@ if ($_POST['submit']) {
 <?php
  if ($permalink_structure) {
 ?>
-  <?php printf(__('<p>Using the permalink structure value you currently have, <code>%s</code>, these are the mod_rewrite rules you should have in your <code>.htaccess</code> file.</p>'), $permalink_structure) ?> 
+  <p><?php printf(__('Using the permalink structure value you currently have, <code>%s</code>, these are the mod_rewrite rules you should have in your <code>.htaccess</code> file. Click in the field and press <kbd>CTRL + a</kbd> to select all.'), $permalink_structure) ?></p>
   <?php
 $site_root = str_replace('http://', '', trim(get_settings('siteurl')));
 $site_root = preg_replace('|([^/]*)(.*)|i', '$2', $site_root);
@@ -82,13 +119,13 @@ if ('/' != substr($home_root, -1)) $home_root = $home_root . '/';
 ?> 
 <form action="">
     <p>
-    	<textarea rows="5" style="width: 100%;">RewriteEngine On
+    	<textarea rows="5" style="width: 98%;">RewriteEngine On
 RewriteBase <?php echo $home_root; ?> 
 <?php
 $rewrite = rewrite_rules('', $permalink_structure);
 foreach ($rewrite as $match => $query) {
 	if (strstr($query, 'index.php')) echo 'RewriteRule ^' . $match . ' ' . $home_root . $query . " [QSA]\n";
-    echo 'RewriteRule ^' . $match . ' ' . $site_root . $query . " [QSA]\n";
+    else echo 'RewriteRule ^' . $match . ' ' . $site_root . $query . " [QSA]\n";
 }
 ?>
     </textarea>
@@ -102,9 +139,9 @@ foreach ($rewrite as $match => $query) {
 <p>
 <?php _e('You are not currently using customized permalinks. No special mod_rewrite rules are needed.') ?>
 </p>
-<?php
-}
-echo "</div>\n";
+<?php } ?>
+</div>
 
+<?php
 require('./admin-footer.php');
 ?>

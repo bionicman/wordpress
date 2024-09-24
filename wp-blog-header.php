@@ -1,14 +1,13 @@
 <?php
 
-/* Including config and functions files */
-$curpath = dirname(__FILE__).'/';
+require_once(dirname(__FILE__).'/' . 'wp-includes/wp-l10n.php');
 
-if (!file_exists($curpath . '/wp-config.php'))
-    die("There doesn't seem to be a <code>wp-config.php</code> file. I need this before we can get started. Need more help? <a href='http://wordpress.org/docs/faq/#wp-config'>We got it</a>. You can <a href='wp-admin/install-config.php'>create a <code>wp-config.php</code> file through a web interface</a>, but this doesn't work for all server setups. The safest way is to manually create the file.");
+if (!file_exists(dirname(__FILE__).'/' . 'wp-config.php'))
+    die(__("There doesn't seem to be a <code>wp-config.php</code> file. I need this before we can get started. Need more help? <a href='http://wordpress.org/docs/faq/#wp-config'>We got it</a>. You can <a href='wp-admin/install-config.php'>create a <code>wp-config.php</code> file through a web interface</a>, but this doesn't work for all server setups. The safest way is to manually create the file."));
 
-require($curpath.'/wp-config.php');
+require_once(dirname(__FILE__).'/' . '/wp-config.php');
 
-/* Process PATH_INFO, if set. */
+// Process PATH_INFO, if set.
 $path_info = array();
 if (! empty($_SERVER['PATH_INFO'])) {
     // Fetch the rewrite rules.
@@ -50,7 +49,7 @@ if (! empty($_SERVER['PATH_INFO'])) {
     }    
 }
 
-$wpvarstoreset = array('m','p','posts','w', 'cat','withcomments','s','search','exact', 'sentence','poststart','postend','preview','debug', 'calendar','page','paged','more','tb', 'pb','author','order','orderby', 'year', 'monthnum', 'day', 'name', 'category_name', 'feed', 'author_name');
+$wpvarstoreset = array('m','p','posts','w', 'cat','withcomments','s','search','exact', 'sentence','poststart','postend','preview','debug', 'calendar','page','paged','more','tb', 'pb','author','order','orderby', 'year', 'monthnum', 'day', 'hour', 'minute', 'second', 'name', 'category_name', 'feed', 'author_name');
 
     for ($i=0; $i<count($wpvarstoreset); $i += 1) {
         $wpvar = $wpvarstoreset[$i];
@@ -70,7 +69,7 @@ $wpvarstoreset = array('m','p','posts','w', 'cat','withcomments','s','search','e
     }
 
 
-/* Sending HTTP headers */
+// Sending HTTP headers
 
 if (!isset($doing_rss) || !$doing_rss) {
 	// It is presumptious to think that WP is the only thing that might change on the page.
@@ -90,8 +89,10 @@ if (!isset($doing_rss) || !$doing_rss) {
 	@header ('X-Pingback: ' . get_settings('siteurl') . '/xmlrpc.php');
 
 	// Support for Conditional GET
-	$client_last_modified = $_SERVER['HTTP_IF_MODIFIED_SINCE'];
-	$client_etag = stripslashes($_SERVER['HTTP_IF_NONE_MATCH']);
+	if (isset($_SERVER['HTTP_IF_MODIFIED_SINCE'])) $client_last_modified = $_SERVER['HTTP_IF_MODIFIED_SINCE'];
+	else $client_last_modified = false;
+	if (isset($_SERVER['HTTP_IF_NONE_MATCH'])) $client_etag = stripslashes($_SERVER['HTTP_IF_NONE_MATCH']);
+	else $client_etag = false;
 
 	if ( ($client_last_modified && $client_etag) ?
 	    (($client_last_modified == $wp_last_modified) && ($client_etag == $wp_etag)) :
@@ -103,7 +104,7 @@ if (!isset($doing_rss) || !$doing_rss) {
 
 }
 
-/* Getting settings from db */
+// Getting settings from DB
 if (isset($doing_rss) && $doing_rss == 1)
     $posts_per_page=get_settings('posts_per_rss');
 if (!isset($posts_per_page) || $posts_per_page == 0)
@@ -112,7 +113,7 @@ $what_to_show = get_settings('what_to_show');
 $archive_mode = get_settings('archive_mode');
 $use_gzipcompression = get_settings('gzipcompression');
 
-/* First let's clear some variables */
+// First let's clear some variables
 $whichcat = '';
 $whichauthor = '';
 $result = '';
@@ -132,60 +133,73 @@ $add_hours = intval(get_settings('gmt_offset'));
 $add_minutes = intval(60 * (get_settings('gmt_offset') - $add_hours));
 $wp_posts_post_date_field = "post_date"; // "DATE_ADD(post_date, INTERVAL '$add_hours:$add_minutes' HOUR_MINUTE)";
 
-// if a month is specified in the querystring, load that month
-if ($m != '') {
-    $m = ''.intval($m);
-    $where .= ' AND YEAR(post_date)='.substr($m,0,4);
+// If a month is specified in the querystring, load that month
+if ('' != $m) {
+    $m = '' . preg_replace('|[^0-9]|', '', $m);
+    $where .= ' AND YEAR(post_date)=' . substr($m, 0, 4);
     if (strlen($m)>5)
-        $where .= ' AND MONTH(post_date)='.substr($m,4,2);
+        $where .= ' AND MONTH(post_date)=' . substr($m, 4, 2);
     if (strlen($m)>7)
-        $where .= ' AND DAYOFMONTH(post_date)='.substr($m,6,2);
+        $where .= ' AND DAYOFMONTH(post_date)=' . substr($m, 6, 2);
     if (strlen($m)>9)
-        $where .= ' AND HOUR(post_date.)='.substr($m,8,2);
+        $where .= ' AND HOUR(post_date)=' . substr($m, 8, 2);
     if (strlen($m)>11)
-        $where .= ' AND MINUTE(post_date)='.substr($m,10,2);
+        $where .= ' AND MINUTE(post_date)=' . substr($m, 10, 2);
     if (strlen($m)>13)
-        $where .= ' AND SECOND(post_date)='.substr($m,12,2);
-
+        $where .= ' AND SECOND(post_date)=' . substr($m, 12, 2);
 }
 
-if ($year != '') {
+if ('' != $hour) {
+	$hour = '' . intval($hour);
+	$where .= " AND HOUR(post_date)='$hour'";
+}
+
+if ('' != $minute) {
+	$minute = '' . intval($minute);
+	$where .= " AND MINUTE(post_date)='$minute'";
+}
+
+if ('' != $second) {
+	$second = '' . intval($second);
+	$where .= " AND SECOND(post_date)='$second'";
+}
+
+if ('' != $year) {
     $year = '' . intval($year);
     $where .= " AND YEAR(post_date)='$year'";
 }
 
-if ($monthnum != '') {
+if ('' != $monthnum) {
     $monthnum = '' . intval($monthnum);
     $where .= " AND MONTH(post_date)='$monthnum'";
 }
 
-if ($day != '') {
+if ('' != $day) {
     $day = '' . intval($day);
     $where .= " AND DAYOFMONTH(post_date)='$day'";
 }
 
-if ($name != '') {
+if ('' != $name) {
     $name = preg_replace('/[^a-z0-9-]/', '', $name);
     $where .= " AND post_name = '$name'";
 }
 
-if ($w != '') {
+if ('' != $w) {
     $w = ''.intval($w);
     $where .= " AND WEEK(post_date, 1)='$w'";
 }
 
-// if a post number is specified, load that post
+// If a post number is specified, load that post
 if (($p != '') && ($p != 'all')) {
     $p = intval($p);
     $where = ' AND ID = '.$p;
 }
 
-// if a search pattern is specified, load the posts that match
+// If a search pattern is specified, load the posts that match
 if (!empty($s)) {
     $s = addslashes_gpc($s);
     $search = ' AND (';
-    // puts spaces instead of commas
-    $s = preg_replace('/, +/', '', $s);
+    $s = preg_replace('/, +/', ' ', $s);
     $s = str_replace(',', ' ', $s);
     $s = str_replace('"', ' ', $s);
     $s = trim($s);
@@ -207,7 +221,7 @@ if (!empty($s)) {
     }
 }
 
-// category stuff
+// Category stuff
 $dogs = $wpdb->get_results("SELECT * FROM $tablecategories WHERE 1=1");
 foreach ($dogs as $catt) {
     $cache_categories[$catt->cat_ID] = $catt;
@@ -246,7 +260,7 @@ if ((empty($cat)) || ($cat == 'all') || ($cat == '0') ||
     }
     $whichcat .= ')';
     if ($eq == '!=') {
-        $cat = '-'.$cat; //put back the knowledge that we are excluding a category.
+        $cat = '-'.$cat; // Put back the knowledge that we are excluding a category.
     }
 }
 
@@ -256,12 +270,12 @@ if ('' != $category_name) {
     if (stristr($category_name,'/')) {
         $category_name = explode('/',$category_name);
         if ($category_name[count($category_name)-1]) {
-        $category_name = $category_name[count($category_name)-1];#no trailing slash
+        $category_name = $category_name[count($category_name)-1]; // no trailing slash
         } else {
-        $category_name = $category_name[count($category_name)-2];#there was a trailling slash
+        $category_name = $category_name[count($category_name)-2]; // there was a trailling slash
         }
     }
-    $category_name = preg_replace('|[^a-z0-9-]|', '', $category_name);
+    $category_name = preg_replace('|[^a-z0-9-]|i', '', $category_name);
     $tables = ", $tablepost2cat, $tablecategories";
     $join = " LEFT JOIN $tablepost2cat ON ($tableposts.ID = $tablepost2cat.post_id) LEFT JOIN $tablecategories ON ($tablepost2cat.category_id = $tablecategories.cat_ID) ";
     $whichcat = " AND (category_nicename = '$category_name'";
@@ -271,7 +285,7 @@ if ('' != $category_name) {
 }
 
 // Author/user stuff
-$users = $wpdb->get_results("SELECT * FROM $tableusers WHERE 1=1");
+$users = $wpdb->get_results("SELECT * FROM $tableusers WHERE user_level > 0");
 foreach ($users as $user) {
     $cache_userdata[$user->ID] = $user;
 }
@@ -320,11 +334,11 @@ if ((empty($order)) || ((strtoupper($order) != 'ASC') && (strtoupper($order) != 
     $order='DESC';
 }
 
-// order by stuff
+// Order by
 if (empty($orderby)) {
     $orderby='date '.$order;
 } else {
-    // used to filter values
+    // Used to filter values
     $allowed_keys = array('author','date','category','title');
     $orderby = urldecode($orderby);
     $orderby = addslashes_gpc($orderby);
@@ -485,10 +499,10 @@ if ($posts) {
 			$mval = $metarow['meta_value'];
 			
 			// Force subkeys to be array type:
-			if (!is_array($post_meta_cache[$mpid]))
+			if (!isset($post_meta_cache[$mpid]) || !is_array($post_meta_cache[$mpid]))
 				$post_meta_cache[$mpid] = array();
-			if (!is_array($post_meta_cache[$mpid][$mkey]))
-				$post_meta_cache[$mpid][$mkey] = array();
+			if (!isset($post_meta_cache[$mpid]["$mkey"]) || !is_array($post_meta_cache[$mpid]["$mkey"]))
+				$post_meta_cache[$mpid]["$mkey"] = array();
 			
 			// Add a value to the current pid/key:
 			$post_meta_cache[$mpid][$mkey][] = $mval;
@@ -501,9 +515,10 @@ if ($posts) {
             $more = 1;
             $single = 1;
         }
-        if ($s && empty($paged)) { // If they were doing a search and got one result
-            header('Location: ' . get_permalink($posts[0]->ID));
-        }
+		if ($s && empty($paged)) { // If they were doing a search and got one result
+			if (!strstr($_SERVER['PHP_SELF'], 'wp-admin')) // And not in admin section
+				header('Location: ' . get_permalink($posts[0]->ID));
+		}
     }
-} // end if posts.
+} // End if posts.
 ?>

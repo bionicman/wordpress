@@ -1,23 +1,19 @@
 <?php
 
 // Default filters for these functions
-add_filter('comment_author', 'remove_slashes', 5);
 add_filter('comment_author', 'wptexturize');
 add_filter('comment_author', 'convert_chars');
 
-add_filter('comment_email', 'remove_slashes', 5);
 add_filter('comment_email', 'antispambot');
 
 add_filter('comment_url', 'clean_url');
 
-add_filter('comment_text', 'remove_slashes', 5);
 add_filter('comment_text', 'convert_chars');
 add_filter('comment_text', 'make_clickable');
 add_filter('comment_text', 'wpautop', 30);
 add_filter('comment_text', 'balanceTags');
 add_filter('comment_text', 'convert_smilies', 20);
 
-add_filter('comment_excerpt', 'remove_slashes', 5);
 add_filter('comment_excerpt', 'convert_chars');
 
 function clean_url($url) {
@@ -220,16 +216,20 @@ function comment_time($d='') {
 }
 
 function comments_rss_link($link_text='Comments RSS', $commentsrssfilename = 'wp-commentsrss2.php') {
+	$url = comments_rss($commentsrssfilename);
+	echo "<a href='$url'>$link_text</a>";
+}
+
+function comments_rss($commentsrssfilename = 'wp-commentsrss2.php') {
 	global $id;
 	global $querystring_start, $querystring_equal, $querystring_separator;
 
 	if ('' != get_settings('permalink_structure')) {
-		$url = trailingslashit(get_permalink()) . 'rss2/';
+		$url = trailingslashit(get_permalink()) . 'feed/';
 	} else {
 		$url = get_settings('siteurl') . '/' . $commentsrssfilename.$querystring_start.'p'.$querystring_equal.$id;
 	}
-
-	echo "<a href='$url'>$link_text</a>";
+	return $url;
 }
 
 function comment_author_rss() {
@@ -284,12 +284,12 @@ function trackback_rdf($timezone = 0) {
 	    xmlns:dc="http://purl.org/dc/elements/1.1/"
 	    xmlns:trackback="http://madskills.com/public/xml/rss/module/trackback/">
 		<rdf:Description rdf:about="';
-	permalink_single();
+	the_permalink();
 	echo '"'."\n";
 	echo '    dc:identifier="';
-	permalink_single();
+	the_permalink();
 	echo '"'."\n";
-	echo '    dc:title="'.str_replace('--', '&#x2d;&#x2d;', addslashes(strip_tags(get_the_title()))).'"'."\n";
+	echo '    dc:title="'.str_replace('--', '&#x2d;&#x2d;', wptexturize(strip_tags(get_the_title()))).'"'."\n";
 	echo '    trackback:ping="'.trackback_url(0).'"'." />\n";
 	echo '</rdf:RDF>';
 	}

@@ -3,15 +3,13 @@ $messages[1] = __('Post updated');
 $messages[2] = __('Custom field updated');
 $messages[3] = __('Custom field deleted.');
 ?>
-<?php if ($_GET['message']) : ?>
+<?php if (isset($_GET['message'])) : ?>
 <div class="updated"><p><?php echo $messages[$_GET['message']]; ?></p></div>
 <?php endif; ?>
 <div class="wrap">
 <?php
 
 $allowed_users = explode(" ", trim(get_settings('fileupload_allowedusers')));
-
-$post_ID = intval($postdata['ID']);
 
 $submitbutton_text = __('Save');
 $toprow_title = sprintf(__('Editing Post #%s'), $post_ID);
@@ -24,7 +22,7 @@ if (0 == $post_ID) {
 if (get_settings('use_pingback')) {
 	$form_pingback = '<input type="checkbox" class="checkbox" name="post_pingback" value="1" ';
 	if ( get_settings('default_pingback_flag') ) $form_pingback .= 'checked="checked" ';
-	$form_pingback .= 'tabindex="7" id="pingback" /> <label for="pingback">' . __('<strong>PingBack</strong> the <acronym title="Uniform Resource Locators">URL</acronym>s in this post') . '</label> <a href="http://wordpress.org/docs/reference/post/#pingback" title="' . __('Help on Pingbacks') . '">?</a><br />';
+	$form_pingback .= 'tabindex="7" id="pingback" /> <label for="pingback">' . __('<strong>PingBack</strong> the <abbr title="Universal Resource Identifier">URI</abbr>s in this post') . '</label> <a href="http://wordpress.org/docs/reference/post/#pingback" title="' . __('Help on Pingbacks') . '">?</a><br />';
 } else {
 	$form_pingback = '';
 }
@@ -32,7 +30,7 @@ if (get_settings('use_pingback')) {
 $colspan = 2;
 $form_prevstatus = '<input type="hidden" name="prev_status" value="'.$post_status.'" />';
 if (get_settings('use_trackback')) {
-	$form_trackback = '<p><label for="trackback"><a href="http://wordpress.org/docs/reference/post/#trackback" title="' . __('Help on trackbacks') . '">' . __('<strong>TrackBack</strong> an <acronym title="Uniform Resource Locator">URL</acronym></a>') . '</label> ' . __('(Separate multiple <acronym title="Uniform Resource Locator">URL</acronym>s with spaces.)') . '<br />
+	$form_trackback = '<p><label for="trackback"><a href="http://wordpress.org/docs/reference/post/#trackback" title="' . __('Help on trackbacks') . '">' . __('<strong>TrackBack</strong> an <abbr title="Universal Resource Identifier">URI</abbr></a>') . '</label> ' . __('(Separate multiple <abbr title="Universal Resource Identifier">URI</abbr>s with spaces.)') . '<br />
 	<input type="text" name="trackback_url" style="width: 415px" id="trackback" tabindex="7" value="'. str_replace("\n", ' ', $to_ping) .'" /></p>';
 	if ('' != $pinged) {
 		$pings .= '<p>'. __('Already pinged:') . '</p><ul>';
@@ -47,6 +45,7 @@ if (get_settings('use_trackback')) {
 }
 $saveasdraft = '<input name="save" type="submit" id="save" tabindex="6" value="' . __('Save and Continue Editing') . '" />';
 
+if (empty($post_status)) $post_status = 'draft';
 
 ?>
 
@@ -54,7 +53,7 @@ $saveasdraft = '<input name="save" type="submit" id="save" tabindex="6" value="'
 <input type="hidden" name="user_ID" value="<?php echo $user_ID ?>" />
 <input type="hidden" name="action" value='<?php echo $form_action ?>' />
 <?php echo $form_extra ?>
-<?php if (2 > $_GET['message']) : ?>
+<?php if (isset($_GET['message']) && 2 > $_GET['message']) : ?>
 <script type="text/javascript">
 <!--
 function focusit() {
@@ -73,7 +72,7 @@ window.onload = focusit;
 
     <fieldset id="categorydiv">
       <legend><a href="http://wordpress.org/docs/reference/post/#category" title="<?php _e('Help on categories') ?>"><?php _e('Categories') ?></a></legend> 
-	  <div><?php dropdown_categories($default_post_cat); ?></div>
+	  <div><?php dropdown_categories(get_settings('default_category')); ?></div>
     </fieldset>
 
     <fieldset id="poststatusdiv">
@@ -153,7 +152,7 @@ if ($action != 'editcomment') {
 
 
 
-<p><?php echo $saveasdraft; ?> <input type="submit" name="submit" value="<?php _e('Save') ?>" style="font-weight: bold;" tabindex="6" /> 
+<p class="submit"><?php echo $saveasdraft; ?> <input type="submit" name="submit" value="<?php _e('Save') ?>" style="font-weight: bold;" tabindex="6" /> 
 <?php 
 if ('publish' != $post_status || 0 == $post_ID) {
 ?>

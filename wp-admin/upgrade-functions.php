@@ -553,11 +553,13 @@ function upgrade_100() {
 			('$gid', '$oid', '$seq')");
 	}
 	// Get the title and ID of every post, post_name to check if it already has a value
-	$posts = $wpdb->get_results("SELECT ID, post_title, post_name FROM $tableposts");
-	foreach($posts as $post) {
-		if ('' == $post->post_name) { 
-			$newtitle = sanitize_title($post->post_title);
-			$wpdb->query("UPDATE $tableposts SET post_name = '$newtitle' WHERE ID = '$post->ID'");
+	$posts = $wpdb->get_results("SELECT ID, post_title, post_name FROM $tableposts WHERE post_name = ''");
+	if ($posts) {
+		foreach($posts as $post) {
+			if ('' == $post->post_name) { 
+				$newtitle = sanitize_title($post->post_title);
+				$wpdb->query("UPDATE $tableposts SET post_name = '$newtitle' WHERE ID = '$post->ID'");
+			}
 		}
 	}
 	
@@ -623,19 +625,32 @@ function upgrade_100() {
 		INDEX ( `post_id` , `category_id` )
 		)
 		");
-	$allposts = $wpdb->get_results("SELECT ID, post_category FROM $tableposts");
-	foreach ($allposts as $post) {
-		// Check to see if it's already been imported
-		$cat = $wpdb->get_row("SELECT * FROM $tablepost2cat WHERE post_id = $post->ID AND category_id = $post->post_category");
-		if (!$cat && 0 != $post->post_category) { // If there's no result
-			$wpdb->query("
-				INSERT INTO $tablepost2cat
-				(post_id, category_id)
-				VALUES
-				('$post->ID', '$post->post_category')
-				");
+
+	$done_ids = $wpdb->get_results("SELECT DISTINCT post_id FROM $tablepost2cat");
+	if ($done_ids) :
+		foreach ($done_ids as $done_id) :
+			$done_posts[] = $done_id->post_id;
+		endforeach;
+		$catwhere = ' AND ID NOT IN (' . implode(',', $done_posts) . ')';
+	else:
+		$catwhere = '';
+	endif;
+	
+	$allposts = $wpdb->get_results("SELECT ID, post_category FROM $tableposts WHERE post_category != '0' $catwhere");
+	if ($allposts) :
+		foreach ($allposts as $post) {
+			// Check to see if it's already been imported
+			$cat = $wpdb->get_row("SELECT * FROM $tablepost2cat WHERE post_id = $post->ID AND category_id = $post->post_category");
+			if (!$cat && 0 != $post->post_category) { // If there's no result
+				$wpdb->query("
+					INSERT INTO $tablepost2cat
+					(post_id, category_id)
+					VALUES
+					('$post->ID', '$post->post_category')
+					");
+			}
 		}
-	}
+	endif;
 }
 
 function upgrade_101() {
@@ -736,21 +751,19 @@ function upgrade_110() {
 
 	}
 
-	// Add post_date_gmt, post_modified_gmt, comment_date_gmt fields
-	$got_gmt_fields = 0;
-	foreach ($wpdb->get_col("DESC $tableposts", 0) as $column ) {
-		if ($debug) echo("checking $column == $column_name<br />");
-		if ($column == 'post_date_gmt') {
-			$got_gmt_fields++;
-		}
-	}
+	// Check if we already set the GMT fields (if we did, then
+	// MAX(post_date_gmt) can't be '0000-00-00 00:00:00'
+	// <michel_v> I just slapped myself silly for not thinking about it earlier
+	$got_gmt_fields = ($wpdb->get_var("SELECT MAX(post_date_gmt) FROM $tableposts") == '0000-00-00 00:00:00') ? false : true;
+
 	if (!$got_gmt_fields) {
 
 		// Add or substract time to all dates, to get GMT dates
 		$add_hours = intval($diff_gmt_weblogger);
 		$add_minutes = intval(60 * ($diff_gmt_weblogger - $add_hours));
 		$wpdb->query("UPDATE $tableposts SET post_date_gmt = DATE_ADD(post_date, INTERVAL '$add_hours:$add_minutes' HOUR_MINUTE)");
-		$wpdb->query("UPDATE $tableposts SET post_modified_gmt = DATE_ADD(post_date, INTERVAL '$add_hours:$add_minutes' HOUR_MINUTE) WHERE post_modified != '0000-00-00 00:00:00'");
+		$wpdb->query("UPDATE $tableposts SET post_modified = post_date");
+		$wpdb->query("UPDATE $tableposts SET post_modified_gmt = DATE_ADD(post_modified, INTERVAL '$add_hours:$add_minutes' HOUR_MINUTE) WHERE post_modified != '0000-00-00 00:00:00'");
 		$wpdb->query("UPDATE $tablecomments SET comment_date_gmt = DATE_ADD(comment_date, INTERVAL '$add_hours:$add_minutes' HOUR_MINUTE)");
 		$wpdb->query("UPDATE $tableusers SET dateYMDhour = DATE_ADD(dateYMDhour, INTERVAL '$add_hours:$add_minutes' HOUR_MINUTE)");
 	}
@@ -801,6 +814,11 @@ function upgrade_110() {
 	// Option for different blog URL
 	if(!$wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'home'")) {
 		$wpdb->query("INSERT INTO $tableoptions (option_name, option_type, option_value, option_admin_level) VALUES ('home', 3, '', 8)");
+	}
+
+	// Option for category base
+	if(!$wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'category_base'")) {
+		$wpdb->query("INSERT INTO $tableoptions (option_name, option_type, option_value, option_admin_level) VALUES ('category_base', 3, '', 8)");
 	}
 
 	// Delete unused options

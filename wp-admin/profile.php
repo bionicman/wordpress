@@ -224,7 +224,7 @@ default:
 	$bookmarklet_height= (get_settings('use_trackback')) ? 480 : 440;
 
 	?>
-<?php if ($updated) { ?>
+<?php if (isset($updated)) { ?>
 <div class="updated">
 <p><strong><?php _e('Profile updated.') ?></strong></p>
 </div>
@@ -317,7 +317,7 @@ default:
     </tr>
   </table>
   <p class="submit">
-    <input type="submit" value="<?php _e('Update &raquo;') ?>" name="submit" />
+    <input type="submit" value="<?php _e('Update Profile &raquo;') ?>" name="submit" />
   </p>
 	</div>
 </form>

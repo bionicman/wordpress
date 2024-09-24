@@ -15,11 +15,12 @@ $menu = array(
               array(__('Options'), 6, 'options-general.php'),
               array(__('Plugins'), 8, 'plugins.php'),
               array(__('Templates'), 4, 'templates.php'),
-              array(__('Upload'), 5, 'upload.php'),
+              array(__('Upload'), get_settings('fileupload_minlevel'), 'upload.php'),
               array(__('Profile'), 0, 'profile.php')
 );
 
 $self = preg_replace('|.*/wp-admin/|i', '', $_SERVER['PHP_SELF']);
+if (!isset($parent_file)) $parent_file = '';
 foreach ($menu as $item) {
 	$class = '';
 
@@ -27,8 +28,11 @@ foreach ($menu as $item) {
     if ((substr($self, -10) == substr($item[2], -10) && empty($parent_file)) || ($parent_file && ($item[2] == $parent_file))) $class = ' class="current"';
     
     if ($user_level >= $item[1]) {
-        if (('upload.php' == $item[2] && get_settings('use_fileupload') && ($user_level >= get_settings('fileupload_minlevel'))
-             && (in_array($user_login, explode(' ', $allowed_users)) || (trim(get_settings('fileupload_allowedusers'))==''))) || 'upload.php' != $item[2])
+        if (
+('upload.php' == $item[2] && 
+get_settings('use_fileupload') && 
+($user_level >= get_settings('fileupload_minlevel'))
+             ) || 'upload.php' != $item[2])
             echo "\n\t<li><a href='{$item[2]}'$class>{$item[0]}</a></li>";
     }
 }

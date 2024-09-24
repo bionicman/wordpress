@@ -159,6 +159,22 @@ textarea, input, select {
 	font: 12px Georgia, "Times New Roman", Times, serif;
 }
 
+.submit input, .submit input:focus {
+	background: url(../wp-images/fade-butt.png);
+	border: 3px double #999;
+	border-left-color: #ccc;
+	border-top-color: #ccc;
+	color: #333;
+	padding: 0.25em;
+}
+
+.submit input:active {
+	background: #f4f4f4;
+	border: 3px double #ccc;
+	border-left-color: #999;
+	border-top-color: #999;
+}
+
 .submit, #quicktags, .editform th, #postcustomsubmit {
 	text-align: right;
 }
@@ -182,7 +198,7 @@ textarea, input, select {
 .updated {
 	background: #f0f8ff;
 	border: 1px solid #69c;
-	margin: 5px 5% 10px;
+	margin: 1em 5% 10px;
 	padding: 0 1em 0 1em;
 }
 
@@ -282,22 +298,26 @@ textarea, input, select {
 	border: none;
 }
 
+#content, #excerpt {
+	margin-left: 1%;
+	width: 97%;
+}
+
 #ed_del {
 	text-decoration: line-through;
 }
 
 #ed_em {
 	font-style: italic;
-	width: 25px;
 }
 
 #ed_strong {
 	font-weight: bold;
-	width: 1.9em;
 }
 
 #excerpt {
-	height: 1.5em;
+	height: 1.8em;
+	width: 98%;
 }
 
 #footer {
@@ -353,7 +373,6 @@ textarea, input, select {
 	width: 98%;
 }
 
-
 #postcustom table input, #postcustom table textarea {
 	width: 95%;
 }
@@ -364,11 +383,6 @@ textarea, input, select {
 
 #poststuff {
 	margin-right: 11em;
-}
-
-#content {
-	margin-left: 1%;
-	width: 97%;
 }
 
 #profile {
@@ -398,11 +412,11 @@ textarea, input, select {
 }
 
 #save {
-	width: 13em;
+	width: 14em;
 }
 
 #slugdiv {
-	width: 9.4em;
+	width: 10.4em;
 }
 
 #titlediv, #poststatusdiv, #commentstatusdiv, #slugdiv, #postpassworddiv, #namediv, #uridiv, #emaildiv {

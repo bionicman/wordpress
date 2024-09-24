@@ -1,7 +1,7 @@
 <?php					// -*-c++-*-
 // by Edd Dumbill (C) 1999-2001
 // <edd@usefulinc.com>
-// $Id: class-xmlrpc.php,v 1.2 2004/03/30 21:25:21 michelvaldrighi Exp $
+// $Id: class-xmlrpc.php,v 1.3 2004/05/10 08:37:51 saxmatt Exp $
 
 
 # additional fixes for case of missing xml extension file by Michel Valdrighi <m@tidakada.com>
@@ -757,8 +757,9 @@ class xmlrpcmsg {
 	  if ($_xh[$parser]['isf']) {
 		$f=$v->structmem("faultCode");
 		$fs=$v->structmem("faultString");
-		$r=new xmlrpcresp($v, $f->scalarval(), 
-						  $fs->scalarval());
+		$r=new xmlrpcresp($v, 
+			$f->scalarval(), 
+			$fs->scalarval());
 	  } else {
 		$r=new xmlrpcresp($v);
 	  }

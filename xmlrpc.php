@@ -57,6 +57,12 @@ function wp_insert_post($postarr = array()) {
 
 	$post_cat = $post_category[0];
 
+	if (empty($post_date))
+		$post_date = current_time('mysql');
+	// Make sure we have a good gmt date:
+	if (empty($post_date_gmt)) 
+		$post_date_gmt = get_gmt_from_date($post_date);
+
 	$sql = "INSERT INTO $tableposts 
 		(post_author, post_date, post_date_gmt, post_modified, post_modified_gmt, post_content, post_title, post_excerpt, post_category, post_status, post_name) 
 		VALUES ('$post_author', '$post_date', '$post_date_gmt', '$post_date', '$post_date_gmt', '$post_content', '$post_title', '$post_excerpt', '$post_cat', '$post_status', '$post_name')";
@@ -432,6 +438,7 @@ function b2newpost($m) {
 
 		if ($postdate != "") {
 			$post_date = $postdate;
+			$post_date_gmt = get_gmt_from_date($postdate);
 		} else {
 			$post_date = current_time('mysql');
 			$post_date_gmt = current_time('mysql', 1);
@@ -1277,8 +1284,8 @@ function mwnewpost($params) {
 		
 		// Do some timestamp voodoo
 		$dateCreated = $contentstruct['dateCreated'];
-		$dateCreated = $dateCreated ? iso8601_decode($dateCreated) : current_time('timestamp');
-		$post_date = gmdate('Y-m-d H:i:s', $dateCreated);
+		$dateCreated = $dateCreated ? iso8601_decode($dateCreated) : current_time('timestamp',1);
+		$post_date = gmdate('Y-m-d H:i:s', $dateCreated + get_settings('gmt_offset') * 3600);
 		$post_date_gmt = get_gmt_from_date(date('Y-m-d H:i:s', $dateCreated));
 		
 		$catnames = $contentstruct['categories'];
@@ -1389,8 +1396,8 @@ function mweditpost ($params) {	// ($postid, $user, $pass, $content, $publish)
 		// Do some timestamp voodoo
 		$dateCreated = $contentstruct['dateCreated'];
 		$dateCreated = $dateCreated ? iso8601_decode($dateCreated) : current_time('timestamp');
-		$post_date = gmdate('Y-m-d H:i:s', $dateCreated + $time_difference*3600);
-		$post_date_gmt = gmdate('Y-m-d H:i:s', $dateCreated);
+		$post_date = date('Y-m-d H:i:s', $dateCreated);
+		$post_date_gmt = get_gmt_from_date($post_date);
 
 
 		// We've got all the data -- post it:

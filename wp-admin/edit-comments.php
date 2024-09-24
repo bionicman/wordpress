@@ -31,7 +31,7 @@ function checkAll(form)
 <form name="searchform" action="" method="get"> 
   <fieldset> 
   <legend><?php _e('Show Comments That Contain...') ?></legend> 
-  <input type="text" name="s" value="<?php echo $s; ?>" size="17" /> 
+  <input type="text" name="s" value="<?php if (isset($s)) echo $s; ?>" size="17" /> 
   <input type="submit" name="submit" value="<?php _e('Search') ?>"  />  
   <input type="hidden" name="mode" value="<?php echo $mode; ?>" />
   <?php _e('(Searches within comment text, email, URI, and IP address.)') ?>
@@ -55,8 +55,8 @@ if (!empty($delete_comments)) {
 	echo "<div class='wrap'><p>" . sprintf(__('%s comments deleted.'), $i) . "</p></div>";
 }
 
-if ($s) {
-	$s = $wpdb->escape($s);
+if (isset($_GET['s'])) {
+	$s = $wpdb->escape($_GET['s']);
 	$comments = $wpdb->get_results("SELECT * FROM $tablecomments  WHERE
 		comment_author LIKE '%$s%' OR
 		comment_author_email LIKE '%$s%' OR
@@ -101,7 +101,7 @@ if ('view' == $mode) {
 
 		?>
 		<p>
-        <strong><?php _e('No results found.') ?></strong></p>
+        <strong><?php _e('No comments found.') ?></strong></p>
 		
 		<?php
 	} // end if ($comments)

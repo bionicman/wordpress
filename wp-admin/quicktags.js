@@ -23,7 +23,7 @@ var datetime = now.getFullYear() + '-' + now.getMonth() + '-' + now.getDate() + 
 
 edButtons[edButtons.length] = 
 new edButton('ed_strong'
-,'strong'
+,'str'
 ,'<strong>'
 ,'</strong>'
 ,'b'
@@ -36,6 +36,23 @@ new edButton('ed_em'
 ,'</em>'
 ,'i'
 );
+
+edButtons[edButtons.length] = 
+new edButton('ed_link'
+,'link'
+,''
+,'</a>'
+,'a'
+); // special case
+
+edButtons[edButtons.length] = 
+new edButton('ed_block'
+,'b-quote'
+,'<blockquote>'
+,'</blockquote>'
+,'q'
+);
+
 
 edButtons[edButtons.length] = 
 new edButton('ed_del'
@@ -52,14 +69,6 @@ new edButton('ed_ins'
 ,'</ins>'
 ,'d'
 );
-
-edButtons[edButtons.length] = 
-new edButton('ed_link'
-,'link'
-,''
-,'</a>'
-,'a'
-); // special case
 
 edButtons[edButtons.length] = 
 new edButton('ed_img'
@@ -92,14 +101,6 @@ new edButton('ed_li'
 ,'\t<li>'
 ,'</li>\n'
 ,'l'
-);
-
-edButtons[edButtons.length] = 
-new edButton('ed_block'
-,'b-quote'
-,'<blockquote>'
-,'</blockquote>'
-,'q'
 );
 
 edButtons[edButtons.length] = 

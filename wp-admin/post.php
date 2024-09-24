@@ -61,7 +61,7 @@ case 'post':
 			}
 		}
 		$post_status = $_POST['post_status'];
-		if (empty($post_status)) $post_status = get_settings('default_post_status');
+		if (empty($post_status)) $post_status = 'draft';
 		$comment_status = $_POST['comment_status'];
 		if (empty($comment_status)) $comment_status = get_settings('default_comment_status');
 		$ping_status = $_POST['ping_status'];
@@ -86,27 +86,11 @@ case 'post':
 		$hh = ($hh > 23) ? $hh - 24 : $hh;
 		$mn = ($mn > 59) ? $mn - 60 : $mn;
 		$ss = ($ss > 59) ? $ss - 60 : $ss;
-	$now = date("$aa-$mm-$jj $hh:$mn:$ss");
+	$now = "$aa-$mm-$jj $hh:$mn:$ss";
 	$now_gmt = get_gmt_from_date("$aa-$mm-$jj $hh:$mn:$ss");
 	} else {
 	$now = current_time('mysql');
 	$now_gmt = current_time('mysql', 1);
-	}
-
-	if (!empty($_POST['mode'])) {
-	switch($_POST['mode']) {
-		case 'bookmarklet':
-			$location = 'bookmarklet.php?a=b';
-			break;
-		case 'sidebar':
-			$location = 'sidebar.php?a=b';
-			break;
-		default:
-			$location = 'post.php';
-			break;
-		}
-	} else {
-		$location = 'post.php';
 	}
 
 	// What to do based on which button they pressed
@@ -134,8 +118,25 @@ case 'post':
 
 	$post_ID = $wpdb->get_var("SELECT ID FROM $tableposts ORDER BY ID DESC LIMIT 1");
 
-	if ('' != $_POST['advanced'])
+	if (!empty($_POST['mode'])) {
+	switch($_POST['mode']) {
+		case 'bookmarklet':
+			$location = 'bookmarklet.php?a=b';
+			break;
+		case 'sidebar':
+			$location = 'sidebar.php?a=b';
+			break;
+		default:
+			$location = 'post.php';
+			break;
+		}
+	} else {
+		$location = 'post.php';
+	}
+	if ( '' != $_POST['advanced'] || isset($_POST['save']) )
 		$location = "post.php?action=edit&post=$post_ID";
+
+	header("Location: $location"); // Send user on their way while we keep working
 
 
 	// Insert categories
@@ -160,9 +161,6 @@ case 'post':
 	if (isset($sleep_after_edit) && $sleep_after_edit > 0) {
 			sleep($sleep_after_edit);
 	}
-
-	
-	header("Location: $location");
 
 	if ($post_status == 'publish') {
 		if((get_settings('use_geo_positions')) && ($post_latf != null) && ($post_lonf != null)) {
@@ -206,40 +204,42 @@ case 'edit':
 	$standalone = 0;
 	require_once('admin-header.php');
 
-	$post = $_GET['post'];
+	$post = $post_ID = $p = (int) $_GET['post'];
 	if ($user_level > 0) {
-		$postdata = get_postdata($post);
-		$authordata = get_userdata($postdata['Author_ID']);
+		$postdata = $wpdb->get_row("SELECT * FROM $tableposts WHERE ID = '$post_ID'");
+		$authordata = get_userdata($postdata->post_author);
 		if ($user_level < $authordata->user_level)
 			die ('You don&#8217;t have the right to edit <strong>'.$authordata[1].'</strong>&#8217;s posts.');
 
-		$content = $postdata['Content'];
+		$content = $postdata->post_content;
 		$content = format_to_edit($content);
-		$edited_lat = $postdata["Lat"];
-		$edited_lon = $postdata["Lon"];
-		$excerpt = $postdata['Excerpt'];
+		$edited_lat = $postdata->post_lat;
+		$edited_lon = $postdata->post_lon;
+		$excerpt = $postdata->post_excerpt;
 		$excerpt = format_to_edit($excerpt);
-		$edited_post_title = format_to_edit($postdata['Title']);
-		$post_status = $postdata['post_status'];
-		$comment_status = $postdata['comment_status'];
-		$ping_status = $postdata['ping_status'];
-		$post_password = $postdata['post_password'];
-		$to_ping = $postdata['to_ping'];
-		$pinged = $postdata['pinged'];
-		$post_name = $postdata['post_name'];
+		$edited_post_title = format_to_edit($postdata->post_title);
+		$post_status = $postdata->post_status;
+		$comment_status = $postdata->comment_status;
+		$ping_status = $postdata->ping_status;
+		$post_password = $postdata->post_password;
+		$to_ping = $postdata->to_ping;
+		$pinged = $postdata->pinged;
+		$post_name = $postdata->post_name;
 
 		include('edit-form-advanced.php');
-		$p = $_GET['post'];
-		include(ABSPATH.'wp-blog-header.php');
-		start_wp();
+
+		$post = $wpdb->get_row("SELECT * FROM $tableposts WHERE ID = '$post_ID'");
 		?>
 <div id='preview' class='wrap'>
 	 <h2><?php _e('Post Preview (updated when post is saved)'); ?></h2>
 																		<h3 class="storytitle" id="post-<?php the_ID(); ?>"><a href="<?php the_permalink() ?>" rel="bookmark" title="<?php printf(__("Permanent Link: %s"), the_title()); ?>"><?php the_title(); ?></a></h3>
-																																																																					<div class="meta"><?php _e("Filed under:"); ?> <?php the_category(','); ?> &#8212; <?php the_author() ?> @ <?php the_time() ?> <?php edit_post_link(); ?></div>
+																																																																					<div class="meta"><?php _e("Filed under:"); ?> <?php the_category(','); ?> &#8212; <?php the_author() ?> @ <?php the_time() ?></div>
 
 <div class="storycontent">
-	<?php the_content(); ?>
+<?php 
+$content = apply_filters('the_content', $post->post_content);
+echo $content;
+?>
 </div>
 		</div>
 <?php
@@ -254,7 +254,7 @@ When you&#8217;re promoted, just reload this page and you&#8217;ll be able to bl
 	break;
 
 case 'editpost':
-//die(var_dump('<pre>', $_POST));
+// die(var_dump('<pre>', $_POST));
 	$standalone = 1;
 	require_once('./admin-header.php');
 
@@ -267,7 +267,6 @@ case 'editpost':
 		$post_ID = $_POST['post_ID'];
 		$post_categories = $_POST['post_category'];
 		if (!$post_categories) $post_categories[] = 1;
-		$post_autobr = intval($_POST['post_autobr']);
 		$content = balanceTags($_POST['content']);
 		$content = format_to_post($content);
 		$excerpt = balanceTags($_POST['excerpt']);
@@ -283,13 +282,18 @@ case 'editpost':
 				} else {
 				$latlonaddition = " post_lat=null, post_lon=null, ";
 			}
+		} else {
+			$latlonaddition = '';
 		}
 		$prev_status = $_POST['prev_status'];
 		$post_status = $_POST['post_status'];
 		$comment_status = $_POST['comment_status'];
-		if (empty($comment_status)) $comment_status = get_settings('default_comment_status');
+		if (empty($comment_status)) $comment_status = 'closed';
+		//if (!$_POST['comment_status']) $comment_status = get_settings('default_comment_status');
+
 		$ping_status = $_POST['ping_status'];
-		if (empty($ping_status)) $ping_status = get_settings('default_ping_status');
+		if (empty($ping_status)) $ping_status = 'closed';
+		//if (!$_POST['ping_status']) $ping_status = get_settings('default_ping_status');
 		$post_password = addslashes($_POST['post_password']);
 		$post_name = sanitize_title($_POST['post_name']);
 		if (empty($post_name)) $post_name = sanitize_title($post_title);
@@ -297,7 +301,7 @@ case 'editpost':
 	// Format trackbacks
 	$trackback = preg_replace('|\s+|', '\n', $trackback);
 	
-	if ('' != $_POST['publish']) $post_status = 'publish';
+	if (isset($_POST['publish'])) $post_status = 'publish';
 
 	if (($user_level > 4) && (!empty($_POST['edit_date']))) {
 		$aa = $_POST['aa'];
@@ -311,11 +315,22 @@ case 'editpost':
 		$mn = ($mn > 59) ? $mn - 60 : $mn;
 		$ss = ($ss > 59) ? $ss - 60 : $ss;
 		$datemodif = ", post_date = '$aa-$mm-$jj $hh:$mn:$ss'";
-	$datemodif_gmt = ", post_date = '".get_gmt_from_date("$aa-$mm-$jj $hh:$mn:$ss")."'";
+	$datemodif_gmt = ", post_date_gmt = '".get_gmt_from_date("$aa-$mm-$jj $hh:$mn:$ss")."'";
 	} else {
 		$datemodif = '';
 		$datemodif_gmt = '';
 	}
+
+	if ($_POST['save']) {
+		$location = $_SERVER['HTTP_REFERER'];
+	} elseif ($_POST['updatemeta']) {
+		$location = $_SERVER['HTTP_REFERER'] . '&message=2#postcustom';
+	} elseif ($_POST['deletemeta']) {
+		$location = $_SERVER['HTTP_REFERER'] . '&message=3#postcustom';
+	} else {
+		$location = 'post.php';
+	}
+	header ('Location: ' . $location); // Send user on their way while we keep working
 
 $now = current_time('mysql');
 $now_gmt = current_time('mysql', 1);
@@ -325,8 +340,10 @@ $now_gmt = current_time('mysql', 1);
 			post_content = '$content',
 			post_excerpt = '$excerpt',
 			post_title = '$post_title'"
+			.$datemodif_gmt
 			.$datemodif.","
 			.$latlonaddition."
+			
 			post_status = '$post_status',
 			comment_status = '$comment_status',
 			ping_status = '$ping_status',
@@ -359,7 +376,11 @@ $now_gmt = current_time('mysql', 1);
 	}
 
 	// are we going from draft/private to published?
-	if ((($prev_status == 'draft') || ($prev_status == 'private')) && ($post_status == 'publish')) {
+	if ($prev_status != 'publish' && $post_status == 'publish') {
+		generic_ping();
+		if ($post_pingback) {
+			pingback($content, $post_ID);
+		}
 	} // end if moving from draft/private to published
 	if ($post_status == 'publish') {
 		do_action('publish_post', $post_ID);
@@ -399,17 +420,8 @@ $now_gmt = current_time('mysql', 1);
 
 	add_meta($post_ID);
 
-	if ($_POST['save']) {
-		$location = $_SERVER['HTTP_REFERER'];
-	} elseif ($_POST['updatemeta']) {
-		$location = $_SERVER['HTTP_REFERER'] . '&message=2#postcustom';
-	} elseif ($_POST['deletemeta']) {
-		$location = $_SERVER['HTTP_REFERER'] . '&message=3#postcustom';
-	} else {
-		$location = 'post.php';
-	}
-	header ('Location: ' . $location);
 	do_action('edit_post', $post_ID);
+	exit();
 	break;
 
 case 'delete':
@@ -689,42 +701,39 @@ default:
 	require_once ('./admin-header.php');
 
 	if ($user_level > 0) {
-		if ((!$withcomments) && (!$single)) {
+		$action = 'post';
+		get_currentuserinfo();
+		$drafts = $wpdb->get_results("SELECT ID, post_title FROM $tableposts WHERE post_status = 'draft' AND post_author = $user_ID");
+		if ($drafts) {
+			?>
+			<div class="wrap">
+			<p><strong><?php _e('Your Drafts:') ?></strong>
+			<?php
+			$i = 0;
+			foreach ($drafts as $draft) {
+				if (0 != $i)
+					echo ', ';
+				$draft->post_title = stripslashes($draft->post_title);
+				if ($draft->post_title == '')
+					$draft->post_title = sprintf(__('Post # %s'), $draft->ID);
+				echo "<a href='post.php?action=edit&amp;post=$draft->ID' title='" . __('Edit this draft') . "'>$draft->post_title</a>";
+				++$i;
+				}
+			?>.</p>
+			</div>
+			<?php
+		}
+		//set defaults
+		$post_status = 'draft';
+		$comment_status = get_settings('default_comment_status');
+		$ping_status = get_settings('default_ping_status');
+		$post_pingback = get_settings('default_pingback_flag');
+		$default_post_cat = get_settings('default_post_category');
 
-			$action = 'post';
-			get_currentuserinfo();
-			$drafts = $wpdb->get_results("SELECT ID, post_title FROM $tableposts WHERE post_status = 'draft' AND post_author = $user_ID");
-			if ($drafts) {
-				?>
-				<div class="wrap">
-				<p><strong><?php _e('Your Drafts:') ?></strong>
-				<?php
-				$i = 0;
-				foreach ($drafts as $draft) {
-					if (0 != $i)
-						echo ', ';
-					$draft->post_title = stripslashes($draft->post_title);
-					if ($draft->post_title == '')
-						$draft->post_title = sprintf(__('Post # %s'), $draft->ID);
-					echo "<a href='post.php?action=edit&amp;post=$draft->ID' title='" . __('Edit this draft') . "'>$draft->post_title</a>";
-					++$i;
-					}
-				?>.</p>
-				</div>
-				<?php
-			}
-			//set defaults
-			$post_status = get_settings('default_post_status');
-			$comment_status = get_settings('default_comment_status');
-			$ping_status = get_settings('default_ping_status');
-			$post_pingback = get_settings('default_pingback_flag');
-			$default_post_cat = get_settings('default_post_category');
-
-			if (get_settings('advanced_edit')) {
-				include('edit-form-advanced.php');
-			} else {
-				include('edit-form.php');
-			}
+		if (get_settings('advanced_edit')) {
+			include('edit-form-advanced.php');
+		} else {
+			include('edit-form.php');
 		}
 ?>
 <div class="wrap">

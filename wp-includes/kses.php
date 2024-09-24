@@ -22,7 +22,7 @@ $allowedtags = array(
 				'abbr' => array('title' => array()),
 				'acronym' => array('title' => array()),
 				'b' => array(),
-//				'blockquote' => array('cite' => array()),
+				'blockquote' => array('cite' => array()),
 //				'br' => array(),
 				'code' => array(),
 //				'del' => array('datetime' => array()),
@@ -410,8 +410,6 @@ function wp_kses_no_null($string)
 {
   $string = preg_replace('/\0+/', '', $string);
   $string = preg_replace('/(\\\\0)+/', '', $string);
-
-  $string = preg_replace('/\xad+/', '', $string); # deals with Opera "feature"
 
   return $string;
 } # function wp_kses_no_null

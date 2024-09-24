@@ -11,21 +11,13 @@ $form_extra = '';
 if (get_settings('use_pingback')) {
 	$form_pingback = '<input type="checkbox" class="checkbox" name="post_pingback" value="1" ';
 	if ($post_pingback) $form_pingback .= 'checked="checked" ';
-	$form_pingback .= 'tabindex="7" id="pingback" /> <label for="pingback">' . sprintf(__('<strong>PingBack</strong> the <acronym title="Uniform Resource Locators">URL</acronym>s in this post</label> <a href="%s" title="Help on Pingbacks">?</a><br />'), 'http://wordpress.org/docs/reference/post/#pingback');
+	$form_pingback .= 'tabindex="7" id="pingback" /> <label for="pingback">' . sprintf(__('<strong>PingBack</strong> the <abbr title="Universal Resource Identifier">URI</abbr>s in this post</label> <a href="%s" title="Help on Pingbacks">?</a><br />'), 'http://wordpress.org/docs/reference/post/#pingback');
 } else {
 	$form_pingback = '';
 }
 if (get_settings('use_trackback')) {
-	$form_trackback = '<p><label for="trackback">' . sprintf(__('<a href="%s" title="Help on trackbacks"><strong>TrackBack</strong> an <acronym title="Uniform Resource Locator">URL</acronym></a>:</label> (Separate multiple <acronym title="Uniform Resource Locator">URL</acronym>s with spaces.)<br />'), 'http://wordpress.org/docs/reference/post/#trackback') .
+	$form_trackback = '<p><label for="trackback">' . sprintf(__('<a href="%s" title="Help on trackbacks"><strong>TrackBack</strong> an <acronym title="Uniform Resource Locator">URL</acronym></a>:</label> (Separate multiple <abbr title="Universal Resource Identifier">URI</abbr>s with spaces.)<br />'), 'http://wordpress.org/docs/reference/post/#trackback') .
 	'<input type="text" name="trackback_url" style="width: 360px" id="trackback" tabindex="7" /></p>';
-	if ('' != $pinged) {
-		$form_trackback .= '<p>' . __('Already pinged:') . '</p><ul>';
-		$already_pinged = explode("\n", trim($pinged));
-		foreach ($already_pinged as $pinged_url) {
-			$form_trackback .= "\n\t<li>$pinged_url</li>";
-		}
-		$form_trackback .= '</ul>';
-	}
 } else {
 	$form_trackback = '';
 }
@@ -38,7 +30,7 @@ $saveasdraft = '';
 <form name="post" action="post.php" method="post" id="post">
 
 <?php
-if ('bookmarklet' == $mode) {
+if (isset($mode) && 'bookmarklet' == $mode) {
     echo '<input type="hidden" name="mode" value="bookmarklet" />';
 }
 ?>
@@ -98,15 +90,14 @@ edCanvas = document.getElementById('content');
 </script>
 
 <?php echo $form_pingback ?>
-<?php echo $form_prevstatus ?>
 <?php echo $form_trackback; ?>
-<p><input name="saveasdraft" type="submit" id="saveasdraft" tabindex="9" value="<?php _e('Save as Draft') ?>" /> 
+<p class="submit"><input name="saveasdraft" type="submit" id="saveasdraft" tabindex="9" value="<?php _e('Save as Draft') ?>" /> 
   <input name="saveasprivate" type="submit" id="saveasprivate" tabindex="10" value="<?php _e('Save as Private') ?>" /> 
   <input name="publish" type="submit" id="publish" tabindex="6" style="font-weight: bold;" value="<?php _e('Publish') ?>" /> 
   <?php if ('bookmarklet' != $mode) {
       echo '<input name="advanced" type="submit" id="advancededit" tabindex="7" value="' .  __('Advanced Editing &raquo;') . '" />';
   } ?>
-  <input name="referredby" type="hidden" id="referredby" value="<?php echo $_SERVER['HTTP_REFERER']; ?>" />
+  <input name="referredby" type="hidden" id="referredby" value="<?php if (isset($_SERVER['HTTP_REFERER'])) echo $_SERVER['HTTP_REFERER']; ?>" />
 </p>
 
 </div>

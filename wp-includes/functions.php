@@ -1,9 +1,5 @@
 <?php
 
-$curpath = dirname(__FILE__).'/';
-
-require($curpath . 'functions-formatting.php');
-
 if (!function_exists('_')) {
 	function _($string) {
 		return $string;
@@ -163,7 +159,9 @@ function user_pass_ok($user_login,$user_pass) {
 function get_currentuserinfo() { // a bit like get_userdata(), on steroids
 	global $user_login, $userdata, $user_level, $user_ID, $user_nickname, $user_email, $user_url, $user_pass_md5, $cookiehash;
 	// *** retrieving user's data from cookies and db - no spoofing
-	$user_login = $_COOKIE['wordpressuser_' . $cookiehash];
+
+	if (isset($_COOKIE['wordpressuser_' . $cookiehash])) 
+		$user_login = $_COOKIE['wordpressuser_' . $cookiehash];
 	$userdata = get_userdatabylogin($user_login);
 	$user_level = $userdata->user_level;
 	$user_ID = $userdata->ID;
@@ -246,11 +244,17 @@ function url_to_postid($url = '') {
 		'%year%',
 		'%monthnum%',
 		'%day%',
+		'%hour%',
+		'%minute%',
+		'%second%',
 		'%postname%',
 		'%post_id%'
 	);
 	$rewritereplace = array(
 		'([0-9]{4})?',
+		'([0-9]{1,2})?',
+		'([0-9]{1,2})?',
+		'([0-9]{1,2})?',
 		'([0-9]{1,2})?',
 		'([0-9]{1,2})?',
 		'([_0-9a-z-]+)?',
@@ -282,6 +286,9 @@ function url_to_postid($url = '') {
 	if ($year) $where .= " AND YEAR(post_date) = '" . intval($year) . "'";
 	if ($monthnum) $where .= " AND MONTH(post_date) = '" . intval($monthnum) . "'";
 	if ($day) $where .= " AND DAYOFMONTH(post_date) = '" . intval($day) . "'";
+	if ($hour) $where .= " AND HOUR(post_date) = '" . intval($hour) . "'";
+	if ($minute) $where .= " AND MINUTE(post_date) = '" . intval($minute) . "'";
+	if ($second) $where .= " AND SECOND(post_date) = '" . intval($second) . "'";
 	if ($postname) $where .= " AND post_name = '" . $wpdb->escape($postname) . "' ";
 
 	// Run the query to get the post ID:
@@ -324,6 +331,7 @@ function get_alloptions() {
 			//  never underestimate the ingenuity of the fools :)"
 			if ('siteurl' == $option->option_name) $option->option_value = preg_replace('|/+$|', '', $option->option_value);
 			if ('home' == $option->option_name) $option->option_value = preg_replace('|/+$|', '', $option->option_value);
+			if ('category_base' == $option->option_name) $option->option_value = preg_replace('|/+$|', '', $option->option_value);
 
 			$all_options->{$option->option_name} = $option->option_value;
 		}
@@ -436,50 +444,9 @@ function get_catname($cat_ID) {
 	return $cat_name;
 }
 
-function touch_time($edit = 1) {
-	global $month, $postdata;
-	// echo $postdata['Date'];
-	if ('draft' == $postdata['post_status']) {
-		$checked = 'checked="checked" ';
-		$edit = false;
-	} else {
-		$checked = ' ';
-	}
-
-	echo '<p><input type="checkbox" class="checkbox" name="edit_date" value="1" id="timestamp" '.$checked.'/> <label for="timestamp">' . __('Edit timestamp') . '</label> <a href="http://wordpress.org/docs/reference/post/#edit_timestamp" title="' . __('Help on changing the timestamp') . '">?</a><br />';
-	
-	$time_adj = time() + (get_settings('gmt_offset') * 3600);
-	$post_date = $postdata['Date'];
-	$jj = ($edit) ? mysql2date('d', $post_date) : gmdate('d', $time_adj);
-	$mm = ($edit) ? mysql2date('m', $post_date) : gmdate('m', $time_adj);
-	$aa = ($edit) ? mysql2date('Y', $post_date) : gmdate('Y', $time_adj);
-	$hh = ($edit) ? mysql2date('H', $post_date) : gmdate('H', $time_adj);
-	$mn = ($edit) ? mysql2date('i', $post_date) : gmdate('i', $time_adj);
-	$ss = ($edit) ? mysql2date('s', $post_date) : gmdate('s', $time_adj);
-
-	echo '<input type="text" name="jj" value="'.$jj.'" size="2" maxlength="2" />'."\n";
-	echo "<select name=\"mm\">\n";
-	for ($i=1; $i < 13; $i=$i+1) {
-		echo "\t\t\t<option value=\"$i\"";
-		if ($i == $mm)
-		echo " selected='selected'";
-		if ($i < 10) {
-			$ii = "0".$i;
-		} else {
-			$ii = "$i";
-		}
-		echo ">".$month["$ii"]."</option>\n";
-	} ?>
-</select>
-<input type="text" name="aa" value="<?php echo $aa ?>" size="4" maxlength="5" /> @ 
-<input type="text" name="hh" value="<?php echo $hh ?>" size="2" maxlength="2" /> : 
-<input type="text" name="mn" value="<?php echo $mn ?>" size="2" maxlength="2" /> : 
-<input type="text" name="ss" value="<?php echo $ss ?>" size="2" maxlength="2" /> </p>
-	<?php
-}
-
 function gzip_compression() {
 	global $gzip_compressed;
+	if (strstr($_SERVER['PHP_SELF'], 'wp-admin')) return true;
 		if (!$gzip_compressed) {
 		$phpver = phpversion(); //start gzip compression
 		if($phpver >= "4.0.4pl1") {
@@ -526,44 +493,46 @@ function timer_stop($display=0,$precision=3) { //if called like timer_stop(1), w
 }
 
 function weblog_ping($server = '', $path = '') {
-include_once (ABSPATH . WPINC . '/class-xmlrpc.php');
-include_once (ABSPATH . WPINC . '/class-xmlrpcs.php');
+	$debug = false;
+	include_once (ABSPATH . WPINC . '/class-xmlrpc.php');
+	include_once (ABSPATH . WPINC . '/class-xmlrpcs.php');
 
-  $f = new xmlrpcmsg('weblogUpdates.ping',
-				array(new xmlrpcval(get_settings('blogname'), 'string'),
-					new xmlrpcval(get_settings('home') ,'string')));
-  $c = new xmlrpc_client($path, $server, 80);
-  $r = $c->send($f);
+	$f = new xmlrpcmsg('weblogUpdates.ping',
+		array(new xmlrpcval(get_settings('blogname'), 'string'),
+			new xmlrpcval(get_settings('home') ,'string')));
+	$c = new xmlrpc_client($path, $server, 80);
+	$r = $c->send($f);
+	
+	if ($debug) {
+		echo "<h3>Response Object Dump:</h3>
+			<pre>\n";
+		print_r($r);
+		echo "</pre>\n";
+	}
 
-  if ($debug) {
-    print "<h3>Response Object Dump:</h3>\n";
-    print "<pre>\n";
-    print_r($r);
-    print "</pre>\n";
-  }
+	$v = @phpxmlrpc_decode($r->value());
+	if (!$r->faultCode()) {
+		$result['message'] =  "<p class=\"rpcmsg\">";
+		$result['message'] = $result['message'] .  $v["message"] . "<br />\n";
+		$result['message'] = $result['message'] . "</p>";
+	} else {
+		$result['err'] = $r->faultCode();
+		$result['message'] =  "<!--\n";
+		$result['message'] = $result['message'] . "Fault: ";
+		$result['message'] = $result['message'] . "Code: " . $r->faultCode();
+		$result['message'] = $result['message'] . " Reason '" .$r->faultString()."'<BR>";
+		$result['message'] = $result['message'] . "-->\n";
+	}
 
-  $v = @phpxmlrpc_decode($r->value());
-  if (!$r->faultCode()) {
-	$result['message'] =  "<p class=\"rpcmsg\">";
-	$result['message'] = $result['message'] .  $v["message"] . "<br />\n";
-	$result['message'] = $result['message'] . "</p>";
-  } else {
-	$result['err'] = $r->faultCode();
-	$result['message'] =  "<!--\n";
-	$result['message'] = $result['message'] . "Fault: ";
-	$result['message'] = $result['message'] . "Code: " . $r->faultCode();
-	$result['message'] = $result['message'] . " Reason '" .$r->faultString()."'<BR>";
-	$result['message'] = $result['message'] . "-->\n";
-  }
-
-  if ($debug) print '<blockquote>' . $result['message'] . '</blockquote>';
+	if ($debug) print '<blockquote>' . $result['message'] . '</blockquote>';
 }
 
 function generic_ping($post_id = 0) {
 	$services = get_settings('ping_sites');
 	$services = preg_replace("|(\s)+|", '$1', $services); // Kill dupe lines
-	if ('' != trim($services)) {
-		$services = explode("\n", trim($services));
+	$services = trim($services);
+	if ('' != $services) {
+		$services = explode("\n", $services);
 		foreach ($services as $service) {
 			$uri = parse_url($service);
 			weblog_ping($uri['host'], $uri['path']);
@@ -583,7 +552,7 @@ function trackback($trackback_url, $title, $excerpt, $ID) {
 	$url = urlencode(get_permalink($ID));
 	$query_string = "title=$title&url=$url&blog_name=$blog_name&excerpt=$excerpt";
 	$trackback_url = parse_url($trackback_url);
-	$http_request  = 'POST '.$trackback_url['path']." HTTP/1.0\r\n";
+	$http_request  = 'POST ' . $trackback_url['path'] . $trackback_url['query'] . " HTTP/1.0\r\n";
 	$http_request .= 'Host: '.$trackback_url['host']."\r\n";
 	$http_request .= 'Content-Type: application/x-www-form-urlencoded'."\r\n";
 	$http_request .= 'Content-Length: '.strlen($query_string)."\r\n";
@@ -875,13 +844,9 @@ include_once (ABSPATH . WPINC . '/class-xmlrpcs.php');
 function doGeoUrlHeader($post_list = '') {
     global $posts;
 
-    if (empty($post_list)) {
-        $post_list = $posts;
-    }
-
-    if (count($post_list) == 1) {
+    if ($posts && 1 === count($posts)) {
         // there's only one result  see if it has a geo code
-        $row = $post_list[0];
+        $row = $posts[0];
         $lat = $row->post_lat;
         $lon = $row->post_lon;
         $title = $row->post_title;
@@ -894,9 +859,9 @@ function doGeoUrlHeader($post_list = '') {
     } else {
         if(get_settings('use_default_geourl')) {
             // send the default here 
-            echo "<meta name=\"ICBM\" content=\"". get_settings('default_geourl_lat') .", ". get_settings('default_geourl_lon') ."\" />\n";
-            echo "<meta name=\"DC.title\" content=\"".convert_chars(strip_tags(get_bloginfo("name")))."\" />\n";
-            echo "<meta name=\"geo.position\" content=\"". get_settings('default_geourl_lat') .";". get_settings('default_geourl_lon') ."\" />\n";
+            echo "<meta name='ICBM' content=\"". get_settings('default_geourl_lat') .", ". get_settings('default_geourl_lon') ."\" />\n";
+            echo "<meta name='DC.title' content=\"".convert_chars(strip_tags(get_bloginfo("name")))."\" />\n";
+            echo "<meta name='geo.position' content=\"". get_settings('default_geourl_lat') .";". get_settings('default_geourl_lon') ."\" />\n";
         }
     }
 }
@@ -1228,29 +1193,41 @@ function rewrite_rules($matches = '', $permalink_structure = '') {
         }
     }
 
-    $rewritecode = array(
-                         '%year%',
-                         '%monthnum%',
-                         '%day%',
-                         '%postname%',
-                         '%post_id%'
-                         );
+    $rewritecode = 
+	array(
+	'%year%',
+	'%monthnum%',
+	'%day%',
+	'%hour%',
+	'%minute%',
+	'%second%',
+	'%postname%',
+	'%post_id%'
+	);
 
-    $rewritereplace = array(
-                            '([0-9]{4})?',
-                            '([0-9]{1,2})?',
-                            '([0-9]{1,2})?',
-                            '([_0-9a-z-]+)?',
-                            '([0-9]+)?'
-                            );
+    $rewritereplace = 
+	array(
+	'([0-9]{4})?',
+	'([0-9]{1,2})?',
+	'([0-9]{1,2})?',
+	'([0-9]{1,2})?',
+	'([0-9]{1,2})?',
+	'([0-9]{1,2})?',
+	'([_0-9a-z-]+)?',
+	'([0-9]+)?'
+	);
 
-    $queryreplace = array (
-                           'year=',
-                           'monthnum=',
-                           'day=',
-                           'name=',
-                           'p='
-                           );
+    $queryreplace = 
+	array (
+	'year=',
+	'monthnum=',
+	'day=',
+	'hour=',
+	'minute=',
+	'second=',
+	'name=',
+	'p='
+	);
 
 
     $match = str_replace('/', '/?', $permalink_structure);
@@ -1259,7 +1236,7 @@ function rewrite_rules($matches = '', $permalink_structure = '') {
     $match = str_replace($rewritecode, $rewritereplace, $match);
     $match = preg_replace('|[?]|', '', $match, 1);
 
-    $feedmatch = str_replace('?/?', '/', $match);
+    $feedmatch = trailingslashit(str_replace('?/?', '/', $match));
     $trackbackmatch = $feedmatch;
 
     preg_match_all('/%.+?%/', $permalink_structure, $tokens);
@@ -1304,7 +1281,10 @@ function rewrite_rules($matches = '', $permalink_structure = '') {
 
     // Code for nice categories and authors, currently not very flexible
     $front = substr($permalink_structure, 0, strpos($permalink_structure, '%'));
-    $catmatch = $front . 'category/';
+	if ( '' == get_settings('category_base') )
+		$catmatch = $front . 'category/';
+	else
+	    $catmatch = get_settings('category_base') . '/';
     $catmatch = preg_replace('|^/+|', '', $catmatch);
     
     $catfeedmatch = $catmatch . '(.*)/' . $feedregex;
@@ -1337,10 +1317,6 @@ function rewrite_rules($matches = '', $permalink_structure = '') {
     return $rewrite;
 }
 
-function remove_slashes($string) {
-	return stripslashes(stripslashes($string));
-}
-
 function get_posts($args) {
 	global $wpdb, $tableposts;
 	parse_str($args, $r);
@@ -1360,6 +1336,10 @@ function get_posts($args) {
 
 function check_comment($author, $email, $url, $comment, $user_ip) {
 	if (1 == get_settings('comment_moderation')) return false; // If moderation is set to manual
+
+	if ( (count(explode('http:', $comment)) - 1) >= get_settings('comment_max_links') )
+		return false; // Check # of external links
+
 	if ('' == trim( get_settings('moderation_keys') ) ) return true; // If moderation keys are empty
 	$words = explode("\n", get_settings('moderation_keys') );
 	foreach ($words as $word) {
@@ -1371,10 +1351,6 @@ function check_comment($author, $email, $url, $comment, $user_ip) {
 		if ( preg_match($pattern, $comment) ) return false;
 		if ( preg_match($pattern, $user_ip) ) return false;
 	}
-
-	preg_match_all('|([\n ])([a-z]+?)://([^, <>{}\n\r]+)|i', $comment, $all_links);
-	$number = count($all_links[0]);
-	if ($number >= get_settings('comment_max_links')) return false;
 
 	return true;
 }
