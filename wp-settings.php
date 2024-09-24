@@ -51,7 +51,7 @@ if (!strstr($_SERVER['PHP_SELF'], 'install.php') && !strstr($_SERVER['PHP_SELF']
     //}
     // Used to guarantee unique cookies
     $cookiehash = md5(get_settings('siteurl'));
-
+		define('COOKIEHASH', $cookiehash); 
 } //end !$_wp_installing
 
 require (ABSPATH . WPINC . '/vars.php');

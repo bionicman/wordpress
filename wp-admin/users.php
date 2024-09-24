@@ -31,12 +31,12 @@ case 'adduser':
 		return ereg('^[a-zA-Z0-9\_-\|]+$',$value);
 	}
 
-	$user_login = $_POST['user_login'];
+	$user_login = wp_specialchars($_POST['user_login']);
 	$pass1 = $_POST['pass1'];
 	$pass2 = $_POST['pass2'];
-	$user_email = $_POST['email'];
-	$user_firstname = $_POST['firstname'];
-	$user_lastname = $_POST['lastname'];
+	$user_email = wp_specialchars($_POST['email']);
+	$user_firstname = wp_specialchars($_POST['firstname']);
+	$user_lastname = wp_specialchars($_POST['lastname']);
 		
 	/* checking login has been typed */
 	if ($user_login == '') {

@@ -50,8 +50,8 @@ if (empty($post_status)) $post_status = 'draft';
 ?>
 
 <form name="post" action="post.php" method="post" id="post">
-<input type="hidden" name="user_ID" value="<?php echo $user_ID ?>" />
-<input type="hidden" name="action" value='<?php echo $form_action ?>' />
+<input type="hidden" name="user_ID" value="<?php echo (int) $user_ID ?>" />
+<input type="hidden" name="action" value='<?php echo wp_specialchars($form_action, 1) ?>' />
 <?php echo $form_extra ?>
 <?php if (isset($_GET['message']) && 2 > $_GET['message']) : ?>
 <script type="text/javascript">
@@ -160,7 +160,7 @@ if ('publish' != $post_status || 0 == $post_ID) {
 <?php
 }
 ?>
-	<input name="referredby" type="hidden" id="referredby" value="<?php echo $_SERVER['HTTP_REFERER']; ?>" />
+	<input name="referredby" type="hidden" id="referredby" value="<?php echo wp_specialchars($_SERVER['HTTP_REFERER'], 1); ?>" />
 </p>
 <?php
 if ('' != $pinged) {

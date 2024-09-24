@@ -31,7 +31,7 @@ switch ($action) {
       if ($user_level < get_settings('links_minadminlevel'))
           die (__("Cheatin' uh ?"));
 
-      $cat_name = addslashes($_POST['cat_name']);
+      $cat_name = wp_specialchars(addslashes($_POST['cat_name']));
       $auto_toggle = $_POST['auto_toggle'];
       if ($auto_toggle != 'Y') {
           $auto_toggle = 'N';
@@ -85,7 +85,7 @@ switch ($action) {
     $standalone = 1;
     include_once('admin-header.php');
 
-    $cat_id = $_GET['cat_id'];
+    $cat_id = (int) $_GET['cat_id'];
     $cat_name=get_linkcatname($cat_id);
     $cat_name=addslashes($cat_name);
 
@@ -104,7 +104,7 @@ switch ($action) {
   case 'Edit':
   {
     include_once ('admin-header.php');
-    $cat_id = $_GET['cat_id'];
+    $cat_id = (int) $_GET['cat_id'];
     $row = $wpdb->get_row("SELECT cat_id, cat_name, auto_toggle, show_images, show_description, "
          . " show_rating, show_updated, sort_order, sort_desc, text_before_link, text_after_link, "
          . " text_after_all, list_limit FROM $tablelinkcategories WHERE cat_id=$cat_id");
@@ -122,17 +122,17 @@ switch ($action) {
 </ul>
 
 <div class="wrap">
-  <h2>Edit &#8220;<?php echo $row->cat_name?>&#8221; Category </h2>
+  <h2>Edit &#8220;<?php echo wp_specialchars($row->cat_name); ?>&#8221; Category </h2>
 
   <form name="editcat" method="post">
       <input type="hidden" name="action" value="editedcat" />
-      <input type="hidden" name="cat_id" value="<?php echo $row->cat_id ?>" />
+      <input type="hidden" name="cat_id" value="<?php echo (int) $row->cat_id ?>" />
 <fieldset class="options">
 <legend><?php _e('Category Options') ?></legend>
 <table class="editform" width="100%" cellspacing="2" cellpadding="5">
 <tr>
 	<th width="33%" scope="row"><?php _e('Name:') ?></th>
-	<td width="67%"><input name="cat_name" type="text" value="<?php echo stripslashes($row->cat_name)?>" size="30" /></td>
+	<td width="67%"><input name="cat_name" type="text" value="<?php echo wp_specialchars(stripslashes($row->cat_name), 1)?>" size="30" /></td>
 </tr>
 <tr>
 	<th scope="row"><?php _e('Show:') ?></th>
@@ -221,9 +221,9 @@ switch ($action) {
     $submit=$_POST["submit"];
     if (isset($submit)) {
 
-    $cat_id=$_POST["cat_id"];
+    $cat_id= (int) $_POST["cat_id"];
 
-    $cat_name=addslashes(stripslashes($_POST["cat_name"]));
+    $cat_name= wp_specialchars(addslashes(stripslashes($_POST["cat_name"])));
     $auto_toggle = $_POST["auto_toggle"];
     if ($auto_toggle != 'Y') {
         $auto_toggle = 'N';
@@ -333,7 +333,7 @@ foreach ($results as $row) {
     $style = ($i % 2) ? ' class="alternate"' : '';
 ?>
               <tr valign="middle" align="center" <?php echo $style ?> style="border-bottom: 1px dotted #9C9A9C;">
-                <td><?php echo stripslashes($row->cat_name)?></td>
+                <td><?php echo wp_specialchars(stripslashes($row->cat_name))?></td>
 				<td ><?php echo $row->cat_id?></td>
                 <td><?php echo $row->auto_toggle?></td>
                 <td><?php echo $row->show_images?></td>

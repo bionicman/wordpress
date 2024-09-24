@@ -5,7 +5,7 @@ $title = __('Edit Comments');
 $parent_file = 'edit.php';
 require_once('admin-header.php');
 if (empty($_GET['mode'])) $mode = 'view';
-else $mode = $_GET['mode'];
+else $mode = wp_specialchars($_GET['mode'], 1);
 ?>
 <ul id="adminmenu2">
 	<li><a href="edit.php"><?php _e('Posts') ?></a></li>
@@ -31,7 +31,7 @@ function checkAll(form)
 <form name="searchform" action="" method="get"> 
   <fieldset> 
   <legend><?php _e('Show Comments That Contain...') ?></legend> 
-  <input type="text" name="s" value="<?php if (isset($s)) echo $s; ?>" size="17" /> 
+  <input type="text" name="s" value="<?php if (isset($s)) echo wp_specialchars($s, 1); ?>" size="17" /> 
   <input type="submit" name="submit" value="<?php _e('Search') ?>"  />  
   <input type="hidden" name="mode" value="<?php echo $mode; ?>" />
   <?php _e('(Searches within comment text, email, URI, and IP address.)') ?>
@@ -39,11 +39,11 @@ function checkAll(form)
 </form>
 <p><a href="?mode=view"><?php _e('View Mode') ?></a> | <a href="?mode=edit"><?php _e('Mass Edit Mode') ?></a></p>
 <?php
-if (!empty($delete_comments)) {
+if (!empty($_POST['delete_comments'])) {
 
 	// I had this all as one query but then realized we weren't checking permissions on each comment.
 	$del_comments = ''; $safe_delete_commeents = ''; $i = 0;
-	foreach ($delete_comments as $comment) { // Check the permissions on each
+	foreach ($_POST['delete_comments'] as $comment) { // Check the permissions on each
 		$comment = intval($comment);
 		$post_id = $wpdb->get_var("SELECT comment_post_ID FROM $tablecomments WHERE comment_ID = $comment");
 		$authordata = get_userdata($wpdb->get_var("SELECT post_author FROM $tableposts WHERE ID = $post_id"));

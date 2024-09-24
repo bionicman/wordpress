@@ -20,13 +20,18 @@ function popuplinks($text) {
 	return $text;
 }
 
-function mysql2date($dateformatstring, $mysqlstring, $use_b2configmonthsdays = 1) {
+// patch by Adriaan Tijsseling (http://kung-foo.tv): added an option to return the UTC string
+function mysql2date($dateformatstring, $mysqlstring, $use_b2configmonthsdays = 1, $utc=0) {
 	global $month, $weekday;
 	$m = $mysqlstring;
 	if (empty($m)) {
 		return false;
 	}
 	$i = mktime(substr($m,11,2),substr($m,14,2),substr($m,17,2),substr($m,5,2),substr($m,8,2),substr($m,0,4)); 
+	if ( $utc )
+	{
+        $i -= get_settings('gmt_offset') * 3600;
+	}
 	if (!empty($month) && !empty($weekday) && $use_b2configmonthsdays) {
 		$datemonth = $month[date('m', $i)];
 		$dateweekday = $weekday[date('w', $i)];
@@ -42,6 +47,8 @@ function mysql2date($dateformatstring, $mysqlstring, $use_b2configmonthsdays = 1
 	// for debug purposes
 	//	echo $i." ".$mysqlstring;
 	}
+	if ( $utc )
+	   return $j . 'Z';
 	return $j;
 }
 
@@ -1357,6 +1364,65 @@ function check_comment($author, $email, $url, $comment, $user_ip) {
 
 function wp_head() {
 	do_action('wp_head', '');
+}
+
+function htmlentities2($myHTML) {
+	$translation_table=get_html_translation_table (HTML_ENTITIES,ENT_QUOTES);
+	$translation_table[chr(38)] = '&';
+	return preg_replace("/&(?![A-Za-z]{0,4}\w{2,3};|#[0-9]{2,3};)/","&amp;" , strtr($myHTML, $translation_table));
+}
+
+function wp_mail($to, $subject, $message, $headers = '', $more = '') {
+	if( $headers == '' ) {
+		$headers = "MIME-Version: 1.0\n" .
+			"From: " . $to . " <" . $to . ">\n" .
+			"Content-Type: text/plain; charset=\"" . get_settings('blog_charset') . "\"\n";
+	}
+	if ( function_exists('mb_send_mail') )
+		return mb_send_mail($to, $subject, $message, $headers, $more);
+	else
+		return mail($to, $subject, $message, $headers, $more);
+}
+
+function wp_login($username, $password, $already_md5 = false) {
+	global $wpdb, $error, $tableusers;
+
+	if ( !$username )
+		return false;
+
+	if ( !$password ) {
+		$error = __('<strong>Error</strong>: The password field is empty.');
+		return false;
+	}
+
+	$login = $wpdb->get_row("SELECT ID, user_login, user_pass FROM $tableusers WHERE user_login = '$username'");
+
+	if (!$login) {
+		$error = __('<strong>Error</strong>: Wrong login.');
+		return false;
+	} else {
+		// If the password is already_md5, it has been double hashed.
+		// Otherwise, it is plain text.
+		if ( ($already_md5 && $login->user_login == $username && md5($login->user_pass) == $password) || ($login->user_login == $username && $login->user_pass == md5($password)) ) {
+			return true;
+		} else {
+			$error = __('<strong>Error</strong>: Incorrect password.');
+			$pwd = '';
+			return false;
+		}
+	}
+}
+
+function wp_specialchars( $text, $quotes = 0 ) {
+	// Like htmlspecialchars except don't double-encode HTML entities
+	$text = preg_replace('/&([^#])(?![a-z12]{1,8};)/', '&#038;$1', $text);-
+	$text = str_replace('<', '&lt;', $text);
+	$text = str_replace('>', '&gt;', $text);
+	if ( $quotes ) {
+		$text = str_replace('"', '&quot;', $text);
+		$text = str_replace('"', '&#039;', $text);
+	}
+	return $text;
 }
 
 ?>

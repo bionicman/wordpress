@@ -503,7 +503,7 @@ function upgrade_100() {
 		$wpdb->query("INSERT INTO $tableoptions
 			(option_id, blog_id, option_name, option_can_override, option_type, option_value, option_width, option_height, option_description, option_admin_level)
 			VALUES 
-			('0', '0', 'comment_moderation', 'Y', '5',' none', 20, 8, 'If enabled, comments will only be shown after they have been approved.', 8)");
+			('0', '0', 'comment_moderation', 'Y', '5','1', 20, 8, 'If enabled, comments will only be shown after they have been approved.', 8)");
 	}
 
 	$oid = $wpdb->get_var("SELECT option_id FROM $tableoptions WHERE option_name = 'comment_moderation'");	    

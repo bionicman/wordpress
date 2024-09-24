@@ -56,8 +56,8 @@ for ($i=0; $i<count($wpvarstoreset); $i += 1) {
         }
     }
 }
-$link_url = stripslashes($_GET['linkurl']);
-$link_name = htmlentities(stripslashes(urldecode($_GET['name'])));
+$link_url = wp_specialchars(stripslashes($_GET['linkurl']), 1);
+$link_name = wp_specialchars(stripslashes(urldecode($_GET['name'])), 1);
 
 
 $xfn = true;
@@ -83,11 +83,11 @@ th { text-align: right; }
         <table class="editform" width="100%" cellspacing="2" cellpadding="5">
          <tr>
            <th width="33%" scope="row"><?php _e('URI:') ?></th>
-           <td width="67%"><input type="text" name="linkurl" value="<?php echo $_GET['linkurl']; ?>" style="width: 95%; /"></td>
+           <td width="67%"><input type="text" name="linkurl" value="<?php echo $link_url; ?>" style="width: 95%; /"></td>
          </tr>
          <tr>
            <th scope="row"><?php _e('Link Name:') ?></th>
-           <td><input type="text" name="name" value="<?php echo urldecode($_GET['name']); ?>" style="width: 95%" /></td>
+           <td><input type="text" name="name" value="<?php echo $link_name; ?>" style="width: 95%" /></td>
          </tr>
          <tr>
          	<th scope="row"><?php _e('Short description:') ?></th>
