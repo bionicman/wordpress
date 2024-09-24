@@ -745,31 +745,27 @@ function posts_nav_link($sep=' &#8212; ', $prelabel='&laquo; Previous Page', $nx
 
 function get_shortcut_link() {
 	$link = "javascript:
-			var d=document;
-			var w=window;
-			var e=w.getSelection;
-			var k=d.getSelection;
-			var x=d.selection;
-			var s=(e?e():(k)?k():(x?x.createRange().text:0));
-			var f='" . admin_url('press-this.php') . "';
-			var l=d.location;
-			var e=encodeURIComponent;
-			var u= '?u=' + e(l.href);
-			var t= '&t=' + e(d.title);
-			var s= '&s=' + e(s);
-			var v='&v=1';
-			var g= f+u+t+s+v;
+			var d=document,
+			w=window,
+			e=w.getSelection,
+			k=d.getSelection,
+			x=d.selection,
+			s=(e?e():(k)?k():(x?x.createRange().text:0)),
+			f='" . admin_url('press-this.php') . "',
+			l=d.location,
+			e=encodeURIComponent,
+			g=f+'?u='+e(l.href)+'&t='+e(d.title)+'&s='+e(s)+'&v=2';
 			function a(){
 				if(!w.open(g,'t','toolbar=0,resizable=0,scrollbars=1,status=1,width=700,height=500')){
 					l.href=g;
 				}
-			}
-			if(/Firefox/.test(navigator.userAgent)){
-				setTimeout(a,0);
-			}else{
-				a();
-			}
-			void(0);";
+			}";
+			if (strpos($_SERVER['HTTP_USER_AGENT'], 'Firefox') !== false)
+				$link .= 'setTimeout(a,0);';
+			else
+				$link .= 'a();';
+
+			$link .= "void(0);";
 
 	$link = str_replace(array("\r", "\n", "\t"),  '', $link);
 
@@ -800,8 +796,6 @@ function site_url($path = '', $scheme = null) {
 }
 
 function admin_url($path = '') {
-	global $_wp_admin_url;
-
 	$url = site_url('wp-admin/', 'admin');
 
 	if ( !empty($path) && is_string($path) && strpos($path, '..') === false )
@@ -811,12 +805,24 @@ function admin_url($path = '') {
 }
 
 function includes_url($path = '') {
-	global $_wp_includes_url;
-
 	$url = site_url() . '/' . WPINC . '/';
 
 	if ( !empty($path) && is_string($path) && strpos($path, '..') === false )
 		$url .= ltrim($path, '/');
+
+	return $url;
+}
+
+function content_url($path = '') {
+	$scheme = ( is_ssl() ? 'https' : 'http' );
+	$url = WP_CONTENT_URL;
+	if ( 0 === strpos($url, 'http') ) {
+		if ( is_ssl() )
+			$url = str_replace( 'http://', "{$scheme}://", $url );
+	}
+
+	if ( !empty($path) && is_string($path) && strpos($path, '..') === false )
+		$url .= '/' . ltrim($path, '/');
 
 	return $url;
 }
