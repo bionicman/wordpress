@@ -144,7 +144,7 @@ final class _WP_Editors {
 	 * @static
 	 * @param string $content The initial content of the editor.
 	 * @param string $editor_id ID for the textarea and TinyMCE and Quicktags instances (can contain only ASCII letters and numbers).
-	 * @param array $settings See the _parse_settings() method for description.
+	 * @param array $settings See _WP_Editors()::parse_settings() for description.
 	 */
 	public static function editor( $content, $editor_id, $settings = array() ) {
 		$set = self::parse_settings( $editor_id, $settings );
@@ -179,7 +179,7 @@ final class _WP_Editors {
 				}
 
 				$buttons .= '<button type="button" id="' . $editor_id_attr . '-tmce" class="wp-switch-editor switch-tmce"' .
-					' data-wp-editor-id="' . $editor_id_attr . '">' . __('Visual') . "</button>\n";
+					' data-wp-editor-id="' . $editor_id_attr . '">' . _x( 'Visual', 'Name for the Visual editor tab' ) . "</button>\n";
 				$buttons .= '<button type="button" id="' . $editor_id_attr . '-html" class="wp-switch-editor switch-html"' .
 					' data-wp-editor-id="' . $editor_id_attr . '">' . _x( 'Text', 'Name for the Text editor tab (formerly HTML)' ) . "</button>\n";
 			} else {
@@ -928,6 +928,8 @@ final class _WP_Editors {
 	 * Returns the default TinyMCE settings.
 	 * Doesn't include plugins, buttons, editor selector.
 	 *
+	 * @global string $tinymce_version
+	 *
 	 * @return array
 	 */
 	private static function default_settings() {
@@ -1255,8 +1257,8 @@ final class _WP_Editors {
 			'Paste URL or type to search' => __( 'Paste URL or type to search' ), // Placeholder for the inline link dialog
 			'Apply'  => __( 'Apply' ), // Tooltip for the 'apply' button in the inline link dialog
 			'Link options'  => __( 'Link options' ), // Tooltip for the 'link options' button in the inline link dialog
-			'Visual' => __( 'Visual' ), // Editor switch tab label
-			'Text' => __( 'Text' ), // Editor switch tab label
+			'Visual' => _x( 'Visual', 'Name for the Visual editor tab' ), // Editor switch tab label
+			'Text' => _x( 'Text', 'Name for the Text editor tab (formerly HTML)' ), // Editor switch tab label
 
 			// Shortcuts help modal
 			'Keyboard Shortcuts' => array( __( 'Keyboard Shortcuts' ), 'accessH' ),
@@ -1372,7 +1374,7 @@ final class _WP_Editors {
 	/**
 	 * Print (output) the main TinyMCE scripts.
 	 *
-	 * @since 4.8
+	 * @since 4.8.0
 	 *
 	 * @static
 	 * @global string $tinymce_version
@@ -1416,6 +1418,7 @@ final class _WP_Editors {
 	 * Print (output) the TinyMCE configuration and initialization scripts.
 	 *
 	 * @static
+	 * @global string $tinymce_version
 	 */
 	public static function editor_js() {
 		global $tinymce_version;
@@ -1564,9 +1567,12 @@ final class _WP_Editors {
 	}
 
 	/**
+	 * Outputs the HTML for distraction-free writing mode.
+	 *
+	 * @since 3.2.0
+	 * @deprecated 4.3.0
 	 *
 	 * @static
-	 * @global int $content_width
 	 */
 	public static function wp_fullscreen_html() {
 		_deprecated_function( __FUNCTION__, '4.3.0' );
@@ -1617,9 +1623,6 @@ final class _WP_Editors {
 		// Do main query.
 		$get_posts = new WP_Query;
 		$posts = $get_posts->query( $query );
-		// Check if any posts were found.
-		if ( ! $get_posts->post_count )
-			return false;
 
 		// Build results.
 		$results = array();
@@ -1659,7 +1662,9 @@ final class _WP_Editors {
 		 * }
 		 * @param array $query  An array of WP_Query arguments.
 		 */
-		return apply_filters( 'wp_link_query', $results, $query );
+		$results = apply_filters( 'wp_link_query', $results, $query );
+
+		return ! empty( $results ) ? $results : false;
 	}
 
 	/**

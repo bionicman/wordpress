@@ -436,48 +436,24 @@ function set_screen_options() {
 					return;
 				break;
 			default:
-				$screen_option = false;
-
-				if ( '_page' === substr( $option, -5 ) || 'layout_columns' === $option ) {
-					/**
-					 * Filters a screen option value before it is set.
-					 *
-					 * The filter can also be used to modify non-standard [items]_per_page
-					 * settings. See the parent function for a full list of standard options.
-					 *
-					 * Returning false to the filter will skip saving the current option.
-					 *
-					 * @since 2.8.0
-					 * @since 5.4.2 Only applied to options ending with '_page',
-					 *              or the 'layout_columns' option.
-					 *
-					 * @see set_screen_options()
-					 *
-					 * @param mixed  $screen_option The value to save instead of the option value.
-					 *                              Default false (to skip saving the current option).
-					 * @param string $option        The option name.
-					 * @param int    $value         The option value.
-					 */
-					$screen_option = apply_filters( 'set-screen-option', $screen_option, $option, $value ); // phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores
-				}
 
 				/**
 				 * Filters a screen option value before it is set.
 				 *
-				 * The dynamic portion of the hook, `$option`, refers to the option name.
+				 * The filter can also be used to modify non-standard [items]_per_page
+				 * settings. See the parent function for a full list of standard options.
 				 *
 				 * Returning false to the filter will skip saving the current option.
 				 *
-				 * @since 5.4.2
+				 * @since 2.8.0
 				 *
 				 * @see set_screen_options()
 				 *
-				 * @param mixed   $screen_option The value to save instead of the option value.
-				 *                               Default false (to skip saving the current option).
-				 * @param string  $option        The option name.
-				 * @param int     $value         The option value.
+				 * @param bool|int $value  Screen option value. Default false to skip.
+				 * @param string   $option The option name.
+				 * @param int      $value  The number of rows to use.
 				 */
-				$value = apply_filters( "set_screen_option_{$option}", $screen_option, $option, $value );
+				$value = apply_filters( 'set-screen-option', false, $option, $value );
 
 				if ( false === $value )
 					return;
@@ -944,6 +920,27 @@ function wp_admin_canonical_url() {
 }
 
 /**
+ * Send a referrer policy header so referrers are not sent externally from administration screens.
+ *
+ * @since 4.9.0
+ */
+function wp_admin_headers() {
+	$policy = 'same-origin';
+
+	/**
+	 * Filters the admin referrer policy header value. Default 'same-origin'.
+	 *
+	 * @since 4.9.0
+	 * @link https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy
+	 *
+	 * @param string $policy The referrer policy header value.
+	 */
+	$policy = apply_filters( 'admin_referrer_policy', $policy );
+
+	header( sprintf( 'Referrer-Policy: %s', $policy ) );
+}
+
+/**
  * Outputs JS that reloads the page if the user navigated to it with the Back or Forward button.
  *
  * Used on the Edit Post and Add New Post screens. Needed to ensure the page is not loaded from browser cache,
@@ -959,4 +956,84 @@ function wp_page_reload_on_back_button_js() {
 		}
 	</script>
 	<?php
+}
+
+/**
+ * Send a confirmation request email when a change of site admin email address is attempted.
+ *
+ * The new site admin address will not become active until confirmed.
+ *
+ * @since 3.0.0
+ * @since 4.9.0 This function was moved from wp-admin/includes/ms.php so it's no longer Multisite specific.
+ *
+ * @param string $old_value The old site admin email address.
+ * @param string $value     The proposed new site admin email address.
+ */
+function update_option_new_admin_email( $old_value, $value ) {
+	if ( $value == get_option( 'admin_email' ) || ! is_email( $value ) ) {
+		return;
+	}
+
+	$hash = md5( $value . time() . mt_rand() );
+	$new_admin_email = array(
+		'hash'     => $hash,
+		'newemail' => $value,
+	);
+	update_option( 'adminhash', $new_admin_email );
+
+	$switched_locale = switch_to_locale( get_user_locale() );
+
+	/* translators: Do not translate USERNAME, ADMIN_URL, EMAIL, SITENAME, SITEURL: those are placeholders. */
+	$email_text = __( 'Howdy ###USERNAME###,
+
+You recently requested to have the administration email address on
+your site changed.
+
+If this is correct, please click on the following link to change it:
+###ADMIN_URL###
+
+You can safely ignore and delete this email if you do not want to
+take this action.
+
+This email has been sent to ###EMAIL###
+
+Regards,
+All at ###SITENAME###
+###SITEURL###' );
+
+	/**
+	 * Filters the text of the email sent when a change of site admin email address is attempted.
+	 *
+	 * The following strings have a special meaning and will get replaced dynamically:
+	 * ###USERNAME###  The current user's username.
+	 * ###ADMIN_URL### The link to click on to confirm the email change.
+	 * ###EMAIL###     The proposed new site admin email address.
+	 * ###SITENAME###  The name of the site.
+	 * ###SITEURL###   The URL to the site.
+	 *
+	 * @since MU (3.0.0)
+	 * @since 4.9.0 This filter is no longer Multisite specific.
+	 *
+	 * @param string $email_text      Text in the email.
+	 * @param array  $new_admin_email {
+	 *     Data relating to the new site admin email address.
+	 *
+	 *     @type string $hash     The secure hash used in the confirmation link URL.
+	 *     @type string $newemail The proposed new site admin email address.
+	 * }
+	 */
+	$content = apply_filters( 'new_admin_email_content', $email_text, $new_admin_email );
+
+	$current_user = wp_get_current_user();
+	$content = str_replace( '###USERNAME###', $current_user->user_login, $content );
+	$content = str_replace( '###ADMIN_URL###', esc_url( self_admin_url( 'options.php?adminhash=' . $hash ) ), $content );
+	$content = str_replace( '###EMAIL###', $value, $content );
+	$content = str_replace( '###SITENAME###', wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES ), $content );
+	$content = str_replace( '###SITEURL###', home_url(), $content );
+
+	wp_mail( $value, sprintf( __( '[%s] New Admin Email Address' ), wp_specialchars_decode( get_option( 'blogname' ), ENT_QUOTES ) ), $content );
+
+	if ( $switched_locale ) {
+		restore_previous_locale();
+	}
 }

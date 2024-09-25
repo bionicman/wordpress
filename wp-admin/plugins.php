@@ -29,8 +29,9 @@ if ( $action ) {
 
 	switch ( $action ) {
 		case 'activate':
-			if ( ! current_user_can('activate_plugins') )
-				wp_die(__('Sorry, you are not allowed to activate plugins for this site.'));
+			if ( ! current_user_can( 'activate_plugin', $plugin ) ) {
+				wp_die( __( 'Sorry, you are not allowed to activate this plugin.' ) );
+			}
 
 			if ( is_multisite() && ! is_network_admin() && is_network_only_plugin( $plugin ) ) {
 				wp_redirect( self_admin_url("plugins.php?plugin_status=$status&paged=$page&s=$s") );
@@ -62,6 +63,8 @@ if ( $action ) {
 
 			if ( isset($_GET['from']) && 'import' == $_GET['from'] ) {
 				wp_redirect( self_admin_url("import.php?import=" . str_replace('-importer', '', dirname($plugin))) ); // overrides the ?error=true one above and redirects to the Imports page, stripping the -importer suffix
+			} else if ( isset($_GET['from']) && 'press-this' == $_GET['from'] ) {
+				wp_redirect( self_admin_url( "press-this.php") );
 			} else {
 				wp_redirect( self_admin_url("plugins.php?activate=true&plugin_status=$status&paged=$page&s=$s") ); // overrides the ?error=true one above
 			}
@@ -86,6 +89,10 @@ if ( $action ) {
 				foreach ( $plugins as $i => $plugin ) {
 					// Only activate plugins which are not already active and are not network-only when on Multisite.
 					if ( is_plugin_active( $plugin ) || ( is_multisite() && is_network_only_plugin( $plugin ) ) ) {
+						unset( $plugins[ $i ] );
+					}
+					// Only activate plugins which the user can activate.
+					if ( ! current_user_can( 'activate_plugin', $plugin ) ) {
 						unset( $plugins[ $i ] );
 					}
 				}
@@ -146,8 +153,9 @@ if ( $action ) {
 			exit;
 
 		case 'error_scrape':
-			if ( ! current_user_can('activate_plugins') )
-				wp_die(__('Sorry, you are not allowed to activate plugins for this site.'));
+			if ( ! current_user_can( 'activate_plugin', $plugin ) ) {
+				wp_die( __( 'Sorry, you are not allowed to activate this plugin.' ) );
+			}
 
 			check_admin_referer('plugin-activation-error_' . $plugin);
 
@@ -167,8 +175,9 @@ if ( $action ) {
 			exit;
 
 		case 'deactivate':
-			if ( ! current_user_can('activate_plugins') )
-				wp_die(__('Sorry, you are not allowed to deactivate plugins for this site.'));
+			if ( ! current_user_can( 'deactivate_plugin', $plugin ) ) {
+				wp_die( __( 'Sorry, you are not allowed to deactivate this plugin.' ) );
+			}
 
 			check_admin_referer('deactivate-plugin_' . $plugin);
 
@@ -192,8 +201,9 @@ if ( $action ) {
 			exit;
 
 		case 'deactivate-selected':
-			if ( ! current_user_can('activate_plugins') )
+			if ( ! current_user_can( 'deactivate_plugins' ) ) {
 				wp_die(__('Sorry, you are not allowed to deactivate plugins for this site.'));
+			}
 
 			check_admin_referer('bulk-plugins');
 
@@ -204,6 +214,14 @@ if ( $action ) {
 			} else {
 				$plugins = array_filter( $plugins, 'is_plugin_active' );
 				$plugins = array_diff( $plugins, array_filter( $plugins, 'is_plugin_active_for_network' ) );
+
+				foreach ( $plugins as $i => $plugin ) {
+					// Only deactivate plugins which the user can deactivate.
+					if ( ! current_user_can( 'deactivate_plugin', $plugin ) ) {
+						unset( $plugins[ $i ] );
+					}
+				}
+
 			}
 			if ( empty($plugins) ) {
 				wp_redirect( self_admin_url("plugins.php?plugin_status=$status&paged=$page&s=$s") );
@@ -437,7 +455,7 @@ if ( ! empty( $invalid ) ) {
 			/* translators: 1: plugin file 2: error message */
 			__( 'The plugin %1$s has been <strong>deactivated</strong> due to an error: %2$s' ),
 			'<code>' . esc_html( $plugin_file ) . '</code>',
-			esc_html( $error->get_error_message() ) );
+			$error->get_error_message() );
 		echo '</p></div>';
 	}
 }
@@ -472,7 +490,7 @@ if ( ! empty( $invalid ) ) {
 		delete_transient( 'plugins_delete_result_' . $user_ID );
 
 		if ( is_wp_error($delete_result) ) : ?>
-		<div id="message" class="error notice is-dismissible"><p><?php printf( __('Plugin could not be deleted due to an error: %s'), esc_html( $delete_result->get_error_message() ) ); ?></p></div>
+		<div id="message" class="error notice is-dismissible"><p><?php printf( __('Plugin could not be deleted due to an error: %s'), $delete_result->get_error_message() ); ?></p></div>
 		<?php else : ?>
 		<div id="message" class="updated notice is-dismissible">
 			<p>

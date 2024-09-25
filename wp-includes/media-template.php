@@ -1009,7 +1009,7 @@ function wp_print_media_templates() {
 								</div>
 								<label class="setting link-rel">
 									<span><?php _e('Link Rel'); ?></span>
-									<input type="text" data-setting="linkRel" value="{{ data.model.linkClassName }}" />
+									<input type="text" data-setting="linkRel" value="{{ data.model.linkRel }}" />
 								</label>
 								<label class="setting link-class-name">
 									<span><?php _e('Link CSS Class'); ?></span>
@@ -1252,7 +1252,7 @@ function wp_print_media_templates() {
 			<div class="favicon">
 				<img id="preview-favicon" src="{{ data.url }}" alt="<?php esc_attr_e( 'Preview as a browser icon' ); ?>"/>
 			</div>
-			<span class="browser-title" aria-hidden="true"><?php echo esc_js( get_bloginfo( 'name' ) ); ?></span>
+			<span class="browser-title" aria-hidden="true"><?php bloginfo( 'name' ); ?></span>
 		</div>
 
 		<strong aria-hidden="true"><?php _e( 'As an app icon' ); ?></strong>

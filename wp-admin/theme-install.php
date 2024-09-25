@@ -58,8 +58,9 @@ wp_localize_script( 'theme', '_wpThemeSettings', array(
 			__( 'An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="%s">support forums</a>.' ),
 			__( 'https://wordpress.org/support/' )
 		),
+		'tryAgain'            => __( 'Try Again' ),
 		'themesFound'         => __( 'Number of Themes found: %d' ),
-		'noThemesFound'       => __( 'No themes found. Try a different search.' ),
+		'noThemesFound'       => __( 'No themes found. Try a different search query.' ),
 		'collapseSidebar'     => __( 'Collapse Sidebar' ),
 		'expandSidebar'       => __( 'Expand Sidebar' ),
 		/* translators: accessibility text */
@@ -76,7 +77,7 @@ if ( $tab ) {
 	 * Fires before each of the tabs are rendered on the Install Themes page.
 	 *
 	 * The dynamic portion of the hook name, `$tab`, refers to the current
-	 * theme install tab. Possible values are 'dashboard', 'search', 'upload',
+	 * theme installation tab. Possible values are 'dashboard', 'search', 'upload',
 	 * 'featured', 'new', or 'updated'.
 	 *
 	 * @since 2.8.0
@@ -227,7 +228,7 @@ include(ABSPATH . 'wp-admin/admin-header.php');
 	<div class="theme-browser content-filterable"></div>
 	<div class="theme-install-overlay wp-full-overlay expanded"></div>
 
-	<p class="no-themes"><?php _e( 'No themes found. Try a different search.' ); ?></p>
+	<p class="no-themes"><?php _e( 'No themes found. Try a different search query.' ); ?></p>
 	<span class="spinner"></span>
 
 <?php
@@ -236,7 +237,7 @@ if ( $tab ) {
 	 * Fires at the top of each of the tabs on the Install Themes page.
 	 *
 	 * The dynamic portion of the hook name, `$tab`, refers to the current
-	 * theme install tab. Possible values are 'dashboard', 'search', 'upload',
+	 * theme installation tab. Possible values are 'dashboard', 'search', 'upload',
 	 * 'featured', 'new', or 'updated'.
 	 *
 	 * @since 2.8.0
