@@ -53,7 +53,6 @@ html:lang(he-il) .rtl #wpadminbar *  {
 #wpadminbar a:hover,
 #wpadminbar a img,
 #wpadminbar a img:hover {
-	outline: none;
 	border: none;
 	text-decoration: none;
 	background: none;
@@ -71,7 +70,11 @@ html:lang(he-il) .rtl #wpadminbar *  {
 #wpadminbar textarea,
 #wpadminbar div {
 	box-shadow: none;
-	outline: none;
+}
+
+#wpadminbar a:focus {
+	/* Inherits transparent outline only visible in Windows High Contrast mode */
+	outline-offset: -1px;
 }
 
 #wpadminbar {
@@ -657,7 +660,7 @@ html:lang(he-il) .rtl #wpadminbar *  {
 
 #wpadminbar.ie8 > #wp-toolbar > #wp-admin-bar-top-secondary > #wp-admin-bar-search #adminbarsearch input.adminbar-input {
 	/* IE8 z-index bug with transparent / empty elements - fill in with an encoded transparent GIF */
-	background: transparent 100% 0 repeat scroll url("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBR‌​AA7");
+	background: transparent 100% 0 repeat scroll url("data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7");
 }
 
 /* IE8 doesn't redraw the pseudo elements unless you make a change to the content */

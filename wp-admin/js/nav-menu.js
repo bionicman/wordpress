@@ -6,17 +6,21 @@
  *
  * @package WordPress
  * @subpackage Administration
+ * @output wp-admin/js/nav-menu.js
  */
 
-/* global menus, postboxes, columns, isRtl, navMenuL10n, ajaxurl */
-
-var wpNavMenu;
+/* global menus, postboxes, columns, isRtl, navMenuL10n, ajaxurl, wpNavMenu */
 
 (function($) {
 
 	var api;
 
-	api = wpNavMenu = {
+	/**
+	 * Contains all the functions to handle WordPress navigation menus administration.
+	 *
+	 * @namespace wpNavMenu
+	 */
+	api = window.wpNavMenu = {
 
 		options : {
 			menuItemDepthPerLevel : 30, // Do not use directly. Use depthToPx and pxToDepth instead.
@@ -166,6 +170,8 @@ var wpNavMenu;
 				},
 				/**
 				 * Adds selected menu items to the menu.
+				 *
+				 * @ignore
 				 *
 				 * @param jQuery metabox The metabox jQuery object.
 				 */
@@ -867,26 +873,14 @@ var wpNavMenu;
 		},
 
 		attachQuickSearchListeners : function() {
-			var searchTimer,
-				inputEvent;
+			var searchTimer;
 
 			// Prevent form submission.
 			$( '#nav-menu-meta' ).on( 'submit', function( event ) {
 				event.preventDefault();
 			});
 
-			/*
-			 * Use feature detection to determine whether inputs should use
-			 * the `keyup` or `input` event. Input is preferred but lacks support
-			 * in legacy browsers. See changeset 34078, see also ticket #26600#comment:59
-			 */
-			if ( 'oninput' in document.createElement( 'input' ) ) {
-				inputEvent = 'input';
-			} else {
-				inputEvent = 'keyup';
-			}
-
-			$( '#nav-menu-meta' ).on( inputEvent, '.quick-search', function() {
+			$( '#nav-menu-meta' ).on( 'input', '.quick-search', function() {
 				var $this = $( this );
 
 				$this.attr( 'autocomplete', 'off' );
