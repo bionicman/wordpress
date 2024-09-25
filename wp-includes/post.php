@@ -1069,7 +1069,7 @@ function unregister_post_type( $post_type ) {
 	global $wp_post_types;
 
 	if ( ! post_type_exists( $post_type ) ) {
-		return new WP_Error( 'invalid_post_type', __( 'Invalid post type' ) );
+		return new WP_Error( 'invalid_post_type', __( 'Invalid post type.' ) );
 	}
 
 	$post_type_object = get_post_type_object( $post_type );
@@ -3260,6 +3260,16 @@ function wp_insert_post( $postarr, $wp_error = false ) {
 		}
 	}
 
+	// Set or remove featured image.
+	if ( isset( $postarr['_thumbnail_id'] ) && ( post_type_supports( $post_type, 'thumbnail' ) || 'revision' === $post_type ) ) {
+		$thumbnail_id = intval( $postarr['_thumbnail_id'] );
+		if ( -1 === $thumbnail_id ) {
+			delete_post_thumbnail( $post_ID );
+		} else {
+			set_post_thumbnail( $post_ID, $thumbnail_id );
+		}
+	}
+
 	if ( ! empty( $postarr['meta_input'] ) ) {
 		foreach ( $postarr['meta_input'] as $field => $value ) {
 			update_post_meta( $post_ID, $field, $value );
@@ -5042,12 +5052,12 @@ function wp_get_attachment_thumb_url( $post_id = 0 ) {
  *
  * @since 4.2.0
  *
- * @param string      $type    Attachment type. Accepts 'image', 'audio', or 'video'.
- * @param int|WP_Post $post_id Optional. Attachment ID. Default 0.
+ * @param string      $type Attachment type. Accepts 'image', 'audio', or 'video'.
+ * @param int|WP_Post $post Optional. Attachment ID or object. Default is global $post.
  * @return bool True if one of the accepted types, false otherwise.
  */
-function wp_attachment_is( $type, $post_id = 0 ) {
-	if ( ! $post = get_post( $post_id ) ) {
+function wp_attachment_is( $type, $post = null ) {
+	if ( ! $post = get_post( $post ) ) {
 		return false;
 	}
 
@@ -5093,10 +5103,10 @@ function wp_attachment_is( $type, $post_id = 0 ) {
  * @since 4.2.0 Modified into wrapper for wp_attachment_is() and
  *              allowed WP_Post object to be passed.
  *
- * @param int|WP_Post $post Optional. Attachment ID. Default 0.
+ * @param int|WP_Post $post Optional. Attachment ID or object. Default is global $post.
  * @return bool Whether the attachment is an image.
  */
-function wp_attachment_is_image( $post = 0 ) {
+function wp_attachment_is_image( $post = null ) {
 	return wp_attachment_is( 'image', $post );
 }
 
