@@ -27,16 +27,13 @@ wp_enqueue_style( 'customize-controls' );
 
 do_action( 'customize_controls_enqueue_scripts' );
 
-$theme = wp_get_theme();
-$screenshot = $theme->get_screenshot();
-
 // Let's roll.
 @header('Content-Type: ' . get_option('html_type') . '; charset=' . get_option('blog_charset'));
 
 wp_user_settings();
 _wp_admin_html_begin();
 
-$admin_title = sprintf( __( '%1$s &#8212; WordPress' ), strip_tags( sprintf( __( 'Customize %s' ), $theme['Name'] ) ) );
+$admin_title = sprintf( __( '%1$s &#8212; WordPress' ), strip_tags( sprintf( __( 'Customize %s' ), $this->theme->display('Name') ) ) );
 ?><title><?php echo $admin_title; ?></title><?php
 
 do_action( 'customize_controls_print_styles' );
@@ -47,23 +44,25 @@ do_action( 'customize_controls_print_scripts' );
 	<form id="customize-controls" method="post" class="wrap wp-full-overlay-sidebar" target="_parent" action="<?php echo esc_url( add_query_arg( 'save_customize_controls', '1', admin_url( 'themes.php' ) ) ); ?>">
 		<?php wp_nonce_field( 'customize_controls' ); ?>
 		<input type="hidden" name="customize" value="on" />
-		<input type="hidden" id="customize-template" name="template" value="<?php echo esc_attr( $theme['Template'] ); ?>" />
-		<input type="hidden" id="customize-stylesheet" name="stylesheet" value="<?php echo esc_attr( $theme['Stylesheet'] ); ?>" />
-
-		<div id="customize-header-actions" class="customize-section wp-full-overlay-header">&nbsp;</div>
+		<input type="hidden" name="theme" value="<?php echo esc_attr( $this->get_stylesheet() ); ?>" />
+		<div id="customize-header-actions" class="customize-section wp-full-overlay-header">
+			<a class="back" href="<?php echo esc_url( admin_url( 'themes.php' ) ); ?>">
+				<?php printf( __( '&larr; Return to %s' ), __('Manage Themes') ); ?>
+			</a>
+		</div>
 
 		<div id="customize-info" class="customize-section">
 			<div class="customize-section-title">
 				<span class="preview-notice"><?php _e('You are previewing'); ?></span>
-				<strong class="theme-name"><?php echo $theme['Name']; ?></strong>
+				<strong class="theme-name"><?php echo $this->theme->display('Name'); ?></strong>
 			</div>
 			<div class="customize-section-content">
-				<?php if ( $screenshot ) : ?>
+				<?php if ( $screenshot = $this->theme->get_screenshot() ) : ?>
 					<img class="theme-screenshot" src="<?php echo esc_url( $screenshot ); ?>" />
 				<?php endif; ?>
 
-				<?php if ( $theme->description ): ?>
-					<div class="theme-description"><?php echo $theme->description; ?></div>
+				<?php if ( $this->theme->get('Description') ): ?>
+					<div class="theme-description"><?php echo $this->theme->display('Description'); ?></div>
 				<?php endif; ?>
 			</div>
 		</div>
@@ -77,8 +76,13 @@ do_action( 'customize_controls_print_scripts' );
 
 		<div id="customize-footer-actions" class="customize-section wp-full-overlay-footer">
 			<?php
-			submit_button( __( 'Save' ), 'primary', 'save', false );
+			$save_text = $this->get_stylesheet() == $this->original_stylesheet ? __('Save') : __('Save and Activate');
+			submit_button( $save_text, 'primary', 'save', false );
 			?>
+			<a href="#" class="collapse-sidebar button-secondary" title="<?php esc_attr_e('Collapse Sidebar'); ?>">
+				<span class="collapse-sidebar-label"><?php _e('Collapse'); ?></span>
+				<span class="collapse-sidebar-arrow"></span>
+			</a>
 		</div>
 	</form>
 	<div id="customize-preview" class="wp-full-overlay-main">
@@ -95,6 +99,7 @@ do_action( 'customize_controls_print_scripts' );
 		'settings' => array(),
 		'controls' => array(),
 		'prefix'   => WP_Customize_Setting::name_prefix,
+		'parent'   => esc_url( admin_url() ),
 	);
 
 	foreach ( $this->settings as $id => $setting ) {

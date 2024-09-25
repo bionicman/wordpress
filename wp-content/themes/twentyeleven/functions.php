@@ -79,11 +79,6 @@ function twentyeleven_setup() {
 	 */
 	load_theme_textdomain( 'twentyeleven', get_template_directory() . '/languages' );
 
-	$locale = get_locale();
-	$locale_file = get_template_directory() . "/languages/$locale.php";
-	if ( is_readable( $locale_file ) )
-		require_once( $locale_file );
-
 	// This theme styles the visual editor with editor-style.css to match the theme style.
 	add_editor_style();
 
@@ -115,6 +110,8 @@ function twentyeleven_setup() {
 		// The height and width of our custom header.
 		'width' => apply_filters( 'twentyeleven_header_image_width', 1000 ),
 		'height' => apply_filters( 'twentyeleven_header_image_height', 288 ),
+		// Support flexible heights.
+		'flex-height' => true,
 		// Random image rotation by default.
 		'random-default' => true,
 		// Callback for styling the header.

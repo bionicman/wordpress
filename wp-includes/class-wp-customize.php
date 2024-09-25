@@ -8,8 +8,9 @@
  */
 
 final class WP_Customize {
-	protected $template;
-	protected $stylesheet;
+	protected $theme;
+	protected $original_stylesheet;
+
 	protected $previewing = false;
 
 	protected $settings = array();
@@ -26,11 +27,10 @@ final class WP_Customize {
 		require( ABSPATH . WPINC . '/class-wp-customize-section.php' );
 		require( ABSPATH . WPINC . '/class-wp-customize-control.php' );
 
-		add_action( 'setup_theme',  array( $this, 'setup_theme' ) );
+		add_action( 'setup_theme',  array( $this, 'customize_previewing' ) );
 		add_action( 'admin_init',   array( $this, 'admin_init' ) );
 		add_action( 'wp_loaded',    array( $this, 'wp_loaded' ) );
 
-		add_action( 'customize_previewing',               array( $this, 'customize_previewing' ) );
 		add_action( 'customize_register',                 array( $this, 'register_controls' ) );
 		add_action( 'customize_controls_init',            array( $this, 'prepare_controls' ) );
 		add_action( 'customize_controls_enqueue_scripts', array( $this, 'enqueue_control_scripts' ) );
@@ -56,30 +56,23 @@ final class WP_Customize {
 
 	/**
 	 * Start preview and customize theme.
-	 * Check if customize query variable exist.
 	 *
-	 * @since 3.4.0
-	 */
-	public function setup_theme() {
-		if ( ! isset( $_REQUEST['customize'] ) || 'on' != $_REQUEST['customize'] )
-			return;
-
-		if ( ! $this->set_stylesheet() || isset( $_REQUEST['save_customize_controls'] ) )
-			return;
-
-		$this->previewing = true;
-		do_action( 'customize_previewing' );
-	}
-
-	/**
-	 * Init filters to filter theme options.
+	 * Check if customize query variable exist. Init filters to filter the current theme.
 	 *
 	 * @since 3.4.0
 	 */
 	public function customize_previewing() {
-		global $wp_theme_directories;
+		if ( ! isset( $_REQUEST['customize'] ) || 'on' != $_REQUEST['customize'] )
+			return;
+
+		if ( ! $this->set_theme() || isset( $_REQUEST['save_customize_controls'] ) )
+			return;
+
+		$this->previewing = true;
 
 		show_admin_bar( false );
+
+		$this->original_stylesheet = get_stylesheet();
 
 		add_filter( 'template', array( $this, 'get_template' ) );
 		add_filter( 'stylesheet', array( $this, 'get_stylesheet' ) );
@@ -90,10 +83,10 @@ final class WP_Customize {
 		add_filter( 'pre_option_template', array( $this, 'get_template' ) );
 
 		// Handle custom theme roots.
-		if ( count( $wp_theme_directories ) > 1 ) {
-			add_filter( 'pre_option_stylesheet_root', array( $this, 'get_stylesheet_root' ) );
-			add_filter( 'pre_option_template_root', array( $this, 'get_template_root' ) );
-		}
+		add_filter( 'pre_option_stylesheet_root', array( $this, 'get_stylesheet_root' ) );
+		add_filter( 'pre_option_template_root', array( $this, 'get_template_root' ) );
+
+		do_action( 'customize_previewing' );
 	}
 
 	/**
@@ -167,47 +160,21 @@ final class WP_Customize {
 	}
 
 	/**
-	 * Set the template name of the previewed theme.
-	 *
-	 * @since 3.4.0
-	 *
-	 * @return bool|string Template name.
-	 */
-	public function set_template() {
-		if ( ! empty( $this->template ) )
-			return $this->template;
-
-		$template = preg_replace('|[^a-z0-9_./-]|i', '', $_REQUEST['template'] );
-		if ( validate_file( $template ) )
-			return false;
-
-		return $this->template = $template;
-	}
-
-	/**
 	 * Set the stylesheet name of the previewed theme.
 	 *
 	 * @since 3.4.0
 	 *
 	 * @return bool|string Stylesheet name.
 	 */
-	public function set_stylesheet() {
-		if ( ! empty( $this->stylesheet ) )
-			return $this->stylesheet;
+	public function set_theme() {
+		if ( isset( $this->theme ) )
+			return $this->theme;
 
-		$this->set_template();
-		if ( empty( $this->template ) )
-			return false;
+		$this->theme = wp_get_theme( $_REQUEST['theme'] );
+		if ( ! $this->theme->exists() )
+			$this->theme = false;
 
-		if ( empty( $_REQUEST['stylesheet'] ) ) {
-			$stylesheet = $this->template;
-		} else {
-			$stylesheet = preg_replace( '|[^a-z0-9_./-]|i', '', $_REQUEST['stylesheet'] );
-			if ( $stylesheet != $this->template && validate_file( $stylesheet ) )
-				return false;
-		}
-		return $this->stylesheet = $stylesheet;
-
+		return $this->theme;
 	}
 
 	/**
@@ -218,7 +185,7 @@ final class WP_Customize {
 	 * @return string Template name.
 	 */
 	public function get_template() {
-		return $this->template;
+		return $this->theme->get_template();
 	}
 
 	/**
@@ -229,7 +196,7 @@ final class WP_Customize {
 	 * @return string Stylesheet name.
 	 */
 	public function get_stylesheet() {
-		return $this->stylesheet;
+		return $this->theme->get_stylesheet();
 	}
 
 	/**
@@ -240,7 +207,7 @@ final class WP_Customize {
 	 * @return string Theme root.
 	 */
 	public function get_template_root() {
-		return get_raw_theme_root( $this->template, true );
+		return get_raw_theme_root( $this->get_template(), true );
 	}
 
 	/**
@@ -251,7 +218,7 @@ final class WP_Customize {
 	 * @return string Theme root.
 	 */
 	public function get_stylesheet_root() {
-		return get_raw_theme_root( $this->stylesheet, true );
+		return get_raw_theme_root( $this->get_stylesheet(), true );
 	}
 
 	/**
@@ -262,7 +229,7 @@ final class WP_Customize {
 	 * @return string Theme name.
 	 */
 	public function current_theme( $current_theme ) {
-		return wp_get_theme( $this->stylesheet )->get('Name');
+		return $this->theme->display('Name');
 	}
 
 	/**
@@ -278,6 +245,9 @@ final class WP_Customize {
 			return;
 
 		if ( ! isset( $_GET['customize'] ) || 'on' != $_GET['customize'] )
+			return;
+
+		if ( empty( $_GET['theme'] ) )
 			return;
 
 		if ( ! $this->is_preview() )
@@ -302,7 +272,7 @@ final class WP_Customize {
 
 		check_admin_referer( 'customize_controls' );
 
-		if ( ! $this->set_stylesheet() )
+		if ( ! $this->set_theme() )
 			return;
 
 		$active_template   = get_template();
@@ -567,17 +537,7 @@ final class WP_Customize {
 			'theme_supports' => 'custom-header',
 		) );
 
-		$this->add_control( new WP_Customize_Image_Control( $this, 'header_image', array(
-			'label'          => 'Header Image',
-			'section'        => 'header',
-			'context'        => 'custom-header',
-			'removed'        => 'remove-header',
-			'get_url'        => 'get_header_image',
-			'tabs'           => array(
-				array( 'uploaded', __('Uploaded'), 'wp_customize_print_uploaded_headers' ),
-				array( 'included', __('Included'), 'wp_customize_print_included_headers' ),
-			),
-		) ) );
+		$this->add_control( new WP_Customize_Header_Image_Control( $this ) );
 
 		/* Custom Background */
 
@@ -621,7 +581,6 @@ final class WP_Customize {
 		$this->add_control( 'background_repeat', array(
 			'label'      => __( 'Background Repeat' ),
 			'section'    => 'background',
-			'visibility' => 'background_image',
 			'type'       => 'radio',
 			'choices'    => array(
 				'no-repeat'  => __('No Repeat'),
@@ -639,7 +598,6 @@ final class WP_Customize {
 		$this->add_control( 'background_position_x', array(
 			'label'      => __( 'Background Position' ),
 			'section'    => 'background',
-			'visibility' => 'background_image',
 			'type'       => 'radio',
 			'choices'    => array(
 				'left'       => __('Left'),
@@ -656,7 +614,6 @@ final class WP_Customize {
 		$this->add_control( 'background_attachment', array(
 			'label'      => __( 'Background Attachment' ),
 			'section'    => 'background',
-			'visibility' => 'background_image',
 			'type'       => 'radio',
 			'choices'    => array(
 				'fixed'      => __('Fixed'),
@@ -738,7 +695,6 @@ final class WP_Customize {
 			'label'      => __( 'Front page' ),
 			'section'    => 'static_front_page',
 			'type'       => 'dropdown-pages',
-			'visibility' => array( 'show_on_front', 'page' ),
 		) );
 
 		$this->add_setting( 'page_for_posts', array(
@@ -751,7 +707,6 @@ final class WP_Customize {
 			'label'      => __( 'Posts page' ),
 			'section'    => 'static_front_page',
 			'type'       => 'dropdown-pages',
-			'visibility' => array( 'show_on_front', 'page' ),
 		) );
 
 		/* Site Title & Tagline */
@@ -793,25 +748,4 @@ function sanitize_hexcolor( $color ) {
 		return $color;
 
 	return $color;
-}
-
-function wp_customize_print_uploaded_headers() {
-	$headers = get_uploaded_header_images();
-
-	foreach ( $headers as $header ) : ?>
-		<a href="<?php echo esc_url( $header['url'] ); ?>">
-			<img src="<?php echo esc_url( $header['thumbnail_url'] ); ?>" />
-		</a>
-	<?php endforeach;
-}
-
-function wp_customize_print_included_headers() {
-	global $custom_image_header;
-	$custom_image_header->process_default_headers();
-
-	foreach ( $custom_image_header->default_headers as $header ) : ?>
-		<a href="<?php echo esc_url( $header['url'] ); ?>">
-			<img src="<?php echo esc_url( $header['thumbnail_url'] ); ?>" />
-		</a>
-	<?php endforeach;
 }

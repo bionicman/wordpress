@@ -90,6 +90,12 @@
 					element.set( setting() );
 				});
 			});
+
+			// Support the .dropdown class to open/close complex elements
+			this.container.on( 'click', '.dropdown', function( event ) {
+				event.preventDefault();
+				control.container.toggleClass('open');
+			});
 		},
 		ready: function() {}
 	});
@@ -97,22 +103,16 @@
 	api.ColorControl = api.Control.extend({
 		ready: function() {
 			var control = this,
-				picker, ui, text, toggle, update;
+				spot, text, update;
 
-			picker = this.container.find( '.color-picker' );
-			ui     = picker.find( '.color-picker-controls' );
-			toggle = picker.find( 'a' );
+			spot   = this.container.find('.color-picker-spot');
 			update = function( color ) {
 				color = '#' + color;
-				toggle.css( 'background', color );
+				spot.css( 'background', color );
 				control.farbtastic.setColor( color );
 			};
 
-			picker.on( 'click', 'a', function() {
-				ui.toggle();
-			});
-
-			this.farbtastic = $.farbtastic( picker.find('.farbtastic-placeholder'), function( color ) {
+			this.farbtastic = $.farbtastic( this.container.find('.farbtastic-placeholder'), function( color ) {
 				control.setting.set( color.replace( '#', '' ) );
 			});
 
@@ -127,11 +127,12 @@
 
 			this.params.removed = this.params.removed || '';
 
+			this.success = $.proxy( this.success, this );
+
 			this.uploader = new wp.Uploader({
-				browser: this.container.find('.upload'),
-				success: function( attachment ) {
-					control.setting.set( attachment.url );
-				}
+				browser:  this.container.find('.upload'),
+				dropzone: this.container.find('.upload-dropzone'),
+				success:  this.success
 			});
 
 			this.remover = this.container.find('.remove');
@@ -147,6 +148,9 @@
 			if ( this.params.context )
 				control.uploader.param( 'post_data[context]', this.params.context );
 		},
+		success: function( attachment ) {
+			this.setting.set( attachment.url );
+		},
 		removerVisibility: function( to ) {
 			this.remover.toggle( to != this.params.removed );
 		}
@@ -154,43 +158,79 @@
 
 	api.ImageControl = api.UploadControl.extend({
 		ready: function() {
-			var control = this;
+			var control = this,
+				panels;
 
 			api.UploadControl.prototype.ready.call( this );
 
-			this.thumbnail    = this.container.find('.thumbnail img');
+			this.thumbnail    = this.container.find('.preview-thumbnail img');
 			this.thumbnailSrc = $.proxy( this.thumbnailSrc, this );
 			this.setting.bind( this.thumbnailSrc );
 
 			this.library = this.container.find('.library');
-			this.changer = this.container.find('.change');
 
-			this.changer.click( function( event ) {
-				control.library.toggle();
-				event.preventDefault();
+			// Generate tab objects
+			this.tabs = {};
+			panels    = this.library.find('.library-content');
+
+			this.library.children('ul').children('li').each( function() {
+				var link  = $(this),
+					id    = link.data('customizeTab'),
+					panel = panels.filter('[data-customize-tab="' + id + '"]');
+
+				control.tabs[ id ] = {
+					both:  link.add( panel ),
+					link:  link,
+					panel: panel
+				};
 			});
 
-			this.library.on( 'click', 'li', function( event ) {
-				var tab = $(this),
-					id = tab.data('customizeTab');
+			// Select a tab
+			this.selected = this.tabs[ panels.first().data('customizeTab') ];
+			this.selected.both.addClass('library-selected');
+
+			// Bind tab switch events
+			this.library.children('ul').on( 'click', 'li', function( event ) {
+				var id  = $(this).data('customizeTab'),
+					tab = control.tabs[ id ];
 
 				event.preventDefault();
 
-				if ( tab.hasClass('library-selected') )
+				if ( tab.link.hasClass('library-selected') )
 					return;
 
-				tab.siblings('.library-selected').removeClass('library-selected');
-				tab.addClass('library-selected');
-
-				control.library.find('div').hide().filter( function() {
-					return $(this).data('customizeTab') === id;
-				}).show();
+				control.selected.both.removeClass('library-selected');
+				control.selected = tab;
+				control.selected.both.addClass('library-selected');
 			});
 
 			this.library.on( 'click', 'a', function( event ) {
-				control.setting.set( $(this).attr('href') );
-				event.preventDefault();
+				var value = $(this).data('customizeImageValue');
+
+				if ( value ) {
+					control.setting.set( value );
+					event.preventDefault();
+				}
 			});
+
+			if ( this.tabs.uploaded ) {
+				this.tabs.uploaded.target = this.library.find('.uploaded-target');
+				if ( ! this.tabs.uploaded.panel.find('.thumbnail').length )
+					this.tabs.uploaded.both.addClass('hidden');
+			}
+		},
+		success: function( attachment ) {
+			api.UploadControl.prototype.success.call( this, attachment );
+
+			// Add the uploaded image to the uploaded tab.
+			if ( this.tabs.uploaded && this.tabs.uploaded.target.length ) {
+				this.tabs.uploaded.both.removeClass('hidden');
+
+				$( '<a href="#" class="thumbnail"></a>' )
+					.data( 'customizeImageValue', attachment.url )
+					.append( '<img src="' +  attachment.url+ '" />' )
+					.appendTo( this.tabs.uploaded.target );
+			}
 		},
 		thumbnailSrc: function( to ) {
 			if ( /^(https?:)?\/\//.test( to ) )
@@ -216,6 +256,8 @@
 		 *  - url    - the URL of preview frame
 		 */
 		initialize: function( params, options ) {
+			var self = this;
+
 			$.extend( this, options || {} );
 
 			this.loaded = $.proxy( this.loaded, this );
@@ -287,6 +329,21 @@
 				if ( 13 === e.which ) // Enter
 					e.preventDefault();
 			});
+
+			// Create a potential postMessage connection with the parent frame.
+			this.parent = new api.Messenger( api.settings.parent );
+
+			// If we receive a 'back' event, we're inside an iframe.
+			// Send any clicks to the 'Return' link to the parent page.
+			this.parent.bind( 'back', function( text ) {
+				self.form.find('.back').text( text ).click( function( event ) {
+					event.preventDefault();
+					self.parent.send( 'close' );
+				});
+			});
+
+			// Initialize the connection with the parent frame.
+			this.parent.send( 'ready' );
 		},
 		loader: function() {
 			if ( this.loading )
@@ -337,11 +394,12 @@
 			return;
 
 		// Initialize Previewer
-		var previewer = new api.Previewer({
-			iframe: '#customize-preview iframe',
-			form:   '#customize-controls',
-			url:    api.settings.preview
-		});
+		var body = $( document.body ),
+			previewer = new api.Previewer({
+				iframe: '#customize-preview iframe',
+				form:   '#customize-controls',
+				url:    api.settings.preview
+			});
 
 		$.each( api.settings.settings, function( id, data ) {
 			api.set( id, id, data.value, {
@@ -357,20 +415,6 @@
 				params: data,
 				previewer: previewer
 			} ) );
-
-			if ( data.visibility ) {
-				api( data.visibility.id, function( other ) {
-					if ( 'boolean' === typeof data.visibility.value ) {
-						other.bind( function( to ) {
-							control.container.toggle( !! to == data.visibility.value );
-						});
-					} else {
-						other.bind( function( to ) {
-							control.container.toggle( to == data.visibility.value );
-						});
-					}
-				});
-			}
 		});
 
 		// Temporary accordion code.
@@ -380,9 +424,14 @@
 		});
 
 		// Button bindings.
-		$('#save').click( function() {
+		$('#save').click( function( event ) {
 			previewer.submit();
-			return false;
+			event.preventDefault();
+		});
+
+		$('.collapse-sidebar').click( function( event ) {
+			body.toggleClass( 'collapsed' );
+			event.preventDefault();
 		});
 
 		// Background color uses postMessage by default
@@ -390,6 +439,36 @@
 			setting.method = 'postMessage';
 		});
 
+		// Control visibility for default controls
+		$.each({
+			'background_image': {
+				controls: [ 'background_repeat', 'background_position_x', 'background_attachment' ],
+				callback: function( to ) { return !! to }
+			},
+			'show_on_front': {
+				controls: [ 'page_on_front', 'page_for_posts' ],
+				callback: function( to ) { return 'page' === to }
+			},
+			'header_textcolor': {
+				controls: [ 'header_textcolor' ],
+				callback: function( to ) { return 'blank' !== to }
+			}
+		}, function( settingId, o ) {
+			api( settingId, function( setting ) {
+				$.each( o.controls, function( i, controlId ) {
+					api.control( controlId, function( control ) {
+						var visibility = function( to ) {
+							control.container.toggle( o.callback( to ) );
+						};
+
+						visibility( setting.get() );
+						setting.bind( visibility );
+					});
+				});
+			});
+		});
+
+		// Juggle the two controls that use header_textcolor
 		api.control( 'display_header_text', function( control ) {
 			var last = '';
 

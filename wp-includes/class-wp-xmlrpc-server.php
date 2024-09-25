@@ -344,8 +344,8 @@ class wp_xmlrpc_server extends IXR_Server {
 				'readonly'      => true,
 				'option'        => 'stylesheet'
 			),
-			'featured_image'    => array(
-				'desc'          => __('Featured Image'),
+			'post_thumbnail'    => array(
+				'desc'          => __('Post Thumbnail'),
 				'readonly'      => true,
 				'value'         => current_theme_supports( 'post-thumbnails' )
 			),
@@ -595,8 +595,8 @@ class wp_xmlrpc_server extends IXR_Server {
 		);
 
 		//
-		$post_fields['featured_image']     = get_post_meta( $post['ID'], '_thumbnail_id', true );
-		$post_fields['featured_image_url'] = wp_get_attachment_url( $post_fields['featured_image'] );
+		$post_fields['post_thumbnail']     = get_post_meta( $post['ID'], '_thumbnail_id', true );
+		$post_fields['post_thumbnail_url'] = wp_get_attachment_url( $post_fields['post_thumbnail'] );
 
 		// Consider future posts as published
 		if ( $post_fields['post_status'] === 'future' )
@@ -722,7 +722,7 @@ class wp_xmlrpc_server extends IXR_Server {
 	 *      - comment_status - can be 'open' | 'closed'
 	 *      - ping_status - can be 'open' | 'closed'
 	 *      - sticky
-	 *      - featured_image - ID of a media item to use as the featured image
+	 *      - post_thumbnail - ID of a media item to use as the post thumbnail/featured image
 	 *      - custom_fields - array, with each element containing 'key' and 'value'
 	 *      - terms - array, with taxonomy names as keys and arrays of term IDs as values
 	 *      - terms_names - array, with taxonomy names as keys and arrays of term names as values
@@ -856,16 +856,16 @@ class wp_xmlrpc_server extends IXR_Server {
 			stick_post( $post_ID );
 		}
 
-		if ( isset ( $post_data['featured_image'] ) ) {
+		if ( isset ( $post_data['post_thumbnail'] ) ) {
 			// empty value deletes, non-empty value adds/updates
-			if ( empty( $post_data['featured_image'] ) ) {
+			if ( empty( $post_data['post_thumbnail'] ) ) {
 				delete_post_thumbnail( $post_ID );
 			}
 			else {
-				if ( set_post_thumbnail( $post_ID, $post_data['featured_image'] ) === false )
+				if ( set_post_thumbnail( $post_ID, $post_data['post_thumbnail'] ) === false )
 					return new IXR_Error( 404, __( 'Invalid attachment ID.' ) );
 			}
-			unset( $content_struct['featured_image'] );
+			unset( $content_struct['post_thumbnail'] );
 		}
 
 		if ( isset ( $post_data['custom_fields'] ) && post_type_supports( $post_data['post_type'], 'custom-fields' ) ) {
@@ -1438,7 +1438,7 @@ class wp_xmlrpc_server extends IXR_Server {
 		$blog_id            = (int) $args[0];
 		$username           = $args[1];
 		$password           = $args[2];
-		$taxonomy_name      = $args[3];
+		$taxonomy           = $args[3];
 		$term_id            = (int) $args[4];
 
 		if ( ! $user = $this->login( $username, $password ) )
@@ -1446,15 +1446,15 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		do_action( 'xmlrpc_call', 'wp.deleteTerm' );
 
-		if ( ! taxonomy_exists( $taxonomy_name ) )
+		if ( ! taxonomy_exists( $taxonomy ) )
 			return new IXR_Error( 403, __( 'Invalid taxonomy.' ) );
 
-		$taxonomy = get_taxonomy( $taxonomy_name );
+		$taxonomy = get_taxonomy( $taxonomy );
 
 		if ( ! current_user_can( $taxonomy->cap->delete_terms ) )
 			return new IXR_Error( 401, __( 'You are not allowed to delete terms in this taxonomy.' ) );
 
-		$term = get_term( $term_id, $taxonomy_name );
+		$term = get_term( $term_id, $taxonomy->name );
 
 		if ( is_wp_error( $term ) )
 			return new IXR_Error( 500, $term->get_error_message() );
@@ -1462,7 +1462,7 @@ class wp_xmlrpc_server extends IXR_Server {
 		if ( ! $term )
 			return new IXR_Error( 404, __( 'Invalid term ID.' ) );
 
-		$result = wp_delete_term( $term_id, $taxonomy_name );
+		$result = wp_delete_term( $term_id, $taxonomy->name );
 
 		if ( is_wp_error( $result ) )
 			return new IXR_Error( 500, $term->get_error_message() );
@@ -1481,7 +1481,7 @@ class wp_xmlrpc_server extends IXR_Server {
 	 *  - int     $blog_id
 	 *  - string  $username
 	 *  - string  $password
-	 *  - string  $taxonomy_name
+	 *  - string  $taxonomy
 	 *  - string  $term_id
 	 * @return array contains:
 	 *  - 'term_id'
@@ -1500,7 +1500,7 @@ class wp_xmlrpc_server extends IXR_Server {
 		$blog_id            = (int) $args[0];
 		$username           = $args[1];
 		$password           = $args[2];
-		$taxonomy_name      = $args[3];
+		$taxonomy           = $args[3];
 		$term_id            = (int) $args[4];
 
 		if ( ! $user = $this->login( $username, $password ) )
@@ -1508,15 +1508,15 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		do_action( 'xmlrpc_call', 'wp.getTerm' );
 
-		if ( ! taxonomy_exists( $taxonomy_name ) )
+		if ( ! taxonomy_exists( $taxonomy ) )
 			return new IXR_Error( 403, __( 'Invalid taxonomy.' ) );
 
-		$taxonomy = get_taxonomy( $taxonomy_name );
+		$taxonomy = get_taxonomy( $taxonomy );
 
 		if ( ! current_user_can( $taxonomy->cap->assign_terms ) )
 			return new IXR_Error( 401, __( 'You are not allowed to assign terms in this taxonomy.' ) );
 
-		$term = get_term( $term_id , $taxonomy_name, ARRAY_A );
+		$term = get_term( $term_id , $taxonomy->name, ARRAY_A );
 
 		if ( is_wp_error( $term ) )
 			return new IXR_Error( 500, $term->get_error_message() );
@@ -1538,7 +1538,7 @@ class wp_xmlrpc_server extends IXR_Server {
 	 *  - int     $blog_id
 	 *  - string  $username
 	 *  - string  $password
-	 *  - string  $taxonomy_name
+	 *  - string  $taxonomy
 	 *  - array   $filter optional
 	 * @return array terms
 	 */
@@ -1548,7 +1548,7 @@ class wp_xmlrpc_server extends IXR_Server {
 		$blog_id        = (int) $args[0];
 		$username       = $args[1];
 		$password       = $args[2];
-		$taxonomy_name  = $args[3];
+		$taxonomy       = $args[3];
 		$filter         = isset( $args[4] ) ? $args[4] : array();
 
 		if ( ! $user = $this->login( $username, $password ) )
@@ -1556,10 +1556,10 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		do_action( 'xmlrpc_call', 'wp.getTerms' );
 
-		if ( ! taxonomy_exists( $taxonomy_name ) )
+		if ( ! taxonomy_exists( $taxonomy ) )
 			return new IXR_Error( 403, __( 'Invalid taxonomy.' ) );
 
-		$taxonomy = get_taxonomy( $taxonomy_name );
+		$taxonomy = get_taxonomy( $taxonomy );
 
 		if ( ! current_user_can( $taxonomy->cap->assign_terms ) )
 			return new IXR_Error( 401, __( 'You are not allowed to assign terms in this taxonomy.' ) );
@@ -1587,7 +1587,7 @@ class wp_xmlrpc_server extends IXR_Server {
 		if ( isset( $filter['search'] ) )
 			$query['search'] = $filter['search'];
 
-		$terms = get_terms( $taxonomy_name, $query );
+		$terms = get_terms( $taxonomy->name, $query );
 
 		if ( is_wp_error( $terms ) )
 			return new IXR_Error( 500, $terms->get_error_message() );
@@ -1609,7 +1609,7 @@ class wp_xmlrpc_server extends IXR_Server {
 	 *  - int     $blog_id
 	 *  - string  $username
 	 *  - string  $password
-	 *  - string  $taxonomy_name
+	 *  - string  $taxonomy
 	 * @return array (@see get_taxonomy())
 	 */
 	function wp_getTaxonomy( $args ) {
@@ -1618,17 +1618,17 @@ class wp_xmlrpc_server extends IXR_Server {
 		$blog_id        = (int) $args[0];
 		$username       = $args[1];
 		$password       = $args[2];
-		$taxonomy_name  = $args[3];
+		$taxonomy       = $args[3];
 
 		if ( ! $user = $this->login( $username, $password ) )
 			return $this->error;
 
 		do_action( 'xmlrpc_call', 'wp.getTaxonomy' );
 
-		if ( ! taxonomy_exists( $taxonomy_name ) )
+		if ( ! taxonomy_exists( $taxonomy ) )
 			return new IXR_Error( 403, __( 'Invalid taxonomy.' ) );
 
-		$taxonomy = get_taxonomy( $taxonomy_name );
+		$taxonomy = get_taxonomy( $taxonomy );
 
 		if ( ! current_user_can( $taxonomy->cap->assign_terms ) )
 			return new IXR_Error( 401, __( 'You are not allowed to assign terms in this taxonomy.' ) );
@@ -3503,7 +3503,7 @@ class wp_xmlrpc_server extends IXR_Server {
 	 *  - mt_allow_pings - can be 'open' or 'closed'
 	 *  - date_created_gmt
 	 *  - dateCreated
-	 *  - wp_featured_image
+	 *  - wp_post_thumbnail
 	 *
 	 * @since 1.5.0
 	 *
@@ -3753,11 +3753,11 @@ class wp_xmlrpc_server extends IXR_Server {
 		if ( isset($content_struct['custom_fields']) )
 			$this->set_custom_fields($post_ID, $content_struct['custom_fields']);
 
-		if ( isset ( $content_struct['wp_featured_image'] ) ) {
-			if ( set_post_thumbnail( $post_ID, $content_struct['wp_featured_image'] ) === false )
+		if ( isset ( $content_struct['wp_post_thumbnail'] ) ) {
+			if ( set_post_thumbnail( $post_ID, $content_struct['wp_post_thumbnail'] ) === false )
 				return new IXR_Error( 404, __( 'Invalid attachment ID.' ) );
 
-			unset( $content_struct['wp_featured_image'] );
+			unset( $content_struct['wp_post_thumbnail'] );
 		}
 
 		// Handle enclosures
@@ -4066,15 +4066,15 @@ class wp_xmlrpc_server extends IXR_Server {
 		if ( isset($content_struct['custom_fields']) )
 			$this->set_custom_fields($post_ID, $content_struct['custom_fields']);
 
-		if ( isset ( $content_struct['wp_featured_image'] ) ) {
+		if ( isset ( $content_struct['wp_post_thumbnail'] ) ) {
 			// empty value deletes, non-empty value adds/updates
-			if ( empty( $content_struct['wp_featured_image'] ) ) {
+			if ( empty( $content_struct['wp_post_thumbnail'] ) ) {
 				delete_post_thumbnail( $post_ID );
 			} else {
-				if ( set_post_thumbnail( $post_ID, $content_struct['wp_featured_image'] ) === false )
+				if ( set_post_thumbnail( $post_ID, $content_struct['wp_post_thumbnail'] ) === false )
 					return new IXR_Error( 404, __( 'Invalid attachment ID.' ) );
 			}
-			unset( $content_struct['wp_featured_image'] );
+			unset( $content_struct['wp_post_thumbnail'] );
 		}
 
 		// Handle enclosures
@@ -4207,8 +4207,8 @@ class wp_xmlrpc_server extends IXR_Server {
 
 			if ( !empty($enclosure) ) $resp['enclosure'] = $enclosure;
 
-			$resp['wp_featured_image'] = get_post_meta( $postdata['ID'], '_thumbnail_id', true );
-			$resp['wp_featured_image_url'] = wp_get_attachment_url( $resp['wp_featured_image'] );
+			$resp['wp_post_thumbnail'] = get_post_meta( $postdata['ID'], '_thumbnail_id', true );
+			$resp['wp_post_thumbnail_url'] = wp_get_attachment_url( $resp['wp_post_thumbnail'] );
 
 			return $resp;
 		} else {
@@ -4319,8 +4319,8 @@ class wp_xmlrpc_server extends IXR_Server {
 			);
 
 			$entry_index = count( $struct ) - 1;
-			$struct[ $entry_index ][ 'wp_featured_image' ]     = get_post_meta( $entry['ID'], '_thumbnail_id', true );
-			$struct[ $entry_index ][ 'wp_featured_image_url' ] = wp_get_attachment_url( $struct[ $entry_index ][ 'wp_featured_image' ] );
+			$struct[ $entry_index ][ 'wp_post_thumbnail' ]     = get_post_meta( $entry['ID'], '_thumbnail_id', true );
+			$struct[ $entry_index ][ 'wp_post_thumbnail_url' ] = wp_get_attachment_url( $struct[ $entry_index ][ 'wp_post_thumbnail' ] );
 		}
 
 		$recent_posts = array();

@@ -88,11 +88,6 @@ function twentyten_setup() {
 	// Translations can be filed in the /languages/ directory
 	load_theme_textdomain( 'twentyten', get_template_directory() . '/languages' );
 
-	$locale = get_locale();
-	$locale_file = get_template_directory() . "/languages/$locale.php";
-	if ( is_readable( $locale_file ) )
-		require_once( $locale_file );
-
 	// This theme uses wp_nav_menu() in one location.
 	register_nav_menus( array(
 		'primary' => __( 'Primary Navigation', 'twentyten' ),
@@ -110,6 +105,8 @@ function twentyten_setup() {
 		// The height and width of our custom header.
 		'width' => apply_filters( 'twentyten_header_image_width', 940 ),
 		'height' => apply_filters( 'twentyten_header_image_height', 198 ),
+		// Support flexible heights.
+		'flex-height' => true,
 		// Don't support text inside the header image.
 		'header-text' => false,
 		// Callback for styling the header preview in the admin.

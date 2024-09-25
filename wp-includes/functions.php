@@ -1974,7 +1974,7 @@ function wp_die( $message = '', $title = '', $args = array() ) {
 	elseif ( defined( 'XMLRPC_REQUEST' ) && XMLRPC_REQUEST )
 		$function = apply_filters( 'wp_die_xmlrpc_handler', '_xmlrpc_wp_die_handler' );
 	elseif ( defined( 'APP_REQUEST' ) && APP_REQUEST )
-		$function = apply_filters( 'wp_die_app_bandler', '_scalar_wp_die_handler' );
+		$function = apply_filters( 'wp_die_app_handler', '_scalar_wp_die_handler' );
 	else
 		$function = apply_filters( 'wp_die_handler', '_default_wp_die_handler' );
 
@@ -3308,7 +3308,6 @@ function _cleanup_header_comment($str) {
 
 /**
  * Permanently deletes posts, pages, attachments, and comments which have been in the trash for EMPTY_TRASH_DAYS.
- * Deletes auto-drafts for new posts that are > 7 days old
  *
  * @since 2.9.0
  */
@@ -3350,11 +3349,6 @@ function wp_scheduled_delete() {
 			wp_delete_comment($comment_id);
 		}
 	}
-
-	// Cleanup old auto-drafts more than 7 days old
-	$old_posts = $wpdb->get_col( "SELECT ID FROM $wpdb->posts WHERE post_status = 'auto-draft' AND DATE_SUB( NOW(), INTERVAL 7 DAY ) > post_date" );
-	foreach ( (array) $old_posts as $delete )
-		wp_delete_post( $delete, true ); // Force delete
 }
 
 /**

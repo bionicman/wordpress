@@ -98,9 +98,8 @@ function wp_get_theme( $stylesheet = null, $theme_root = null ) {
 	if ( empty( $theme_root ) ) {
 		$theme_root = get_raw_theme_root( $stylesheet );
 		if ( false === $theme_root )
-			return false;
-
-		if ( ! in_array( $theme_root, (array) $wp_theme_directories ) )
+			$theme_root = WP_CONTENT_DIR . $theme_root;
+		elseif ( ! in_array( $theme_root, (array) $wp_theme_directories ) )
 			$theme_root = WP_CONTENT_DIR . $theme_root;
 	}
 
@@ -341,6 +340,9 @@ function search_theme_directories( $force = false ) {
 		$cached_roots = get_site_transient( 'theme_roots' );
 		if ( is_array( $cached_roots ) ) {
 			foreach ( $cached_roots as $theme_dir => $theme_root ) {
+				// A cached theme root is no longer around, so skip it.
+				if ( ! isset( $relative_theme_roots[ $theme_root ] ) )
+					continue;
 				$found_themes[ $theme_dir ] = array(
 					'theme_file' => $theme_dir . '/style.css',
 					'theme_root' => $relative_theme_roots[ $theme_root ], // Convert relative to absolute.
@@ -1583,30 +1585,23 @@ function _wp_customize_include() {
 add_action( 'plugins_loaded', '_wp_customize_include' );
 
 /**
- * Includes the loading scripts for the theme customizer and
- * adds the action to print the customize container template.
+ * Localizes the customize-loader script.
  *
  * @since 3.4.0
  */
-function wp_customize_loader() {
-	wp_enqueue_script( 'customize-loader' );
-	add_action( 'admin_footer', '_wp_customize_loader_template' );
+function _wp_customize_loader_localize() {
+	wp_localize_script( 'customize-loader', 'wpCustomizeLoaderL10n', array(
+		'back' => sprintf( __( '&larr; Return to %s' ), get_admin_page_title() ),
+		'url'  => admin_url( 'admin.php' ),
+	) );
 }
+add_action( 'admin_enqueue_scripts', '_wp_customize_loader_localize' );
 
 /**
- * Print the customize container template.
+ * Returns a URL to load the theme customizer.
  *
  * @since 3.4.0
  */
-function _wp_customize_loader_template() {
-	?>
-	<div id="customize-container" class="wp-full-overlay">
-		<input type="hidden" class="admin-url" value="<?php echo esc_url( admin_url( 'admin.php' ) ); ?>" />
-		<a href="#" class="close-full-overlay"><?php printf( __( '&larr; Return to %s' ), get_admin_page_title() ); ?></a>
-		<a href="#" class="collapse-sidebar button-secondary" title="<?php esc_attr_e('Collapse Sidebar'); ?>">
-			<span class="collapse-sidebar-label"><?php _e('Collapse'); ?></span>
-			<span class="collapse-sidebar-arrow"></span>
-		</a>
-	</div>
-	<?php
+function wp_customize_url( $stylesheet ) {
+	return esc_url( admin_url( 'admin.php' ) . '?customize=on&theme=' . $stylesheet );
 }

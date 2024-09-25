@@ -67,7 +67,7 @@ get_current_screen()->set_help_sidebar(
 );
 
 wp_enqueue_script( 'theme' );
-wp_customize_loader();
+wp_enqueue_script( 'customize-loader' );
 
 endif;
 
@@ -113,17 +113,16 @@ $class = $screenshot ? 'has-screenshot' : '';
 	</h4>
 
 	<div>
-		<p>
-			<span><?php printf( __('By %s'), $ct->display('Author') ); ?></span>
-			|
-			<span><?php printf( __('Version %s'), $ct->display('Version') ); ?></span>
-		</p>
+		<ul class="theme-info">
+			<li><?php printf( __('By %s'), $ct->display('Author') ); ?></li>
+			<li><?php printf( __('Version %s'), $ct->display('Version') ); ?></li>
+		</ul>
 		<p class="theme-description"><?php echo $ct->display('Description'); ?></p>
 		<?php theme_update_available( $ct ); ?>
 	</div>
 
 <div class="theme-options">
-	<a href="#" class="load-customize hide-if-no-js" data-customize-template="<?php echo esc_attr( $ct->get_template() ); ?>" data-customize-stylesheet="<?php echo esc_attr( $ct->get_stylesheet() ); ?>" title="<?php echo esc_attr( sprintf( __( 'Customize &#8220;%s&#8221;' ), $ct->get('Name') ) ); ?>"><?php _e( 'Customize' )?></a>
+	<a href="<?php echo wp_customize_url( $ct->get_stylesheet() ); ?>" class="load-customize hide-if-no-customize" title="<?php echo esc_attr( sprintf( __( 'Customize &#8220;%s&#8221;' ), $ct->display('Name') ) ); ?>"><?php _e( 'Customize' )?></a>
 	<span><?php _e( 'Options:' )?></span>
 	<?php
 	// Pretend you didn't see this.
@@ -152,8 +151,14 @@ $class = $screenshot ? 'has-screenshot' : '';
 			}
 		}
 	}
-	echo implode ( ' | ', $options );
-?></div>
+
+	?>
+	<ul>
+		<?php foreach ( $options as $option ) : ?>
+			<li><?php echo $option; ?></li>
+		<?php endforeach; ?>
+	</ul>
+</div>
 
 </div>
 

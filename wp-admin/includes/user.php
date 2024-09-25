@@ -237,6 +237,7 @@ function wp_delete_user( $id, $reassign = 'novalue' ) {
 	global $wpdb;
 
 	$id = (int) $id;
+	$user = new WP_User( $id );
 
 	// allow for transaction statement
 	do_action('delete_user', $id);
@@ -262,8 +263,6 @@ function wp_delete_user( $id, $reassign = 'novalue' ) {
 		$wpdb->update( $wpdb->links, array('link_owner' => $reassign), array('link_owner' => $id) );
 	}
 
-	clean_user_cache($id);
-
 	// FINALLY, delete user
 	if ( !is_multisite() ) {
 		$wpdb->delete( $wpdb->usermeta, array( 'user_id' => $id ) );
@@ -272,6 +271,8 @@ function wp_delete_user( $id, $reassign = 'novalue' ) {
 		$level_key = $wpdb->get_blog_prefix() . 'capabilities'; // wpmu site admins don't have user_levels
 		$wpdb->delete( $wpdb->usermeta, array( 'user_id' => $id , 'meta_key' => $level_key ) );
 	}
+
+	clean_user_cache( $user );
 
 	// allow for commit transaction
 	do_action('deleted_user', $id);

@@ -4271,7 +4271,7 @@ span.imgedit-scale-warn {
 ------------------------------------------------------------------------------*/
 
 .theme-install-php .tablenav {
-	height:auto;
+	height: auto;
 }
 
 h3.available-themes {
@@ -4312,6 +4312,44 @@ h3.available-themes {
 
 .available-theme .action-links {
 	margin-top: 10px;
+	overflow: hidden;
+}
+
+#current-theme .theme-info li,
+.theme-options li,
+.available-theme .action-links li {
+	float: left;
+	padding-right: 10px;
+	margin-right: 10px;
+	border-right: 1px solid #dfdfdf;
+}
+
+#current-theme .theme-info li:last-child,
+.theme-options li:last-child,
+.available-theme .action-links li:last-child {
+	padding-right: 0;
+	margin-right: 0;
+	border-right: 0;
+}
+
+.available-theme .action-links .delete-theme {
+	float: right;
+	margin-right: 0;
+}
+
+.available-theme .action-links .delete-theme a {
+	color: red;
+	padding: 2px;
+}
+
+.available-theme .action-links .delete-theme a:hover {
+	background: red;
+	color: #fff;
+	text-decoration: none;
+}
+
+.available-theme .action-links p {
+	float: left;
 }
 
 #current-theme {
@@ -4336,6 +4374,7 @@ h3.available-themes {
 	margin: 3px 0 16px;
 	font-size: 20px;
 }
+
 #current-theme h4 span {
 	margin-left: 20px;
 	font-size: 12px;
@@ -4344,6 +4383,11 @@ h3.available-themes {
 
 #current-theme a {
 	border-bottom: none;
+}
+
+#current-theme .theme-info {
+	margin: 1em 0;
+	overflow: hidden;
 }
 
 #current-theme .theme-description {
@@ -4362,12 +4406,28 @@ h3.available-themes {
 }
 
 .theme-options {
+	overflow: hidden;
 	font-size: 14px;
 	padding-bottom: 10px;
 }
 
 .theme-options .load-customize {
-	margin-right: 20px;
+	margin-right: 30px;
+	float: left;
+}
+
+.theme-options span {
+	float: left;
+	margin-right: 10px;
+	text-transform: uppercase;
+	font-size: 11px;
+	line-height: 18px;
+	color: #999;
+}
+
+.theme-options ul {
+	float: left;
+	margin: 0;
 }
 
 /* Allow for three-up on 1024px wide screens, e.g. tablets */
@@ -5135,6 +5195,7 @@ body.full-overlay-active {
 	top: 0;
 	bottom: 0;
 }
+
 .wp-full-overlay.collapsed .wp-full-overlay-main {
 	left: 0;
 }
@@ -5194,10 +5255,12 @@ body.full-overlay-active {
 	padding: 0;
 	border-radius: 50%;
 }
+
 .wp-full-overlay.collapsed .collapse-sidebar {
 	position: absolute;
 	left: 315px;
 }
+
 .wp-full-overlay .collapse-sidebar-arrow {
 	margin-top: 2px;
 	margin-left: 2px;
@@ -5206,6 +5269,7 @@ body.full-overlay-active {
 	height: 15px;
 	background: transparent url('../../wp-admin/images/arrows.png') no-repeat 0 -72px;
 }
+
 .wp-full-overlay.collapsed .collapse-sidebar-arrow {
 	background-position: 0 -108px;
 }
@@ -5218,9 +5282,11 @@ body.full-overlay-active {
 	line-height: 20px;
 	margin-right: 10px;
 }
+
 .wp-full-overlay.collapsed .collapse-sidebar-label {
 	display: none;
 }
+
 .wp-full-overlay .collapse-sidebar:hover .collapse-sidebar-label {
 	color: #999;
 }
@@ -5246,6 +5312,16 @@ body.full-overlay-active {
 /*------------------------------------------------------------------------------
   24.0 - Customize Loader
 ------------------------------------------------------------------------------*/
+
+.hide-if-no-customize,
+.customize-support .hide-if-customize {
+	display: none !important;
+}
+
+.hide-if-customize,
+.customize-support .hide-if-no-customize {
+	display: block !important;
+}
 
 #customize-container {
 	display: none;
@@ -6385,6 +6461,7 @@ a.rsswidget {
 
 .nav-menus-php #post-body-content {
 	position: relative;
+	float: none;
 }
 
 #menu-management .menu-add-new abbr {

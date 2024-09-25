@@ -1081,7 +1081,7 @@ function register_post_type($post_type, $args = array()) {
  *   behave like edit_posts.
  * - publish_posts - Controls publishing objects of this post type.
  * - read_private_posts - Controls whether private objects can be read.
-
+ *
  * These four primitive capabilities are checked in core in various locations.
  * There are also seven other primitive capabilities which are not referenced
  * directly in core, except in map_meta_cap(), which takes the three aforementioned
@@ -5161,6 +5161,20 @@ function get_post_format_link( $format ) {
 	if ( ! $term || is_wp_error( $term ) )
 		return false;
 	return get_term_link( $term );
+}
+
+/**
+ * Deletes auto-drafts for new posts that are > 7 days old
+ *
+ * @since 3.4.0
+ */
+function wp_delete_auto_drafts() {
+	global $wpdb;
+
+	// Cleanup old auto-drafts more than 7 days old
+	$old_posts = $wpdb->get_col( "SELECT ID FROM $wpdb->posts WHERE post_status = 'auto-draft' AND DATE_SUB( NOW(), INTERVAL 7 DAY ) > post_date" );
+	foreach ( (array) $old_posts as $delete )
+		wp_delete_post( $delete, true ); // Force delete
 }
 
 /**
