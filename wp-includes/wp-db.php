@@ -1040,13 +1040,23 @@ class wpdb {
 
 		$args = func_get_args();
 		array_shift( $args );
+
 		// If args were passed as an array (as in vsprintf), move them up
-		if ( isset( $args[0] ) && is_array($args[0]) )
+		if ( is_array( $args[0] ) && count( $args ) == 1 ) {
 			$args = $args[0];
+		}
+
+		foreach ( $args as $arg ) {
+			if ( ! is_scalar( $arg ) && ! is_null( $arg ) ) {
+				_doing_it_wrong( 'wpdb::prepare', sprintf( 'Unsupported value type (%s).', gettype( $arg ) ), '3.7.22' );
+			}
+		}
+
 		$query = str_replace( "'%s'", '%s', $query ); // in case someone mistakenly already singlequoted it
 		$query = str_replace( '"%s"', '%s', $query ); // doublequote unquoting
 		$query = preg_replace( '|(?<!%)%f|' , '%F', $query ); // Force floats to be locale unaware
 		$query = preg_replace( '|(?<!%)%s|', "'%s'", $query ); // quote the strings, avoiding escaped strings like %%s
+		$query = preg_replace( '/%(?:%|$|([^dsF]))/', '%%\\1', $query ); // escape any unescaped percents 
 		array_walk( $args, array( $this, 'escape_by_ref' ) );
 		return @vsprintf( $query, $args );
 	}
