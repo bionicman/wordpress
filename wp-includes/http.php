@@ -49,6 +49,25 @@ function _wp_http_get_object() {
  * This function is called first to make the request and there are other API
  * functions to abstract out the above convoluted setup.
  *
+ * List of default arguments:
+ * 'method'      => 'GET'
+ *  - Default 'GET'  for wp_remote_get()
+ *  - Default 'POST' for wp_remote_post()
+ *  - Default 'HEAD' for wp_remote_head()
+ * 'timeout'     => 5
+ * 'redirection' => 5
+ * 'httpversion' => '1.0'
+ * 'user-agent'  => 'WordPress/' . $wp_version . '; ' . get_bloginfo( 'url' )
+ * 'blocking'    => true
+ * 'headers'     => array()
+ * 'cookies'     => array()
+ * 'body'        => null
+ * 'compress'    => false,
+ * 'decompress'  => true,
+ * 'sslverify'   => true,
+ * 'stream'      => false,
+ * 'filename'    => null
+ *
  * @since 2.7.0
  *
  * @param string $url Site URL to retrieve.
@@ -63,7 +82,7 @@ function wp_remote_request($url, $args = array()) {
 /**
  * Retrieve the raw response from the HTTP request using the GET method.
  *
- * @see wp_remote_request() For more information on the response array format.
+ * @see wp_remote_request() For more information on the response array format and default arguments.
  *
  * @since 2.7.0
  *
@@ -79,7 +98,7 @@ function wp_remote_get($url, $args = array()) {
 /**
  * Retrieve the raw response from the HTTP request using the POST method.
  *
- * @see wp_remote_request() For more information on the response array format.
+ * @see wp_remote_request() For more information on the response array format and default arguments.
  *
  * @since 2.7.0
  *
@@ -95,7 +114,7 @@ function wp_remote_post($url, $args = array()) {
 /**
  * Retrieve the raw response from the HTTP request using the HEAD method.
  *
- * @see wp_remote_request() For more information on the response array format.
+ * @see wp_remote_request() For more information on the response array format and default arguments.
  *
  * @since 2.7.0
  *
@@ -308,6 +327,67 @@ function send_origin_headers() {
 		status_header( 403 );
 		exit;
 	}
+
+	return false;
+}
+
+/**
+ * Validate a URL for safe use in the HTTP API.
+ *
+ * @since 3.5.2
+ *
+ * @return mixed URL or false on failure.
+ */
+function wp_http_validate_url( $url ) {
+	$url = esc_url_raw( $url, array( 'http', 'https' ) );
+	if ( ! $url )
+		return false;
+
+	$parsed_url = @parse_url( $url );
+	if ( ! $parsed_url )
+		return false;
+
+	if ( isset( $parsed_url['user'] ) || isset( $parsed_url['pass'] ) )
+		return false;
+
+	if ( false !== strpos( $parsed_url['host'], ':' ) )
+		return false;
+
+	$parsed_home = @parse_url( get_option( 'home' ) );
+
+	$same_host = strtolower( $parsed_home['host'] ) === strtolower( $parsed_url['host'] );
+
+	if ( ! $same_host ) {
+		$host = trim( $parsed_url['host'], '.' );
+		if ( preg_match( '#^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$#', $host ) ) {
+			$ip = $host;
+		} else {
+			$ip = gethostbyname( $host );
+			if ( $ip === $host ) // Error condition for gethostbyname()
+				$ip = false;
+		}
+		if ( $ip ) {
+			if ( '127.0.0.1' === $ip )
+				return false;
+			$parts = array_map( 'intval', explode( '.', $ip ) );
+			if ( 10 === $parts[0] )
+				return false;
+			if ( 172 === $parts[0] && 16 <= $parts[1] && 31 >= $parts[1] )
+				return false;
+			if ( 192 === $parts[0] && 168 === $parts[1] )
+				return false;
+		}
+	}
+
+	if ( empty( $parsed_url['port'] ) )
+		return $url;
+
+	$port = $parsed_url['port'];
+	if ( 80 === $port || 443 === $port || 8080 === $port )
+		return $url;
+
+	if ( $parsed_home && $same_host && $parsed_home['port'] === $port )
+		return $url;
 
 	return false;
 }

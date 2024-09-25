@@ -23,7 +23,7 @@ TABLE OF CONTENTS:
 	11.1 - Custom Fields
 	11.2 - Post Revisions
 	11.3 - Featured Images
-	11.4 - Post Format Selection
+	11.4 - Post formats
 12.0 - Categories
 13.0 - Tags
 14.0 - Media Screen
@@ -1045,10 +1045,60 @@ th.sorted a span {
 }
 
 /*------------------------------------------------------------------------------
-  11.4 - Post format selection
+  11.4 - Post formats
 ------------------------------------------------------------------------------*/
 
+a.post-state-format {
+	margin-right: 0;
+	margin-left: 5px;
+}
 
+label.post-format-icon {
+	margin-left: 0;
+	margin-right: 5px;
+	padding-left: 0px;
+	padding-right: 21px;
+}
+
+.post-format-icon.post-format-standard  {
+	background-position: 100% 0;
+}
+
+.post-format-icon.post-format-image  {
+	background-position: 100% -32px;
+}
+
+.post-format-icon.post-format-gallery {
+	background-position: 100% -64px;
+}
+
+.post-format-icon.post-format-audio {
+	background-position: 100% -96px;
+}
+
+.post-format-icon.post-format-video {
+	background-position: 100% -128px;
+}
+
+.post-format-icon.post-format-chat {
+	background-position: 100% -160px;
+}
+
+.post-format-icon.post-format-status {
+	background-position: 100% -192px;
+}
+
+.post-format-icon.post-format-aside {
+	background-position: 100% -224px;
+}
+
+.post-format-icon.post-format-quote {
+	background-position: 100% -256px;
+}
+
+.post-format-icon.post-format-link {
+	background-position: 100% -288px;
+}
 
 /*------------------------------------------------------------------------------
   12.0 - Categories
@@ -1535,6 +1585,18 @@ h2 .nav-tab {
 	font-family: Tahoma, Arial, sans-serif;
 }
 
+#permalink_structure {
+	float: right;
+}
+
+.options-permalink-php code {
+	unicode-bidi: embed;
+}
+
+.options-permalink-php #rules {
+	direction: ltr;
+}
+
 /*------------------------------------------------------------------------------
   21.0 - Admin Footer
 ------------------------------------------------------------------------------*/
@@ -1804,9 +1866,10 @@ table .column-rating {
 }
 
 /* Collapse Button */
-.wp-full-overlay .collapse-sidebar {
-	right: 0;
+.wp-full-overlay a.collapse-sidebar {
 	left: auto;
+	right: 0;
+	margin-left: 0;
 	margin-right: 15px;
 }
 
@@ -1817,7 +1880,7 @@ table .column-rating {
 .wp-full-overlay .collapse-sidebar-arrow {
 	margin-right: 2px;
 	margin-left: 0;
-	background: transparent url('../images/arrows.png') no-repeat 0 -108px;
+	background: transparent url('../images/arrows.png') no-repeat 1px -108px;
 }
 
 .wp-full-overlay.collapsed .collapse-sidebar-arrow {
@@ -2249,9 +2312,11 @@ body.login {
 }
 
 /* Add Menu Item Boxes */
-.postbox .howto input {
+.postbox .howto input,
+.accordion-container .howto input {
 	float: left;
 }
+
 #nav-menu-theme-locations .button-controls {
 	text-align: left;
 }
@@ -2681,12 +2746,10 @@ div.sidebar-name h3 {
 	right: 0;
 }
 
-.menu-settings dd input,
-.menu-settings dd span,
-.menu-settings dd label,
 .manage-menus select {
 	float: right;
-	margin-right: 6px;
+	margin-right: 0;
+	margin-left: 6px;
 }
 
 .manage-menus .submit-btn {

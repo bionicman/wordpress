@@ -327,6 +327,16 @@ class wp_xmlrpc_server extends IXR_Server {
 				'readonly'      => true,
 				'option'        => 'home'
 			),
+			'login_url'          => array(
+				'desc'          => __( 'Login Address (URL)' ),
+				'readonly'      => true,
+				'value'         => wp_login_url( )
+			),
+			'admin_url'          => array(
+				'desc'          => __( 'The URL to the admin area' ),
+				'readonly'      => true,
+				'value'         => get_admin_url( )
+			),
 			'image_default_link_type' => array(
 				'desc'          => __( 'Image default link type' ),
 				'readonly'      => true,
@@ -562,13 +572,13 @@ class wp_xmlrpc_server extends IXR_Server {
 		if ( ! is_array( $_term) )
 			$_term = get_object_vars( $_term );
 
-		// For Intergers which may be largeer than XMLRPC supports ensure we return strings.
+		// For integers which may be larger than XML-RPC supports ensure we return strings.
 		$_term['term_id'] = strval( $_term['term_id'] );
 		$_term['term_group'] = strval( $_term['term_group'] );
 		$_term['term_taxonomy_id'] = strval( $_term['term_taxonomy_id'] );
 		$_term['parent'] = strval( $_term['parent'] );
 
-		// Count we are happy to return as an Integer because people really shouldn't use Terms that much.
+		// Count we are happy to return as an integer because people really shouldn't use terms that much.
 		$_term['count'] = intval( $_term['count'] );
 
 		return apply_filters( 'xmlrpc_prepare_term', $_term, $term );
@@ -5386,7 +5396,8 @@ class wp_xmlrpc_server extends IXR_Server {
 		sleep(1);
 
 		// Let's check the remote site
-		$linea = wp_remote_retrieve_body( wp_remote_get( $pagelinkedfrom, array( 'timeout' => 10, 'redirection' => 0 ) ) );
+		$linea = wp_remote_retrieve_body( wp_remote_get( $pagelinkedfrom, array( 'timeout' => 10, 'redirection' => 0, 'reject_unsafe_urls' => true ) ) );
+
 		if ( !$linea )
 	  		return $this->pingback_error( 16, __( 'The source URL does not exist.' ) );
 

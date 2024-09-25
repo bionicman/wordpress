@@ -77,6 +77,9 @@ function twentythirteen_setup() {
 	// Adds RSS feed links to <head> for posts and comments.
 	add_theme_support( 'automatic-feed-links' );
 
+	// Switches default core markup for search form to output valid HTML5.
+	add_theme_support( 'html5', array( 'search-form', 'comment-form', 'comment-list' ) );
+
 	/*
 	 * This theme supports all available post formats by default.
 	 * See http://codex.wordpress.org/Post_Formats
@@ -94,9 +97,6 @@ function twentythirteen_setup() {
 	 */
 	add_theme_support( 'post-thumbnails' );
 	set_post_thumbnail_size( 604, 270, true );
-
-	// Register custom image size for image post formats.
-	add_image_size( 'twentythirteen-image-post', 724, 1288 );
 
 	// This theme uses its own gallery styles.
 	add_filter( 'use_default_gallery_style', '__return_false' );
@@ -132,7 +132,7 @@ function twentythirteen_fonts_url() {
 		$font_families = array();
 
 		if ( 'off' !== $source_sans_pro )
-			$font_families[] = 'Source+Sans+Pro:400,700,300italic,400italic,700italic';
+			$font_families[] = 'Source+Sans+Pro:300,400,700,300italic,400italic,700italic';
 
 		if ( 'off' !== $bitter )
 			$font_families[] = 'Bitter:400,700';
@@ -179,7 +179,7 @@ add_action( 'wp_enqueue_scripts', 'twentythirteen_fonts' );
  * @since Twenty Thirteen 1.0
  *
  * @param string $mce_css CSS path to load in TinyMCE.
- * @return string
+ * @return string The filtered CSS paths list.
  */
 function twentythirteen_mce_css( $mce_css ) {
 	$fonts_url = twentythirteen_fonts_url();
@@ -237,7 +237,7 @@ add_action( 'wp_enqueue_scripts', 'twentythirteen_scripts_styles' );
  *
  * @param string $title Default title text for current view.
  * @param string $sep Optional separator.
- * @return string Filtered title.
+ * @return string The filtered title.
  */
 function twentythirteen_wp_title( $title, $sep ) {
 	global $paged, $page;
@@ -404,7 +404,7 @@ if ( ! function_exists( 'twentythirteen_entry_date' ) ) :
  * @since Twenty Thirteen 1.0
  *
  * @param boolean $echo Whether to echo the date. Default true.
- * @return string
+ * @return string The HTML-formatted post date.
  */
 function twentythirteen_entry_date( $echo = true ) {
 	$format_prefix = ( has_post_format( 'chat' ) || has_post_format( 'status' ) ) ? _x( '%1$s on %2$s', '1: post format name. 2: date', 'twentythirteen' ): '%2$s';
@@ -423,19 +423,74 @@ function twentythirteen_entry_date( $echo = true ) {
 }
 endif;
 
+if ( ! function_exists( 'twentythirteen_the_attached_image' ) ) :
+/**
+ * Prints the attached image with a link to the next attached image.
+ *
+ * @since Twenty Thirteen 1.0
+ *
+ * @return void
+ */
+function twentythirteen_the_attached_image() {
+	$post                = get_post();
+	$attachment_size     = apply_filters( 'twentythirteen_attachment_size', array( 724, 724 ) );
+	$next_attachment_url = wp_get_attachment_url();
+
+	/**
+	 * Grab the IDs of all the image attachments in a gallery so we can get the URL
+	 * of the next adjacent image in a gallery, or the first image (if we're
+	 * looking at the last image in a gallery), or, in a gallery of one, just the
+	 * link to that image file.
+	 */
+	$attachments = array_values( get_children( array(
+		'post_parent'    => $post->post_parent,
+		'post_status'    => 'inherit',
+		'post_type'      => 'attachment',
+		'post_mime_type' => 'image',
+		'order'          => 'ASC',
+		'orderby'        => 'menu_order ID'
+	) ) );
+
+	// If there is more than 1 attachment in a gallery...
+	if ( count( $attachments ) > 1 ) {
+		foreach ( $attachments as $k => $attachment ) {
+			if ( $attachment->ID == $post->ID )
+				break;
+		}
+		$k++;
+
+		// get the URL of the next image attachment...
+		if ( isset( $attachments[ $k ] ) )
+			$next_attachment_url = get_attachment_link( $attachments[ $k ]->ID );
+
+		// or get the URL of the first image attachment.
+		else
+			$next_attachment_url = get_attachment_link( $attachments[0]->ID );
+	}
+
+	printf( '<a href="%1$s" title="%2$s" rel="attachment">%3$s</a>',
+		esc_url( $next_attachment_url ),
+		the_title_attribute( array( 'echo' => false ) ),
+		wp_get_attachment_image( $post->ID, $attachment_size )
+	);
+}
+endif;
+
 /**
  * Returns the URL from the post.
  *
- * @uses get_the_link() to get the URL in the post meta (if it exists) or
+ * @uses get_content_url() to get the URL in the post meta (if it exists) or
  * the first link found in the post content.
  *
  * Falls back to the post permalink if no URL is found in the post.
  *
  * @since Twenty Thirteen 1.0
- * @return string URL
+ *
+ * @return string The Link format URL.
  */
 function twentythirteen_get_link_url() {
-	$has_url = get_the_post_format_url();
+	$content = get_the_content();
+	$has_url = get_content_url( $content );
 
 	return ( $has_url ) ? $has_url : apply_filters( 'the_permalink', get_permalink() );
 }
@@ -446,34 +501,30 @@ function twentythirteen_get_link_url() {
  * @since Twenty Thirteen 1.0
  *
  * @param array $atts Combined and filtered attribute list.
- * @return array
+ * @return array The filtered attribute list.
  */
 function twentythirteen_gallery_atts( $atts ) {
 	if ( has_post_format( 'gallery' ) && ! is_single() )
-		$atts['size'] = 'large';
+		$atts['size'] = wp_is_mobile() ? 'thumbnail' : 'medium';
 
 	return $atts;
 }
 add_filter( 'shortcode_atts_gallery', 'twentythirteen_gallery_atts' );
 
 /**
- * Extends the default WordPress body class to denote:
- * 1. Custom fonts enabled.
- * 2. Single or multiple authors.
- * 3. Active widgets in the sidebar to change the layout and spacing.
- * 4. When avatars are disabled in discussion settings.
+ * Extends the default WordPress body classes.
+ *
+ * Adds body classes to denote:
+ * 1. Single or multiple authors.
+ * 2. Active widgets in the sidebar to change the layout and spacing.
+ * 3. When avatars are disabled in discussion settings.
  *
  * @since Twenty Thirteen 1.0
  *
- * @param array $classes Existing class values.
- * @return array Filtered class values.
+ * @param array $classes A list of existing body class values.
+ * @return array The filtered body class list.
  */
 function twentythirteen_body_class( $classes ) {
-
-	// Enable custom font class only if the font CSS is queued to load.
-	if ( wp_style_is( 'twentythirteen-fonts', 'enqueued' ) )
-		$classes[] = 'custom-font';
-
 	if ( ! is_multi_author() )
 		$classes[] = 'single-author';
 
@@ -495,43 +546,14 @@ add_filter( 'body_class', 'twentythirteen_body_class' );
  * @return void
  */
 function twentythirteen_content_width() {
-	if ( has_post_format( 'video' ) || is_attachment() ) {
-		global $content_width;
+	global $content_width;
+
+	if ( is_attachment() )
 		$content_width = 724;
-	}
+	elseif ( has_post_format( 'audio' ) )
+		$content_width = 484;
 }
 add_action( 'template_redirect', 'twentythirteen_content_width' );
-
-/**
- * Adjusts content_width value for video shortcodes in video post formats.
- *
- * @since Twenty Thirteen 1.0
- *
- * @param array $atts Attribute list.
- * @return array Filtered attribute list.
- */
-function twentythirteen_video_width( $atts ) {
-	if ( ! is_admin() && has_post_format( 'video' ) ) {
-		$new_width = 724;
-		$atts['height'] = round( ( $atts['height'] * $new_width ) / $atts['width'] );
-		$atts['width'] = $new_width;
-	}
-
-	return $atts;
-}
-add_action( 'embed_defaults',       'twentythirteen_video_width' );
-add_action( 'shortcode_atts_video', 'twentythirteen_video_width' );
-
-/**
- * Switches default core markup for search form to output valid HTML5.
- *
- * @param string $format Expected markup format, default is `xhtml`
- * @return string Twenty Thirteen loves HTML5.
- */
-function twentythirteen_search_form_format( $format ) {
-	return 'html5';
-}
-add_filter( 'search_form_format', 'twentythirteen_search_form_format' );
 
 /**
  * Add postMessage support for site title and description for the Customizer.

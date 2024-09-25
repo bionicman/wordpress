@@ -923,8 +923,8 @@ function wp_dashboard_secondary_output() {
 
 function wp_dashboard_plugins() {
 	wp_dashboard_cached_rss_widget( 'dashboard_plugins', 'wp_dashboard_plugins_output', array(
-		'http://wordpress.org/extend/plugins/rss/browse/popular/',
-		'http://wordpress.org/extend/plugins/rss/browse/new/'
+		'http://wordpress.org/plugins/rss/browse/popular/',
+		'http://wordpress.org/plugins/rss/browse/new/'
 	) );
 }
 
@@ -934,8 +934,8 @@ function wp_dashboard_plugins() {
  * @since 2.5.0
  */
 function wp_dashboard_plugins_output() {
-	$popular = fetch_feed( 'http://wordpress.org/extend/plugins/rss/browse/popular/' );
-	$new     = fetch_feed( 'http://wordpress.org/extend/plugins/rss/browse/new/' );
+	$popular = fetch_feed( 'http://wordpress.org/plugins/rss/browse/popular/' );
+	$new     = fetch_feed( 'http://wordpress.org/plugins/rss/browse/new/' );
 
 	if ( false === $plugin_slugs = get_transient( 'plugin_slugs' ) ) {
 		$plugin_slugs = array_keys( get_plugins() );
@@ -1114,7 +1114,15 @@ function wp_dashboard_rss_control( $widget_id, $form_inputs = array() ) {
 	wp_widget_rss_form( $widget_options[$widget_id], $form_inputs );
 }
 
-// Display File upload quota on dashboard
+/**
+ * Display file upload quota on dashboard.
+ *
+ * Runs on the activity_box_end hook in wp_dashboard_right_now().
+ *
+ * @since 3.0.0
+ *
+ * @return bool True if not multisite, user can't upload files, or the space check option is disabled.
+*/
 function wp_dashboard_quota() {
 	if ( !is_multisite() || !current_user_can('upload_files') || get_site_option( 'upload_space_check_disabled' ) )
 		return true;

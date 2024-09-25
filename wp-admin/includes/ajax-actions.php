@@ -13,10 +13,10 @@ function wp_ajax_nopriv_heartbeat() {
 	$response = array();
 
 	// screen_id is the same as $current_screen->id and the JS global 'pagenow'
-	if ( ! empty($_POST['screenid']) )
-		$screen_id = sanitize_key($_POST['screenid']);
+	if ( ! empty($_POST['screen_id']) )
+		$screen_id = sanitize_key($_POST['screen_id']);
 	else
-		$screen_id = 'site';
+		$screen_id = 'front';
 
 	if ( ! empty($_POST['data']) ) {
 		$data = wp_unslash( (array) $_POST['data'] );
@@ -29,7 +29,7 @@ function wp_ajax_nopriv_heartbeat() {
 	do_action( 'heartbeat_nopriv_tick', $response, $screen_id );
 
 	// send the current time according to the server
-	$response['servertime'] = time();
+	$response['server_time'] = time();
 
 	wp_send_json($response);
 }
@@ -1126,23 +1126,6 @@ function wp_ajax_closed_postboxes() {
 	wp_die( 1 );
 }
 
-function wp_ajax_show_post_format_ui() {
-	if ( empty( $_POST['post_type'] ) )
-		wp_die( 0 );
-
-	check_ajax_referer( 'show-post-format-ui_' . $_POST['post_type'], 'nonce' );
-
-	if ( ! $post_type_object = get_post_type_object( $_POST['post_type'] ) )
-		wp_die( 0 );
-
-	if ( ! current_user_can( $post_type_object->cap->edit_posts ) )
-		wp_die( -1 );
-
-	update_user_option( get_current_user_id(), 'post_formats_' . $post_type_object->name, empty( $_POST['show'] ) ? 0 : 1 );
-
-	wp_die( 1 );
-}
-
 function wp_ajax_hidden_columns() {
 	check_ajax_referer( 'screen-options-nonce', 'screenoptionnonce' );
 	$hidden = isset( $_POST['hidden'] ) ? $_POST['hidden'] : '';
@@ -2075,16 +2058,13 @@ function wp_ajax_heartbeat() {
 	$response = array();
 
 	// screen_id is the same as $current_screen->id and the JS global 'pagenow'
-	if ( ! empty($_POST['screenid']) )
-		$screen_id = sanitize_key($_POST['screenid']);
+	if ( ! empty($_POST['screen_id']) )
+		$screen_id = sanitize_key($_POST['screen_id']);
 	else
-		$screen_id = 'site';
+		$screen_id = 'front';
 
 	if ( ! empty($_POST['data']) ) {
 		$data = (array) $_POST['data'];
-		// todo: how much to sanitize and preset and what to leave to be accessed from $data or $_POST..?
-		$user = wp_get_current_user();
-		$data['user_id'] = $user->exists() ? $user->ID : 0;
 
 		// todo: separate filters: 'heartbeat_[action]' so we call different callbacks only when there is data for them,
 		// or all callbacks listen to one filter and run when there is something for them in $data?
@@ -2097,7 +2077,7 @@ function wp_ajax_heartbeat() {
 	do_action( 'heartbeat_tick', $response, $screen_id );
 
 	// send the current time acording to the server
-	$response['servertime'] = time();
+	$response['server_time'] = time();
 
 	wp_send_json($response);
 }
@@ -2134,8 +2114,8 @@ function wp_ajax_revisions_data() {
 		if ( ! $compare_to )
 			$left_revision = get_post( $post_id );
 
-		// make sure the right revision is the most recent
-		if ( $compare_two_mode && $right_revision->post_date < $left_revision->post_date ) {
+		// make sure the right revision is the most recent, except on oldest revision
+		if ( $compare_to && $right_revision->post_date < $left_revision->post_date ) {
 			$temp = $left_revision;
 			$left_revision = $right_revision;
 			$right_revision = $temp;

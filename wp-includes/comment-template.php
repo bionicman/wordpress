@@ -1325,7 +1325,7 @@ class Walker_Comment extends Walker {
 	 * @param int $depth Depth of comment in reference to parents.
 	 * @param array $args
 	 */
-	function start_el( &$output, $comment, $depth, $args, $id = 0 ) {
+	function start_el( &$output, $comment, $depth = 0, $args = array(), $id = 0 ) {
 		$depth++;
 		$GLOBALS['comment_depth'] = $depth;
 		$GLOBALS['comment'] = $comment;
@@ -1506,7 +1506,7 @@ function wp_list_comments($args = array(), $comments = null ) {
 		'avatar_size'       => 32,
 		'reverse_top_level' => null,
 		'reverse_children'  => '',
-		'format'            => 'xhtml', // or html5
+		'format'            => current_theme_supports( 'html5', 'comment-list' ) ? 'html5' : 'xhtml',
 		'short_ping'        => false,
 	);
 
@@ -1597,10 +1597,8 @@ function wp_list_comments($args = array(), $comments = null ) {
  * @return void
  */
 function comment_form( $args = array(), $post_id = null ) {
-	global $id;
-
 	if ( null === $post_id )
-		$post_id = $id;
+		$post_id = get_the_ID();
 	else
 		$id = $post_id;
 
@@ -1608,9 +1606,12 @@ function comment_form( $args = array(), $post_id = null ) {
 	$user = wp_get_current_user();
 	$user_identity = $user->exists() ? $user->display_name : '';
 
+	if ( ! isset( $args['format'] ) )
+		$args['format'] = current_theme_supports( 'html5', 'comment-form' ) ? 'html5' : 'xhtml';
+
 	$req      = get_option( 'require_name_email' );
 	$aria_req = ( $req ? " aria-required='true'" : '' );
-	$html5    = isset( $args['format'] ) && 'html5' === $args['format'];
+	$html5    = 'html5' === $args['format'];
 	$fields   =  array(
 		'author' => '<p class="comment-form-author">' . '<label for="author">' . __( 'Name' ) . ( $req ? ' <span class="required">*</span>' : '' ) . '</label> ' .
 		            '<input id="author" name="author" type="text" value="' . esc_attr( $commenter['comment_author'] ) . '" size="30"' . $aria_req . ' /></p>',

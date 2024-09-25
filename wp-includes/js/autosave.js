@@ -2,7 +2,19 @@ var autosave, autosaveLast = '', autosavePeriodical, autosaveDelayPreview = fals
 
 jQuery(document).ready( function($) {
 
-	autosaveLast = ( $('#post #title').val() || '' ) + ( $('#post #content').val() || '' );
+	if ( $('#wp-content-wrap').hasClass('tmce-active') && typeof tinymce != 'undefined' ) {
+		tinymce.onAddEditor.add( function( tinymce, editor ) {
+			if ( 'content' == editor.id ) {
+				editor.onLoad.add( function() {
+					editor.save();
+					autosaveLast = ( $('#title').val() || '' ) + ( $('#content').val() || '' );
+				});
+			}
+		});
+	} else {
+		autosaveLast = ( $('#title').val() || '' ) + ( $('#content').val() || '' );
+	}
+
 	autosavePeriodical = $.schedule({time: autosaveL10n.autosaveInterval * 1000, func: function() { autosave(); }, repeat: true, protect: true});
 
 	//Disable autosave after the form has been submitted
@@ -304,7 +316,7 @@ wp.autosave = wp.autosave || {};
 (function($){
 // Returns the data for saving in both localStorage and autosaves to the server
 wp.autosave.getPostData = function() {
-	var ed = typeof tinymce != 'undefined' ? tinymce.activeEditor : null, post_name, parent_id, post_format, cats = [],
+	var ed = typeof tinymce != 'undefined' ? tinymce.activeEditor : null, post_name, parent_id, cats = [],
 		data = {
 			action: 'autosave',
 			autosave: true,
@@ -362,13 +374,6 @@ wp.autosave.getPostData = function() {
 
 	if ( $('#auto_draft').val() == '1' )
 		data['auto_draft'] = '1';
-
-	post_format = $('#post_format').val() || '';
-	data['post_format'] = post_format == 'standard' ? '' : post_format;
-
-	$('.post-formats-fields').find('input[name^="_format_"], textarea[name^="_format_"]').each( function(i, field) {
-		data[ field.name ] = field.value || '';
-	});
 
 	return data;
 }
@@ -488,6 +493,7 @@ wp.autosave.local = {
 		} else {
 			post_data = this.getData() || {};
 			$.extend( post_data, data );
+			post_data.autosave = true;
 		}
 
 		// If the content and title did not change since the last save, don't save again
@@ -501,10 +507,6 @@ wp.autosave.local = {
 		post_data['save_time'] = (new Date()).getTime();
 		post_data['status'] = $('#post_status').val() || '';
 		result = this.setData( post_data );
-
-		// temp logging
-		if ( typeof console != 'undefined' )
-			console.log( 'Local autosave: saved, post content = %s', post_data.content );
 
 		if ( result )
 			this.lastsaveddata = post_data.post_title + ': ' + post_data.content;
@@ -598,10 +600,6 @@ wp.autosave.local = {
 	checkPost: function() {
 		var self = this, post_data = this.getData(), content, check_data, strip_tags = false, notice,
 			post_id = $('#post_ID').val() || 0, cookie = wpCookies.get( 'wp-saving-post-' + post_id );
-
-		// temp logging
-		if ( typeof console != 'undefined' )
-			console.log( 'Local autosave: checkPost, cookie = %s, post content = %s', cookie, post_data && post_data.content );
 
 		if ( ! post_data )
 			return;
