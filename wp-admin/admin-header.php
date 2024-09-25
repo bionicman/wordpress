@@ -10,7 +10,19 @@
 if ( ! defined( 'WP_ADMIN' ) )
 	require_once( dirname( __FILE__ ) . '/admin.php' );
 
-// In case admin-header.php is included in a function.
+/**
+ * In case admin-header.php is included in a function.
+ *
+ * @global string    $title
+ * @global string    $hook_suffix
+ * @global WP_Screen $current_screen
+ * @global WP_Locale $wp_locale
+ * @global string    $pagenow
+ * @global string    $wp_version
+ * @global string    $update_title
+ * @global int       $total_update_count
+ * @global string    $parent_file
+ */
 global $title, $hook_suffix, $current_screen, $wp_locale, $pagenow, $wp_version,
 	$update_title, $total_update_count, $parent_file;
 
@@ -24,7 +36,7 @@ $title = esc_html( strip_tags( $title ) );
 if ( is_network_admin() )
 	$admin_title = sprintf( __( 'Network Admin: %s' ), esc_html( get_current_site()->site_name ) );
 elseif ( is_user_admin() )
-	$admin_title = sprintf( __( 'Global Dashboard: %s' ), esc_html( get_current_site()->site_name ) );
+	$admin_title = sprintf( __( 'User Dashboard: %s' ), esc_html( get_current_site()->site_name ) );
 else
 	$admin_title = get_bloginfo( 'name' );
 
@@ -58,13 +70,13 @@ wp_enqueue_script( 'svg-painter' );
 $admin_body_class = preg_replace('/[^a-z0-9_-]+/i', '-', $hook_suffix);
 ?>
 <script type="text/javascript">
-addLoadEvent = function(func){if(typeof jQuery!=='undefined')jQuery(document).ready(func);else if(typeof wpOnload!=='function'){wpOnload=func;}else{var oldonload=wpOnload;wpOnload=function(){oldonload();func();}}};
-var ajaxurl = '<?php echo esc_js( admin_url( 'admin-ajax.php', 'relative' ) ); ?>',
-	pagenow = '<?php echo esc_js( $current_screen->id ); ?>',
-	typenow = '<?php echo esc_js( $current_screen->post_type ); ?>',
-	adminpage = '<?php echo esc_js( $admin_body_class ); ?>',
-	thousandsSeparator = '<?php echo esc_js( $wp_locale->number_format['thousands_sep'] ); ?>',
-	decimalPoint = '<?php echo esc_js( $wp_locale->number_format['decimal_point'] ); ?>',
+addLoadEvent = function(func){if(typeof jQuery!="undefined")jQuery(document).ready(func);else if(typeof wpOnload!='function'){wpOnload=func;}else{var oldonload=wpOnload;wpOnload=function(){oldonload();func();}}};
+var ajaxurl = '<?php echo admin_url( 'admin-ajax.php', 'relative' ); ?>',
+	pagenow = '<?php echo $current_screen->id; ?>',
+	typenow = '<?php echo $current_screen->post_type; ?>',
+	adminpage = '<?php echo $admin_body_class; ?>',
+	thousandsSeparator = '<?php echo addslashes( $wp_locale->number_format['thousands_sep'] ); ?>',
+	decimalPoint = '<?php echo addslashes( $wp_locale->number_format['decimal_point'] ); ?>',
 	isRtl = <?php echo (int) is_rtl(); ?>;
 </script>
 <meta name="viewport" content="width=device-width,initial-scale=1.0">

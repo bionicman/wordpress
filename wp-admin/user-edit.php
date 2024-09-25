@@ -99,7 +99,7 @@ if ( is_multisite()
 // Execute confirmed email change. See send_confirmation_on_profile_email().
 if ( is_multisite() && IS_PROFILE_PAGE && isset( $_GET[ 'newuseremail' ] ) && $current_user->ID ) {
 	$new_email = get_option( $current_user->ID . '_new_email' );
-	if ( $new_email && hash_equals( $new_email[ 'hash' ], $_GET[ 'newuseremail' ] ) ) {
+	if ( $new_email[ 'hash' ] == $_GET[ 'newuseremail' ] ) {
 		$user = new stdClass;
 		$user->ID = $current_user->ID;
 		$user->user_email = esc_html( trim( $new_email[ 'newemail' ] ) );
@@ -110,8 +110,7 @@ if ( is_multisite() && IS_PROFILE_PAGE && isset( $_GET[ 'newuseremail' ] ) && $c
 		wp_redirect( add_query_arg( array('updated' => 'true'), self_admin_url( 'profile.php' ) ) );
 		die();
 	}
-} elseif ( is_multisite() && IS_PROFILE_PAGE && !empty( $_GET['dismiss'] ) && $current_user->ID . '_new_email' === $_GET['dismiss'] ) {
-	check_admin_referer( 'dismiss-' . $current_user->ID . '_new_email' );
+} elseif ( is_multisite() && IS_PROFILE_PAGE && !empty( $_GET['dismiss'] ) && $current_user->ID . '_new_email' == $_GET['dismiss'] ) {
 	delete_option( $current_user->ID . '_new_email' );
 	wp_redirect( add_query_arg( array('updated' => 'true'), self_admin_url( 'profile.php' ) ) );
 	die();
@@ -194,7 +193,7 @@ include(ABSPATH . 'wp-admin/admin-header.php');
 	<p><strong><?php _e('User updated.') ?></strong></p>
 	<?php endif; ?>
 	<?php if ( $wp_http_referer && !IS_PROFILE_PAGE ) : ?>
-	<p><a href="<?php echo esc_url( wp_validate_redirect( esc_url_raw( $wp_http_referer ), self_admin_url( 'users.php' ) ) ); ?>"><?php _e('&larr; Back to Users'); ?></a></p>
+	<p><a href="<?php echo esc_url( $wp_http_referer ); ?>"><?php _e('&larr; Back to Users'); ?></a></p>
 	<?php endif; ?>
 </div>
 <?php endif; ?>
@@ -203,7 +202,7 @@ include(ABSPATH . 'wp-admin/admin-header.php');
 <?php endif; ?>
 
 <div class="wrap" id="profile-page">
-<h2>
+<h1>
 <?php
 echo esc_html( $title );
 if ( ! IS_PROFILE_PAGE ) {
@@ -213,7 +212,7 @@ if ( ! IS_PROFILE_PAGE ) {
 		<a href="user-new.php" class="add-new-h2"><?php echo esc_html_x( 'Add Existing', 'user' ); ?></a>
 	<?php }
 } ?>
-</h2>
+</h1>
 <form id="your-profile" action="<?php echo esc_url( self_admin_url( IS_PROFILE_PAGE ? 'profile.php' : 'user-edit.php' ) ); ?>" method="post" novalidate="novalidate"<?php
 	/**
 	 * Fires inside the your-profile form tag on the user editing screen.
@@ -403,7 +402,12 @@ if ( is_multisite() && is_network_admin() && ! IS_PROFILE_PAGE && current_user_c
 	$new_email = get_option( $current_user->ID . '_new_email' );
 	if ( $new_email && $new_email['newemail'] != $current_user->user_email && $profileuser->ID == $current_user->ID ) : ?>
 	<div class="updated inline">
-	<p><?php printf( __('There is a pending change of your e-mail to <code>%1$s</code>. <a href="%2$s">Cancel</a>'), esc_html( $new_email['newemail'] ), esc_url( wp_nonce_url( self_admin_url( 'profile.php?dismiss=' . $current_user->ID . '_new_email' ), 'dismiss-' . $current_user->ID . '_new_email' ) ) ); ?></p>
+	<p><?php
+		printf(
+			__( 'There is a pending change of your e-mail to %1$s. <a href="%2$s">Cancel</a>' ),
+			'<code>' . $new_email['newemail'] . '</code>',
+			esc_url( self_admin_url( 'profile.php?dismiss=' . $current_user->ID . '_new_email' ) )
+	); ?></p>
 	</div>
 	<?php endif; ?>
 	</td>
@@ -458,18 +462,29 @@ if ( $show_password_fields ) :
 	<th><label for="pass1"><?php _e( 'New Password' ); ?></label></th>
 	<td>
 		<input class="hidden" value=" " /><!-- #24364 workaround -->
-		<input type="password" name="pass1" id="pass1" class="regular-text" size="16" value="" autocomplete="off" />
-		<p class="description"><?php _e( 'If you would like to change the password type a new one. Otherwise leave this blank.' ); ?></p>
+		<button type="button" class="button button-secondary wp-generate-pw hide-if-no-js"><?php _e( 'Generate new password' ); ?></button>
+		<div class="wp-pwd hide-if-js">
+			<input type="password" name="pass1" id="pass1" class="regular-text" value="" autocomplete="off" data-pw="<?php echo esc_attr( wp_generate_password( 24 ) ); ?>" />
+			<button type="button" class="button button-secondary wp-hide-pw hide-if-no-js" data-toggle="0">
+				<span class="dashicons dashicons-visibility"></span>
+				<span class="text">hide</span>
+			</button>
+			<div style="display:none" id="pass-strength-result"></div>
+		</div>
 	</td>
 </tr>
-<tr class="user-pass2-wrap">
+<tr class="user-pass2-wrap hide-if-js">
 	<th scope="row"><label for="pass2"><?php _e( 'Repeat New Password' ); ?></label></th>
 	<td>
-	<input name="pass2" type="password" id="pass2" class="regular-text" size="16" value="" autocomplete="off" />
+	<input name="pass2" type="password" id="pass2" class="regular-text" value="" autocomplete="off" />
 	<p class="description"><?php _e( 'Type your new password again.' ); ?></p>
-	<br />
-	<div id="pass-strength-result"><?php _e( 'Strength indicator' ); ?></div>
-	<p class="description indicator-hint"><?php echo wp_get_password_hint(); ?></p>
+	</td>
+</tr>
+<tr class="pw-weak">
+	<th><label for="pw-weak"><?php _e( 'Confirm Password' ); ?></label></th>
+	<td>
+	<input type="checkbox" name="pw-weak" class="pw-checkbox" />
+	<?php _e( 'Confirm use of weak password' ); ?>
 	</td>
 </tr>
 <?php endif; ?>

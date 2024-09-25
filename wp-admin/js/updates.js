@@ -46,10 +46,9 @@ window.wp = window.wp || {};
 			connectionType: null
 		},
 		ssh: {
-			publicKey:  '',
-			privateKey: ''
-		},
-		fsNonce: ''
+			publicKey: null,
+			privateKey: null
+		}
 	};
 
 	/**
@@ -181,7 +180,6 @@ window.wp = window.wp || {};
 			_ajax_nonce:     wp.updates.ajaxNonce,
 			plugin:          plugin,
 			slug:            slug,
-			_fs_nonce:       wp.updates.filesystemCredentials.fsNonce,
 			username:        wp.updates.filesystemCredentials.ftp.username,
 			password:        wp.updates.filesystemCredentials.ftp.password,
 			hostname:        wp.updates.filesystemCredentials.ftp.hostname,
@@ -265,7 +263,7 @@ window.wp = window.wp || {};
 			$message.attr( 'aria-label', wp.updates.l10n.updateFailedLabel.replace( '%s', name ) );
 		}
 		$message.removeClass( 'updating-message' );
-		$message.html( wp.updates.l10n.updateFailed + ': ' + response.error );
+		$message.html( wp.updates.l10n.updateFailed.replace( '%s', response.error ) );
 		wp.a11y.speak( wp.updates.l10n.updateFailed );
 
 		/*
@@ -456,7 +454,6 @@ window.wp = window.wp || {};
 		// File system credentials form submit noop-er / handler.
 		$( '#request-filesystem-credentials-dialog form' ).on( 'submit', function() {
 			// Persist the credentials input by the user for the duration of the page load.
-			wp.updates.filesystemCredentials.fsNonce = $( '#_fs_nonce' ).val();
 			wp.updates.filesystemCredentials.ftp.hostname = $('#hostname').val();
 			wp.updates.filesystemCredentials.ftp.username = $('#username').val();
 			wp.updates.filesystemCredentials.ftp.password = $('#password').val();

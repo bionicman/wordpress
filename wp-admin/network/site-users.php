@@ -70,7 +70,7 @@ if ( $action ) {
 				$password = wp_generate_password( 12, false);
 				$user_id = wpmu_create_user( esc_html( strtolower( $user['username'] ) ), $password, esc_html( $user['email'] ) );
 
-				if ( false == $user_id ) {
+				if ( false === $user_id ) {
 		 			$update = 'err_new_dup';
 				} else {
 					wp_new_user_notification( $user_id, $password );
@@ -177,12 +177,12 @@ if ( ! wp_is_large_network( 'users' ) && apply_filters( 'show_network_site_users
 require( ABSPATH . 'wp-admin/admin-header.php' ); ?>
 
 <script type="text/javascript">
-var current_site_id = <?php echo absint( $id ); ?>;
+var current_site_id = <?php echo $id; ?>;
 </script>
 
 
 <div class="wrap">
-<h2 id="edit-site"><?php echo $title_site_url_linked ?></h2>
+<h1 id="edit-site"><?php echo $title_site_url_linked; ?></h1>
 <h3 class="nav-tab-wrapper">
 <?php
 $tabs = array(

@@ -17,12 +17,15 @@ if ( ! current_user_can('edit_theme_options') )
 
 $widgets_access = get_user_setting( 'widgets_access' );
 if ( isset($_GET['widgets-access']) ) {
-	check_admin_referer( 'widgets-access' );
-
 	$widgets_access = 'on' == $_GET['widgets-access'] ? 'on' : 'off';
 	set_user_setting( 'widgets_access', $widgets_access );
 }
 
+/**
+ *
+ * @param string $classes
+ * @return string
+ */
 function wp_widgets_access_body_class($classes) {
 	return "$classes widgets_access ";
 }
@@ -232,7 +235,7 @@ if ( isset($_GET['editwidget']) && $_GET['editwidget'] ) {
 
 	require_once( ABSPATH . 'wp-admin/admin-header.php' ); ?>
 	<div class="wrap">
-	<h2><?php echo esc_html( $title ); ?></h2>
+	<h1><?php echo esc_html( $title ); ?></h1>
 	<div class="editwidget"<?php echo $width; ?>>
 	<h3><?php printf( __( 'Widget %s' ), $name ); ?></h3>
 
@@ -312,7 +315,7 @@ $errors = array(
 require_once( ABSPATH . 'wp-admin/admin-header.php' ); ?>
 
 <div class="wrap">
-<h2>
+<h1>
 <?php
 	echo esc_html( $title );
 	if ( current_user_can( 'customize' ) ) {
@@ -329,7 +332,7 @@ require_once( ABSPATH . 'wp-admin/admin-header.php' ); ?>
 		);
 	}
 ?>
-</h2>
+</h1>
 
 <?php if ( isset($_GET['message']) && isset($messages[$_GET['message']]) ) { ?>
 <div id="message" class="updated notice is-dismissible"><p><?php echo $messages[$_GET['message']]; ?></p></div>

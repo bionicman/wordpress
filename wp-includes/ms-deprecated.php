@@ -210,7 +210,7 @@ function get_most_active_blogs( $num = 10, $display = true ) {
 		$most_active = $t;
 	}
 
-	if ( $display == true ) {
+	if ( $display ) {
 		if ( is_array( $most_active ) ) {
 			reset( $most_active );
 			foreach ( (array) $most_active as $key => $details ) {
@@ -243,28 +243,23 @@ function wpmu_admin_do_redirect( $url = '' ) {
 	_deprecated_function( __FUNCTION__, '3.3' );
 
 	$ref = '';
-	if ( isset( $_GET['ref'] ) && isset( $_POST['ref'] ) && $_GET['ref'] !== $_POST['ref'] ) {
-		wp_die( __( 'A variable mismatch has been detected.' ), __( 'Sorry, you are not allowed to view this item.' ), 400 );
-	} elseif ( isset( $_POST['ref'] ) ) {
-		$ref = $_POST[ 'ref' ];
-	} elseif ( isset( $_GET['ref'] ) ) {
-		$ref = $_GET[ 'ref' ];
-	}
+	if ( isset( $_GET['ref'] ) )
+		$ref = $_GET['ref'];
+	if ( isset( $_POST['ref'] ) )
+		$ref = $_POST['ref'];
 
 	if ( $ref ) {
 		$ref = wpmu_admin_redirect_add_updated_param( $ref );
 		wp_redirect( $ref );
 		exit();
 	}
-	if ( empty( $_SERVER['HTTP_REFERER'] ) == false ) {
+	if ( ! empty( $_SERVER['HTTP_REFERER'] ) ) {
 		wp_redirect( $_SERVER['HTTP_REFERER'] );
 		exit();
 	}
 
 	$url = wpmu_admin_redirect_add_updated_param( $url );
-	if ( isset( $_GET['redirect'] ) && isset( $_POST['redirect'] ) && $_GET['redirect'] !== $_POST['redirect'] ) {
-		wp_die( __( 'A variable mismatch has been detected.' ), __( 'Sorry, you are not allowed to view this item.' ), 400 );
-	} elseif ( isset( $_GET['redirect'] ) ) {
+	if ( isset( $_GET['redirect'] ) ) {
 		if ( substr( $_GET['redirect'], 0, 2 ) == 's_' )
 			$url .= '&action=blogs&s='. esc_html( substr( $_GET['redirect'], 2 ) );
 	} elseif ( isset( $_POST['redirect'] ) ) {

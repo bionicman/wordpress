@@ -156,6 +156,7 @@ window.wp = window.wp || {};
 				encodedText,
 				instance;
 
+			text = tinymce.DOM.decode( text );
 			instance = this.getInstance( text );
 
 			if ( instance ) {
@@ -417,7 +418,7 @@ window.wp = window.wp || {};
 		 */
 		replaceMarkers: function() {
 			this.getMarkers( function( editor, node ) {
-				if ( ! this.loader && $( node ).text() !== tinymce.DOM.decode( this.text ) ) {
+				if ( ! this.loader && $( node ).text() !== this.text ) {
 					editor.dom.setAttrib( node, 'data-wpview-marker', null );
 					return;
 				}
@@ -486,14 +487,6 @@ window.wp = window.wp || {};
 			var MutationObserver = window.MutationObserver || window.WebKitMutationObserver || window.MozMutationObserver,
 				self = this;
 
-			if ( body.indexOf( '[' ) !== -1 && body.indexOf( ']' ) !== -1 ) {
-				var shortcodesRegExp = new RegExp( '\\[\\/?(?:' + window.mceViewL10n.shortcodes.join( '|' ) + ')[^\\]]*?\\]', 'g' );
-				// Escape tags inside shortcode previews.
-				body = body.replace( shortcodesRegExp, function( match ) {
-					return match.replace( /</g, '&lt;' ).replace( />/g, '&gt;' );
-				} );
-			}
-
 			this.getNodes( function( editor, node, contentNode ) {
 				var dom = editor.dom,
 					styles = '',
@@ -508,10 +501,17 @@ window.wp = window.wp || {};
 					}
 				} );
 
+				if ( self.iframeHeight ) {
+					dom.add( contentNode, 'div', { style: {
+						width: '100%',
+						height: self.iframeHeight
+					} } );
+				}
+
 				// Seems the browsers need a bit of time to insert/set the view nodes,
 				// or the iframe will fail especially when switching Text => Visual.
 				setTimeout( function() {
-					var iframe, iframeDoc, observer, i;
+					var iframe, iframeDoc, observer, i, block;
 
 					contentNode.innerHTML = '';
 
@@ -525,7 +525,8 @@ window.wp = window.wp || {};
 						style: {
 							width: '100%',
 							display: 'block'
-						}
+						},
+						height: self.iframeHeight
 					} );
 
 					dom.add( contentNode, 'div', { 'class': 'wpview-overlay' } );
@@ -568,18 +569,31 @@ window.wp = window.wp || {};
 					iframeDoc.close();
 
 					function resize() {
-						var $iframe, iframeDocHeight;
+						var $iframe;
+
+						if ( block ) {
+							return;
+						}
 
 						// Make sure the iframe still exists.
 						if ( iframe.contentWindow ) {
 							$iframe = $( iframe );
-							iframeDocHeight = $( iframeDoc.body ).height();
+							self.iframeHeight = $( iframeDoc.body ).height();
 
-							if ( $iframe.height() !== iframeDocHeight ) {
-								$iframe.height( iframeDocHeight );
+							if ( $iframe.height() !== self.iframeHeight ) {
+								$iframe.height( self.iframeHeight );
 								editor.nodeChanged();
 							}
 						}
+					}
+
+					if ( self.iframeHeight ) {
+						block = true;
+
+						setTimeout( function() {
+							block = false;
+							resize();
+						}, 3000 );
 					}
 
 					$( iframe.contentWindow ).on( 'load', resize );

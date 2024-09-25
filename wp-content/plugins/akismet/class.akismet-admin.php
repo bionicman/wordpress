@@ -41,6 +41,7 @@ class Akismet_Admin {
 
 		add_filter( 'plugin_action_links', array( 'Akismet_Admin', 'plugin_action_links' ), 10, 2 );
 		add_filter( 'comment_row_actions', array( 'Akismet_Admin', 'comment_row_action' ), 10, 2 );
+		add_filter( 'comment_text', array( 'Akismet_Admin', 'text_add_link_class' ) );
 		
 		add_filter( 'plugin_action_links_'.plugin_basename( plugin_dir_path( __FILE__ ) . 'akismet.php'), array( 'Akismet_Admin', 'admin_plugin_settings_link' ) );
 		
@@ -128,8 +129,8 @@ class Akismet_Admin {
 						'title'		=> __( 'Overview' , 'akismet'),
 						'content'	=>
 							'<p><strong>' . esc_html__( 'Akismet Setup' , 'akismet') . '</strong></p>' .
-							'<p>' . esc_html__( 'Akismet filters out spam, so you can focus on more important things.' , 'akismet') . '</p>' .
-							'<p>' . esc_html__( 'On this page, you are able to set up the Akismet plugin.' , 'akismet') . '</p>',
+							'<p>' . esc_html__( 'Akismet filters out your comment and trackback spam for you, so you can focus on more important things.' , 'akismet') . '</p>' .
+							'<p>' . esc_html__( 'On this page, you are able to setup the Akismet plugin.' , 'akismet') . '</p>',
 					)
 				);
 
@@ -140,7 +141,7 @@ class Akismet_Admin {
 						'content'	=>
 							'<p><strong>' . esc_html__( 'Akismet Setup' , 'akismet') . '</strong></p>' .
 							'<p>' . esc_html__( 'You need to enter an API key to activate the Akismet service on your site.' , 'akismet') . '</p>' .
-							'<p>' . sprintf( __( 'Sign up for an account on %s to get an API Key.' , 'akismet'), '<a href="https://akismet.com/plugin-signup/" target="_blank">Akismet.com</a>' ) . '</p>',
+							'<p>' . sprintf( __( 'Signup for an account on %s to get an API Key.' , 'akismet'), '<a href="https://akismet.com/plugin-signup/" target="_blank">Akismet.com</a>' ) . '</p>',
 					)
 				);
 
@@ -166,7 +167,7 @@ class Akismet_Admin {
 						'title'		=> __( 'Overview' , 'akismet'),
 						'content'	=>
 							'<p><strong>' . esc_html__( 'Akismet Stats' , 'akismet') . '</strong></p>' .
-							'<p>' . esc_html__( 'Akismet filters out spam, so you can focus on more important things.' , 'akismet') . '</p>' .
+							'<p>' . esc_html__( 'Akismet filters out your comment and trackback spam for you, so you can focus on more important things.' , 'akismet') . '</p>' .
 							'<p>' . esc_html__( 'On this page, you are able to view stats on spam filtered on your site.' , 'akismet') . '</p>',
 					)
 				);
@@ -179,7 +180,7 @@ class Akismet_Admin {
 						'title'		=> __( 'Overview' , 'akismet'),
 						'content'	=>
 							'<p><strong>' . esc_html__( 'Akismet Configuration' , 'akismet') . '</strong></p>' .
-							'<p>' . esc_html__( 'Akismet filters out spam, so you can focus on more important things.' , 'akismet') . '</p>' .
+							'<p>' . esc_html__( 'Akismet filters out your comment and trackback spam for you, so you can focus on more important things.' , 'akismet') . '</p>' .
 							'<p>' . esc_html__( 'On this page, you are able to enter/remove an API key, view account information and view spam stats.' , 'akismet') . '</p>',
 					)
 				);
@@ -591,6 +592,18 @@ class Akismet_Admin {
 		return $links;
 	}
 
+	public static function text_add_link_callback( $m ) {
+		// bare link?
+		if ( $m[4] == $m[2] )
+			return '<a '.$m[1].' href="'.$m[2].'" '.$m[3].' class="comment-link">'.$m[4].'</a>';
+		else
+			return '<span title="'.$m[2].'" class="comment-link"><a '.$m[1].' href="'.$m[2].'" '.$m[3].' class="comment-link">'.$m[4].'</a></span>';
+	}
+
+	public static function text_add_link_class( $comment_text ) {
+		return preg_replace_callback( '#<a ([^>]*)href="([^"]+)"([^>]*)>(.*?)</a>#i', array( 'Akismet_Admin', 'text_add_link_callback' ), $comment_text );
+	}
+
 	// Total spam in queue
 	// get_option( 'akismet_spam_count' ) is the total caught ever
 	public static function get_spam_count( $type = false ) {
@@ -699,16 +712,13 @@ class Akismet_Admin {
 	}
 	
 	public static function get_akismet_user( $api_key ) {
-		$akismet_user = false;
+		$akismet_user = Akismet::http_post( Akismet::build_query( array( 'key' => $api_key, 'blog' => get_bloginfo( 'url' ) ) ), 'get-subscription' );
 
-		$subscription_verification = Akismet::http_post( Akismet::build_query( array( 'key' => $api_key, 'blog' => get_bloginfo( 'url' ) ) ), 'get-subscription' );
-
-		if ( ! empty( $subscription_verification[1] ) ) {
-			if ( 'invalid' !== $subscription_verification[1] ) {
-				$akismet_user = json_decode( $subscription_verification[1] );
-			}
-		}
-
+		if ( ! empty( $akismet_user[1] ) )
+			$akismet_user = json_decode( $akismet_user[1] );
+		else
+			$akismet_user = false;
+			
 		return $akismet_user;
 	}
 	
@@ -799,7 +809,7 @@ class Akismet_Admin {
 			}
 		}
 
-		if ( $api_key = Akismet::get_api_key() && ( empty( self::$notices['status'] ) || 'existing-key-invalid' != self::$notices['status'] ) ) {
+		if ( $api_key = Akismet::get_api_key() ) {
 			self::display_configuration_page();
 			return;
 		}
@@ -840,16 +850,8 @@ class Akismet_Admin {
 	public static function display_configuration_page() {
 		$api_key      = Akismet::get_api_key();
 		$akismet_user = self::get_akismet_user( $api_key );
-		
-		if ( ! $akismet_user ) {
-			// This could happen if the user's key became invalid after it was previously valid and successfully set up.
-			self::$notices['status'] = 'existing-key-invalid';
-			self::display_start_page();
-			return;
-		}
-
 		$stat_totals  = self::get_stats( $api_key );
-
+		
 		// If unset, create the new strictness option using the old discard option to determine its default
        	if ( get_option( 'akismet_strictness' ) === false )
         	add_option( 'akismet_strictness', (get_option('akismet_discard_month') === 'true' ? '1' : '0') );
@@ -867,11 +869,11 @@ class Akismet_Admin {
 					$cleaning_up      = __( 'Cleaning up spam takes time.' , 'akismet');
 
 					if ( $total_in_days > 1 )
-						$time_saved = $cleaning_up . ' ' . sprintf( __( 'Akismet has saved you %s days!' , 'akismet'), number_format_i18n( $total_in_days ) );
+						$time_saved = $cleaning_up . ' ' . sprintf( __( 'Since you joined us, Akismet has saved you %s days!' , 'akismet'), number_format_i18n( $total_in_days ) );
 					elseif ( $total_in_hours > 1 )
-						$time_saved = $cleaning_up . ' ' . sprintf( __( 'Akismet has saved you %d hours!' , 'akismet'), $total_in_hours );
+						$time_saved = $cleaning_up . ' ' . sprintf( __( 'Since you joined us, Akismet has saved you %d hours!' , 'akismet'), $total_in_hours );
 					elseif ( $total_in_minutes >= 30 )
-						$time_saved = $cleaning_up . ' ' . sprintf( __( 'Akismet has saved you %d minutes!' , 'akismet'), $total_in_minutes );
+						$time_saved = $cleaning_up . ' ' . sprintf( __( 'Since you joined us, Akismet has saved you %d minutes!' , 'akismet'), $total_in_minutes );
 				}
 
 				Akismet::view( 'notice', array( 'type' => 'active-notice', 'time_saved' => $time_saved ) );

@@ -20,6 +20,8 @@ if ( !function_exists('_') ) {
  * @since 4.2.2
  * @access private
  *
+ * @staticvar string $utf8_pcre
+ *
  * @param bool $set - Used for testing only
  *             null   : default - get PCRE/u capability
  *             false  : Used for testing - return false for future calls to this function
@@ -193,6 +195,12 @@ if ( !function_exists('json_encode') ) {
 }
 
 if ( !function_exists('json_decode') ) {
+	/**
+	 * @global Services_JSON $wp_json
+	 * @param string $string
+	 * @param bool   $assoc_array
+	 * @return object|array
+	 */
 	function json_decode( $string, $assoc_array = false ) {
 		global $wp_json;
 
@@ -206,6 +214,11 @@ if ( !function_exists('json_decode') ) {
 			$res = _json_decode_object_helper( $res );
 		return $res;
 	}
+
+	/**
+	 * @param object $data
+	 * @return array
+	 */
 	function _json_decode_object_helper($data) {
 		if ( is_object($data) )
 			$data = get_object_vars($data);
@@ -246,50 +259,4 @@ endif;
 // Defined here to prevent a notice when using it with wp_json_encode()
 if ( ! defined( 'JSON_PRETTY_PRINT' ) ) {
 	define( 'JSON_PRETTY_PRINT', 128 );
-}
-
-if ( ! function_exists( 'str_starts_with' ) ) {
-	/**
-	 * Polyfill for `str_starts_with()` function added in PHP 8.0.
-	 *
-	 * Performs a case-sensitive check indicating if
-	 * the haystack begins with needle.
-	 *
-	 * @since 5.9.0
-	 *
-	 * @param string $haystack The string to search in.
-	 * @param string $needle   The substring to search for in the `$haystack`.
-	 * @return bool True if `$haystack` starts with `$needle`, otherwise false.
-	 */
-	function str_starts_with( $haystack, $needle ) {
-		if ( '' === $needle ) {
-			return true;
-		}
-
-		return 0 === strpos( $haystack, $needle );
-	}
-}
-
-if ( ! function_exists( 'str_ends_with' ) ) {
-	/**
-	 * Polyfill for `str_ends_with()` function added in PHP 8.0.
-	 *
-	 * Performs a case-sensitive check indicating if
-	 * the haystack ends with needle.
-	 *
-	 * @since 5.9.0
-	 *
-	 * @param string $haystack The string to search in.
-	 * @param string $needle   The substring to search for in the `$haystack`.
-	 * @return bool True if `$haystack` ends with `$needle`, otherwise false.
-	 */
-	function str_ends_with( $haystack, $needle ) {
-		if ( '' === $haystack ) {
-			return '' === $needle;
-		}
-
-		$len = strlen( $needle );
-
-		return substr( $haystack, -$len, $len ) === $needle;
-	}
 }
