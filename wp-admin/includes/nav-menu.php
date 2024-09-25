@@ -411,7 +411,9 @@ function wp_nav_menu_item_post_type_meta_box( $object, $box ) {
 		'_wpnonce',
 	);
 
-	$most_recent_url = $view_all_url = $search_url = '';
+	$most_recent_url = '';
+	$view_all_url    = '';
+	$search_url      = '';
 	if ( $nav_menu_selected_id ) {
 		$most_recent_url = esc_url( add_query_arg( $post_type_name . '-tab', 'most-recent', remove_query_arg( $removed_args ) ) );
 		$view_all_url    = esc_url( add_query_arg( $post_type_name . '-tab', 'all', remove_query_arg( $removed_args ) ) );
@@ -591,11 +593,6 @@ function wp_nav_menu_item_post_type_meta_box( $object, $box ) {
 
 				$checkbox_items = walk_nav_menu_tree( array_map( 'wp_setup_nav_menu_item', $posts ), 0, (object) $args );
 
-				if ( 'all' == $current_tab && ! empty( $_REQUEST['selectall'] ) ) {
-					$checkbox_items = preg_replace( '/(type=(.)checkbox(\2))/', '$1 checked=$2checked$2', $checkbox_items );
-
-				}
-
 				echo $checkbox_items;
 				?>
 			</ul>
@@ -606,21 +603,10 @@ function wp_nav_menu_item_post_type_meta_box( $object, $box ) {
 			<?php endif; ?>
 		</div><!-- /.tabs-panel -->
 
-		<p class="button-controls wp-clearfix">
-			<span class="list-controls">
-				<a href="
-				<?php
-					echo esc_url(
-						add_query_arg(
-							array(
-								$post_type_name . '-tab' => 'all',
-								'selectall'              => 1,
-							),
-							remove_query_arg( $removed_args )
-						)
-					);
-				?>
-				#posttype-<?php echo $post_type_name; ?>" class="select-all aria-button-if-js"><?php _e( 'Select All' ); ?></a>
+		<p class="button-controls wp-clearfix" data-items-type="posttype-<?php echo esc_attr( $post_type_name ); ?>">
+			<span class="list-controls hide-if-no-js">
+				<input type="checkbox" id="<?php echo esc_attr( $post_type_name . '-tab' ); ?>" class="select-all" />
+				<label for="<?php echo esc_attr( $post_type_name . '-tab' ); ?>"><?php _e( 'Select All' ); ?></label>
 			</span>
 
 			<span class="add-to-menu">
@@ -661,6 +647,7 @@ function wp_nav_menu_item_taxonomy_meta_box( $object, $box ) {
 	$offset   = 0 < $pagenum ? $per_page * ( $pagenum - 1 ) : 0;
 
 	$args = array(
+		'taxonomy'     => $taxonomy_name,
 		'child_of'     => 0,
 		'exclude'      => '',
 		'hide_empty'   => false,
@@ -673,7 +660,7 @@ function wp_nav_menu_item_taxonomy_meta_box( $object, $box ) {
 		'pad_counts'   => false,
 	);
 
-	$terms = get_terms( $taxonomy_name, $args );
+	$terms = get_terms( $args );
 
 	if ( ! $terms || is_wp_error( $terms ) ) {
 		echo '<p>' . __( 'No items.' ) . '</p>';
@@ -740,7 +727,9 @@ function wp_nav_menu_item_taxonomy_meta_box( $object, $box ) {
 		'_wpnonce',
 	);
 
-	$most_used_url = $view_all_url = $search_url = '';
+	$most_used_url = '';
+	$view_all_url  = '';
+	$search_url    = '';
 	if ( $nav_menu_selected_id ) {
 		$most_used_url = esc_url( add_query_arg( $taxonomy_name . '-tab', 'most-used', remove_query_arg( $removed_args ) ) );
 		$view_all_url  = esc_url( add_query_arg( $taxonomy_name . '-tab', 'all', remove_query_arg( $removed_args ) ) );
@@ -770,8 +759,8 @@ function wp_nav_menu_item_taxonomy_meta_box( $object, $box ) {
 			<ul id="<?php echo $taxonomy_name; ?>checklist-pop" class="categorychecklist form-no-clear" >
 				<?php
 				$popular_terms  = get_terms(
-					$taxonomy_name,
 					array(
+						'taxonomy'     => $taxonomy_name,
 						'orderby'      => 'count',
 						'order'        => 'DESC',
 						'number'       => 10,
@@ -808,8 +797,8 @@ function wp_nav_menu_item_taxonomy_meta_box( $object, $box ) {
 			if ( isset( $_REQUEST[ 'quick-search-taxonomy-' . $taxonomy_name ] ) ) {
 				$searched       = esc_attr( $_REQUEST[ 'quick-search-taxonomy-' . $taxonomy_name ] );
 				$search_results = get_terms(
-					$taxonomy_name,
 					array(
+						'taxonomy'     => $taxonomy_name,
 						'name__like'   => $searched,
 						'fields'       => 'all',
 						'orderby'      => 'count',
@@ -843,21 +832,10 @@ function wp_nav_menu_item_taxonomy_meta_box( $object, $box ) {
 			</ul>
 		</div><!-- /.tabs-panel -->
 
-		<p class="button-controls wp-clearfix">
-			<span class="list-controls">
-				<a href="
-				<?php
-					echo esc_url(
-						add_query_arg(
-							array(
-								$taxonomy_name . '-tab' => 'all',
-								'selectall'             => 1,
-							),
-							remove_query_arg( $removed_args )
-						)
-					);
-				?>
-				#taxonomy-<?php echo $taxonomy_name; ?>" class="select-all aria-button-if-js"><?php _e( 'Select All' ); ?></a>
+		<p class="button-controls wp-clearfix" data-items-type="taxonomy-<?php echo esc_attr( $taxonomy_name ); ?>">
+			<span class="list-controls hide-if-no-js">
+				<input type="checkbox" id="<?php echo esc_attr( $taxonomy_name . '-tab' ); ?>" class="select-all" />
+				<label for="<?php echo esc_attr( $taxonomy_name . '-tab' ); ?>"><?php _e( 'Select All' ); ?></label>
 			</span>
 
 			<span class="add-to-menu">
@@ -1019,15 +997,16 @@ function wp_get_nav_menu_to_edit( $menu_id = 0 ) {
 		} else {
 			return new WP_Error(
 				'menu_walker_not_exist',
-				/* translators: %s: walker class name */
 				sprintf(
+					/* translators: %s: Walker class name. */
 					__( 'The Walker class named %s does not exist.' ),
 					'<strong>' . $walker_class_name . '</strong>'
 				)
 			);
 		}
 
-		$some_pending_menu_items = $some_invalid_menu_items = false;
+		$some_pending_menu_items = false;
+		$some_invalid_menu_items = false;
 		foreach ( (array) $menu_items as $menu_item ) {
 			if ( isset( $menu_item->post_status ) && 'draft' == $menu_item->post_status ) {
 				$some_pending_menu_items = true;
@@ -1181,7 +1160,8 @@ function wp_nav_menu_update_menu_items( $nav_menu_selected_id, $nav_menu_selecte
 			$nav_menu_option['auto_add'][] = $nav_menu_selected_id;
 		}
 	} else {
-		if ( false !== ( $key = array_search( $nav_menu_selected_id, $nav_menu_option['auto_add'] ) ) ) {
+		$key = array_search( $nav_menu_selected_id, $nav_menu_option['auto_add'] );
+		if ( false !== $key ) {
 			unset( $nav_menu_option['auto_add'][ $key ] );
 		}
 	}
@@ -1195,8 +1175,8 @@ function wp_nav_menu_update_menu_items( $nav_menu_selected_id, $nav_menu_selecte
 	do_action( 'wp_update_nav_menu', $nav_menu_selected_id );
 
 	$messages[] = '<div id="message" class="updated notice is-dismissible"><p>' .
-		/* translators: %s: nav menu title */
 		sprintf(
+			/* translators: %s: Nav menu title. */
 			__( '%s has been updated.' ),
 			'<strong>' . $nav_menu_selected_title . '</strong>'
 		) . '</p></div>';
