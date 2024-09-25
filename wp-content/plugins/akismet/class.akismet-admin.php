@@ -42,6 +42,8 @@ class Akismet_Admin {
 		add_filter( 'plugin_action_links', array( 'Akismet_Admin', 'plugin_action_links' ), 10, 2 );
 		add_filter( 'comment_row_actions', array( 'Akismet_Admin', 'comment_row_action' ), 10, 2 );
 		add_filter( 'comment_text', array( 'Akismet_Admin', 'text_add_link_class' ) );
+		
+		add_filter( 'plugin_action_links_'.plugin_basename( plugin_dir_path( __FILE__ ) . 'akismet.php'), array( 'Akismet_Admin', 'admin_plugin_settings_link' ) );
 	}
 
 	public static function admin_init() {
@@ -59,6 +61,12 @@ class Akismet_Admin {
 	public static function admin_head() {
 		if ( !current_user_can( 'manage_options' ) )
 			return;
+	}
+	
+	public static function admin_plugin_settings_link( $links ) { 
+  		$settings_link = '<a href="'.self::get_page_url().'">'.__('Settings', 'akismet').'</a>';
+  		array_unshift( $links, $settings_link ); 
+  		return $links; 
 	}
 
 	public static function load_menu() {
@@ -182,8 +190,8 @@ class Akismet_Admin {
 						'content'	=>
 							'<p><strong>' . esc_html__( 'Akismet Configuration' , 'akismet') . '</strong></p>' .
 							'<p><strong>' . esc_html__( 'API Key' , 'akismet') . '</strong> - ' . esc_html__( 'Enter/remove an API key.' , 'akismet') . '</p>' .
-							'<p><strong>' . esc_html__( 'Automatically delete spam from posts older than 30 days' , 'akismet') . '</strong> - ' . esc_html__( 'Automatically delete spam comments on posts that are older than 30 days old.' , 'akismet') . '</p>' .
-							'<p><strong>' . esc_html__( 'Show the number of approved comments beside each comment author' , 'akismet') . '</strong> - ' . esc_html__( 'Show the number of approved comments beside each comment author in the comments list page.' , 'akismet') . '</p>',
+							'<p><strong>' . esc_html__( 'Comments' , 'akismet') . '</strong> - ' . esc_html__( 'Show the number of approved comments beside each comment author in the comments list page.' , 'akismet') . '</p>' .
+							'<p><strong>' . esc_html__( 'Strictness' , 'akismet') . '</strong> - ' . esc_html__( 'Choose to either discard the worst spam automatically or to always put all spam in spam folder.' , 'akismet') . '</p>',
 					)
 				);
 
@@ -215,8 +223,8 @@ class Akismet_Admin {
 		if ( !wp_verify_nonce( $_POST['_wpnonce'], self::NONCE ) )
 			return false;
 
-		foreach( array( 'akismet_discard_month', 'akismet_show_user_comments_approved' ) as $option ) {
-			update_option( $option, isset( $_POST[$option] ) ? 'true' : 'false' );
+		foreach( array( 'akismet_strictness', 'akismet_show_user_comments_approved' ) as $option ) {
+			update_option( $option, isset( $_POST[$option] ) && (int) $_POST[$option] == 1 ? '1' : '0' );
 		}
 
 		if ( defined( 'WPCOM_API_KEY' ) )
@@ -244,11 +252,11 @@ class Akismet_Admin {
 		if ( $key_status == 'valid' ) {
 			$akismet_user = self::get_akismet_user( $api_key );
 			
-			if ( $akismet_user ) {
-				if ( $akismet_user->status != 'missing' )
+			if ( $akismet_user ) {				
+				if ( in_array( $akismet_user->status, array( 'active', 'active-dunning', 'no-sub' ) ) )
 					update_option( 'wordpress_api_key', $api_key );
 				
-				if ( $akismet_user->status == 'active' )
+				if (  $akismet_user->status == 'active' )
 					self::$notices['status'] = 'new-key-valid';
 				else
 					self::$notices['status'] = $akismet_user->status;
@@ -275,7 +283,7 @@ class Akismet_Admin {
 				'<a href="%1$s">Akismet</a> has protected your site from <a href="%2$s">%3$s spam comment</a>.',
 				'<a href="%1$s">Akismet</a> has protected your site from <a href="%2$s">%3$s spam comments</a>.',
 				$count
-			, 'akismet'), 'http://akismet.com/?return=true', esc_url( add_query_arg( array( 'page' => 'akismet-admin' ), admin_url( isset( $submenu['edit-comments.php'] ) ? 'edit-comments.php' : 'edit.php' ) ) ), number_format_i18n($count) ).'</p>';
+			, 'akismet'), 'https://akismet.com/wordpress/', esc_url( add_query_arg( array( 'page' => 'akismet-admin' ), admin_url( isset( $submenu['edit-comments.php'] ) ? 'edit-comments.php' : 'edit.php' ) ) ), number_format_i18n($count) ).'</p>';
 	}
 
 	// WP 2.5+
@@ -294,9 +302,9 @@ class Akismet_Admin {
 				'<a href="%1$s">Akismet</a> has protected your site from %2$s spam comment already. ',
 				'<a href="%1$s">Akismet</a> has protected your site from %2$s spam comments already. ',
 				$count
-			, 'akismet'), 'http://akismet.com/?return=true', number_format_i18n( $count ) );
+			, 'akismet'), 'https://akismet.com/wordpress/', number_format_i18n( $count ) );
 		} else {
-			$intro = sprintf( __('<a href="%s">Akismet</a> blocks spam from getting to your blog. ', 'akismet'), 'http://akismet.com/?return=true' );
+			$intro = sprintf( __('<a href="%s">Akismet</a> blocks spam from getting to your blog. ', 'akismet'), 'https://akismet.com/wordpress/' );
 		}
 
 		$link = function_exists( 'esc_url' ) ? esc_url( $link ) : clean_url( $link );
@@ -506,7 +514,7 @@ class Akismet_Admin {
 		if ( $desc )
 			echo '<span class="akismet-status" commentid="'.$comment->comment_ID.'"><a href="comment.php?action=editcomment&amp;c='.$comment->comment_ID.'#akismet-status" title="' . esc_attr__( 'View comment history' , 'akismet') . '">'.esc_html( $desc ).'</a></span>';
 
-		if ( apply_filters( 'akismet_show_user_comments_approved', get_option('akismet_show_user_comments_approved') ) == 'true' ) {
+		if ( apply_filters( 'akismet_show_user_comments_approved', get_option('akismet_show_user_comments_approved') ) ) {
 			$comment_count = Akismet::get_user_comments_approved( $comment->user_id, $comment->comment_author_email, $comment->comment_author, $comment->comment_author_url );
 			$comment_count = intval( $comment_count );
 			echo '<span class="akismet-user-comment-count" commentid="'.$comment->comment_ID.'" style="display:none;"><br><span class="akismet-user-comment-counts">'. sprintf( esc_html( _n( '%s approved', '%s approved', $comment_count , 'akismet') ), number_format_i18n( $comment_count ) ) . '</span></span>';
@@ -743,6 +751,19 @@ class Akismet_Admin {
 		return $akismet_user;
 	}
 	
+	public static function get_stats( $api_key ) {
+		$stat_totals = array();
+
+		foreach( array( '6-months', 'all' ) as $interval ) {
+			$response = Akismet::http_post( http_build_query( array( 'blog' => urlencode( get_bloginfo('url') ), 'key' => $api_key, 'from' => $interval ) ), 'get-stats' );
+
+			if ( ! empty( $response[1] ) ) {
+				$stat_totals[$interval] = json_decode( $response[1] );
+			}
+		}
+		return $stat_totals;
+	}
+	
 	public static function verify_wpcom_key( $api_key, $user_id, $token = '' ) {
 		$akismet_account = Akismet::http_post( http_build_query( array(
 			'user_id'          => $user_id,
@@ -840,16 +861,11 @@ class Akismet_Admin {
 	public static function display_configuration_page() {
 		$api_key      = Akismet::get_api_key();
 		$akismet_user = self::get_akismet_user( $api_key );
-
-		$blog = parse_url( get_option('home'), PHP_URL_HOST );
-
-		foreach( array( '6-months', 'all' ) as $interval ) {
-			$response = Akismet::http_post( http_build_query( array( 'blog' => urlencode( $blog ), 'key' => $api_key, 'from' => $interval ) ), 'get-stats' );
-
-			if ( ! empty( $response[1] ) ) {
-				$stat_totals[$interval] = json_decode( $response[1] );
-			}
-		}
+		$stat_totals  = self::get_stats( $api_key );
+		
+		// If unset, create the new strictness option using the old discard option to determine its default
+       	if ( get_option( 'akismet_strictness' ) === false )
+        	add_option( 'akismet_strictness', (get_option('akismet_discard_month') === 'true' ? '1' : '0') );
 
 		if ( empty( self::$notices ) ) {
 			//show status
@@ -879,11 +895,11 @@ class Akismet_Admin {
 			}
 		}
 		
-		if ( !isset( self::$notices['status'] ) && in_array( $akismet_user->status, array( 'cancelled', 'suspended', 'missing' ) ) )	
+		if ( !isset( self::$notices['status'] ) && in_array( $akismet_user->status, array( 'cancelled', 'suspended', 'missing', 'no-sub' ) ) )	
 			Akismet::view( 'notice', array( 'type' => $akismet_user->status ) );
 
 		Akismet::log( compact( 'stat_totals', 'akismet_user' ) );
-		Akismet::view( 'config', compact( 'api_key', 'blog', 'akismet_user', 'stat_totals' ) );
+		Akismet::view( 'config', compact( 'api_key', 'akismet_user', 'stat_totals' ) );
 	}
 
 	public static function display_notice() {

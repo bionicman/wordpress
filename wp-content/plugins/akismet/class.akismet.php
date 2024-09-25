@@ -8,7 +8,8 @@ class Akismet {
 	private static $last_comment = '';
 	private static $initiated = false;
 	private static $prevent_moderation_email_for_these_comments = array();
-
+	private static $last_comment_result = null;
+	
 	public static function init() {
 		if ( ! self::$initiated ) {
 			self::init_hooks();
@@ -37,6 +38,7 @@ class Akismet {
 		add_action( 'comment_form', array( 'Akismet', 'inject_ak_js' ) );
 
 		add_filter( 'comment_moderation_recipients', array( 'Akismet', 'disable_moderation_emails_if_unreachable' ), 1000, 2 );
+		add_filter( 'pre_comment_approved', array( 'Akismet', 'last_comment_status' ), 10, 2 );
 
 		if ( '3.0.5' == $GLOBALS['wp_version'] ) {
 			remove_filter( 'comment_text', 'wp_kses_data' );
@@ -65,6 +67,7 @@ class Akismet {
 	}
 
 	public static function auto_check_comment( $commentdata ) {
+		self::$last_comment_result = null;
 
 		$comment = $commentdata;
 
@@ -121,22 +124,16 @@ class Akismet {
 		$commentdata['comment_as_submitted'] = $comment;
 		$commentdata['akismet_result']       = $response[1];
 
-		if ( isset( $response[0]['x-akismet-pro-tip'] ) && $response[0]['x-akismet-pro-tip'] === 'discard' )
-			$commentdata['akismet_pro_tip'] = 'discard';
+		if ( isset( $response[0]['x-akismet-pro-tip'] ) )
+	        $commentdata['akismet_pro_tip'] = $response[0]['x-akismet-pro-tip'];
 
 		if ( 'true' == $response[1] ) {
 			// akismet_spam_count will be incremented later by comment_is_spam()
-			add_filter('pre_comment_approved', array( 'Akismet',  'comment_is_spam' ), 10, 2 );
+			self::$last_comment_result = 'spam';
 
 			$discard = ( isset( $commentdata['akismet_pro_tip'] ) && $commentdata['akismet_pro_tip'] === 'discard' && self::allow_discard() );
 
 			do_action( 'akismet_spam_caught', $discard );
-
-			if ( !$discard ) {
-				//discard posts older than 30 days if option to do so is set
-				$diff = time() - strtotime( $post->post_modified_gmt ) / 86400;
-				$discard = ( $post->post_type == 'post' && $diff > 30 && get_option( 'akismet_discard_month' ) == 'true' && empty( $comment['user_ID'] ) );
-			}
 
 			if ( $discard ) {
 				// akismet_result_spam() won't be called so bump the counter here
@@ -147,11 +144,12 @@ class Akismet {
 				die();
 			}
 		}
-
+		
 		// if the response is neither true nor false, hold the comment for moderation and schedule a recheck
 		if ( 'true' != $response[1] && 'false' != $response[1] ) {
 			if ( !current_user_can('moderate_comments') ) {
-				add_filter('pre_comment_approved', array( 'Akismet',  'comment_needs_moderation' ), 10, 2 );
+				// Comment status should be moderated
+				self::$last_comment_result = '0';
 			}
 			if ( function_exists('wp_next_scheduled') && function_exists('wp_schedule_single_event') ) {
 				if ( !wp_next_scheduled( 'akismet_schedule_cron_recheck' ) ) {
@@ -175,6 +173,10 @@ class Akismet {
 		self::set_last_comment( $commentdata );
 		self::fix_scheduled_recheck();
 
+		return self::$last_comment;
+	}
+	
+	public static function get_last_comment() {
 		return self::$last_comment;
 	}
 	
@@ -548,9 +550,9 @@ class Akismet {
 	}
 
 	// filter handler used to return a spam result to pre_comment_approved
-	public static function comment_is_spam( $approved, $comment ) {	
+	public static function last_comment_status( $approved, $comment ) {
 		// Only do this if it's the correct comment
-		if ( !self::matches_last_comment( $comment ) ) {
+		if ( is_null(self::$last_comment_result) || ! self::matches_last_comment( $comment ) ) {
 			self::log( "comment_is_spam mismatched comment, returning unaltered $approved" );
 			return $approved;
 		}
@@ -559,15 +561,7 @@ class Akismet {
 		if ( $incr = apply_filters('akismet_spam_count_incr', 1) )
 			update_option( 'akismet_spam_count', get_option('akismet_spam_count') + $incr );
 
-		return 'spam';
-	}
-
-	public static function comment_needs_moderation( $approved, $comment ) {
-		// Only do this if it's the correct comment
-	    if ( !self::matches_last_comment( $comment ) ) {
-			return $approved;
-		}    
-        return '0';
+		return self::$last_comment_result;
 	}
 	
 	/**
@@ -664,8 +658,14 @@ class Akismet {
 
 		// only call update_option() if the value has changed
 		if ( $code != get_option( 'akismet_alert_code' ) ) {
-			update_option( 'akismet_alert_code', $code );
-			update_option( 'akismet_alert_msg', $msg );
+			if ( ! $code ) {
+				delete_option( 'akismet_alert_code' );
+				delete_option( 'akismet_alert_msg' );
+			}
+			else {
+				update_option( 'akismet_alert_code', $code );
+				update_option( 'akismet_alert_msg', $msg );
+			}
 		}
 	}
 
@@ -743,7 +743,7 @@ p {
 		if ( version_compare( $GLOBALS['wp_version'], AKISMET__MINIMUM_WP_VERSION, '<' ) ) {
 			load_plugin_textdomain( 'akismet' );
 			
-			$message = '<strong>'.sprintf(esc_html__( 'Akismet %s requires WordPress %s or higher.' , 'akismet'), AKISMET_VERSION, AKISMET__MINIMUM_WP_VERSION ).'</strong> '.sprintf(__('Please <a href="%1$s">upgrade WordPress</a> to a current version, or <a href="%2$s">downgrade to version 2.4 of the Akismet plugin</a>.', 'akismet'), 'http://codex.wordpress.org/Upgrading_WordPress', 'http://wordpress.org/extend/plugins/akismet/download/');
+			$message = '<strong>'.sprintf(esc_html__( 'Akismet %s requires WordPress %s or higher.' , 'akismet'), AKISMET_VERSION, AKISMET__MINIMUM_WP_VERSION ).'</strong> '.sprintf(__('Please <a href="%1$s">upgrade WordPress</a> to a current version, or <a href="%2$s">downgrade to version 2.4 of the Akismet plugin</a>.', 'akismet'), 'https://codex.wordpress.org/Upgrading_WordPress', 'http://wordpress.org/extend/plugins/akismet/download/');
 
 			Akismet::bail_on_activation( $message );
 		}
