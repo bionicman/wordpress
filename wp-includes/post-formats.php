@@ -727,6 +727,7 @@ function get_content_quote( &$content, $remove = false, $replace = '' ) {
  * @since 3.6.0
  *
  * @uses get_content_quote()
+ * @uses apply_filters() Calls 'quote_source_format' filter to allow changing the typographical mark added to the quote source (em-dash prefix, by default)
  *
  * @param object $post (optional) A reference to the post object, falls back to get_post().
  * @return string The quote html.
@@ -749,6 +750,7 @@ function get_the_post_format_quote( &$post = null ) {
 
 	if ( ! empty( $meta['quote_source_name'] ) ) {
 		$source = ( empty( $meta['quote_source_url'] ) ) ? $meta['quote_source_name'] : sprintf( '<a href="%s">%s</a>', esc_url( $meta['quote_source_url'] ), $meta['quote_source_name'] );
+		$source = sprintf( apply_filters( 'quote_source_format', __( '&#8212;&#160;%s' ) ), $source );
 		$quote .= sprintf( '<figcaption class="quote-caption">%s</figcaption>', $source );
 	}
 
@@ -789,8 +791,8 @@ function get_content_url( &$content, $remove = false ) {
 
 		return $trimmed;
 	// the content is HTML so we grab the first href
-	} elseif ( preg_match( '/<a\s[^>]*?href=[\'"](.+?)[\'"]/is', $content, $matches ) ) {
-		return esc_url_raw( $matches[1] );
+	} elseif ( preg_match( '/<a\s[^>]*?href=([\'"])(.+?)\1/is', $content, $matches ) ) {
+		return esc_url_raw( $matches[2] );
 	}
 
 	$lines = explode( "\n", $trimmed );
@@ -875,7 +877,7 @@ function get_the_remaining_content( $more_link_text = null, $strip_teaser = fals
 	$post = get_post();
 
 	if ( null === $more_link_text )
-		$more_link_text = __( '(more...)' );
+		$more_link_text = __( '(more&hellip;)' );
 
 	$output = '';
 	$has_teaser = false;
@@ -949,8 +951,8 @@ function the_remaining_content( $more_link_text = null, $strip_teaser = false ) 
  * @since 3.6.0
  * @access private
  */
-function _post_formats_title( $title, $post_id ) {
-	if ( is_admin() || is_feed() || ! in_array( get_post_format( $post_id ), array( 'aside', 'status' ) ) )
+function _post_formats_title( $title, $post_id = 0 ) {
+	if ( ! $post_id || is_admin() || is_feed() || ! in_array( get_post_format( $post_id ), array( 'aside', 'status' ) ) )
 		return $title;
 
 	// Return an empty string only if the title is auto-generated.
@@ -977,10 +979,14 @@ function _post_formats_generate_title( $content, $post_format = '' ) {
 }
 
 /**
- * Runs during save_post, fixes empty titles for asides and statuses.
+ * Fixes empty titles for aside and status formats.
+ *
+ * Passes a generated post title to the 'wp_insert_post_data' filter.
  *
  * @since 3.6.0
  * @access private
+ *
+ * @uses _post_formats_generate_title()
  */
 function _post_formats_fix_empty_title( $data, $postarr ) {
 	if ( 'auto-draft' == $data['post_status'] || ! post_type_supports( $data['post_type'], 'post-formats' ) )

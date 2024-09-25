@@ -1,7 +1,7 @@
 window.wp = window.wp || {};
 
 (function($) {
-	var Revision, Revisions, Diff, l10n, revisions;
+	var Revision, Revisions, Diff, revisions;
 
 	revisions = wp.revisions = function() {
 		Diff = revisions.Diff = new Diff();
@@ -9,12 +9,8 @@ window.wp = window.wp || {};
 
 	_.extend( revisions, { model: {}, view: {}, controller: {} } );
 
-	// Link any localized strings.
-	l10n = revisions.model.l10n = typeof wpRevisionsL10n === 'undefined' ? {} : wpRevisionsL10n;
-
-	// Link any settings.
-	revisions.model.settings = l10n.settings || {};
-	delete l10n.settings;
+	// Link settings.
+	revisions.model.settings = typeof wpRevisionsSettings === 'undefined' ? {} : wpRevisionsSettings;
 
 
 	/**
@@ -44,12 +40,13 @@ window.wp = window.wp || {};
 		slider: null, // the slider instance
 
 		constructor: function() {
+			var self    = this;
 			this.slider = new revisions.view.Slider();
+
 			if ( null === this.revisions ) {
 				this.revisions = new Revisions(); // set up collection
 				this.startRightModelLoading();
 
-				var self = this;
 				this.revisions.fetch({ // load revision data
 					success: function() {
 						self.stopRightModelLoading();
@@ -62,7 +59,8 @@ window.wp = window.wp || {};
 		loadDiffs: function( models ) {
 			var self = this,
 				revisionsToLoad = models.where( { completed: false } ),
-				delay = 0;
+				delay = 0,
+				totalChanges;
 
 			// match slider to passed revision_id
 			_.each( revisionsToLoad, function( revision ) {
@@ -83,9 +81,7 @@ window.wp = window.wp || {};
 								if ( 0 === models.where( { completed: false } ).length )
 									self.stopModelLoadingSpinner();
 
-								self.tickmarkView.render();
-
-								var totalChanges = model.get( 'linesAdded' ) + model.get( 'linesDeleted' ),
+								totalChanges = model.get( 'linesAdded' ) + model.get( 'linesDeleted' ),
 									scopeOfChanges = 'vsmall';
 
 								// Note: hard coded scope of changes
@@ -105,7 +101,7 @@ window.wp = window.wp || {};
 									// reload if current model refreshed
 									self.revisionView.render();
 								}
-
+								self.tickmarkView.render();
 							}
 					} );
 					}, delay ) ;
@@ -165,8 +161,8 @@ window.wp = window.wp || {};
 					self.tickmarkView.model = self.revisions;
 					self.tickmarkView.render();
 					self.slider.refresh({
-						'max': revisionCount - 1,
-						'value': self.rightDiff - 1
+						'max': revisionCount - 1, // slider starts at 0 in single handle mode
+						'value': self.rightDiff - 1 // slider starts at 0 in single handle mode
 					}, true);
 				},
 
@@ -176,12 +172,12 @@ window.wp = window.wp || {};
 			});
 		},
 
-		// load the models for the left handle
+		// load the models for the left handle (the right handler has moved)
 		reloadLeft: function() {
 			var self = this;
 			self.startLeftModelLoading();
 			self.leftHandleRevisions = new Revisions( {}, {
-				'compareTo': self.revisions.at( self.rightDiff - 1 ).get( 'ID' ),
+				'compareTo': self.revisions.at( self.rightDiff - 1 ).get( 'ID' ), // diff and model count off by 1
 				'showAutosaves': self.autosaves,
 				'showSplitView': self.showSplitView,
 				'rightHandleAt': self.rightDiff
@@ -195,8 +191,7 @@ window.wp = window.wp || {};
 					self.slider.refresh({
 						'max': self.revisions.length
 					});
-					// ensure right handle not beyond length, in particular if viewing autosaves is switched from on to off
-					// the number of models in the collection might get shorter, this ensures right handle is not beyond last model
+					// ensure right handle not beyond length
 					if ( self.rightDiff > self.revisions.length )
 						self.rightDiff = self.revisions.length;
 					},
@@ -207,12 +202,12 @@ window.wp = window.wp || {};
 			});
 		},
 
-		// load the models for the right handle
+		// load the models for the right handle (the left handle has moved)
 		reloadRight: function() {
 			var self = this;
 			self.startRightModelLoading();
 			self.rightHandleRevisions = new Revisions( {}, {
-				'compareTo': self.revisions.at( self.leftDiff - 1 ).get( 'ID' ),
+				'compareTo': self.revisions.at( self.leftDiff - 1 ).get( 'ID' ), // diff and model count off by 1
 				'showAutosaves': self.autosaves,
 				'showSplitView': self.showSplitView,
 				'leftHandleAt': self.leftDiff
@@ -224,8 +219,7 @@ window.wp = window.wp || {};
 					self.loadDiffs( self.rightHandleRevisions );
 					self.tickmarkView.model = self.rightHandleRevisions;
 					self.slider.refresh({
-						'max': self.revisions.length,
-						'values': [ self.leftDiff, self.rightDiff]
+						'max': self.revisions.length
 					}, true);
 				},
 
@@ -236,6 +230,9 @@ window.wp = window.wp || {};
 
 		},
 
+		/**
+		 * reloadLeftRight reload models for both the left and right handles
+		 */
 		reloadLeftRight: function() {
 			this.startRightModelLoading();
 			this.startLeftModelLoading();
@@ -245,8 +242,8 @@ window.wp = window.wp || {};
 
 		disabledButtonCheck: function( val ) {
 			var maxVal = this.revisions.length - 1,
-				next = $( '#next' ),
-				prev = $( '#previous' );
+				next = ! isRtl ? $( '#next' ) : $( '#previous' ),
+				prev = ! isRtl ? $( '#previous' ) : $( '#next' );
 
 			// Disable "Next" button if you're on the last node
 			if ( maxVal === val )
@@ -261,24 +258,26 @@ window.wp = window.wp || {};
 				prev.prop( 'disabled', false );
 		},
 
+		/**
+		 * completeApplicationSetup finishes loading all views once the initial model load is complete
+		 */
 		completeApplicationSetup: function() {
 			this.revisionView = new revisions.view.Diff({
 				model: this.revisions
 			});
-			this.revisionView.render();
+			this.revisionView.render(); // render the revision view
 
-			this.loadDiffs( this.revisions );
+			this.loadDiffs( this.revisions ); // get the actual revisions data
 
 			this.revisionsInteractions = new revisions.view.Interact({
 				model: this.revisions
 			});
-			this.revisionsInteractions.render();
+			this.revisionsInteractions.render(); // render the interaction view
 
 			this.tickmarkView = new revisions.view.Tickmarks({
 				model: this.revisions
 			});
-			this.tickmarkView.render();
-			this.tickmarkView.resetTicks();
+			this.tickmarkView.render(); // render the tickmark view
 		}
 	});
 
@@ -307,6 +306,11 @@ window.wp = window.wp || {};
 			});
 		},
 
+		/**
+		 * respond to slider slide events
+		 * Note: in one handle mode, jQuery UI reports leftmost position as 0
+		 * in two handle mode, jQuery UI Slider reports leftmost position as 1
+		 */
 		slide: function( event, ui ) {
 			if ( this.singleRevision ) {
 				Diff.rightDiff = ( ui.value + 1 );
@@ -321,25 +325,24 @@ window.wp = window.wp || {};
 					if ( Diff.leftModelLoading ) // left model still loading, prevent sliding left handle
 						return false;
 
-					Diff.leftDiff = ui.values[0];
+					Diff.leftDiff = isRtl ? ui.values[1] : ui.values[0]; // handles are reversed in RTL mode
 				} else {
 					// Right handler
 					if ( Diff.rightModelLoading ) // right model still loading, prevent sliding right handle
 						return false;
 
-					Diff.rightDiff = ui.values[1];
-				}
-
-				if ( 0 === Diff.leftDiff ) {
-					$( '#revision-diff-container' ).addClass( 'current-version' );
-				} else {
-					$( '#revision-diff-container' ).removeClass( 'current-version' );
+					Diff.rightDiff = isRtl ? ui.values[0] : ui.values[1]; // handles are reversed in RTL mode
 				}
 
 				Diff.revisionView.render();
 			}
 		},
 
+		/**
+		 * responds to slider start sliding events
+		 * in two handle mode stores start position, so if unchanged at stop event no need to reload diffs
+		 * also swaps in the appropriate models - left handled or right handled
+		 */
 		start: function( event, ui ) {
 			// Not needed in one mode
 			if ( this.singleRevision )
@@ -354,12 +357,12 @@ window.wp = window.wp || {};
 
 				if ( Diff.revisionView.model !== Diff.leftHandleRevisions &&
 						null !== Diff.leftHandleRevisions ) {
-					Diff.revisionView.model = Diff.leftHandleRevisions;
+					Diff.revisionView.model = Diff.leftHandleRevisions; // use the left handle models
 					Diff.tickmarkView.model = Diff.leftHandleRevisions;
 					Diff.tickmarkView.render();
 				}
 
-				Diff.leftDiffStart = ui.values[ 0 ];
+				Diff.leftDiffStart = isRtl ? ui.values[1] : ui.values[0]; // in RTL mode the 'left handle' is the second in the slider, 'right' is first
 
 			} else {
 				// Right handler
@@ -368,16 +371,21 @@ window.wp = window.wp || {};
 
 				if ( Diff.revisionView.model !== Diff.rightHandleRevisions &&
 						null !== Diff.rightHandleRevisions ) {
-					Diff.revisionView.model = Diff.rightHandleRevisions;
+					Diff.revisionView.model = Diff.rightHandleRevisions; // use the right handle models
 					Diff.tickmarkView.model = Diff.rightHandleRevisions;
 					Diff.tickmarkView.render();
 				}
 
 				Diff.revisionView.draggingLeft = false;
-				Diff.rightDiffStart = ui.values[1];
+				Diff.rightDiffStart = isRtl ? ui.values[0] : ui.values[1]; // in RTL mode the 'left handle' is the second in the slider, 'right' is first
 			}
 		},
 
+		/**
+		 * responds to slider stop events
+		 * in two handled mode, if the handle that stopped has moved, reload the diffs for the other handle
+		 * the other handle compares to this handle's position, so if it changes they need to be recalculated
+		 */
 		stop: function( event, ui ) {
 			// Not needed in one mode
 			if ( this.singleRevision )
@@ -386,12 +394,12 @@ window.wp = window.wp || {};
 			// calculate and generate a diff for comparing to the left handle
 			// and the right handle, swap out when dragging
 			if ( $( ui.handle ).hasClass( 'left-handle' ) ) {
-				// Left hadnler
-				if ( Diff.leftDiffStart !== ui.values[0] )
+				// Left handler
+				if ( Diff.leftDiffStart !== isRtl ? ui.values[1] : ui.values[0] ) // in RTL mode the 'left handle' is the second in the slider, 'right' is first
 					Diff.reloadRight();
 			} else {
 				// Right handler
-				if ( Diff.rightDiffStart !== ui.values[1] )
+				if ( Diff.rightDiffStart !== isRtl ? ui.values[0] : ui.values[1] ) // in RTL mode the 'left handle' is the second in the slider, 'right' is first
 					Diff.reloadLeft();
 			}
 		},
@@ -411,10 +419,6 @@ window.wp = window.wp || {};
 		refresh: function( options, slide ) {
 			$( '#diff-slider' ).slider( 'option', options );
 
-			// reset all of the slider tooltips during a refresh, but not on prev/next button actions
-			if ( ! slide )
-				$( 'a.ui-slider-handle' ).html( '<span class="ui-slider-tooltip ui-widget-content ui-corner-all"></span>' );
-
 			// Triggers the slide event
 			if ( slide )
 				$( '#diff-slider' ).trigger( 'slide' );
@@ -432,7 +436,7 @@ window.wp = window.wp || {};
 			$( '#diff-slider' ).slider( {
 				slide: $.proxy( self.slide, self ),
 				start: $.proxy( self.start, self ),
-				stop: $.proxy( self.stop, self )
+				stop:  $.proxy( self.stop, self )
 			} );
 
 			// Set options
@@ -451,41 +455,96 @@ window.wp = window.wp || {};
 		model: Revision,
 
 		resetTicks: function() {
-			var sliderMax   = Diff.slider.option( 'max' );
-			var sliderWidth = Diff.slider.width();
-			var adjustMax   = Diff.singleRevision ? 0 : 1;
-			var tickWidth   = Math.floor( sliderWidth / ( sliderMax - adjustMax ) );
+			var sliderMax, sliderWidth, adjustMax, tickWidth, tickCount = 0, aTickWidth, tickMargin, self = this, firstTick, lastTick;
+			sliderMax   = Diff.slider.option( 'max' );
+			sliderWidth = Diff.slider.width();
+			adjustMax   = Diff.singleRevision ? 0 : 1;
+			tickWidth   = Math.floor( sliderWidth / ( sliderMax - adjustMax ) );
+			tickWidth   = ( tickWidth > 50 ) ? 50 : tickWidth; // set minimum and maximum widths for tick marks
+			tickWidth   = ( tickWidth < 10 ) ? 10 : tickWidth;
+			sliderWidth = tickWidth * ( sliderMax - adjustMax ); // calculate the slider width
+			aTickWidth  = $( '.revision-tick' ).width();
 
-			// TODO: adjust right margins for wider ticks so they stay centered on handle stop point
+			if ( tickWidth !== aTickWidth ) { // is the width already set correctly?
+				$( '.revision-tick' ).each( function() {
+					tickMargin = Math.floor( ( tickWidth - $( this ).width() ) / 2 ) + 1;
+					$( this ).css( 'border-left', tickMargin + 'px solid #f7f7f7'); // space the ticks out using margins
+					$( this ).css( 'border-right', ( tickWidth - tickMargin - $( this ).width() ) + 'px solid #f7f7f7'); // space the ticks out using margins
+				});
+				firstTick = $( '.revision-tick' ).first(); //cache selectors for optimization
+				lastTick = $( '.revision-tick' ).last();
 
-			// set minimum and maximum widths for tick marks
-			tickWidth = (tickWidth > 50 ) ? 50 : tickWidth;
-			tickWidth = (tickWidth < 10 ) ? 10 : tickWidth;
+				sliderWidth = sliderWidth + Math.ceil( ( tickWidth - ( lastTick.outerWidth() - lastTick.innerWidth() ) ) / 2 ); // room for the last tick
+				sliderWidth = sliderWidth + Math.ceil( ( tickWidth - ( firstTick.outerWidth() - firstTick.innerWidth() ) ) / 2 ); // room for the first tick
+				firstTick.css( 'border-left', 'none' ); // first tick gets no left border
+				lastTick.css( 'border-right', 'none' ); // last tick gets no right border
+			}
 
-			sliderWidth = tickWidth * (sliderMax - adjustMax ) + 1;
-
+			/**
+			 * reset the slider width
+			 */
 			Diff.slider.setWidth( sliderWidth );
 			$( '.diff-slider-ticks-wrapper' ).width( sliderWidth );
 			$( '#diff-slider-ticks' ).width( sliderWidth );
 
-			var aTickWidth = $( '.revision-tick' ).width();
+			/**
+			 * go through all ticks, add hover and click interactions
+			 */
+			$( '.revision-tick' ).each( function() {
+				Diff.slider.addTooltip ( $( this ), Diff.revisions.at( tickCount++ ).get( 'titleTooltip' ) );
+				$( this ).hover(
+					function() {
+						$( this ).find( '.ui-slider-tooltip' ).show().append('<div class="arrow"></div>');
+					},
+					function() {
+						$( this ).find( '.ui-slider-tooltip' ).hide().find( '.arrow' ).remove();
+					}
+				);
 
-			if ( tickWidth !== aTickWidth ) { // is the width already set correctly?
-				$( '.revision-tick' ).each( function( ) {
-					$(this).css( 'margin-right', tickWidth - 1 + 'px'); // space the ticks out using right margin
-				});
-
-				$( '.revision-tick' ).last().css( 'margin-right', '0' ); // last tick gets no right margin
-			}
-
+				/**
+				 * move the slider handle when the tick marks are clicked
+				 */
+				$( this ).on( 'click',
+					{ tickCount: tickCount }, // pass the tick through so we know where to move the handle
+					function( event ) {
+						if ( Diff.slider.singleRevision ) { // single handle mode
+							Diff.rightDiff = event.data.tickCount; // reposition the right handle
+							Diff.slider.refresh({
+								value: Diff.rightDiff - 1
+							} );
+						} else { //compare two mode
+							if ( isRtl ) {
+								if ( event.data.tickCount < Diff.leftDiff ) { // click was on the 'left' side
+										Diff.rightDiff = event.data.tickCount; // set the 'right' handle location
+										Diff.reloadLeft(); // reload the left handle comparison models
+								} else { // middle or 'right' clicks
+									Diff.leftDiff = event.data.tickCount; // set the 'left' handle location
+									Diff.reloadRight(); // reload right handle models
+								}
+							} else {
+								if ( event.data.tickCount < Diff.leftDiff ) { // click was on the 'left' side
+										Diff.leftDiff = event.data.tickCount; // set the left handle location
+										Diff.reloadRight(); // reload the right handle comparison models
+								} else { // middle or 'right' clicks
+									Diff.rightDiff = event.data.tickCount; // set the right handle location
+									Diff.reloadLeft(); // reload left handle models
+								}
+							}
+							Diff.slider.refresh( { // set the slider handle positions
+								values: [ isRtl ? Diff.rightDiff : Diff.leftDiff, isRtl ? Diff.leftDiff : Diff.rightDiff ]
+							} );
+						}
+						Diff.revisionView.render(); // render the main view
+					} );
+			} );
 		},
 
-		// render the tickmark view
+		// render the tick mark view
 		render: function() {
-			var self = this;
+			var self = this, addHtml;
 
 			if ( null !== self.model ) {
-				var addHtml = "";
+				addHtml = "";
 				_.each ( self.model.models, function( theModel ) {
 					addHtml = addHtml + self.template ( theModel.toJSON() );
 				});
@@ -495,7 +554,7 @@ window.wp = window.wp || {};
 			self.resetTicks();
 			return self;
 		}
-	});
+	} );
 
 	/**
 	 * wp.revisions.view.Interact
@@ -509,21 +568,22 @@ window.wp = window.wp || {};
 
 		// next and previous buttons, only available in compare one mode
 		events: {
-			'click #next':     'nextRevision',
-			'click #previous': 'previousRevision'
+			'click #next':     ! isRtl ? 'nextRevision' : 'previousRevision',
+			'click #previous': ! isRtl ? 'previousRevision' : 'nextRevision'
 		},
 
 		render: function() {
+			var modelcount;
 			this.$el.html( this.template );
 
-			var modelcount = Diff.revisions.length;
+			modelcount = Diff.revisions.length;
 
 			Diff.slider.singleRevision = Diff.singleRevision;
 			Diff.slider.render();
 
 			if ( Diff.singleRevision ) {
 				Diff.slider.refresh({
-					value: Diff.rightDiff - 1,
+					value: Diff.rightDiff - 1, // rightDiff value is off model index by 1
 					min: 0,
 					max: modelcount - 1
 				});
@@ -532,15 +592,17 @@ window.wp = window.wp || {};
 
 			} else {
 				Diff.slider.refresh({
-					values: [ Diff.leftDiff, Diff.rightDiff + 1 ],
+					// in RTL mode the 'left handle' is the second in the slider, 'right' is first
+					values: [ isRtl ? Diff.rightDiff : Diff.leftDiff, isRtl ? Diff.leftDiff : Diff.rightDiff ],
 					min: 1,
 					max: modelcount + 1,
 					range: true
 				});
 
 				$( '#revision-diff-container' ).addClass( 'comparing-two-revisions' );
-				$( '#diff-slider a.ui-slider-handle' ).first().addClass( 'left-handle' );
-				$( '#diff-slider a.ui-slider-handle' ).last().addClass( 'right-handle' );
+				// in RTL mode the 'left handle' is the second in the slider, 'right' is first
+				$( '#diff-slider a.ui-slider-handle' ).first().addClass( isRtl ? 'right-handle' : 'left-handle' );
+				$( '#diff-slider a.ui-slider-handle' ).last().addClass( isRtl ? 'left-handle' : 'right-handle' );
 
 			}
 
@@ -559,7 +621,7 @@ window.wp = window.wp || {};
 			}, true );
 		},
 
-		// go the the previous revision
+		// go to the previous revision
 		previousRevision: function() {
 			if ( Diff.rightDiff > 1 ) // unless at left boundry
 				Diff.rightDiff = Diff.rightDiff - 1 ;
@@ -590,24 +652,23 @@ window.wp = window.wp || {};
 
 		// render the revisions
 		render: function() {
-			var addHtml = '';
-			var thediff;
+			var addHtml = '', thediff;
 
 			// compare two revisions mode?
 			if ( ! Diff.singleRevision ) {
 				if ( this.draggingLeft ) {
-					thediff = Diff.leftDiff - 1;
+					thediff = Diff.leftDiff - 1; //leftDiff value is off model index by 1
 					if ( this.model.at( thediff ) ) {
 						addHtml = this.template( this.model.at( thediff ).toJSON() );
 					}
 				} else { // dragging right handle
-					thediff = Diff.rightDiff -1;
+					thediff = Diff.rightDiff - 1; // rightDiff value is off model index by 1
 					if ( this.model.at( thediff ) ) {
 						addHtml = this.template( this.model.at( thediff ).toJSON() );
 					}
 				}
 			} else { // end compare two revisions mode, eg only one slider handle
-				if ( this.model.at( Diff.rightDiff - 1 ) ) {
+				if ( this.model.at( Diff.rightDiff - 1 ) ) { // rightDiff value is off model index by 1
 					addHtml = this.template( this.model.at( Diff.rightDiff - 1 ).toJSON() );
 				}
 			}
@@ -616,17 +677,6 @@ window.wp = window.wp || {};
 			if ( this.model.length < 2 ) {
 				$( '#diff-slider' ).hide(); // don't allow compare two if fewer than three revisions
 				$( '.diff-slider-ticks-wrapper' ).hide();
-			}
-
-			// add tooltips to the handles
-			if ( ! Diff.singleRevision ) {
-				Diff.slider.addTooltip ( $( 'a.ui-slider-handle.left-handle' ),
-					( Diff.leftDiff < 0 ) ? '' : Diff.revisions.at( Diff.leftDiff - 1 ).get( 'titleTooltip' ) );
-				Diff.slider.addTooltip ( $( 'a.ui-slider-handle.right-handle' ),
-					( Diff.rightDiff > Diff.revisions.length ) ? '' : Diff.revisions.at( Diff.rightDiff - 1 ).get( 'titleTooltip' ) );
-			} else {
-				Diff.slider.addTooltip ( $( 'a.ui-slider-handle' ),
-					( Diff.rightDiff > Diff.revisions.length ) ? '' : Diff.revisions.at( Diff.rightDiff - 1 ).get( 'titleTooltip' ) );
 			}
 
 			this.toggleCompareTwoCheckbox();
@@ -650,13 +700,21 @@ window.wp = window.wp || {};
 			if ( $( '#compare-two-revisions' ).is( ':checked' ) ) { // compare 2 mode
 				Diff.singleRevision = false ;
 
-				if ( 1 === Diff.rightDiff )
-					Diff.rightDiff = 2;
+				// in RTL mode handles are swapped, so boundary checks are different;
+				if ( isRtl ){
+					Diff.leftDiff = Diff.revisions.length; // put the left handle at the rightmost position, representing current revision
+
+					if ( Diff.revisions.length === Diff.rightDiff ) // make sure 'left' handle not in rightmost slot
+						Diff.rightDiff = Diff.rightDiff - 1;
+				} else {
+					if ( 1 === Diff.rightDiff ) // make sure right handle not in leftmost slot
+						Diff.rightDiff = 2;
+				}
 
 				Diff.revisionView.draggingLeft = false;
 
 				revisions.model.settings.revision_id = ''; // reset passed revision id so switching back to one handle mode doesn't re-select revision
-				Diff.reloadLeftRight();
+				Diff.reloadLeftRight(); // load diffs for left and right handles
 				Diff.revisionView.model = Diff.rightHandleRevisions;
 
 			} else { // compare one mode
@@ -739,12 +797,12 @@ window.wp = window.wp || {};
 		url: function() {
 			return ajaxurl +
 				'?action=revisions-data' +
-				'&compare_to=' + this.options.compareTo +
-				'&post_id=' + this.options.post_id +
-				'&show_autosaves=' + this.options.showAutosaves +
-				'&show_split_view=' + this.options.showSplitView +
-				'&right_handle_at=' + this.options.rightHandleAt +
-				'&left_handle_at=' + this.options.leftHandleAt +
+				'&compare_to=' + this.options.compareTo + // revision are we comparing to
+				'&post_id=' + this.options.post_id + // the post id
+				'&show_autosaves=' + this.options.showAutosaves + // show or hide autosaves
+				'&show_split_view=' + this.options.showSplitView + // show in split view or single column view
+				'&right_handle_at=' + this.options.rightHandleAt + // mark point for comparison list
+				'&left_handle_at=' + this.options.leftHandleAt + // mark point for comparison list
 				'&nonce=' + this.options.nonce;
 		},
 

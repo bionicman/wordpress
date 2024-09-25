@@ -7,13 +7,9 @@
 ( function( $ ) {
 	var html               = $( 'html' ),
 	    body               = $( 'body' ),
-	    navbar             = $( '#navbar' ),
 	    _window            = $( window ),
-	    toolbarOffset      = body.is( '.admin-bar' ) ? 28 : 0,
-	    navbarOffset       = navbar.offset().top - toolbarOffset,
-	    scrollOffsetMethod = ( typeof window.scrollY === 'undefined' ),
+	    captions           = $( '.quote-caption' ),
 	    adjustFooter,
-	    adjustAnchor;
 
 	/**
 	 * Adds a top margin to the footer if the sidebar widget area is
@@ -29,44 +25,9 @@
 			$( '#colophon' ).css( 'margin-top', margin + 'px' );
 	};
 
-	/**
-	 * Repositions the window on jump-to-anchor to account for navbar
-	 * height.
-	 */
-	adjustAnchor = function() {
-		if ( window.location.hash )
-			window.scrollBy( 0, -49 );
-	};
-
 	$( function() {
-		adjustAnchor();
-
 		if ( body.is( '.sidebar' ) )
 			adjustFooter();
-	} );
-	_window.on( 'hashchange.twentythirteen', adjustAnchor );
-
-	/**
-	 * Displays the fixed navbar based on screen position.
-	 */
-	if ( _window.innerWidth() > 644 ) {
-		_window.on( 'scroll.twentythirteen', function() {
-			var scrollOffset = scrollOffsetMethod ? document.documentElement.scrollTop : window.scrollY;
-
-			if ( scrollOffset > navbarOffset )
-				html.addClass( 'navbar-fixed' );
-			else
-				html.removeClass( 'navbar-fixed' );
-		} );
-	}
-
-	/**
-	 * Allows clicking the navbar to scroll to top.
-	 */
-	navbar.on( 'click.twentythirteen', function( event ) {
-		// Ensure that the navbar element was the target of the click.
-		if ( 'navbar' == event.target.id  || 'site-navigation' == event.target.id )
-			$( 'html, body' ).animate( { scrollTop: 0 }, 'fast' );
 	} );
 
 	/**
@@ -109,6 +70,12 @@
 			element.focus();
 		}
 	} );
+
+	/** Better styles for Quote post formats with a linked source.
+	 *
+	 */
+	if ( captions )
+		captions.has( 'a' ).addClass( 'linked' );
 
 	/**
 	 * Arranges footer widgets vertically.

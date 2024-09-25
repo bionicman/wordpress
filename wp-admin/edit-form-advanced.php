@@ -130,6 +130,7 @@ foreach ( get_object_taxonomies( $post ) as $tax_name ) {
 $format_class = '';
 $post_format = '';
 $post_format_options = '';
+$show_post_format_ui = false;
 if ( post_type_supports( $post_type, 'post-formats' ) && apply_filters( 'enable_post_format_ui', true, $post ) ) {
 	wp_enqueue_script( 'post-formats' );
 	wp_enqueue_script( 'wp-mediaelement' );
@@ -154,7 +155,6 @@ if ( post_type_supports( $post_type, 'post-formats' ) && apply_filters( 'enable_
 
 	$format_class = " class='wp-format-{$post_format}'";
 
-
 	$all_post_formats = array(
 		'standard' => array (
 			'description' => __( 'Use the editor below to compose your post.' )
@@ -166,7 +166,7 @@ if ( post_type_supports( $post_type, 'post-formats' ) && apply_filters( 'enable_
 			'description' => __( 'Use the Add Media button to select or upload images for your gallery.' )
 		),
 		'link' => array (
-			'description' => __( 'Add a link URL below.' )
+			'description' => __( 'Add a link title and destination URL. Use the editor to compose optional text to accompany the link.' )
 		),
 		'video' => array (
 			'description' => __( 'Select or upload a video, or paste a video embed code into the box.' )
@@ -181,7 +181,7 @@ if ( post_type_supports( $post_type, 'post-formats' ) && apply_filters( 'enable_
 			'description' => __( 'Use the editor to compose a status update. What&#8217;s new?' )
 		),
 		'quote' => array (
-			'description' => __( 'Add a source and URL if you have them. Use the editor to compose the quote.' )
+			'description' => __( 'Add a source name and link if you have them. Use the editor to compose the quote.' )
 		),
 		'aside' => array (
 			'description' => __( 'Use the editor to share a quick thought or side topic.' )
@@ -421,9 +421,11 @@ wp_nonce_field( 'closedpostboxes', 'closedpostboxesnonce', false );
 <div id="poststuff">
 <div id="post-body" class="metabox-holder columns-<?php echo 1 == get_current_screen()->get_columns() ? '1' : '2'; ?>">
 <div id="post-body-content"<?php echo $format_class; ?>>
+<?php if ( ! empty( $all_post_formats ) ) : ?>
 <div class="wp-post-format-ui<?php if ( ! $show_post_format_ui ) echo ' no-ui' ?>">
 	<div class="post-format-change"><span class="icon <?php echo esc_attr( 'wp-format-' . $post_format ); ?>"></span> <span class="post-format-description"><?php echo $all_post_formats[$post_format]['description']; ?></span></div>
 </div>
+<?php endif; ?>
 <?php if ( post_type_supports($post_type, 'title') ) { ?>
 <div id="titlediv">
 <div id="titlewrap">

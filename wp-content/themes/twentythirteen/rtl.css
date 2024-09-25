@@ -69,39 +69,10 @@ td {
 	padding-left: 10px;
 	padding-right: 0;
 }
+
 .assistive-text:focus {
 	left: auto;
 	right: 5px;
-}
-
-
-/**
- * 2.0 Repeatable patterns
- * ----------------------------------------------------------------------------
- */
-
-.genericon:after,
-.menu-toggle:before,
-.featured-post:after,
-.date a:after,
-.entry-meta .author a:after,
-.format-audio .entry-content:after,
-.comments-link a:after,
-.tags-links a:first-child:after,
-.categories-links a:first-child:after,
-.edit-link a:after,
-.attachment .entry-title:after,
-.attachment-meta:after,
-.attachment-meta a:after,
-.comment-awaiting-moderation:after,
-.comment-reply-link:after,
-#reply-title small a:after,
-.bypostauthor .fn:after,
-.error404 .page-title:after {
-	-webkit-font-smoothing: antialiased;
-	display: inline-block;
-	font: normal 16px/1 Genericons;
-	vertical-align: text-bottom;
 }
 
 
@@ -114,6 +85,7 @@ td {
  * 4.1 Site Header
  * ----------------------------------------------------------------------------
  */
+
 .site-header > a:first-child {
 	display: inherit;
 }
@@ -169,7 +141,7 @@ div.nav-menu > ul {
 }
 
 .menu-toggle {
-	padding-left: auto;
+	padding-left: 0;
 	padding-right: 20px;
 }
 
@@ -209,75 +181,25 @@ div.nav-menu > ul {
 }
 
 .featured-post:before {
-	content: normal;
+	margin-left: 2px;
 	margin-right: auto;
 }
 
-.featured-post:after {
-	content: "\f308";
-	margin-left: 2px;
-}
-
 .entry-meta .date a:before {
-	content: normal;
-}
-
-.entry-meta .date a:after {
-	content: "\f303";
+	margin-left: 2px;
 }
 
 .comments-link a:before {
-	content: normal;
-	margin-left: auto;
-	top: auto;
-}
-
-.comments-link a:after {
-	content: "\f300";
 	margin-left: 2px;
-	top: -1px;
-	position: relative;
-}
-
-.entry-meta .author a:before {
-	content: normal;
-	top: auto;
-}
-
-.entry-meta .author a:after {
-	content: "\f304";
-	top: -1px;
-	position: relative;
-}
-
-.categories-links a:first-child:before {
-	content: normal;
-}
-
-.categories-links a:first-child:after {
-	content: "\f301";
+	margin-right: auto;
 }
 
 .tags-links a:first-child:before {
-	content: normal;
-	top: auto;
-}
-
-.tags-links a:first-child:after {
-	content: "\f302";
-	top: -1px;
-	position: relative;
+	margin-left: 2px;
 }
 
 .edit-link a:before {
-	content: normal;
-	top: auto;
-}
-
-.edit-link a:after {
-	content: "\f411";
-	top: -1px;
-	position: relative;
+	margin-left: 2px;
 }
 
 .page-links .page-links-title {
@@ -323,6 +245,11 @@ div.nav-menu > ul {
  * ----------------------------------------------------------------------------
  */
 
+.entry-media a,
+.entry-content a {
+	display: inline;
+}
+
 .format-aside cite:before {
 	content: normal;
 	margin-right: auto;
@@ -334,11 +261,10 @@ div.nav-menu > ul {
 }
 
 .format-audio .entry-media:before {
-	-ms-filter: "FlipH";
-	filter: FlipH;
 	float: right;
 	-webkit-transform: scaleX(-1);
 	-moz-transform:    scaleX(-1);
+	-ms-transform:     scaleX(-1);
 	-o-transform:      scaleX(-1);
 	transform:         scaleX(-1);
 }
@@ -352,18 +278,13 @@ div.nav-menu > ul {
 .format-audio .audio-content {
 	background-position: right top;
 	float: left;
-	padding-left: auto;
+	padding-left: 0;
 	padding-right: 35px;
 }
 
 .format-chat .entry-meta .date a:before {
-	content: normal;
+	margin-left: 4px;
 	margin-right: auto;
-}
-
-.format-chat .entry-meta .date a:after {
-	content: "\f108";
-	margin-left: 2px;
 }
 
 .blog .format-gallery .gallery-item,
@@ -390,7 +311,7 @@ div.nav-menu > ul {
 
 .format-status .entry-content,
 .format-status .entry-meta {
-	padding-left: auto;
+	padding-left: 0;
 	padding-right: 35px;
 }
 
@@ -422,12 +343,17 @@ div.nav-menu > ul {
 	right: 64px;
 }
 
-.format-status .entry-meta .date a:before {
-	content: normal;
+.format-quote .quote {
+	padding-left: 0;
+	padding-right: 75px;
 }
 
-.format-status .entry-meta .date a:after {
-	content: "\f105";
+.format-quote .quote:before {
+	content: '\201D';
+	padding-left: 25px;
+	padding-right: 0;
+	left: auto;
+	right: -15px;
 }
 
 
@@ -441,36 +367,12 @@ div.nav-menu > ul {
 }
 
 .attachment .entry-title:before {
-	content: normal;
-	font-size: inherit;
-	margin-right: auto;
-}
-
-.attachment .entry-title:after {
-	content: "\f416";
-	font-size: 32px;
 	margin-left: 10px;
+	margin-right: auto;
 }
 
 .attachment .entry-meta {
 	float: left;
-}
-
-.attachment-meta:before,
-.full-size-link a:before {
-	content: normal;
-}
-
-.attachment-meta:after {
-	content: "\f307";
-}
-
-.full-size-link a:after {
-	content: "\f402";
-}
-
-.full-size-link:after {
-	content: normal;
 }
 
 .image-navigation .nav-previous {
@@ -594,16 +496,6 @@ div.nav-menu > ul {
 	margin-right: auto;
 }
 
-.bypostauthor .fn:before {
-	content: normal;
-	vertical-align: inherit;
-}
-
-.bypostauthor .fn:after {
-	content: "\f408";
-	vertical-align: text-top;
-}
-
 .comment-list .edit-link {
 	margin-left: auto;
 	margin-right: 20px;
@@ -611,42 +503,29 @@ div.nav-menu > ul {
 
 .comment-metadata,
 .comment-content,
-.reply {
+.comment-list .reply,
+.comment-awaiting-moderation {
 	float: left;
 }
 
 .comment-awaiting-moderation:before {
-	content: normal;
-	margin-right: auto;
-	top: auto;
-}
-
-.comment-awaiting-moderation:after {
-	content: "\f414";
 	margin-left: 5px;
-	position: relative;
-	top: -2px;
-}
-
-.comment-reply-link:before {
-	content: normal;
 	margin-right: auto;
 }
 
-.comment-reply-link:after {
-	content: "\f412";
+.comment-reply-link:before,
+.comment-reply-login:before {
 	margin-left: 3px;
+	margin-right: auto;
+	-webkit-transform: scaleX(-1);
+	-moz-transform:    scaleX(-1);
+	-ms-transform:     scaleX(-1);
+	-o-transform:      scaleX(-1);
+	transform:         scaleX(-1);
 }
 
 #reply-title small a {
 	float: left;
-	height: auto;
-	overflow: visible;
-	width: auto;
-}
-
-#reply-title small a:before {
-	content: normal;
 }
 
 #commentform [for="author"],
@@ -712,8 +591,8 @@ div.nav-menu > ul {
 
 .site-footer .widget {
 	float: right;
-	margin-right: auto;
 	margin-left: 20px;
+	margin-right: auto;
 }
 
 .sidebar .site-footer .widget:nth-of-type(4),
@@ -749,8 +628,8 @@ div.nav-menu > ul {
 	}
 
 	.main-navigation .searchform {
-		right: auto;
 		left: 20px;
+		right: auto;
 	}
 
 	.site-main .widget-area {
@@ -796,7 +675,7 @@ div.nav-menu > ul {
 
 	.sidebar .format-status .entry-content,
 	.sidebar .format-status .entry-meta {
-		padding-left: auto;
+		padding-left: 0;
 		padding-right: 35px;
 	}
 
@@ -831,34 +710,13 @@ div.nav-menu > ul {
 @media (max-width: 643px) {
 	#content .format-status .entry-content,
 	#content .format-status .entry-met {
-		padding-left: auto;
+		padding-left: 0;
 		padding-right: 35px;
 	}
 
-	.menu-toggle:before {
-		content: "\f502";
-		font-size: 12px;
-		padding-right: 8px;
-		vertical-align: -webkit-calc(-4px);
-		vertical-align:         calc(-4px);
-	}
-
 	.menu-toggle:after {
-		content: normal;
-		font-size: 12px;
-		padding-left: auto;
-		vertical-align: baseline;
-	}
-
-	.toggled-on .menu-toggle:before {
-		content: "\f500";
-		vertical-align: -webkit-calc(2px);
-		vertical-align:         calc(2px);
-	}
-
-	.toggled-on .menu-toggle:after {
-		content: normal;
-		vertical-align: baseline;
+		padding-left: 0;
+		padding-right: 8px;
 	}
 
 	.toggled-on .nav-menu,
@@ -874,7 +732,7 @@ div.nav-menu > ul {
 	}
 
 	#content .featured-gallery {
-		padding-left: auto;
+		padding-left: 0;
 		padding-right: 24px;
 	}
 
@@ -891,7 +749,7 @@ div.nav-menu > ul {
 	.format-audio .audio-content {
 		background: none;
 		float: none;
-		padding-left: auto;
+		padding-left: 0;
 		padding-right: 0;
 	}
 
