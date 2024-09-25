@@ -22,8 +22,6 @@ if ( ! current_user_can( 'edit_theme_options' ) ) {
 
 $widgets_access = get_user_setting( 'widgets_access' );
 if ( isset($_GET['widgets-access']) ) {
-	check_admin_referer( 'widgets-access' );
-
 	$widgets_access = 'on' == $_GET['widgets-access'] ? 'on' : 'off';
 	set_user_setting( 'widgets_access', $widgets_access );
 }
@@ -427,7 +425,7 @@ foreach ( $wp_registered_sidebars as $sidebar => $registered_sidebar ) {
 
 							submit_button( __( 'Clear Inactive Widgets' ), 'delete', 'removeinactivewidgets', false, $attributes );
 							?>
-							<span class="spinner">
+							<span class="spinner"></span>
 						</p>
 						<?php wp_nonce_field( 'remove-inactive-widgets', '_wpnonce_remove_inactive_widgets' ); ?>
 					</form>
@@ -457,12 +455,12 @@ $sidebars_count = count( $theme_sidebars );
 if ( $sidebars_count > 1 ) {
 	$split = ceil( $sidebars_count / 2 );
 } else {
-	$single_sidebar_class = ' class="single-sidebar"';
+	$single_sidebar_class = ' single-sidebar';
 }
 
 ?>
 <div class="widget-liquid-right">
-<div id="widgets-right"<?php echo $single_sidebar_class; ?>>
+<div id="widgets-right" class="wp-clearfix<?php echo $single_sidebar_class; ?>">
 <div class="sidebars-column-1">
 <?php
 

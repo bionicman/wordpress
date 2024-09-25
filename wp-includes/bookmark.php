@@ -280,7 +280,7 @@ function get_bookmarks( $args = '' ) {
 	$query .= " $exclusions $inclusions $search";
 	$query .= " ORDER BY $orderby $order";
 	if ( $r['limit'] != -1 ) {
-		$query .= ' LIMIT ' . absint( $r['limit'] );
+		$query .= ' LIMIT ' . $r['limit'];
 	}
 
 	$results = $wpdb->get_results( $query );
@@ -404,9 +404,11 @@ function sanitize_bookmark_field($field, $value, $bookmark_id, $context) {
 }
 
 /**
- * Deletes bookmark cache
+ * Deletes the bookmark cache.
  *
  * @since 2.7.0
+ *
+ * @param int $bookmark_id Bookmark ID.
  */
 function clean_bookmark_cache( $bookmark_id ) {
 	wp_cache_delete( $bookmark_id, 'bookmark' );

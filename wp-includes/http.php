@@ -288,7 +288,7 @@ function wp_remote_retrieve_body( $response ) {
 }
 
 /**
- * Retrieve only the body from the raw response.
+ * Retrieve only the cookies from the raw response.
  *
  * @since 4.4.0
  *
@@ -443,7 +443,7 @@ function get_allowed_http_origins() {
  * @since 3.4.0
  *
  * @param null|string $origin Origin URL. If not provided, the value of get_http_origin() is used.
- * @return string True if the origin is allowed. False otherwise.
+ * @return string Origin URL if allowed, empty string if not.
  */
 function is_allowed_http_origin( $origin = null ) {
 	$origin_arg = $origin;
@@ -459,7 +459,7 @@ function is_allowed_http_origin( $origin = null ) {
 	 *
 	 * @since 3.4.0
 	 *
-	 * @param string $origin     Result of check for allowed origin.
+	 * @param string $origin     Origin URL if allowed, empty string if not.
 	 * @param string $origin_arg Original origin string passed into is_allowed_http_origin function.
 	 */
 	return apply_filters( 'allowed_http_origin', $origin, $origin_arg );
@@ -527,13 +527,12 @@ function wp_http_validate_url( $url ) {
 
 	if ( ! $same_host ) {
 		$host = trim( $parsed_url['host'], '.' );
-		if ( preg_match( '#^(([1-9]?\d|1\d\d|25[0-5]|2[0-4]\d)\.){3}([1-9]?\d|1\d\d|25[0-5]|2[0-4]\d)$#', $host ) ) {
+		if ( preg_match( '#^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$#', $host ) ) {
 			$ip = $host;
 		} else {
 			$ip = gethostbyname( $host );
-			if ( $ip === $host ) { // Error condition for gethostbyname()
-				return false;
-			}
+			if ( $ip === $host ) // Error condition for gethostbyname()
+				$ip = false;
 		}
 		if ( $ip ) {
 			$parts = array_map( 'intval', explode( '.', $ip ) );

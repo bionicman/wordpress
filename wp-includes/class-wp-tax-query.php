@@ -543,7 +543,7 @@ class WP_Tax_Query {
 
 			// The sibling must both have compatible operator to share its alias.
 			if ( in_array( strtoupper( $sibling['operator'] ), $compatible_operators ) ) {
-				$alias = preg_replace( '/\W/', '_', $sibling['alias'] );
+				$alias = $sibling['alias'];
 				break;
 			}
 		}
@@ -557,7 +557,7 @@ class WP_Tax_Query {
 	 * @since 3.2.0
 	 * @access private
 	 *
-	 * @param array &$query The single query.
+	 * @param array $query The single query. Passed by reference.
 	 */
 	private function clean_query( &$query ) {
 		if ( empty( $query['taxonomy'] ) ) {
@@ -573,11 +573,7 @@ class WP_Tax_Query {
 			return;
 		}
 
-		if ( 'slug' === $query['field'] || 'name' === $query['field'] ) {
-			$query['terms'] = array_unique( (array) $query['terms'] );
-		} else {
-			$query['terms'] = wp_parse_id_list( $query['terms'] );
-		}
+		$query['terms'] = array_unique( (array) $query['terms'] );
 
 		if ( is_taxonomy_hierarchical( $query['taxonomy'] ) && $query['include_children'] ) {
 			$this->transform_query( $query, 'term_id' );
@@ -603,7 +599,7 @@ class WP_Tax_Query {
 	 *
 	 * @global wpdb $wpdb The WordPress database abstraction object.
 	 *
-	 * @param array  &$query          The single query.
+	 * @param array  $query           The single query. Passed by reference.
 	 * @param string $resulting_field The resulting field. Accepts 'slug', 'name', 'term_taxonomy_id',
 	 *                                or 'term_id'. Default 'term_id'.
 	 */

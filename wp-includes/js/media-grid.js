@@ -1,4 +1,4 @@
-(function(){function r(e,n,t){function o(i,f){if(!n[i]){if(!e[i]){var c="function"==typeof require&&require;if(!f&&c)return c(i,!0);if(u)return u(i,!0);var a=new Error("Cannot find module '"+i+"'");throw a.code="MODULE_NOT_FOUND",a}var p=n[i]={exports:{}};e[i][0].call(p.exports,function(r){var n=e[i][1][r];return o(n||r)},p,p.exports,r,e,n,t)}return n[i].exports}for(var u="function"==typeof require&&require,i=0;i<t.length;i++)o(t[i]);return o}return r})()({1:[function(require,module,exports){
+(function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 /**
  * wp.media.controller.EditAttachmentMetadata
  *
@@ -150,8 +150,8 @@ var Button = wp.media.view.Button,
 DeleteSelectedPermanently = DeleteSelected.extend({
 	initialize: function() {
 		DeleteSelected.prototype.initialize.apply( this, arguments );
-		this.listenTo( this.controller, 'select:activate', this.selectActivate );
-		this.listenTo( this.controller, 'select:deactivate', this.selectDeactivate );
+		this.controller.on( 'select:activate', this.selectActivate, this );
+		this.controller.on( 'select:deactivate', this.selectDeactivate, this );
 	},
 
 	filterChange: function( model ) {
@@ -197,9 +197,9 @@ DeleteSelected = Button.extend({
 	initialize: function() {
 		Button.prototype.initialize.apply( this, arguments );
 		if ( this.options.filters ) {
-			this.listenTo( this.options.filters.model, 'change', this.filterChange );
+			this.options.filters.model.on( 'change', this.filterChange, this );
 		}
-		this.listenTo( this.controller, 'selection:toggle', this.toggleDisabled );
+		this.controller.on( 'selection:toggle', this.toggleDisabled, this );
 	},
 
 	filterChange: function( model ) {
@@ -251,8 +251,8 @@ SelectModeToggle = Button.extend({
 		} );
 
 		Button.prototype.initialize.apply( this, arguments );
-		this.listenTo( this.controller, 'select:activate select:deactivate', this.toggleBulkEditHandler );
-		this.listenTo( this.controller, 'selection:action:done', this.back );
+		this.controller.on( 'select:activate select:deactivate', this.toggleBulkEditHandler, this );
+		this.controller.on( 'selection:action:done', this.back, this );
 	},
 
 	back: function () {

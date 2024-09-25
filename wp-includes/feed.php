@@ -475,7 +475,7 @@ function rss_enclosure() {
 				 *
 				 * @param string $html_link_tag The HTML link tag with a URI and other attributes.
 				 */
-				echo apply_filters( 'rss_enclosure', '<enclosure url="' . esc_url( trim( $enclosure[0] ) ) . '" length="' . absint( trim( $enclosure[1] ) ) . '" type="' . esc_attr( $type ) . '" />' . "\n" );
+				echo apply_filters( 'rss_enclosure', '<enclosure url="' . trim( htmlspecialchars( $enclosure[0] ) ) . '" length="' . trim( $enclosure[1] ) . '" type="' . $type . '" />' . "\n" );
 			}
 		}
 	}
@@ -509,7 +509,7 @@ function atom_enclosure() {
 				 *
 				 * @param string $html_link_tag The HTML link tag with a URI and other attributes.
 				 */
-				echo apply_filters( 'atom_enclosure', '<link href="' . esc_url( trim( $enclosure[0] ) ) . '" rel="enclosure" length="' . absint( trim( $enclosure[1] ) ) . '" type="' . esc_attr( trim( $enclosure[2] ) ) . '" />' . "\n" );
+				echo apply_filters( 'atom_enclosure', '<link href="' . trim( htmlspecialchars( $enclosure[0] ) ) . '" rel="enclosure" length="' . trim( $enclosure[1] ) . '" type="' . trim( $enclosure[2] ) . '" />' . "\n" );
 			}
 		}
 	}
@@ -622,6 +622,8 @@ function self_link() {
  * Return the content type for specified feed type.
  *
  * @since 2.8.0
+ *
+ * @param string $type Type of feed. Possible values include 'rss', rss2', 'atom', and 'rdf'.
  */
 function feed_content_type( $type = '' ) {
 	if ( empty($type) )
@@ -630,7 +632,6 @@ function feed_content_type( $type = '' ) {
 	$types = array(
 		'rss'  => 'application/rss+xml',
 		'rss2' => 'application/rss+xml',
-		'rss-http'  => 'text/xml',
 		'atom' => 'application/atom+xml',
 		'rdf'  => 'application/rdf+xml'
 	);
@@ -643,8 +644,7 @@ function feed_content_type( $type = '' ) {
 	 * @since 2.8.0
 	 *
 	 * @param string $content_type Content type indicating the type of data that a feed contains.
-	 * @param string $type         Type of feed. Possible values include 'rss2', 'atom'.
-	 *                             Default 'rss2'.
+	 * @param string $type         Type of feed. Possible values include 'rss', rss2', 'atom', and 'rdf'.
 	 */
 	return apply_filters( 'feed_content_type', $content_type, $type );
 }

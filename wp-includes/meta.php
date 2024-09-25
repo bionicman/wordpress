@@ -161,6 +161,7 @@ function update_metadata($meta_type, $object_id, $meta_key, $meta_value, $prev_v
 	$id_column = 'user' == $meta_type ? 'umeta_id' : 'meta_id';
 
 	// expected_slashed ($meta_key)
+	$raw_meta_key = $meta_key;
 	$meta_key = wp_unslash($meta_key);
 	$passed_value = $meta_value;
 	$meta_value = wp_unslash($meta_value);
@@ -198,7 +199,7 @@ function update_metadata($meta_type, $object_id, $meta_key, $meta_value, $prev_v
 
 	$meta_ids = $wpdb->get_col( $wpdb->prepare( "SELECT $id_column FROM $table WHERE meta_key = %s AND $column = %d", $meta_key, $object_id ) );
 	if ( empty( $meta_ids ) ) {
-		return add_metadata($meta_type, $object_id, $meta_key, $passed_value);
+		return add_metadata( $meta_type, $object_id, $raw_meta_key, $passed_value );
 	}
 
 	$_meta_value = $meta_value;
@@ -227,10 +228,8 @@ function update_metadata($meta_type, $object_id, $meta_key, $meta_value, $prev_v
 		 * @param mixed  $meta_value Meta value.
 		 */
 		do_action( "update_{$meta_type}_meta", $meta_id, $object_id, $meta_key, $_meta_value );
-	}
 
-	if ( 'post' == $meta_type ) {
-		foreach ( $meta_ids as $meta_id ) {
+		if ( 'post' == $meta_type ) {
 			/**
 			 * Fires immediately before updating a post's metadata.
 			 *
@@ -266,10 +265,8 @@ function update_metadata($meta_type, $object_id, $meta_key, $meta_value, $prev_v
 		 * @param mixed  $meta_value Meta value.
 		 */
 		do_action( "updated_{$meta_type}_meta", $meta_id, $object_id, $meta_key, $_meta_value );
-	}
 
-	if ( 'post' == $meta_type ) {
-		foreach ( $meta_ids as $meta_id ) {
+		if ( 'post' == $meta_type ) {
 			/**
 			 * Fires immediately after updating a post's metadata.
 			 *
@@ -366,8 +363,14 @@ function delete_metadata($meta_type, $object_id, $meta_key, $meta_value = '', $d
 	if ( !count( $meta_ids ) )
 		return false;
 
-	if ( $delete_all )
-		$object_ids = $wpdb->get_col( $wpdb->prepare( "SELECT $type_column FROM $table WHERE meta_key = %s", $meta_key ) );
+	if ( $delete_all ) {
+		$value_clause = '';
+		if ( '' !== $meta_value && null !== $meta_value && false !== $meta_value ) {
+			$value_clause = $wpdb->prepare( " AND meta_value = %s", $meta_value );
+		}
+
+		$object_ids = $wpdb->get_col( $wpdb->prepare( "SELECT $type_column FROM $table WHERE meta_key = %s $value_clause", $meta_key ) );
+	}
 
 	/**
 	 * Fires immediately before deleting metadata of a specific type.
@@ -849,6 +852,23 @@ function update_meta_cache($meta_type, $object_ids) {
 }
 
 /**
+ * Get the metadata lazyloading queue.
+ *
+ * @since 4.5.0
+ *
+ * @return WP_Metadata_Lazyloader $lazyloader Metadata lazyloader queue.
+ */
+function wp_metadata_lazyloader() {
+	static $wp_metadata_lazyloader;
+
+	if ( null === $wp_metadata_lazyloader ) {
+		$wp_metadata_lazyloader = new WP_Metadata_Lazyloader();
+	}
+
+	return $wp_metadata_lazyloader;
+}
+
+/**
  * Given a meta query, generates SQL clauses to be appended to a main query.
  *
  * @since 3.2.0
@@ -897,9 +917,8 @@ function _get_meta_table($type) {
  * @param string|null $meta_type
  * @return bool True if the key is protected, false otherwise.
  */
-function is_protected_meta( $meta_key, $meta_type = '' ) {
-	$sanitized_key = preg_replace( "/[^\x20-\x7E\p{L}]/", '', $meta_key );
-	$protected     = strlen( $sanitized_key ) > 0 && ( '_' === $sanitized_key[0] );
+function is_protected_meta( $meta_key, $meta_type = null ) {
+	$protected = ( '_' == $meta_key[0] );
 
 	/**
 	 * Filter whether a meta key is protected.

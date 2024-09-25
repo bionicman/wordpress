@@ -237,7 +237,21 @@ class WP_REST_Server {
 		$this->send_header( 'Access-Control-Allow-Headers', 'Authorization' );
 
 		/**
-		 * Filters whether the REST API is enabled.
+		 * Send nocache headers on authenticated requests.
+		 *
+		 * @since 4.4.0
+		 *
+		 * @param bool $rest_send_nocache_headers Whether to send no-cache headers.
+		 */
+		$send_no_cache_headers = apply_filters( 'rest_send_nocache_headers', is_user_logged_in() );
+		if ( $send_no_cache_headers ) {
+			foreach ( wp_get_nocache_headers() as $header => $header_value ) {
+				$this->send_header( $header, $header_value );
+			}
+		}
+
+		/**
+		 * Filter whether the REST API is enabled.
 		 *
 		 * @since 4.4.0
 		 *
@@ -300,12 +314,10 @@ class WP_REST_Server {
 		 * $_GET['_method']. If that is not set, we check for the HTTP_X_HTTP_METHOD_OVERRIDE
 		 * header.
 		 */
-		$method_overridden = false;
 		if ( isset( $_GET['_method'] ) ) {
 			$request->set_method( $_GET['_method'] );
 		} elseif ( isset( $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'] ) ) {
 			$request->set_method( $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'] );
-			$method_overridden = true;
 		}
 
 		$result = $this->check_authentication();
@@ -328,6 +340,7 @@ class WP_REST_Server {
 		 * Allows modification of the response before returning.
 		 *
 		 * @since 4.4.0
+		 * @since 4.5.0 Applied to embedded responses.
 		 *
 		 * @param WP_HTTP_Response $result  Result to send to the client. Usually a WP_REST_Response.
 		 * @param WP_REST_Server   $this    Server instance.
@@ -362,24 +375,6 @@ class WP_REST_Server {
 		 * @param WP_REST_Server   $this    Server instance.
 		 */
 		$served = apply_filters( 'rest_pre_serve_request', false, $result, $request, $this );
-
-		/**
-		 * Filters whether to send nocache headers on a REST API request.
-		 *
-		 * @since 4.4.0
-		 * @since 6.x.x Moved the block to catch the filter added on rest_cookie_check_errors() from rest-api.php
-		 *
-		 * @param bool $rest_send_nocache_headers Whether to send no-cache headers.
-		 */
-		$send_no_cache_headers = apply_filters( 'rest_send_nocache_headers', is_user_logged_in() );
-
-		// send no cache headers if the $send_no_cache_headers is true
-		// OR if the HTTP_X_HTTP_METHOD_OVERRIDE is used but resulted a 4xx response code.
-		if ( $send_no_cache_headers || ( true === $method_overridden && strpos( $code, '4' ) === 0 ) ) {
-			foreach ( wp_get_nocache_headers() as $header => $header_value ) {
-				$this->send_header( $header, $header_value );
-			}
-		}
 
 		if ( ! $served ) {
 			if ( 'HEAD' === $request->get_method() ) {
@@ -466,7 +461,28 @@ class WP_REST_Server {
 
 		// Convert links to part of the data.
 		$data = array();
+		$curies = $response->get_curies();
+		$used_curies = array();
+
 		foreach ( $links as $rel => $items ) {
+
+			// Convert $rel URIs to their compact versions if they exist.
+			foreach ( $curies as $curie ) {
+				$href_prefix = substr( $curie['href'], 0, strpos( $curie['href'], '{rel}' ) );
+				if ( strpos( $rel, $href_prefix ) !== 0 ) {
+					continue;
+				}
+				$used_curies[ $curie['name'] ] = $curie;
+
+				// Relation now changes from '$uri' to '$curie:$relation'
+				$rel_regex = str_replace( '\{rel\}', '([\w]+)', preg_quote( $curie['href'], '!' ) );
+				preg_match( '!' . $rel_regex . '!', $rel, $matches );
+				if ( $matches ) {
+					$rel = $curie['name'] . ':' . $matches[1];
+				}
+				break;
+			}
+
 			$data[ $rel ] = array();
 
 			foreach ( $items as $item ) {
@@ -474,6 +490,11 @@ class WP_REST_Server {
 				$attributes['href'] = $item['href'];
 				$data[ $rel ][] = $attributes;
 			}
+		}
+
+		// Push the curies onto the start of the links array.
+		if ( $used_curies ) {
+			$data = array_merge( array( 'curies' => array_values( $used_curies ) ), $data );
 		}
 
 		return $data;
@@ -511,41 +532,28 @@ class WP_REST_Server {
 
 			foreach ( $links as $item ) {
 				// Determine if the link is embeddable.
-				if ( empty( $item['embeddable'] ) || strpos( $item['href'], $api_root ) !== 0 ) {
+				if ( empty( $item['embeddable'] ) ) {
 					// Ensure we keep the same order.
 					$embeds[] = array();
 					continue;
 				}
 
 				// Run through our internal routing and serve.
-				$route = substr( $item['href'], strlen( untrailingslashit( $api_root ) ) );
-				$query_params = array();
-
-				// Parse out URL query parameters.
-				$parsed = parse_url( $route );
-				if ( empty( $parsed['path'] ) ) {
+				$request = WP_REST_Request::from_url( $item['href'] );
+				if ( ! $request ) {
 					$embeds[] = array();
 					continue;
 				}
 
-				if ( ! empty( $parsed['query'] ) ) {
-					parse_str( $parsed['query'], $query_params );
-
-					// Ensure magic quotes are stripped.
-					if ( get_magic_quotes_gpc() ) {
-						$query_params = stripslashes_deep( $query_params );
-					}
-				}
-
 				// Embedded resources get passed context=embed.
-				if ( empty( $query_params['context'] ) ) {
-					$query_params['context'] = 'embed';
+				if ( empty( $request['context'] ) ) {
+					$request['context'] = 'embed';
 				}
 
-				$request = new WP_REST_Request( 'GET', $parsed['path'] );
-
-				$request->set_query_params( $query_params );
 				$response = $this->dispatch( $request );
+
+				/** This filter is documented in wp-includes/rest-api/class-wp-rest-server.php */
+				$response = apply_filters( 'rest_post_dispatch', rest_ensure_response( $response ), $this, $request );
 
 				$embeds[] = $this->response_to_data( $response, false );
 			}
@@ -800,7 +808,11 @@ class WP_REST_Server {
 				$callback  = $handler['callback'];
 				$response = null;
 
-				$checked_method = 'HEAD' === $method ? 'GET' : $method;
+				// Fallback to GET method if no HEAD method is registered.
+				$checked_method = $method;
+				if ( 'HEAD' === $method && empty( $handler['methods']['HEAD'] ) ) {
+					$checked_method = 'GET';
+				}
 				if ( empty( $handler['methods'][ $checked_method ] ) ) {
 					continue;
 				}
@@ -854,11 +866,14 @@ class WP_REST_Server {
 					 * Allow plugins to override dispatching the request.
 					 *
 					 * @since 4.4.0
+					 * @since 4.5.0 Added `$route` and `$handler` parameters.
 					 *
 					 * @param bool            $dispatch_result Dispatch result, will be used if not empty.
 					 * @param WP_REST_Request $request         Request used to generate the response.
+					 * @param string          $route           Route matched for the request.
+					 * @param array           $handler         Route handler used for the request.
 					 */
-					$dispatch_result = apply_filters( 'rest_dispatch_request', null, $request );
+					$dispatch_result = apply_filters( 'rest_dispatch_request', null, $request, $route, $handler );
 
 					// Allow plugins to halt the request via this filter.
 					if ( null !== $dispatch_result ) {

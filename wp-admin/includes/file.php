@@ -13,38 +13,48 @@
 
 /** The descriptions for theme files. */
 $wp_file_descriptions = array(
-	'index.php' => __( 'Main Index Template' ),
-	'style.css' => __( 'Stylesheet' ),
-	'editor-style.css' => __( 'Visual Editor Stylesheet' ),
-	'editor-style-rtl.css' => __( 'Visual Editor RTL Stylesheet' ),
-	'rtl.css' => __( 'RTL Stylesheet' ),
-	'comments.php' => __( 'Comments' ),
-	'comments-popup.php' => __( 'Popup Comments' ),
-	'footer.php' => __( 'Theme Footer' ),
-	'header.php' => __( 'Theme Header' ),
-	'sidebar.php' => __( 'Sidebar' ),
-	'archive.php' => __( 'Archives' ),
-	'author.php' => __( 'Author Template' ),
-	'tag.php' => __( 'Tag Template' ),
-	'category.php' => __( 'Category Template' ),
-	'page.php' => __( 'Page Template' ),
-	'search.php' => __( 'Search Results' ),
-	'searchform.php' => __( 'Search Form' ),
-	'single.php' => __( 'Single Post' ),
-	'404.php' => __( '404 Template' ),
-	'link.php' => __( 'Links Template' ),
-	'functions.php' => __( 'Theme Functions' ),
-	'attachment.php' => __( 'Attachment Template' ),
-	'image.php' => __('Image Attachment Template'),
-	'video.php' => __('Video Attachment Template'),
-	'audio.php' => __('Audio Attachment Template'),
-	'application.php' => __('Application Attachment Template'),
-	'my-hacks.php' => __( 'my-hacks.php (legacy hacks support)' ),
-	'.htaccess' => __( '.htaccess (for rewrite rules )' ),
+	'functions.php'         => __( 'Theme Functions' ),
+	'header.php'            => __( 'Theme Header' ),
+	'footer.php'            => __( 'Theme Footer' ),
+	'sidebar.php'           => __( 'Sidebar' ),
+	'comments.php'          => __( 'Comments' ),
+	'searchform.php'        => __( 'Search Form' ),
+	'404.php'               => __( '404 Template' ),
+	'link.php'              => __( 'Links Template' ),
+	// Archives
+	'index.php'             => __( 'Main Index Template' ),
+	'archive.php'           => __( 'Archives' ),
+	'author.php'            => __( 'Author Template' ),
+	'taxonomy.php'          => __( 'Taxonomy Template' ),
+	'category.php'          => __( 'Category Template' ),
+	'tag.php'               => __( 'Tag Template' ),
+	'home.php'              => __( 'Posts Page' ),
+	'search.php'            => __( 'Search Results' ),
+	'date.php'              => __( 'Date Template' ),
+	// Content
+	'singular.php'          => __( 'Singular Template' ),
+	'single.php'            => __( 'Single Post' ),
+	'page.php'              => __( 'Single Page' ),
+	'front-page.php'        => __( 'Static Front Page' ),
+	// Attachments
+	'attachment.php'        => __( 'Attachment Template' ),
+	'image.php'             => __( 'Image Attachment Template' ),
+	'video.php'             => __( 'Video Attachment Template' ),
+	'audio.php'             => __( 'Audio Attachment Template' ),
+	'application.php'       => __( 'Application Attachment Template' ),
+	// Stylesheets
+	'style.css'             => __( 'Stylesheet' ),
+	'editor-style.css'      => __( 'Visual Editor Stylesheet' ),
+	'editor-style-rtl.css'  => __( 'Visual Editor RTL Stylesheet' ),
+	'rtl.css'               => __( 'RTL Stylesheet' ),
+	// Other
+	'my-hacks.php'          => __( 'my-hacks.php (legacy hacks support)' ),
+	'.htaccess'             => __( '.htaccess (for rewrite rules )' ),
 	// Deprecated files
-	'wp-layout.css' => __( 'Stylesheet' ),
-	'wp-comments.php' => __( 'Comments Template' ),
+	'wp-layout.css'         => __( 'Stylesheet' ),
+	'wp-comments.php'       => __( 'Comments Template' ),
 	'wp-comments-popup.php' => __( 'Popup Comments Template' ),
+	'comments-popup.php'    => __( 'Popup Comments' ),
 );
 
 /**
@@ -184,7 +194,7 @@ function wp_tempnam( $filename = '', $dir = '' ) {
 /**
  * Make sure that the file that was requested to edit, is allowed to be edited
  *
- * Function will die if if you are not allowed to edit the file
+ * Function will die if you are not allowed to edit the file
  *
  * @since 1.5.0
  *
@@ -214,6 +224,7 @@ function validate_file_to_edit( $file, $allowed_files = '' ) {
  * Handle PHP uploads in WordPress, sanitizing file names, checking extensions for mime type,
  * and moving the file to the appropriate directory within the uploads directory.
  *
+ * @access private
  * @since 4.0.0
  *
  * @see wp_handle_upload_error
@@ -224,7 +235,7 @@ function validate_file_to_edit( $file, $allowed_files = '' ) {
  * @param string      $action    Expected value for $_POST['action'].
  * @return array On success, returns an associative array of file attributes. On failure, returns
  *               $overrides['upload_error_handler'](&$file, $message ) or array( 'error'=>$message ).
-*/
+ */
 function _wp_handle_upload( &$file, $overrides, $time, $action ) {
 	// The default error handler.
 	if ( ! function_exists( 'wp_handle_upload_error' ) ) {
@@ -399,7 +410,8 @@ function _wp_handle_upload( &$file, $overrides, $time, $action ) {
 		'file' => $new_file,
 		'url'  => $url,
 		'type' => $type
-	), 'wp_handle_sideload' === $action ? 'sideload' : 'upload' ); }
+	), 'wp_handle_sideload' === $action ? 'sideload' : 'upload' );
+}
 
 /**
  * Wrapper for _wp_handle_upload(), passes 'wp_handle_upload' action.
@@ -623,10 +635,6 @@ function _unzip_file_ziparchive($file, $to, $needed_dirs = array() ) {
 		if ( '__MACOSX/' === substr($info['name'], 0, 9) ) // Skip the OS X-created __MACOSX directory
 			continue;
 
-		if ( 0 !== validate_file( $info['name'] ) ) {
-			return new WP_Error( 'invalid_file_ziparchive', __( 'Could not extract file from archive.' ), $info['name'] );
-		}
-
 		$uncompressed_size += $info['size'];
 
 		if ( '/' == substr($info['name'], -1) ) // directory
@@ -783,10 +791,6 @@ function _unzip_file_pclzip($file, $to, $needed_dirs = array()) {
 
 		if ( '__MACOSX/' === substr($file['filename'], 0, 9) ) // Don't extract the OS X-created __MACOSX directory files
 			continue;
-
-		if ( 0 !== validate_file( $file['filename'] ) ) {
-			return new WP_Error( 'invalid_file_pclzip', __( 'Could not extract file from archive.' ), $file['filename'] );
-		}
 
 		if ( ! $wp_filesystem->put_contents( $to . $file['filename'], $file['content'], FS_CHMOD_FILE) )
 			return new WP_Error( 'copy_failed_pclzip', __( 'Could not copy file.' ), $file['filename'] );
@@ -1019,19 +1023,22 @@ function get_filesystem_method( $args = array(), $context = false, $allow_relaxe
  *
  * @since 2.5.
  *
- * @todo Properly mark optional arguments as such
- *
  * @global string $pagenow
  *
- * @param string $form_post    the URL to post the form to
- * @param string $type         the chosen Filesystem method in use
- * @param bool   $error        if the current request has failed to connect
- * @param string $context      The directory which is needed access to, The write-test will be performed on this directory by get_filesystem_method()
- * @param array  $extra_fields Extra POST fields which should be checked for to be included in the post.
- * @param bool   $allow_relaxed_file_ownership Whether to allow Group/World writable.
- * @return bool False on failure. True on success.
+ * @param string $form_post                    The URL to post the form to.
+ * @param string $type                         Optional. Chosen type of filesystem. Default empty.
+ * @param bool   $error                        Optional. Whether the current request has failed to connect.
+ *                                             Default false.
+ * @param string $context                      Optional. Full path to the directory that is tested
+ *                                             for being writable. Default false.
+ * @param array  $extra_fields                 Optional. Extra POST fields which should be checked for
+ *                                             to be included in the post. Default null.
+ * @param bool   $allow_relaxed_file_ownership Optional. Whether to allow Group/World writable.
+ *                                             Default false.
+ *
+ * @return bool False on failure, true on success.
  */
-function request_filesystem_credentials($form_post, $type = '', $error = false, $context = false, $extra_fields = null, $allow_relaxed_file_ownership = false ) {
+function request_filesystem_credentials( $form_post, $type = '', $error = false, $context = false, $extra_fields = null, $allow_relaxed_file_ownership = false ) {
 	global $pagenow;
 
 	/**
@@ -1042,15 +1049,16 @@ function request_filesystem_credentials($form_post, $type = '', $error = false, 
 	 *
 	 * @since 2.5.0
 	 *
-	 * @param mixed  $output       Form output to return instead. Default empty.
-	 * @param string $form_post    URL to POST the form to.
-	 * @param string $type         Chosen type of filesystem.
-	 * @param bool   $error        Whether the current request has failed to connect.
-	 *                             Default false.
-	 * @param string $context      Full path to the directory that is tested for
-	 *                             being writable.
-	 * @param bool $allow_relaxed_file_ownership Whether to allow Group/World writable.
-	 * @param array  $extra_fields Extra POST fields.
+	 * @param mixed  $output                       Form output to return instead. Default empty.
+	 * @param string $form_post                    The URL to post the form to.
+	 * @param string $type                         Chosen type of filesystem.
+	 * @param bool   $error                        Whether the current request has failed to connect.
+	 *                                             Default false.
+	 * @param string $context                      Full path to the directory that is tested for
+	 *                                             being writable.
+	 * @param bool   $allow_relaxed_file_ownership Whether to allow Group/World writable.
+	 *                                             Default false.
+	 * @param array  $extra_fields                 Extra POST fields.
 	 */
 	$req_cred = apply_filters( 'request_filesystem_credentials', '', $form_post, $type, $error, $context, $extra_fields, $allow_relaxed_file_ownership );
 	if ( '' !== $req_cred )
@@ -1068,28 +1076,14 @@ function request_filesystem_credentials($form_post, $type = '', $error = false, 
 
 	$credentials = get_option('ftp_credentials', array( 'hostname' => '', 'username' => ''));
 
-	$submitted_form = wp_unslash( $_POST );
-
-	// Verify nonce, or unset submitted form field values on failure
-	if ( ! isset( $_POST['_fs_nonce'] ) || ! wp_verify_nonce( $_POST['_fs_nonce'], 'filesystem-credentials' ) ) {
-		unset(
-			$submitted_form['hostname'],
-			$submitted_form['username'],
-			$submitted_form['password'],
-			$submitted_form['public_key'],
-			$submitted_form['private_key'],
-			$submitted_form['connection_type']
-		);
-	}
-
 	// If defined, set it to that, Else, If POST'd, set it to that, If not, Set it to whatever it previously was(saved details in option)
-	$credentials['hostname'] = defined('FTP_HOST') ? FTP_HOST : (!empty($submitted_form['hostname']) ? $submitted_form['hostname'] : $credentials['hostname']);
-	$credentials['username'] = defined('FTP_USER') ? FTP_USER : (!empty($submitted_form['username']) ? $submitted_form['username'] : $credentials['username']);
-	$credentials['password'] = defined('FTP_PASS') ? FTP_PASS : (!empty($submitted_form['password']) ? $submitted_form['password'] : '');
+	$credentials['hostname'] = defined('FTP_HOST') ? FTP_HOST : (!empty($_POST['hostname']) ? wp_unslash( $_POST['hostname'] ) : $credentials['hostname']);
+	$credentials['username'] = defined('FTP_USER') ? FTP_USER : (!empty($_POST['username']) ? wp_unslash( $_POST['username'] ) : $credentials['username']);
+	$credentials['password'] = defined('FTP_PASS') ? FTP_PASS : (!empty($_POST['password']) ? wp_unslash( $_POST['password'] ) : '');
 
 	// Check to see if we are setting the public/private keys for ssh
-	$credentials['public_key'] = defined('FTP_PUBKEY') ? FTP_PUBKEY : (!empty($submitted_form['public_key']) ? $submitted_form['public_key'] : '');
-	$credentials['private_key'] = defined('FTP_PRIKEY') ? FTP_PRIKEY : (!empty($submitted_form['private_key']) ? $submitted_form['private_key'] : '');
+	$credentials['public_key'] = defined('FTP_PUBKEY') ? FTP_PUBKEY : (!empty($_POST['public_key']) ? wp_unslash( $_POST['public_key'] ) : '');
+	$credentials['private_key'] = defined('FTP_PRIKEY') ? FTP_PRIKEY : (!empty($_POST['private_key']) ? wp_unslash( $_POST['private_key'] ) : '');
 
 	// Sanitize the hostname, Some people might pass in odd-data:
 	$credentials['hostname'] = preg_replace('|\w+://|', '', $credentials['hostname']); //Strip any schemes off
@@ -1106,8 +1100,8 @@ function request_filesystem_credentials($form_post, $type = '', $error = false, 
 		$credentials['connection_type'] = 'ssh';
 	} elseif ( ( defined( 'FTP_SSL' ) && FTP_SSL ) && 'ftpext' == $type ) { //Only the FTP Extension understands SSL
 		$credentials['connection_type'] = 'ftps';
-	} elseif ( ! empty( $submitted_form['connection_type'] ) ) {
-		$credentials['connection_type'] = $submitted_form['connection_type'];
+	} elseif ( ! empty( $_POST['connection_type'] ) ) {
+		$credentials['connection_type'] = wp_unslash( $_POST['connection_type'] );
 	} elseif ( ! isset( $credentials['connection_type'] ) ) { //All else fails (And it's not defaulted to something else saved), Default to FTP
 		$credentials['connection_type'] = 'ftp';
 	}
@@ -1249,12 +1243,11 @@ echo "<$heading_tag id='request-filesystem-credentials-title'>" . __( 'Connectio
 </fieldset>
 <?php
 foreach ( (array) $extra_fields as $field ) {
-	if ( isset( $submitted_form[ $field ] ) )
-		echo '<input type="hidden" name="' . esc_attr( $field ) . '" value="' . esc_attr( $submitted_form[ $field ] ) . '" />';
+	if ( isset( $_POST[ $field ] ) )
+		echo '<input type="hidden" name="' . esc_attr( $field ) . '" value="' . esc_attr( wp_unslash( $_POST[ $field ] ) ) . '" />';
 }
 ?>
 	<p class="request-filesystem-credentials-action-buttons">
-		<?php wp_nonce_field( 'filesystem-credentials', '_fs_nonce', false, true ); ?>
 		<button class="button cancel-button" data-js-action="close" type="button"><?php _e( 'Cancel' ); ?></button>
 		<?php submit_button( __( 'Proceed' ), 'button', 'upgrade', false ); ?>
 	</p>

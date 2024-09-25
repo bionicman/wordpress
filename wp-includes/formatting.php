@@ -374,7 +374,7 @@ function wptexturize_primes( $haystack, $needle, $prime, $open_quote, $close_quo
  */
 function _wptexturize_pushpop_element( $text, &$stack, $disabled_elements ) {
 	// Is it an opening tag or closing tag?
-	if ( '/' !== $text[1] ) {
+	if ( isset( $text[1] ) && '/' !== $text[1] ) {
 		$opening_tag = true;
 		$name_offset = 1;
 	} elseif ( 0 == count( $stack ) ) {
@@ -1064,17 +1064,15 @@ function wp_check_invalid_utf8( $string, $strip = false ) {
  * Encode the Unicode values to be used in the URI.
  *
  * @since 1.5.0
- * @since 5.8.3 Added the `encode_ascii_characters` parameter.
  *
- * @param string $utf8_string             String to encode.
- * @param int    $length                  Max length of the string
- * @param bool   $encode_ascii_characters Whether to encode ascii characters such as < " '
+ * @param string $utf8_string
+ * @param int    $length Max  length of the string
  * @return string String with Unicode encoded for URI.
  */
-function utf8_uri_encode( $utf8_string, $length = 0, $encode_ascii_characters = false ) {
-	$unicode        = '';
-	$values         = array();
-	$num_octets     = 1;
+function utf8_uri_encode( $utf8_string, $length = 0 ) {
+	$unicode = '';
+	$values = array();
+	$num_octets = 1;
 	$unicode_length = 0;
 
 	mbstring_binary_safe_encoding();
@@ -1086,14 +1084,10 @@ function utf8_uri_encode( $utf8_string, $length = 0, $encode_ascii_characters = 
 		$value = ord( $utf8_string[ $i ] );
 
 		if ( $value < 128 ) {
-			$char                = chr( $value );
-			$encoded_char        = $encode_ascii_characters ? rawurlencode( $char ) : $char;
-			$encoded_char_length = strlen( $encoded_char );
-			if ( $length && ( $unicode_length + $encoded_char_length ) > $length ) {
+			if ( $length && ( $unicode_length >= $length ) )
 				break;
-			}
-			$unicode        .= $encoded_char;
-			$unicode_length += $encoded_char_length;
+			$unicode .= chr($value);
+			$unicode_length++;
 		} else {
 			if ( count( $values ) == 0 ) {
 				if ( $value < 224 ) {
@@ -1370,8 +1364,7 @@ function remove_accents( $string ) {
  * operating systems and special characters requiring special escaping
  * to manipulate at the command line. Replaces spaces and consecutive
  * dashes with a single dash. Trims period, dash and underscore from beginning
- * and end of filename. It is not guaranteed that this function will return a
- * filename that is allowed to be uploaded.
+ * and end of filename.
  *
  * @since 2.1.0
  *
@@ -1381,24 +1374,6 @@ function remove_accents( $string ) {
 function sanitize_file_name( $filename ) {
 	$filename_raw = $filename;
 	$special_chars = array("?", "[", "]", "/", "\\", "=", "<", ">", ":", ";", ",", "'", "\"", "&", "$", "#", "*", "(", ")", "|", "~", "`", "!", "{", "}", "%", "+", chr(0));
-
-	// Check for support for utf8 in the installed PCRE library once and store the result in a static.
-	static $utf8_pcre = null;
-	if ( ! isset( $utf8_pcre ) ) {
-		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-		$utf8_pcre = @preg_match( '/^./u', 'a' );
-	}
-
-	if ( ! seems_utf8( $filename ) ) {
-		$_ext     = pathinfo( $filename, PATHINFO_EXTENSION );
-		$_name    = pathinfo( $filename, PATHINFO_FILENAME );
-		$filename = sanitize_title_with_dashes( $_name ) . '.' . $_ext;
-	}
-
-	if ( $utf8_pcre ) {
-		$filename = preg_replace( "#\x{00a0}#siu", ' ', $filename );
-	}
-
 	/**
 	 * Filter the list of characters to remove from a filename.
 	 *
@@ -1408,18 +1383,11 @@ function sanitize_file_name( $filename ) {
 	 * @param string $filename_raw  Filename as it was passed into sanitize_file_name().
 	 */
 	$special_chars = apply_filters( 'sanitize_file_name_chars', $special_chars, $filename_raw );
+	$filename = preg_replace( "#\x{00a0}#siu", ' ', $filename );
 	$filename = str_replace( $special_chars, '', $filename );
 	$filename = str_replace( array( '%20', '+' ), '-', $filename );
 	$filename = preg_replace( '/[\r\n\t -]+/', '-', $filename );
 	$filename = trim( $filename, '.-_' );
-
-	if ( false === strpos( $filename, '.' ) ) {
-		$mime_types = wp_get_mime_types();
-		$filetype = wp_check_filetype( 'test.' . $filename, $mime_types );
-		if ( $filetype['ext'] === $filename ) {
-			$filename = 'unnamed-file.' . $filetype['ext'];
-		}
-	}
 
 	// Split the filename into a base and extension[s]
 	$parts = explode('.', $filename);
@@ -1612,7 +1580,7 @@ function sanitize_title_with_dashes( $title, $raw_title = '', $context = 'displa
 		if (function_exists('mb_strtolower')) {
 			$title = mb_strtolower($title, 'UTF-8');
 		}
-		$title = utf8_uri_encode( $title, 200 );
+		$title = utf8_uri_encode($title, 200);
 	}
 
 	$title = strtolower($title);
@@ -2231,9 +2199,9 @@ function make_clickable( $text ) {
 	$nested_code_pre = 0; // Keep track of how many levels link is nested inside <pre> or <code>
 	foreach ( $textarr as $piece ) {
 
-		if ( preg_match( '|^<code[\s>]|i', $piece ) || preg_match( '|^<pre[\s>]|i', $piece ) )
+		if ( preg_match( '|^<code[\s>]|i', $piece ) || preg_match( '|^<pre[\s>]|i', $piece ) || preg_match( '|^<script[\s>]|i', $piece ) || preg_match( '|^<style[\s>]|i', $piece ) )
 			$nested_code_pre++;
-		elseif ( ( '</code>' === strtolower( $piece ) || '</pre>' === strtolower( $piece ) ) && $nested_code_pre )
+		elseif ( $nested_code_pre && ( '</code>' === strtolower( $piece ) || '</pre>' === strtolower( $piece ) || '</script>' === strtolower( $piece ) || '</style>' === strtolower( $piece ) ) )
 			$nested_code_pre--;
 
 		if ( $nested_code_pre || empty( $piece ) || ( $piece[0] === '<' && ! preg_match( '|^<\s*[\w]{1,20}+://|', $piece ) ) ) {
@@ -2367,10 +2335,17 @@ function wp_rel_nofollow( $text ) {
  */
 function wp_rel_nofollow_callback( $matches ) {
 	$text = $matches[1];
-	$atts = wp_kses_hair( $matches[1], wp_allowed_protocols() );
-	$rel = 'nofollow';
+	$atts = shortcode_parse_atts( $matches[1] );
+	$rel  = 'nofollow';
+
+	if ( preg_match( '%href=["\'](' . preg_quote( set_url_scheme( home_url(), 'http' ) ) . ')%i', $text ) ||
+	     preg_match( '%href=["\'](' . preg_quote( set_url_scheme( home_url(), 'https' ) ) . ')%i', $text )
+	) {
+		return "<a $text>";
+	}
+
 	if ( ! empty( $atts['rel'] ) ) {
-		$parts = array_map( 'trim', explode( ' ', $atts['rel']['value'] ) );
+		$parts = array_map( 'trim', explode( ' ', $atts['rel'] ) );
 		if ( false === array_search( 'nofollow', $parts ) ) {
 			$parts[] = 'nofollow';
 		}
@@ -2379,15 +2354,11 @@ function wp_rel_nofollow_callback( $matches ) {
 
 		$html = '';
 		foreach ( $atts as $name => $value ) {
-			if ( isset( $value['vless'] ) && 'y' === $value['vless'] ) {
-				$html .= $name . ' ';
-			} else {
-				$html .= "{$name}=\"" . esc_attr( $value['value'] ) . '" ';
-			}
+			$html .= "{$name}=\"$value\" ";
 		}
 		$text = trim( $html );
 	}
-	return "<a $text rel=\"" . esc_attr( $rel ) . "\">";
+	return "<a $text rel=\"$rel\">";
 }
 
 /**
@@ -2729,23 +2700,6 @@ function iso8601_to_datetime( $date_string, $timezone = 'user' ) {
 	} elseif ($timezone == 'user') {
 		return preg_replace('#([0-9]{4})([0-9]{2})([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})(Z|[\+|\-][0-9]{2,4}){0,1}#', '$1-$2-$3 $4:$5:$6', $date_string);
 	}
-}
-
-/**
- * Adds a element attributes to open links in new windows.
- *
- * Comment text in popup windows should be filtered through this. Right now it's
- * a moderately dumb function, ideally it would detect whether a target or rel
- * attribute was already there and adjust its actions accordingly.
- *
- * @since 0.71
- *
- * @param string $text Content to replace links to open in a new window.
- * @return string Content that has filtered links.
- */
-function popuplinks( $text ) {
-	$text = preg_replace('/<a (.+?)>/i', "<a $1 target='_blank' rel='external'>", $text);
-	return $text;
 }
 
 /**
@@ -3325,7 +3279,11 @@ function ent2ncr( $text ) {
  *
  * @since 4.3.0
  *
- * @param string $text The text to be formatted.
+ * @see _WP_Editors::editor()
+ *
+ * @param string $text           The text to be formatted.
+ * @param string $default_editor The default editor for the current user.
+ *                               It is usually either 'html' or 'tinymce'.
  * @return string The formatted text after filter is applied.
  */
 function format_for_editor( $text, $default_editor = null ) {
@@ -3338,7 +3296,9 @@ function format_for_editor( $text, $default_editor = null ) {
 	 *
 	 * @since 4.3.0
 	 *
-	 * @param string $text The formatted text.
+	 * @param string $text           The formatted text.
+	 * @param string $default_editor The default editor for the current user.
+	 *                               It is usually either 'html' or 'tinymce'.
 	 */
 	return apply_filters( 'format_for_editor', $text, $default_editor );
 }
@@ -3746,7 +3706,6 @@ function sanitize_option( $option, $value ) {
 			if ( is_wp_error( $value ) ) {
 				$error = $value->get_error_message();
 			} else {
-				$value = wp_kses_post( $value );
 				$value = esc_html( $value );
 			}
 			break;
@@ -3929,7 +3888,7 @@ function sanitize_option( $option, $value ) {
  *
  * @param mixed    $value    The array, object, or scalar.
  * @param callable $callback The function to map onto $value.
- * @return The value with the callback applied to all non-arrays and non-objects inside it.
+ * @return mixed The value with the callback applied to all non-arrays and non-objects inside it.
  */
 function map_deep( $value, $callback ) {
 	if ( is_array( $value ) ) {
@@ -4349,6 +4308,9 @@ function wp_basename( $path, $suffix = '' ) {
  * @since 3.0.0
  *
  * @staticvar string|false $dblq
+ *
+ * @param string $text The text to be modified.
+ * @return string The modified text.
  */
 function capital_P_dangit( $text ) {
 	// Simple replacement for titles
@@ -4617,7 +4579,7 @@ function print_emoji_detection_script() {
 		?>
 		<script type="text/javascript">
 			window._wpemojiSettings = <?php echo wp_json_encode( $settings ); ?>;
-			!function(e,n,t){var a;function i(e){var t=n.createElement("canvas"),a=t.getContext&&t.getContext("2d"),i=String.fromCharCode;return!(!a||!a.fillText)&&(a.textBaseline="top",a.font="600 32px Arial","flag"===e?(a.fillText(i(55356,56806,55356,56826),0,0),3e3<t.toDataURL().length):"diversity"===e?(a.fillText(i(55356,57221),0,0),t=a.getImageData(16,16,1,1).data,a.fillText(i(55356,57221,55356,57343),0,0),(t=a.getImageData(16,16,1,1).data)[0],t[1],t[2],t[3],!0):("simple"===e?a.fillText(i(55357,56835),0,0):a.fillText(i(55356,57135),0,0),0!==a.getImageData(16,16,1,1).data[0]))}function o(e){var t=n.createElement("script");t.src=e,t.type="text/javascript",n.getElementsByTagName("head")[0].appendChild(t)}t.supports={simple:i("simple"),flag:i("flag"),unicode8:i("unicode8"),diversity:i("diversity")},t.DOMReady=!1,t.readyCallback=function(){t.DOMReady=!0},t.supports.simple&&t.supports.flag&&t.supports.unicode8&&t.supports.diversity||(a=function(){t.readyCallback()},n.addEventListener?(n.addEventListener("DOMContentLoaded",a,!1),e.addEventListener("load",a,!1)):(e.attachEvent("onload",a),n.attachEvent("onreadystatechange",function(){"complete"===n.readyState&&t.readyCallback()})),(a=t.source||{}).concatemoji?o(a.concatemoji):a.wpemoji&&a.twemoji&&(o(a.twemoji),o(a.wpemoji)))}(window,document,window._wpemojiSettings);
+			!function(a,b,c){function d(a){var c,d=b.createElement("canvas"),e=d.getContext&&d.getContext("2d"),f=String.fromCharCode;return e&&e.fillText?(e.textBaseline="top",e.font="600 32px Arial","flag"===a?(e.fillText(f(55356,56806,55356,56826),0,0),d.toDataURL().length>3e3):"diversity"===a?(e.fillText(f(55356,57221),0,0),c=e.getImageData(16,16,1,1).data.toString(),e.fillText(f(55356,57221,55356,57343),0,0),c!==e.getImageData(16,16,1,1).data.toString()):("simple"===a?e.fillText(f(55357,56835),0,0):e.fillText(f(55356,57135),0,0),0!==e.getImageData(16,16,1,1).data[0])):!1}function e(a){var c=b.createElement("script");c.src=a,c.type="text/javascript",b.getElementsByTagName("head")[0].appendChild(c)}var f,g;c.supports={simple:d("simple"),flag:d("flag"),unicode8:d("unicode8"),diversity:d("diversity")},c.DOMReady=!1,c.readyCallback=function(){c.DOMReady=!0},c.supports.simple&&c.supports.flag&&c.supports.unicode8&&c.supports.diversity||(g=function(){c.readyCallback()},b.addEventListener?(b.addEventListener("DOMContentLoaded",g,!1),a.addEventListener("load",g,!1)):(a.attachEvent("onload",g),b.attachEvent("onreadystatechange",function(){"complete"===b.readyState&&c.readyCallback()})),f=c.source||{},f.concatemoji?e(f.concatemoji):f.wpemoji&&f.twemoji&&(e(f.twemoji),e(f.wpemoji)))}(window,document,window._wpemojiSettings);
 		</script>
 		<?php
 	}
@@ -4838,19 +4800,3 @@ function url_shorten( $url, $length = 35 ) {
 	}
 	return $short_url;
 }
-
-/**
- * 4.4.x hotfix for hidden configure links on admin dashboard.
- *
- * @ignore
- */
-function _wp_441_dashboard_display_configure_links_css() { 
-	echo '<style type="text/css">
-		.postbox .button-link .edit-box { display: none; }
-		.wp-admin .edit-box { display: block; opacity: 0; }
-		.hndle:hover .edit-box, .edit-box:focus { opacity: 1; }
-		#dashboard-widgets h2 a { text-decoration: underline; }
-		#dashboard-widgets .hndle .postbox-title-action { float: right; line-height: 1.2; }
-	</style>';
-}
-add_action( 'admin_print_styles-index.php', '_wp_441_dashboard_display_configure_links_css' );

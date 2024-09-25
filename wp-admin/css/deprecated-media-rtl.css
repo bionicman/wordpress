@@ -69,6 +69,11 @@ div#media-upload-header {
 	padding: 0;
 }
 
+.media-upload-form label.form-help,
+td.help {
+	color: #72777c;
+}
+
 form {
 	margin: 1em;
 }
@@ -103,19 +108,19 @@ th {
 /* specific to the image upload form */
 
 .image-align-none-label {
-	background: url(../images/align-none.png) no-repeat center right;
+	background: url(../images/align-none.png) no-repeat center left;
 }
 
 .image-align-left-label {
-	background: url(../images/align-left.png) no-repeat center right;
+	background: url(../images/align-left.png) no-repeat center left;
 }
 
 .image-align-center-label {
-	background: url(../images/align-center.png) no-repeat center right;
+	background: url(../images/align-center.png) no-repeat center left;
 }
 
 .image-align-right-label {
-	background: url(../images/align-right.png) no-repeat center right;
+	background: url(../images/align-right.png) no-repeat center left;
 }
 
 tr.image-size td {
@@ -270,7 +275,7 @@ abbr.required {
 	clear: both;
 	padding: 0 0 3px;
 	font-size: 1.6em;
-	border-bottom: 1px solid #DADADA;
+	border-bottom: 1px solid #ddd;
 }
 
 h3.media-title  {
@@ -278,7 +283,7 @@ h3.media-title  {
 }
 
 h4.media-sub-title  {
-	border-bottom: 1px solid #DADADA;
+	border-bottom: 1px solid #ddd;
 	font-size: 1.3em;
 	margin: 12px;
 	padding: 0 0 3px;

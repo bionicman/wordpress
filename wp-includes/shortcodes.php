@@ -96,8 +96,8 @@ function add_shortcode($tag, $func) {
 	}
 
 	if ( 0 !== preg_match( '@[<>&/\[\]\x00-\x20=]@', $tag ) ) {
-		/* translators: %s: shortcode name */
-		$message = sprintf( __( 'Invalid shortcode name: %s. Do not use spaces or reserved characters: & / < > [ ]' ), $tag );
+		/* translators: 1: shortcode name, 2: space separated list of reserved characters */
+		$message = sprintf( __( 'Invalid shortcode name: %1$s. Do not use spaces or reserved characters: %2$s' ), $tag, '& / < > [ ] =' );
 		_doing_it_wrong( __FUNCTION__, $message, '4.4.0' );
 		return;
 	}
@@ -185,45 +185,7 @@ function has_shortcode( $content, $tag ) {
 }
 
 /**
- * Returns a list of registered shortcode names found in the given content.
- *
- * Example usage:
- *
- *     get_shortcode_tags_in_content( '[audio src="file.mp3"][/audio] [foo] [gallery ids="1,2,3"]' );
- *     // array( 'audio', 'gallery' )
- *
- * @since 6.3.2
- *
- * @param string $content The content to check.
- * @return string[] An array of registered shortcode names found in the content.
- */
-function get_shortcode_tags_in_content( $content ) {
-	if ( false === strpos( $content, '[' ) ) {
-		return array();
-	}
-
-	preg_match_all( '/' . get_shortcode_regex() . '/', $content, $matches, PREG_SET_ORDER );
-	if ( empty( $matches ) ) {
-		return array();
-	}
-
-	$tags = array();
-	foreach ( $matches as $shortcode ) {
-		$tags[] = $shortcode[2];
-
-		if ( ! empty( $shortcode[5] ) ) {
-			$deep_tags = get_shortcode_tags_in_content( $shortcode[5] );
-			if ( ! empty( $deep_tags ) ) {
-				$tags = array_merge( $tags, $deep_tags );
-			}
-		}
-	}
-
-	return $tags;
-}
-
-/**
- * Searches content for shortcodes and filter shortcodes through their hooks.
+ * Search content for shortcodes and filter shortcodes through their hooks.
  *
  * If there are no shortcode tags defined, then the content will be returned
  * without any filtering. This might cause issues when plugins are disabled but
@@ -635,9 +597,12 @@ function strip_shortcodes( $content ) {
 }
 
 /**
+ * Strips a shortcode tag based on RegEx matches against post content.
  *
- * @param array $m
- * @return string|false
+ * @since 3.3.0
+ *
+ * @param array $m RegEx matches against post content.
+ * @return string|false The content stripped of the tag, otherwise false.
  */
 function strip_shortcode_tag( $m ) {
 	// allow [[foo]] syntax for escaping a tag

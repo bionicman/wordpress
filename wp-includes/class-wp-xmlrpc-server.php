@@ -188,6 +188,9 @@ class wp_xmlrpc_server extends IXR_Server {
 	}
 
 	/**
+	 * Serves the XML-RPC request.
+	 *
+	 * @since 2.9.0
 	 * @access public
 	 */
 	public function serve_request() {
@@ -366,11 +369,6 @@ class wp_xmlrpc_server extends IXR_Server {
 			if ( isset($meta['id']) ) {
 				$meta['id'] = (int) $meta['id'];
 				$pmeta = get_metadata_by_mid( 'post', $meta['id'] );
-
-				if ( ! $pmeta || $pmeta->post_id != $post_id ) {
-					continue;
-				}
-
 				if ( isset($meta['key']) ) {
 					$meta['key'] = wp_unslash( $meta['key'] );
 					if ( $meta['key'] !== $pmeta->meta_key )
@@ -1281,31 +1279,10 @@ class wp_xmlrpc_server extends IXR_Server {
 	 * @return IXR_Error|string
 	 */
 	protected function _insert_post( $user, $content_struct ) {
-		$defaults = array(
-			'post_status'    => 'draft',
-			'post_type'      => 'post',
-			'post_author'    => null,
-			'post_password'  => null,
-			'post_excerpt'   => null,
-			'post_content'   => null,
-			'post_title'     => null,
-			'post_date'      => null,
-			'post_date_gmt'  => null,
-			'post_format'    => null,
-			'post_name'      => null,
-			'post_thumbnail' => null,
-			'post_parent'    => null,
-			'ping_status'    => null,
-			'comment_status' => null,
-			'custom_fields'  => null,
-			'terms_names'    => null,
-			'terms'          => null,
-			'sticky'         => null,
-			'enclosure'      => null,
-			'ID'             => null,
-		);
+		$defaults = array( 'post_status' => 'draft', 'post_type' => 'post', 'post_author' => 0,
+			'post_password' => '', 'post_excerpt' => '', 'post_content' => '', 'post_title' => '' );
 
-		$post_data = wp_parse_args( array_intersect_key( $content_struct, $defaults ), $defaults );
+		$post_data = wp_parse_args( $content_struct, $defaults );
 
 		$post_type = get_post_type_object( $post_data['post_type'] );
 		if ( ! $post_type )
@@ -1489,6 +1466,9 @@ class wp_xmlrpc_server extends IXR_Server {
 
 			$post_data['tax_input'] = $terms;
 			unset( $post_data['terms'], $post_data['terms_names'] );
+		} else {
+			// Do not allow direct submission of 'tax_input', clients must use 'terms' and/or 'terms_names'.
+			unset( $post_data['tax_input'], $post_data['post_category'], $post_data['tags_input'] );
 		}
 
 		if ( isset( $post_data['post_format'] ) ) {
@@ -3549,21 +3529,6 @@ class wp_xmlrpc_server extends IXR_Server {
 			return new IXR_Error( 403, __( 'Sorry, comments are closed for this item.' ) );
 		}
 
-		if (
-			'publish' === get_post_status( $post_id ) &&
-			! current_user_can( 'edit_post', $post_id ) &&
-			post_password_required( $post_id )
-		) {
-			return new IXR_Error( 403, __( 'Sorry, you are not allowed to comment on this post.' ) );
-		}
-
-		if (
-			'private' === get_post_status( $post_id ) &&
-			! current_user_can( 'read_post', $post_id )
-		) {
-			return new IXR_Error( 403, __( 'Sorry, you are not allowed to comment on this post.' ) );
-		}
-
 		$comment = array();
 		$comment['comment_post_ID'] = $post_id;
 
@@ -3942,10 +3907,8 @@ class wp_xmlrpc_server extends IXR_Server {
 		/** This action is documented in wp-includes/class-wp-xmlrpc-server.php */
 		do_action( 'xmlrpc_call', 'wp.getMediaItem' );
 
-		$attachment = get_post( $attachment_id );
-		if ( ! $attachment || 'attachment' !== $attachment->post_type ) {
+		if ( ! $attachment = get_post($attachment_id) )
 			return new IXR_Error( 404, __( 'Invalid attachment ID.' ) );
-		}
 
 		return $this->_prepare_media_item( $attachment );
 	}
@@ -4367,11 +4330,18 @@ class wp_xmlrpc_server extends IXR_Server {
 	/**
 	 * Private function for retrieving a users blogs for multisite setups
 	 *
+	 * @since 3.0.0
 	 * @access protected
 	 *
+	 * @param array $args {
+	 *     Method arguments. Note: arguments must be ordered as documented.
+	 *
+	 *     @type string $username Username.
+	 *     @type string $password Password.
+	 * }
 	 * @return array|IXR_Error
 	 */
-	protected function _multisite_getUsersBlogs($args) {
+	protected function _multisite_getUsersBlogs( $args ) {
 		$current_blog = get_blog_details();
 
 		$domain = $current_blog->domain;
@@ -4560,7 +4530,9 @@ class wp_xmlrpc_server extends IXR_Server {
 	 *
 	 * @since 1.5.0
 	 * @deprecated 3.5.0
-	 * @return IXR_Error
+	 *
+	 * @param array $args Unused.
+	 * @return IXR_Error Error object.
 	 */
 	public function blogger_getTemplate($args) {
 		return new IXR_Error( 403, __('Sorry, that file cannot be edited.' ) );
@@ -4571,18 +4543,20 @@ class wp_xmlrpc_server extends IXR_Server {
 	 *
 	 * @since 1.5.0
 	 * @deprecated 3.5.0
-	 * @return IXR_Error
+	 *
+	 * @param array $args Unused.
+	 * @return IXR_Error Error object.
 	 */
 	public function blogger_setTemplate($args) {
 		return new IXR_Error( 403, __('Sorry, that file cannot be edited.' ) );
 	}
 
 	/**
-	 * Create new post.
+	 * Creates new post.
 	 *
 	 * @since 1.5.0
 	 *
-	 * @param array  $args {
+	 * @param array $args {
 	 *     Method arguments. Note: arguments must be ordered as documented.
 	 *
 	 *     @type string $appkey (unused)
@@ -5105,8 +5079,12 @@ class wp_xmlrpc_server extends IXR_Server {
 	}
 
 	/**
-	 * @param integer $post_ID
-	 * @param array   $enclosure
+	 * Adds an enclosure to a post if it's new.
+	 *
+	 * @since 2.8.0
+	 *
+	 * @param integer $post_ID   Post ID.
+	 * @param array   $enclosure Enclosure data.
 	 */
 	public function add_enclosure_if_new( $post_ID, $enclosure ) {
 		if ( is_array( $enclosure ) && isset( $enclosure['url'] ) && isset( $enclosure['length'] ) && isset( $enclosure['type'] ) ) {
@@ -6299,35 +6277,37 @@ class wp_xmlrpc_server extends IXR_Server {
 				'X-Pingback-Forwarded-For' => $remote_ip,
 			),
 		);
-		$request = wp_safe_remote_get( $pagelinkedfrom, $http_api_args );
-		$linea = wp_remote_retrieve_body( $request );
 
-		if ( !$linea )
+		$request = wp_safe_remote_get( $pagelinkedfrom, $http_api_args );
+		$remote_source = $remote_source_original = wp_remote_retrieve_body( $request );
+
+		if ( ! $remote_source ) {
 			return $this->pingback_error( 16, __( 'The source URL does not exist.' ) );
+		}
 
 		/**
 		 * Filter the pingback remote source.
 		 *
 		 * @since 2.5.0
 		 *
-		 * @param string $linea        Response object for the page linked from.
-		 * @param string $pagelinkedto URL of the page linked to.
+		 * @param string $remote_source Response source for the page linked from.
+		 * @param string $pagelinkedto  URL of the page linked to.
 		 */
-		$linea = apply_filters( 'pre_remote_source', $linea, $pagelinkedto );
+		$remote_source = apply_filters( 'pre_remote_source', $remote_source, $pagelinkedto );
 
 		// Work around bug in strip_tags():
-		$linea = str_replace('<!DOC', '<DOC', $linea);
-		$linea = preg_replace( '/[\r\n\t ]+/', ' ', $linea ); // normalize spaces
-		$linea = preg_replace( "/<\/*(h1|h2|h3|h4|h5|h6|p|th|td|li|dt|dd|pre|caption|input|textarea|button|body)[^>]*>/", "\n\n", $linea );
+		$remote_source = str_replace( '<!DOC', '<DOC', $remote_source );
+		$remote_source = preg_replace( '/[\r\n\t ]+/', ' ', $remote_source ); // normalize spaces
+		$remote_source = preg_replace( "/<\/*(h1|h2|h3|h4|h5|h6|p|th|td|li|dt|dd|pre|caption|input|textarea|button|body)[^>]*>/", "\n\n", $remote_source );
 
-		preg_match('|<title>([^<]*?)</title>|is', $linea, $matchtitle);
+		preg_match( '|<title>([^<]*?)</title>|is', $remote_source, $matchtitle );
 		$title = $matchtitle[1];
 		if ( empty( $title ) )
 			return $this->pingback_error( 32, __('We cannot find a title on that page.' ) );
 
-		$linea = strip_tags( $linea, '<a>' ); // just keep the tag we need
+		$remote_source = strip_tags( $remote_source, '<a>' ); // just keep the tag we need
 
-		$p = explode( "\n\n", $linea );
+		$p = explode( "\n\n", $remote_source );
 
 		$preg_target = preg_quote($pagelinkedto, '|');
 
@@ -6375,7 +6355,10 @@ class wp_xmlrpc_server extends IXR_Server {
 		$this->escape($comment_content);
 		$comment_type = 'pingback';
 
-		$commentdata = compact('comment_post_ID', 'comment_author', 'comment_author_url', 'comment_author_email', 'comment_content', 'comment_type');
+		$commentdata = compact(
+			'comment_post_ID', 'comment_author', 'comment_author_url', 'comment_author_email',
+			'comment_content', 'comment_type', 'remote_source', 'remote_source_original'
+		);
 
 		$comment_ID = wp_new_comment($commentdata);
 
@@ -6439,9 +6422,13 @@ class wp_xmlrpc_server extends IXR_Server {
 	}
 
 	/**
-	 * @param integer $code
-	 * @param string $message
-	 * @return IXR_Error
+	 * Sends a pingback error based on the given error code and message.
+	 *
+	 * @since 3.6.0
+	 *
+	 * @param int    $code    Error code.
+	 * @param string $message Error message.
+	 * @return IXR_Error Error object.
 	 */
 	protected function pingback_error( $code, $message ) {
 		/**

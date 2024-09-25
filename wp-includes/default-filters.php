@@ -249,6 +249,7 @@ if ( isset( $_GET['replytocom'] ) )
 
 // Login actions
 add_action( 'login_head',          'wp_print_head_scripts',         9     );
+add_action( 'login_head',          'print_admin_styles',            9     );
 add_action( 'login_head',          'wp_site_icon',                  99    );
 add_action( 'login_footer',        'wp_print_footer_scripts',       20    );
 add_action( 'login_init',          'send_frame_options_header',     10, 0 );
@@ -341,6 +342,7 @@ add_filter( 'heartbeat_nopriv_send', 'wp_auth_check' );
 
 // Default authentication filters
 add_filter( 'authenticate', 'wp_authenticate_username_password',  20, 3 );
+add_filter( 'authenticate', 'wp_authenticate_email_password',     20, 3 );
 add_filter( 'authenticate', 'wp_authenticate_spam_check',         99    );
 add_filter( 'determine_current_user', 'wp_validate_auth_cookie'          );
 add_filter( 'determine_current_user', 'wp_validate_logged_in_cookie', 20 );
@@ -473,6 +475,5 @@ add_filter( 'the_excerpt_embed',      'wp_embed_excerpt_attachment'           );
 
 add_filter( 'oembed_dataparse',       'wp_filter_oembed_result',        10, 3 );
 add_filter( 'oembed_response_data',   'get_oembed_response_data_rich',  10, 4 );
-add_filter( 'pre_oembed_result',      'wp_filter_pre_oembed_result',    10, 3 );
 
 unset( $filter, $action );
