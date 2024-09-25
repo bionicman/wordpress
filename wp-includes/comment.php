@@ -450,7 +450,7 @@ class WP_Comment_Query {
 	 *              'post_author__not_in', 'author__in', 'author__not_in', 'post__in',
 	 *              'post__not_in', 'include_unapproved', 'type__in', and 'type__not_in'
 	 *              arguments to $query_vars.
-	 * @since 4.2.0 Moved parsing to {@link WP_Comment_Query::parse_query()}.
+	 * @since 4.2.0 Moved parsing to WP_Comment_Query::parse_query().
 	 * @access public
 	 *
 	 * @param string|array $query Array or URL query string of parameters.
@@ -466,6 +466,8 @@ class WP_Comment_Query {
 	 *
 	 * @since 4.2.0
 	 * @access public
+	 *
+	 * @global wpdb $wpdb WordPress database abstraction object.
 	 *
 	 * @return array The list of comments.
 	 */
@@ -1129,7 +1131,7 @@ function get_comment_count( $post_id = 0 ) {
  * Add meta data field to a comment.
  *
  * @since 2.9.0
- * @link http://codex.wordpress.org/Function_Reference/add_comment_meta
+ * @link https://codex.wordpress.org/Function_Reference/add_comment_meta
  *
  * @param int $comment_id Comment ID.
  * @param string $meta_key Metadata name.
@@ -1149,7 +1151,7 @@ function add_comment_meta($comment_id, $meta_key, $meta_value, $unique = false) 
  * allows removing all metadata matching key, if needed.
  *
  * @since 2.9.0
- * @link http://codex.wordpress.org/Function_Reference/delete_comment_meta
+ * @link https://codex.wordpress.org/Function_Reference/delete_comment_meta
  *
  * @param int $comment_id comment ID
  * @param string $meta_key Metadata name.
@@ -1164,7 +1166,7 @@ function delete_comment_meta($comment_id, $meta_key, $meta_value = '') {
  * Retrieve comment meta field for a comment.
  *
  * @since 2.9.0
- * @link http://codex.wordpress.org/Function_Reference/get_comment_meta
+ * @link https://codex.wordpress.org/Function_Reference/get_comment_meta
  *
  * @param int $comment_id Comment ID.
  * @param string $key Optional. The meta key to retrieve. By default, returns data for all keys.
@@ -1185,7 +1187,7 @@ function get_comment_meta($comment_id, $key = '', $single = false) {
  * If the meta field for the comment does not exist, it will be added.
  *
  * @since 2.9.0
- * @link http://codex.wordpress.org/Function_Reference/update_comment_meta
+ * @link https://codex.wordpress.org/Function_Reference/update_comment_meta
  *
  * @param int $comment_id Comment ID.
  * @param string $meta_key Metadata key.

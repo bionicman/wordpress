@@ -149,11 +149,11 @@ class WP_Posts_List_Table extends WP_List_Table {
 	}
 
 	/**
-	 * Determine if the current view is the "All" view
+	 * Determine if the current view is the "All" view.
 	 *
 	 * @since 4.2.0
 	 *
-	 * @return boolean
+	 * @return bool Whether the current ivew is the "All" view.
 	 */
 	protected function is_base_request() {
 		if ( empty( $_GET ) ) {
@@ -576,7 +576,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 	 * @param int $level
 	 * @param int $pagenum
 	 * @param int $per_page
-	 * @param array $to_display list of pages to be displayed
+	 * @param array $to_display List of pages to be displayed. Passed by reference.
 	 */
 	private function _page_rows( &$children_pages, &$count, $parent, $level, $pagenum, $per_page, &$to_display ) {
 
@@ -1010,7 +1010,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 			$show_in_quick_edit = $taxonomy->show_in_quick_edit;
 
 			/**
-			 * Filters whether the current taxonomy should be shown in the Quick Edit panel.
+			 * Filter whether the current taxonomy should be shown in the Quick Edit panel.
 			 *
 			 * @since 4.2.0
 			 *

@@ -7,12 +7,12 @@ html {
 
 /* Links */
 a {
-  color: #0074a2; }
+  color: #0073aa; }
   a:hover, a:active, a:focus {
-    color: #0099d5; }
+    color: #0095dd; }
 
 #media-upload a.del-link:hover, div.dashboard-widget-submit input:hover, .subsubsub a:hover, .subsubsub a.current:hover {
-  color: #0099d5; }
+  color: #0095dd; }
 
 /* Forms */
 input[type=checkbox]:checked:before {
@@ -22,7 +22,7 @@ input[type=radio]:checked:before {
   background: #523f6d; }
 
 .wp-core-ui input[type="reset"]:hover, .wp-core-ui input[type="reset"]:active {
-  color: #0099d5; }
+  color: #0095dd; }
 
 /* Core UI */
 .wp-core-ui .button-primary {
@@ -143,7 +143,7 @@ ul#adminmenu a.wp-has-current-submenu:after, ul#adminmenu > li.current > a.curre
   color: #fff;
   background: #a3b745; }
 
-#adminmenu li.wp-has-current-submenu div.wp-menu-image:before {
+#adminmenu li.wp-has-current-submenu div.wp-menu-image:before, #adminmenu a.current:hover div.wp-menu-image:before, #adminmenu li.wp-has-current-submenu a:focus div.wp-menu-image:before, #adminmenu li.wp-has-current-submenu.opensub div.wp-menu-image:before, #adminmenu li:hover div.wp-menu-image:before, #adminmenu li a:focus div.wp-menu-image:before, #adminmenu li.opensub div.wp-menu-image:before, .ie8 #adminmenu li.opensub div.wp-menu-image:before {
   color: #fff; }
 
 /* Admin Menu: bubble */

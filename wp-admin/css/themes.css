@@ -419,6 +419,10 @@
 	border-bottom: 1px solid #ddd;
 }
 
+.theme-overlay .theme-header button {
+	padding: 0;
+}
+
 .theme-overlay .theme-header .close {
 	cursor: pointer;
 	height: 48px;
@@ -1462,7 +1466,7 @@ body.full-overlay-active {
 .theme-install-overlay .previous-theme.disabled:focus,
 .theme-install-overlay .next-theme.disabled:hover,
 .theme-install-overlay .next-theme.disabled:focus {
-	color: #bbb;
+	color: #b4b9be;
 	background: #eee;
 	cursor: default;
 	pointer-events: none;

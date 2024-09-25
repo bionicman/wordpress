@@ -1148,7 +1148,7 @@ jQuery(function($){
 ?></p>
 <label for="hostname">
 	<span class="field-title"><?php _e( 'Hostname' ) ?></span>
-	<input name="hostname" type="text" id="hostname" aria-describedby="request-filesystem-credentials-desc" class="code" placeholder="<?php esc_attr_e( __( 'example: www.mysite.com' ) ) ?>" value="<?php echo esc_attr($hostname); if ( !empty($port) ) echo ":$port"; ?>"<?php disabled( defined('FTP_HOST') ); ?> />
+	<input name="hostname" type="text" id="hostname" aria-describedby="request-filesystem-credentials-desc" class="code" placeholder="<?php esc_attr_e( 'example: www.wordpress.org' ) ?>" value="<?php echo esc_attr($hostname); if ( !empty($port) ) echo ":$port"; ?>"<?php disabled( defined('FTP_HOST') ); ?> />
 </label>
 <div class="ftp-username">
 	<label for="username">
@@ -1203,7 +1203,7 @@ foreach ( (array) $extra_fields as $field ) {
 }
 
 /**
- * Print the credentials modal when needed  
+ * Print the filesystem credentials modal when needed.
  *
  * @since 4.2.0
  */
