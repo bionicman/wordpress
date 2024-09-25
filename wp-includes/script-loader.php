@@ -119,45 +119,45 @@ function wp_default_scripts( &$scripts ) {
 	// not used in core, replaced by Jcrop.js
 	$scripts->add( 'cropper', '/wp-includes/js/crop/cropper.js', array('scriptaculous-dragdrop') );
 
-	$scripts->add( 'jquery', '/wp-includes/js/jquery/jquery.js', array(), '1.8.1' );
+	$scripts->add( 'jquery', '/wp-includes/js/jquery/jquery.js', array(), '1.8.2' );
 
 	// full jQuery UI
-	$scripts->add( 'jquery-ui-core', '/wp-includes/js/jquery/ui/jquery.ui.core.min.js', array('jquery'), '1.9pre', 1 );
-	$scripts->add( 'jquery-effects-core', '/wp-includes/js/jquery/ui/jquery.ui.effect.min.js', array('jquery'), '1.9pre', 1 );
+	$scripts->add( 'jquery-ui-core', '/wp-includes/js/jquery/ui/jquery.ui.core.min.js', array('jquery'), '1.9.0', 1 );
+	$scripts->add( 'jquery-effects-core', '/wp-includes/js/jquery/ui/jquery.ui.effect.min.js', array('jquery'), '1.9.0', 1 );
 
-	$scripts->add( 'jquery-effects-blind', '/wp-includes/js/jquery/ui/jquery.ui.effect-blind.min.js', array('jquery-effects-core'), '1.9pre', 1 );
-	$scripts->add( 'jquery-effects-bounce', '/wp-includes/js/jquery/ui/jquery.ui.effect-bounce.min.js', array('jquery-effects-core'), '1.9pre', 1 );
-	$scripts->add( 'jquery-effects-clip', '/wp-includes/js/jquery/ui/jquery.ui.effect-clip.min.js', array('jquery-effects-core'), '1.9pre', 1 );
-	$scripts->add( 'jquery-effects-drop', '/wp-includes/js/jquery/ui/jquery.ui.effect-drop.min.js', array('jquery-effects-core'), '1.9pre', 1 );
-	$scripts->add( 'jquery-effects-explode', '/wp-includes/js/jquery/ui/jquery.ui.effect-explode.min.js', array('jquery-effects-core'), '1.9pre', 1 );
-	$scripts->add( 'jquery-effects-fade', '/wp-includes/js/jquery/ui/jquery.ui.effect-fade.min.js', array('jquery-effects-core'), '1.9pre', 1 );
-	$scripts->add( 'jquery-effects-fold', '/wp-includes/js/jquery/ui/jquery.ui.effect-fold.min.js', array('jquery-effects-core'), '1.9pre', 1 );
-	$scripts->add( 'jquery-effects-highlight', '/wp-includes/js/jquery/ui/jquery.ui.effect-highlight.min.js', array('jquery-effects-core'), '1.9pre', 1 );
-	$scripts->add( 'jquery-effects-pulsate', '/wp-includes/js/jquery/ui/jquery.ui.effect-pulsate.min.js', array('jquery-effects-core'), '1.9pre', 1 );
-	$scripts->add( 'jquery-effects-scale', '/wp-includes/js/jquery/ui/jquery.ui.effect-scale.min.js', array('jquery-effects-core'), '1.9pre', 1 );
-	$scripts->add( 'jquery-effects-shake', '/wp-includes/js/jquery/ui/jquery.ui.effect-shake.min.js', array('jquery-effects-core'), '1.9pre', 1 );
-	$scripts->add( 'jquery-effects-slide', '/wp-includes/js/jquery/ui/jquery.ui.effect-slide.min.js', array('jquery-effects-core'), '1.9pre', 1 );
-	$scripts->add( 'jquery-effects-transfer', '/wp-includes/js/jquery/ui/jquery.ui.effect-transfer.min.js', array('jquery-effects-core'), '1.9pre', 1 );
+	$scripts->add( 'jquery-effects-blind', '/wp-includes/js/jquery/ui/jquery.ui.effect-blind.min.js', array('jquery-effects-core'), '1.9.0', 1 );
+	$scripts->add( 'jquery-effects-bounce', '/wp-includes/js/jquery/ui/jquery.ui.effect-bounce.min.js', array('jquery-effects-core'), '1.9.0', 1 );
+	$scripts->add( 'jquery-effects-clip', '/wp-includes/js/jquery/ui/jquery.ui.effect-clip.min.js', array('jquery-effects-core'), '1.9.0', 1 );
+	$scripts->add( 'jquery-effects-drop', '/wp-includes/js/jquery/ui/jquery.ui.effect-drop.min.js', array('jquery-effects-core'), '1.9.0', 1 );
+	$scripts->add( 'jquery-effects-explode', '/wp-includes/js/jquery/ui/jquery.ui.effect-explode.min.js', array('jquery-effects-core'), '1.9.0', 1 );
+	$scripts->add( 'jquery-effects-fade', '/wp-includes/js/jquery/ui/jquery.ui.effect-fade.min.js', array('jquery-effects-core'), '1.9.0', 1 );
+	$scripts->add( 'jquery-effects-fold', '/wp-includes/js/jquery/ui/jquery.ui.effect-fold.min.js', array('jquery-effects-core'), '1.9.0', 1 );
+	$scripts->add( 'jquery-effects-highlight', '/wp-includes/js/jquery/ui/jquery.ui.effect-highlight.min.js', array('jquery-effects-core'), '1.9.0', 1 );
+	$scripts->add( 'jquery-effects-pulsate', '/wp-includes/js/jquery/ui/jquery.ui.effect-pulsate.min.js', array('jquery-effects-core'), '1.9.0', 1 );
+	$scripts->add( 'jquery-effects-scale', '/wp-includes/js/jquery/ui/jquery.ui.effect-scale.min.js', array('jquery-effects-core'), '1.9.0', 1 );
+	$scripts->add( 'jquery-effects-shake', '/wp-includes/js/jquery/ui/jquery.ui.effect-shake.min.js', array('jquery-effects-core'), '1.9.0', 1 );
+	$scripts->add( 'jquery-effects-slide', '/wp-includes/js/jquery/ui/jquery.ui.effect-slide.min.js', array('jquery-effects-core'), '1.9.0', 1 );
+	$scripts->add( 'jquery-effects-transfer', '/wp-includes/js/jquery/ui/jquery.ui.effect-transfer.min.js', array('jquery-effects-core'), '1.9.0', 1 );
 
-	$scripts->add( 'jquery-ui-accordion', '/wp-includes/js/jquery/ui/jquery.ui.accordion.min.js', array('jquery-ui-core', 'jquery-ui-widget'), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-autocomplete', '/wp-includes/js/jquery/ui/jquery.ui.autocomplete.min.js', array('jquery-ui-core', 'jquery-ui-widget', 'jquery-ui-position', 'jquery-ui-menu'), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-button', '/wp-includes/js/jquery/ui/jquery.ui.button.min.js', array('jquery-ui-core', 'jquery-ui-widget'), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-datepicker', '/wp-includes/js/jquery/ui/jquery.ui.datepicker.min.js', array('jquery-ui-core'), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-dialog', '/wp-includes/js/jquery/ui/jquery.ui.dialog.min.js', array('jquery-ui-resizable', 'jquery-ui-draggable', 'jquery-ui-button', 'jquery-ui-position'), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-draggable', '/wp-includes/js/jquery/ui/jquery.ui.draggable.min.js', array('jquery-ui-core', 'jquery-ui-mouse'), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-droppable', '/wp-includes/js/jquery/ui/jquery.ui.droppable.min.js', array('jquery-ui-draggable'), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-menu', '/wp-includes/js/jquery/ui/jquery.ui.menu.min.js', array( 'jquery-ui-core', 'jquery-ui-widget', 'jquery-ui-position' ), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-mouse', '/wp-includes/js/jquery/ui/jquery.ui.mouse.min.js', array('jquery-ui-widget'), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-position', '/wp-includes/js/jquery/ui/jquery.ui.position.min.js', array('jquery'), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-progressbar', '/wp-includes/js/jquery/ui/jquery.ui.progressbar.min.js', array('jquery-ui-widget'), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-resizable', '/wp-includes/js/jquery/ui/jquery.ui.resizable.min.js', array('jquery-ui-core', 'jquery-ui-mouse'), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-selectable', '/wp-includes/js/jquery/ui/jquery.ui.selectable.min.js', array('jquery-ui-core', 'jquery-ui-mouse'), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-slider', '/wp-includes/js/jquery/ui/jquery.ui.slider.min.js', array('jquery-ui-core', 'jquery-ui-mouse'), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-sortable', '/wp-includes/js/jquery/ui/jquery.ui.sortable.min.js', array('jquery-ui-core', 'jquery-ui-mouse'), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-spinner', '/wp-includes/js/jquery/ui/jquery.ui.spinner.min.js', array( 'jquery-ui-core', 'jquery-ui-widget', 'jquery-ui-button' ), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-tabs', '/wp-includes/js/jquery/ui/jquery.ui.tabs.min.js', array('jquery-ui-core', 'jquery-ui-widget'), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-tooltip', '/wp-includes/js/jquery/ui/jquery.ui.tooltip.min.js', array( 'jquery-ui-core', 'jquery-ui-widget', 'jquery-ui-position' ), '1.9pre', 1 );
-	$scripts->add( 'jquery-ui-widget', '/wp-includes/js/jquery/ui/jquery.ui.widget.min.js', array('jquery'), '1.9pre', 1 );
+	$scripts->add( 'jquery-ui-accordion', '/wp-includes/js/jquery/ui/jquery.ui.accordion.min.js', array('jquery-ui-core', 'jquery-ui-widget'), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-autocomplete', '/wp-includes/js/jquery/ui/jquery.ui.autocomplete.min.js', array('jquery-ui-core', 'jquery-ui-widget', 'jquery-ui-position', 'jquery-ui-menu'), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-button', '/wp-includes/js/jquery/ui/jquery.ui.button.min.js', array('jquery-ui-core', 'jquery-ui-widget'), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-datepicker', '/wp-includes/js/jquery/ui/jquery.ui.datepicker.min.js', array('jquery-ui-core'), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-dialog', '/wp-includes/js/jquery/ui/jquery.ui.dialog.min.js', array('jquery-ui-resizable', 'jquery-ui-draggable', 'jquery-ui-button', 'jquery-ui-position'), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-draggable', '/wp-includes/js/jquery/ui/jquery.ui.draggable.min.js', array('jquery-ui-core', 'jquery-ui-mouse'), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-droppable', '/wp-includes/js/jquery/ui/jquery.ui.droppable.min.js', array('jquery-ui-draggable'), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-menu', '/wp-includes/js/jquery/ui/jquery.ui.menu.min.js', array( 'jquery-ui-core', 'jquery-ui-widget', 'jquery-ui-position' ), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-mouse', '/wp-includes/js/jquery/ui/jquery.ui.mouse.min.js', array('jquery-ui-widget'), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-position', '/wp-includes/js/jquery/ui/jquery.ui.position.min.js', array('jquery'), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-progressbar', '/wp-includes/js/jquery/ui/jquery.ui.progressbar.min.js', array('jquery-ui-widget'), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-resizable', '/wp-includes/js/jquery/ui/jquery.ui.resizable.min.js', array('jquery-ui-core', 'jquery-ui-mouse'), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-selectable', '/wp-includes/js/jquery/ui/jquery.ui.selectable.min.js', array('jquery-ui-core', 'jquery-ui-mouse'), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-slider', '/wp-includes/js/jquery/ui/jquery.ui.slider.min.js', array('jquery-ui-core', 'jquery-ui-mouse'), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-sortable', '/wp-includes/js/jquery/ui/jquery.ui.sortable.min.js', array('jquery-ui-core', 'jquery-ui-mouse'), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-spinner', '/wp-includes/js/jquery/ui/jquery.ui.spinner.min.js', array( 'jquery-ui-core', 'jquery-ui-widget', 'jquery-ui-button' ), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-tabs', '/wp-includes/js/jquery/ui/jquery.ui.tabs.min.js', array('jquery-ui-core', 'jquery-ui-widget'), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-tooltip', '/wp-includes/js/jquery/ui/jquery.ui.tooltip.min.js', array( 'jquery-ui-core', 'jquery-ui-widget', 'jquery-ui-position' ), '1.9.0', 1 );
+	$scripts->add( 'jquery-ui-widget', '/wp-includes/js/jquery/ui/jquery.ui.widget.min.js', array('jquery'), '1.9.0', 1 );
 
 	// deprecated, not used in core, most functionality is included in jQuery 1.3
 	$scripts->add( 'jquery-form', "/wp-includes/js/jquery/jquery.form$suffix.js", array('jquery'), '2.73', 1 );
@@ -255,7 +255,7 @@ function wp_default_scripts( &$scripts ) {
 
 	$scripts->add( 'json2', "/wp-includes/js/json2$suffix.js", array(), '2011-02-23');
 
-	$scripts->add( 'underscore', '/wp-includes/js/underscore.min.js', array(), '1.3.3', 1 );
+	$scripts->add( 'underscore', '/wp-includes/js/underscore.min.js', array(), '1.4.0', 1 );
 	$scripts->add( 'backbone', '/wp-includes/js/backbone.min.js', array('underscore'), '0.9.2', 1 );
 
 	$scripts->add( 'imgareaselect', "/wp-includes/js/imgareaselect/jquery.imgareaselect$suffix.js", array('jquery'), '0.9.8', 1 );
@@ -315,6 +315,10 @@ function wp_default_scripts( &$scripts ) {
 	) );
 
 	$scripts->add( 'media-models', "/wp-includes/js/media-models$suffix.js", array( 'backbone', 'jquery' ), false, 1 );
+	did_action( 'init' ) && $scripts->localize( 'media-models', '_wpMediaModelsL10n', array(
+		'saveAttachmentNonce' => wp_create_nonce( 'save-attachment' ),
+	) );
+
 	$scripts->add( 'media-views',  "/wp-includes/js/media-views$suffix.js",  array( 'media-models', 'wp-plupload' ), false, 1 );
 	did_action( 'init' ) && $scripts->localize( 'media-views', '_wpMediaViewsL10n', array(
 		// Generic
@@ -328,15 +332,18 @@ function wp_default_scripts( &$scripts ) {
 		'addToGallery'          => __( 'Add to gallery' ),
 
 		// Gallery
-		'returnToLibrary'       => __( 'Return to media library' ),
-		'insertGalleryIntoPost' => __( 'Insert gallery into post' ),
-		'addImagesFromLibrary'  => __( 'Add images from media library' ),
+		'returnToLibrary'        => __( 'Return to media library' ),
+		'continueEditingGallery' => __( 'Continue editing gallery' ),
+		'insertGalleryIntoPost'  => __( 'Insert gallery into post' ),
+		'updateGallery'          => __( 'Update gallery' ),
+		'addImagesFromLibrary'   => __( 'Add images from media library' ),
 	) );
 
 	$scripts->add( 'shortcode', "/wp-includes/js/shortcode$suffix.js", array( 'underscore' ), false, 1 );
 	$scripts->add( 'mce-view', "/wp-includes/js/mce-view$suffix.js", array( 'shortcode', 'media-models' ), false, 1 );
 	did_action( 'init' ) && $scripts->localize( 'mce-view', '_wpMceViewL10n', array(
 		'contentWidth' => isset( $GLOBALS['content_width'] ) ? $GLOBALS['content_width'] : 800,
+		'editGallery'  => __( 'Edit Gallery' ),
 	) );
 
 	if ( is_admin() ) {
@@ -369,10 +376,14 @@ function wp_default_scripts( &$scripts ) {
 
 		$scripts->add( 'postbox', "/wp-admin/js/postbox$suffix.js", array('jquery-ui-sortable'), false, 1 );
 
-		$scripts->add( 'post', "/wp-admin/js/post$suffix.js", array('suggest', 'wp-lists', 'postbox'), false, 1 );
-		did_action( 'init' ) && $scripts->localize( 'post', 'postL10n', array(
+		$scripts->add( 'sample-permalink', "/wp-admin/js/sample-permalink$suffix.js", array(), false, 1 );
+		did_action( 'init' ) && $scripts->localize( 'sample-permalink', 'samplePermalinkL10n', array(
 			'ok' => __('OK'),
 			'cancel' => __('Cancel'),
+		) );
+
+		$scripts->add( 'post', "/wp-admin/js/post$suffix.js", array('suggest', 'wp-lists', 'postbox', 'sample-permalink' ), false, 1 );
+		did_action( 'init' ) && $scripts->localize( 'post', 'postL10n', array(
 			'publishOn' => __('Publish on:'),
 			'publishOnFuture' =>  __('Schedule for:'),
 			'publishOnPast' => __('Published on:'),

@@ -1203,6 +1203,7 @@ function get_settings_errors( $setting = '', $sanitize = false ) {
 
 	// Filter the results to those of a specific setting if one was set
 	if ( $setting ) {
+		$setting_errors = array();
 		foreach ( (array) $wp_settings_errors as $key => $details ) {
 			if ( $setting == $details['setting'] )
 				$setting_errors[] = $wp_settings_errors[$key];
@@ -1599,9 +1600,9 @@ function submit_button( $text = null, $type = 'primary', $name = 'submit', $wrap
  *                     Defaults to no other attributes. Other attributes can also be provided as a
  *                     string such as 'tabindex="1"', though the array format is typically cleaner.
  */
-function get_submit_button( $text = null, $type = 'primary', $name = 'submit', $wrap = true, $other_attributes = null ) {
+function get_submit_button( $text = null, $type = 'primary large', $name = 'submit', $wrap = true, $other_attributes = null ) {
 	if ( ! is_array( $type ) )
-		$type = explode( ' ', $type ); 
+		$type = explode( ' ', $type );
 
 	$button_shorthand = array( 'primary', 'small', 'large' );
 	$classes = array( 'button' );

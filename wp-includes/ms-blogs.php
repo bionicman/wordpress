@@ -118,11 +118,11 @@ function get_id_from_blogname( $slug ) {
  *
  * @since MU
  *
- * @param int|string|array $fields A blog ID, a blog slug, or an array of fields to query against.
+ * @param int|string|array $fields A blog ID, a blog slug, or an array of fields to query against. Optional. If not specified the current blog ID is used.
  * @param bool $get_all Whether to retrieve all details or only the details in the blogs table. Default is true.
  * @return object Blog details.
  */
-function get_blog_details( $fields, $get_all = true ) {
+function get_blog_details( $fields = null, $get_all = true ) {
 	global $wpdb;
 
 	if ( is_array($fields ) ) {
@@ -166,7 +166,9 @@ function get_blog_details( $fields, $get_all = true ) {
 			return false;
 		}
 	} else {
-		if ( !is_numeric( $fields ) )
+		if ( ! $fields )
+			$blog_id = get_current_blog_id();
+		elseif ( ! is_numeric( $fields ) )
 			$blog_id = get_id_from_blogname( $fields );
 		else
 			$blog_id = $fields;
@@ -253,12 +255,7 @@ function refresh_blog_details( $blog_id ) {
 	$blog_id = (int) $blog_id;
 	$details = get_blog_details( $blog_id, false );
 
-	wp_cache_delete( $blog_id , 'blog-details' );
-	wp_cache_delete( $blog_id . 'short' , 'blog-details' );
-	wp_cache_delete( md5( $details->domain . $details->path )  , 'blog-lookup' );
-	wp_cache_delete( 'current_blog_' . $details->domain, 'site-options' );
-	wp_cache_delete( 'current_blog_' . $details->domain . $details->path, 'site-options' );
-	wp_cache_delete( 'get_id_from_blogname_' . trim( $details->path, '/' ), 'blog-details' );
+	clean_blog_cache( $details );
 
 	do_action( 'refresh_blog_details', $blog_id );
 }
@@ -295,17 +292,44 @@ function update_blog_details( $blog_id, $details = array() ) {
 	foreach ( array_intersect( array_keys( $details ), $fields ) as $field )
 		$update_details[$field] = $details[$field];
 
-	$wpdb->update( $wpdb->blogs, $update_details, array('blog_id' => $blog_id) );
+	$result = $wpdb->update( $wpdb->blogs, $update_details, array('blog_id' => $blog_id) );
+
+	if ( false === $result )
+		return false;
 
 	// If spam status changed, issue actions.
 	if ( $details[ 'spam' ] != $current_details[ 'spam' ] ) {
 		if ( $details[ 'spam' ] == 1 )
-			do_action( "make_spam_blog", $blog_id );
+			do_action( 'make_spam_blog', $blog_id );
 		else
-			do_action( "make_ham_blog", $blog_id );
+			do_action( 'make_ham_blog', $blog_id );
 	}
 
-	if ( isset($details[ 'public' ]) ) {
+	// If mature status changed, issue actions.
+	if ( $details[ 'mature' ] != $current_details[ 'mature' ] ) {
+		if ( $details[ 'mature' ] == 1 )
+			do_action( 'mature_blog', $blog_id );
+		else
+			do_action( 'unmature_blog', $blog_id );
+	}
+
+	// If archived status changed, issue actions.
+	if ( $details[ 'archived' ] != $current_details[ 'archived' ] ) {
+		if ( $details[ 'archived' ] == 1 )
+			do_action( 'archive_blog', $blog_id );
+		else
+			do_action( 'unarchive_blog', $blog_id );
+	}
+
+	// If deleted status changed, issue actions.
+	if ( $details[ 'deleted' ] != $current_details[ 'deleted' ] ) {
+		if ( $details[ 'deleted' ] == 1 )
+			do_action( 'make_delete_blog', $blog_id );
+		else
+			do_action( 'make_undelete_blog', $blog_id );
+	}	
+	
+	if ( isset( $details[ 'public' ] ) ) {
 		switch_to_blog( $blog_id );
 		update_option( 'blog_public', $details[ 'public' ] );
 		restore_current_blog();
@@ -314,6 +338,26 @@ function update_blog_details( $blog_id, $details = array() ) {
 	refresh_blog_details($blog_id);
 
 	return true;
+}
+
+/**
+ * Clean the blog cache
+ *
+ * @since 3.5.0
+ *
+ * @param stdClass $blog The blog details as returned from get_blog_details()
+ */
+function clean_blog_cache( $blog ) {
+	$blog_id = $blog->blog_id;
+	$domain_path_key = md5( $blog->domain . $blog->path );
+
+	wp_cache_delete( $blog_id , 'blog-details' );
+	wp_cache_delete( $blog_id . 'short' , 'blog-details' );
+	wp_cache_delete(  $domain_path_key, 'blog-lookup' );
+	wp_cache_delete( 'current_blog_' . $blog->domain, 'site-options' );
+	wp_cache_delete( 'current_blog_' . $blog->domain . $blog->path, 'site-options' );
+	wp_cache_delete( 'get_id_from_blogname_' . trim( $blog->path, '/' ), 'blog-details' );
+	wp_cache_delete( $domain_path_key, 'blog-id-cache' );
 }
 
 /**
@@ -476,12 +520,6 @@ function switch_to_blog( $new_blog, $deprecated = null ) {
 	$prev_blog_id = $GLOBALS['blog_id'];
 	$GLOBALS['blog_id'] = $new_blog;
 
-	if ( did_action( 'init' ) ) {
-		$wp_roles->reinit();
-		$current_user = wp_get_current_user();
-		$current_user->for_blog( $new_blog );
-	}
-
 	if ( function_exists( 'wp_cache_switch_to_blog' ) ) {
 		wp_cache_switch_to_blog( $new_blog );
 	} else {
@@ -498,9 +536,15 @@ function switch_to_blog( $new_blog, $deprecated = null ) {
 			if ( is_array( $global_groups ) )
 				wp_cache_add_global_groups( $global_groups );
 			else
-				wp_cache_add_global_groups( array( 'users', 'userlogins', 'usermeta', 'user_meta', 'site-transient', 'site-options', 'site-lookup', 'blog-lookup', 'blog-details', 'rss', 'global-posts' ) );
+				wp_cache_add_global_groups( array( 'users', 'userlogins', 'usermeta', 'user_meta', 'site-transient', 'site-options', 'site-lookup', 'blog-lookup', 'blog-details', 'rss', 'global-posts', ' blog-id-cache' ) );
 			wp_cache_add_non_persistent_groups( array( 'comment', 'counts', 'plugins' ) );
 		}
+	}
+
+	if ( did_action( 'init' ) ) {
+		$wp_roles->reinit();
+		$current_user = wp_get_current_user();
+		$current_user->for_blog( $new_blog );
 	}
 
 	do_action( 'switch_blog', $new_blog, $prev_blog_id );
@@ -537,12 +581,6 @@ function restore_current_blog() {
 	$GLOBALS['blog_id'] = $blog;
 	$GLOBALS['table_prefix'] = $wpdb->prefix;
 
-	if ( did_action( 'init' ) ) {
-		$wp_roles->reinit();
-		$current_user = wp_get_current_user();
-		$current_user->for_blog( $blog );
-	}
-
 	if ( function_exists( 'wp_cache_switch_to_blog' ) ) {
 		wp_cache_switch_to_blog( $blog );
 	} else {
@@ -559,9 +597,15 @@ function restore_current_blog() {
 			if ( is_array( $global_groups ) )
 				wp_cache_add_global_groups( $global_groups );
 			else
-				wp_cache_add_global_groups( array( 'users', 'userlogins', 'usermeta', 'user_meta', 'site-transient', 'site-options', 'site-lookup', 'blog-lookup', 'blog-details', 'rss', 'global-posts' ) );
+				wp_cache_add_global_groups( array( 'users', 'userlogins', 'usermeta', 'user_meta', 'site-transient', 'site-options', 'site-lookup', 'blog-lookup', 'blog-details', 'rss', 'global-posts', ' blog-id-cache' ) );
 			wp_cache_add_non_persistent_groups( array( 'comment', 'counts', 'plugins' ) );
 		}
+	}
+
+	if ( did_action( 'init' ) ) {
+		$wp_roles->reinit();
+		$current_user = wp_get_current_user();
+		$current_user->for_blog( $blog );
 	}
 
 	do_action( 'switch_blog', $blog, $prev_blog_id );
@@ -625,12 +669,15 @@ function update_blog_status( $blog_id, $pref, $value, $deprecated = null ) {
 	if ( null !== $deprecated  )
 		_deprecated_argument( __FUNCTION__, '3.1' );
 
-	if ( !in_array( $pref, array( 'site_id', 'domain', 'path', 'registered', 'last_updated', 'public', 'archived', 'mature', 'spam', 'deleted', 'lang_id') ) )
+	if ( ! in_array( $pref, array( 'site_id', 'domain', 'path', 'registered', 'last_updated', 'public', 'archived', 'mature', 'spam', 'deleted', 'lang_id') ) )
 		return $value;
 
-	$wpdb->update( $wpdb->blogs, array($pref => $value, 'last_updated' => current_time('mysql', true)), array('blog_id' => $blog_id) );
+	$result = $wpdb->update( $wpdb->blogs, array($pref => $value, 'last_updated' => current_time('mysql', true)), array('blog_id' => $blog_id) );
 
-	refresh_blog_details($blog_id);
+	if ( false === $result )
+		return false;
+
+	refresh_blog_details( $blog_id );
 
 	if ( 'spam' == $pref )
 		( $value == 1 ) ? do_action( 'make_spam_blog', $blog_id ) :	do_action( 'make_ham_blog', $blog_id );
@@ -638,8 +685,8 @@ function update_blog_status( $blog_id, $pref, $value, $deprecated = null ) {
 		( $value == 1 ) ? do_action( 'mature_blog', $blog_id ) : do_action( 'unmature_blog', $blog_id );
 	elseif ( 'archived' == $pref )
 		( $value == 1 ) ? do_action( 'archive_blog', $blog_id ) : do_action( 'unarchive_blog', $blog_id );
-	elseif ( 'archived' == $pref )
-		( $value == 1 ) ? do_action( 'archive_blog', $blog_id ) : do_action( 'unarchive_blog', $blog_id );
+	elseif ( 'deleted' == $pref )
+		( $value == 1 ) ? do_action( 'make_delete_blog', $blog_id ) : do_action( 'make_undelete_blog', $blog_id );
 
 	return $value;
 }

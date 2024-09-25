@@ -3,7 +3,7 @@ Theme Name: Twenty Twelve
 Theme URI: http://wordpress.org/extend/themes/twentytwelve
 Author: the WordPress team
 Author URI: http://wordpress.org/
-Description: The 2012 theme for WordPress is a fully responsive theme that looks great on any device. Features include a front page template with a its own widgets, an optional display font, styling for post formats on both index and single views, and an optional no-sidebar page template. Make it yours with a custom menu, header image, and background.
+Description: The 2012 theme for WordPress is a fully responsive theme that looks great on any device. Features include a front page template with its own widgets, an optional display font, styling for post formats on both index and single views, and an optional no-sidebar page template. Make it yours with a custom menu, header image, and background.
 Version: 1.0
 License: GNU General Public License v2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
@@ -150,6 +150,9 @@ sup {
 }
 sub {
 	bottom: -0.25em;
+}
+small {
+	font-size: smaller;
 }
 img {
 	border: 0;
@@ -460,11 +463,26 @@ a:hover {
 }
 
 /* Assistive text */
-.skip-link,
-.screen-reader-text,
-.assistive-text {
+.assistive-text,
+.site .screen-reader-text {
 	position: absolute !important;
 	clip: rect(1px, 1px, 1px, 1px);
+}
+.main-navigation .assistive-text:hover,
+.main-navigation .assistive-text:active,
+.main-navigation .assistive-text:focus {
+	background: #fff;
+	border: 2px solid #333;
+	border-radius: 3px;
+	clip: auto !important;
+	color: #000;
+	display: block;
+	font-size: 12px;
+	padding: 12px;
+	position: absolute;
+	top: 5px;
+	left: 5px;
+	z-index: 100000; /* Above WP toolbar */
 }
 
 /* Page structure */
@@ -590,6 +608,9 @@ section[role="banner"] {
 }
 .widget-area .widget a:hover {
 	color: #21759b;
+}
+.widget-area #s {
+	width: 53.66666666666%; /* define a width to avoid dropping a wider submit button */
 }
 
 /* Footer */
@@ -1237,12 +1258,6 @@ a.comment-reply-link:hover {
 .required {
 	color: red;
 }
-label ~ span.required {
-	display: block;
-	float: left;
-	margin: -18px 0 0 -16px;
-	margin: -1.285714286rem 0 0 -1.142857143rem;
-}
 
 
 /* =Front page template
@@ -1599,11 +1614,6 @@ img#wpstats {
 		box-shadow: none;
 	}
 	.site-content {
-		float: left;
-		margin: 0;
-		width: 100%;
-	}
-	.site-content {
 		margin: 0;
 		width: auto;
 	}
@@ -1650,36 +1660,4 @@ img#wpstats {
 		margin-left: 50px;
 		margin-left: 3.57142857rem;
 	}
-}
-
-
-/* =IE 7 and 8
------------------------------------------------ */
-
-.ie .skip-link,
-.ie .screen-reader-text,
-.ie .assistive-text {
-	clip: rect(1px 1px 1px 1px); /* IE7 */
-}
-.ie .site {
-	margin: 48px auto;
-	max-width: 960px;
-}
-.ie .site-content {
-	float: left;
-	width: 65.104166667%;
-}
-.ie .full-width .site-content {
-	float: none;
-	width: 100%;
-}
-.ie .widget-area {
-	float: right;
-	width: 26.041666667%;
-}
-.ie img.size-full,
-.ie img.size-large,
-.ie img.header-image,
-.ie img.wp-post-image {
-	width: auto; /* Prevent stretching of full-size and large-size images with height and width attributes in IE8 */
 }

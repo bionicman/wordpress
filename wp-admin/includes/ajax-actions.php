@@ -326,7 +326,7 @@ function _wp_ajax_add_hierarchical_term() {
 		$term_id = $parent->term_id;
 
 		while ( $parent->parent ) { // get the top parent
-			$parent = &get_term( $parent->parent, $taxonomy->name );
+			$parent = get_term( $parent->parent, $taxonomy->name );
 			if ( is_wp_error( $parent ) )
 				break;
 			$term_id = $parent->term_id;
@@ -1298,7 +1298,8 @@ function wp_ajax_sample_permalink() {
 	$post_id = isset($_POST['post_id'])? intval($_POST['post_id']) : 0;
 	$title = isset($_POST['new_title'])? $_POST['new_title'] : '';
 	$slug = isset($_POST['new_slug'])? $_POST['new_slug'] : null;
-	wp_die( get_sample_permalink_html( $post_id, $title, $slug ) );
+	$screen = isset( $_POST['screen'] ) ? $_POST['screen'] : 'post';
+	wp_die( get_sample_permalink_html( $post_id, $title, $slug, $screen ) );
 }
 
 function wp_ajax_inline_save() {
@@ -1802,7 +1803,10 @@ function wp_ajax_get_attachment() {
  */
 function wp_ajax_query_attachments() {
 	$query = isset( $_REQUEST['query'] ) ? (array) $_REQUEST['query'] : array();
-	$query = array_intersect_key( $query, array_flip( array( 's', 'order', 'orderby', 'posts_per_page', 'paged', 'post_mime_type' ) ) );
+	$query = array_intersect_key( $query, array_flip( array(
+		's', 'order', 'orderby', 'posts_per_page', 'paged', 'post_mime_type',
+		'post_parent', 'post__in', 'post__not_in',
+	) ) );
 
 	$query['post_type'] = 'attachment';
 	$query['post_status'] = 'inherit';
@@ -1815,4 +1819,36 @@ function wp_ajax_query_attachments() {
 	$posts = array_filter( $posts );
 
 	wp_send_json_success( $posts );
+}
+
+/**
+ * Save attachment attributes.
+ *
+ * @since 3.5.0
+ */
+function wp_ajax_save_attachment() {
+	if ( ! isset( $_REQUEST['id'] ) || ! isset( $_REQUEST['changes'] ) )
+		wp_send_json_error();
+
+	if ( ! $id = absint( $_REQUEST['id'] ) )
+		wp_send_json_error();
+
+	check_ajax_referer( 'save-attachment', 'nonce' );
+
+	if ( ! current_user_can( 'edit_post', $id ) )
+		wp_send_json_error();
+
+	$changes = $_REQUEST['changes'];
+	$args    = array();
+
+	if ( ! empty( $changes['title'] ) )
+		$args['post_title'] = $changes['title'];
+
+	if ( ! empty( $changes['caption'] ) )
+		$args['post_excerpt'] = $changes['caption'];
+
+	if ( $args )
+		wp_update_post( array_merge( $args, array( 'ID' => $id ) ) );
+
+	wp_send_json_success();
 }

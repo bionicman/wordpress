@@ -1295,8 +1295,20 @@ function wp_get_original_referer() {
  * @return bool Whether the path was created. True if path already exists.
  */
 function wp_mkdir_p( $target ) {
+	$wrapper = null;
+
+	// strip the protocol
+	if( wp_is_stream( $target ) ) {
+		list( $wrapper, $target ) = explode( '://', $target, 2 );
+	}
+
 	// from php.net/mkdir user contributed notes
 	$target = str_replace( '//', '/', $target );
+
+	// put the wrapper back on the target
+	if( $wrapper !== null ) {
+		$target = $wrapper . '://' . $target;
+	}
 
 	// safe mode fails with a trailing slash under certain PHP versions.
 	$target = rtrim($target, '/'); // Use rtrim() instead of untrailingslashit to avoid formatting.php dependency.
@@ -1391,7 +1403,7 @@ function get_temp_dir() {
 
 	if ( function_exists('sys_get_temp_dir') ) {
 		$temp = sys_get_temp_dir();
-		if ( is_dir( $temp ) && ( $is_win ? win_is_writable( $temp ) : @is_writable( $temp ) ) ) {
+		if ( @is_dir( $temp ) && ( $is_win ? win_is_writable( $temp ) : @is_writable( $temp ) ) ) {
 			return trailingslashit( $temp );
 		}
 	}
@@ -1491,19 +1503,22 @@ function wp_upload_dir( $time = null ) {
 			$url = trailingslashit( $siteurl ) . $upload_path;
 	}
 
-	if ( defined( 'UPLOADS' ) ) {
+	// Obey the value of UPLOADS. This happens as long as ms-files rewriting is disabled.
+	// We also sometimes obey UPLOADS when rewriting is enabled -- see the next block.
+	if ( defined( 'UPLOADS' ) && ! ( is_multisite() && get_site_option( 'ms_files_rewriting' ) ) ) {
 		$dir = ABSPATH . UPLOADS;
 		$url = trailingslashit( $siteurl ) . UPLOADS;
 	}
 
-	// If multisite (if not the main site in a post-MU network)
+	// If multisite (and if not the main site in a post-MU network)
 	if ( is_multisite() && ! ( is_main_site() && defined( 'MULTISITE' ) ) ) {
 
 		if ( ! get_site_option( 'ms_files_rewriting' ) ) {
-			// Append sites/%d if we're not on the main site (for post-MU networks). The extra directory
-			// prevents a four-digit ID from conflict with a year-based directory for the main site.
-			// If a MU-era network disables ms-files rewriting manually, they don't need the extra
-			// directory, as they never had wp-content/uploads for the main site.
+			// If ms-files rewriting is disabled (networks created post-3.5), it is fairly straightforward:
+			// Append sites/%d if we're not on the main site (for post-MU networks). (The extra directory
+			// prevents a four-digit ID from conflicting with a year-based directory for the main site.
+			// But if a MU-era network has disabled ms-files rewriting manually, they don't need the extra
+			// directory, as they never had wp-content/uploads for the main site.)
 
 			if ( defined( 'MULTISITE' ) )
 				$ms_dir = '/sites/' . get_current_blog_id();
@@ -1512,8 +1527,15 @@ function wp_upload_dir( $time = null ) {
 
 			$dir .= $ms_dir;
 			$url .= $ms_dir;
-		} elseif ( ! ms_is_switched() ) {
+
+		} elseif ( defined( 'UPLOADS' ) && ! ms_is_switched() ) {
 			// Handle the old-form ms-files.php rewriting if the network still has that enabled.
+			// When ms-files rewriting is enabled, then we only listen to UPLOADS when:
+			//   1) we are not on the main site in a post-MU network,
+			//      as wp-content/uploads is used there, and
+			//   2) we are not switched, as ms_upload_constants() hardcodes
+			//      these constants to reflect the original blog ID.
+
 			if ( defined( 'BLOGUPLOADDIR' ) )
 				$dir = untrailingslashit( BLOGUPLOADDIR );
 			$url = str_replace( UPLOADS, 'files', $url );
@@ -3109,13 +3131,13 @@ function wp_suspend_cache_invalidation($suspend = true) {
  * @return bool True if not multisite or $blog_id is main site
  */
 function is_main_site( $blog_id = '' ) {
-	global $current_site, $current_blog;
+	global $current_site;
 
-	if ( !is_multisite() )
+	if ( ! is_multisite() )
 		return true;
 
-	if ( !$blog_id )
-		$blog_id = $current_blog->blog_id;
+	if ( ! $blog_id )
+		$blog_id = get_current_blog_id();
 
 	return $blog_id == $current_site->blog_id;
 }
@@ -3747,6 +3769,19 @@ function _device_can_upload() {
 	}
 
 	return true;
+}
+
+/**
+ * Test if a given path is a stream URL
+ *
+ * @param string $path The resource path or URL
+ * @return bool True if the path is a stream URL
+ */
+function wp_is_stream( $path ) {
+	$wrappers = stream_get_wrappers();
+	$wrappers_re = '(' . join('|', $wrappers) . ')';
+
+	return preg_match( "!^$wrappers_re://!", $path ) === 1;
 }
 
 /**

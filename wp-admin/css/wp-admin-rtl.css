@@ -160,11 +160,6 @@ ul#add-to-blog-users {
 	float: right;
 }
 
-#minor-publishing .ajax-loading {
-	padding: 3px 4px 0 0;
-	float: right;
-}
-
 .preview {
 	float: left;
 }
@@ -915,8 +910,7 @@ table.diff td, table.diff th {
 	border-bottom-right-radius: 3px;
 }
 
-#front-page-warning,
-#front-static-pages ul,
+#front-static-pages .sub-option,
 ul.export-filters,
 .inline-editor ul.cat-checklist ul,
 .categorydiv ul.categorychecklist ul,

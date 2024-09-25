@@ -480,7 +480,7 @@ function wp_dashboard_quick_press() {
 			if ( $drafts_query->posts )
 				$drafts =& $drafts_query->posts;
 		}
-		printf('<p class="textright">' . __('You can also try %s, easy blogging from anywhere on the Web.') . '</p>', '<a href="' . esc_url( admin_url( 'tools.php' ) ) . '">' . __('Press This') . '</a>' );
+		printf('<p class="easy-blogging">' . __('You can also try %s, easy blogging from anywhere on the Web.') . '</p>', '<a href="' . esc_url( admin_url( 'tools.php' ) ) . '">' . __('Press This') . '</a>' );
 		$_REQUEST = array(); // hack for get_default_post_to_edit()
 	}
 
@@ -1240,9 +1240,10 @@ function wp_welcome_panel() {
 	<div class="welcome-panel-column">
 		<h4><?php _e( 'Get Started' ); ?></h4>
 		<p><?php _e( 'First, tweak the look of your site:' ); ?></p>
-		<a class="button-primary welcome-button" href="<?php echo add_query_arg( 'url', urlencode( admin_url( '/' ) ), wp_customize_url() ); ?>"><?php _e( 'Customize Your Site' ); ?></a>
+		<a class="button-primary welcome-button load-customize hide-if-no-customize" href="<?php echo wp_customize_url(); ?>"><?php _e( 'Customize Your Site' ); ?></a>
+		<a class="button-primary welcome-button hide-if-customize" href="<?php echo admin_url( 'themes.php' ); ?>"><?php _e( 'Customize Your Site' ); ?></a>
 		<?php if ( current_user_can( 'install_themes' ) || ( current_user_can( 'switch_themes' ) && count( wp_get_themes( array( 'allowed' => true ) ) ) > 1 ) ) : ?>
-			<p><?php printf( __( 'or, <a href="%s">change your theme completely</a>' ), admin_url( 'themes.php' ) ); ?></p>
+			<p class="hide-if-no-customize"><?php printf( __( 'or, <a href="%s">change your theme completely</a>' ), admin_url( 'themes.php' ) ); ?></p>
 		<?php endif; ?>
 	</div>
 	<div class="welcome-panel-column">

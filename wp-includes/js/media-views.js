@@ -42,11 +42,16 @@
 			// then unset the property.
 			this.add( 'library', media.view.Workspace.Library, {
 				collection: media.query( this.get('library') )
-			} );
+			});
 			this.unset('library');
 
 			// Add the gallery view.
-			this.add( 'gallery', media.view.Workspace.Gallery, { collection: this.selection } );
+			this.add( 'gallery', media.view.Workspace.Gallery, {
+				collection: this.selection
+			});
+			this.add( 'gallery-library', media.view.Workspace.Library.Gallery, {
+				collection: media.query({ type: 'image' })
+			});
 		},
 
 
@@ -117,9 +122,10 @@
 			return this;
 		},
 
-		update: function() {
+		update: function( event ) {
 			this.close();
-			this.trigger( 'update', this.selection );
+			this.trigger( 'update', this.selection, this );
+			this.trigger( 'update:' + event, this.selection, this );
 			this.selection.clear();
 		},
 
@@ -216,18 +222,22 @@
 
 		attach: function() {
 			this.$el.appendTo( this.options.container );
+			this.controller.trigger( 'attach', this.controller );
 		},
 
 		detach: function() {
 			this.$el.detach();
+			this.controller.trigger( 'detach', this.controller );
 		},
 
 		open: function() {
 			this.$el.show();
+			this.controller.trigger( 'open', this.controller );
 		},
 
 		close: function() {
 			this.$el.hide();
+			this.controller.trigger( 'close', this.controller );
 		},
 
 		closeHandler: function( event ) {
@@ -276,8 +286,8 @@
 			// Make sure to detach the elements we want to reuse.
 			// Otherwise, `jQuery.html()` will unbind their events.
 			$( _.pluck( this._views, 'el' ) ).detach();
-			this.$primary.html( _.pluck( views.primary, 'el' ) );
-			this.$secondary.html( _.pluck( views.secondary, 'el' ) );
+			this.$primary.html( _.pluck( views.primary || [], 'el' ) );
+			this.$secondary.html( _.pluck( views.secondary || [], 'el' ) );
 
 			return this;
 		},
@@ -375,7 +385,11 @@
 		template:  media.template('attachment'),
 
 		events: {
-			'click': 'toggleSelection'
+			'click .attachment-preview':      'toggleSelection',
+			'mouseenter .attachment-preview': 'shrink',
+			'mouseleave .attachment-preview': 'expand',
+			'change .describe':               'describe',
+			'click .close':                   'toggleSelection'
 		},
 
 		buttons: {},
@@ -394,26 +408,26 @@
 
 		render: function() {
 			var attachment = this.model.toJSON(),
-				options = {
-					thumbnail:   'image' === attachment.type ? attachment.url : attachment.icon,
-					uploading:   attachment.uploading,
-					orientation: attachment.orientation || 'landscape',
-					type:        attachment.type,
-					subtype:     attachment.subtype,
-					buttons:     this.buttons
-				};
+				options = _.defaults( this.model.toJSON(), {
+					orientation: 'landscape',
+					uploading:   false,
+					type:        '',
+					subtype:     '',
+					icon:        '',
+					filename:    '',
+					caption:     '',
+					title:       ''
+				});
 
-			// Use the medium image size if possible. If the medium size
-			// doesn't exist, then the attachment is too small.
-			// In that case, use the attachment itself.
-			if ( attachment.sizes && attachment.sizes.medium ) {
-				options.orientation = attachment.sizes.medium.orientation;
-				options.thumbnail   = attachment.sizes.medium.url;
-			}
+			options.buttons  = this.buttons;
+			options.describe = this.controller.get('describe');
+
+			if ( 'image' === options.type )
+				_.extend( options, this.crop() );
 
 			this.$el.html( this.template( options ) );
 
-			if ( attachment.uploading )
+			if ( options.uploading )
 				this.$bar = this.$('.media-progress-bar div');
 			else
 				delete this.$bar;
@@ -455,6 +469,82 @@
 
 		preventDefault: function( event ) {
 			event.preventDefault();
+		},
+
+		imageSize: function( size ) {
+			var sizes = this.model.get('sizes');
+
+			size = size || 'medium';
+
+			// Use the provided image size if possible.
+			if ( sizes && sizes[ size ] ) {
+				return sizes[ size ];
+			} else {
+				return {
+					url:         this.model.get('url'),
+					width:       this.model.get('width'),
+					height:      this.model.get('height'),
+					orientation: this.model.get('orientation')
+				};
+			}
+		},
+
+		crop: function( sizeId ) {
+			var edge = 199,
+				size = this.imageSize( sizeId ),
+				wide, tall;
+
+			wide = wp.media.fit( _.extend( { maxWidth:  edge }, size ) );
+			tall = wp.media.fit( _.extend( { maxHeight: edge }, size ) );
+
+			_.extend( size, wide.width > tall.width ? wide : tall );
+
+			size.top  = ( edge - size.height ) / 2;
+			size.left = ( edge - size.width ) / 2;
+			return size;
+		},
+
+		fit: function( sizeId ) {
+			var margin = 10,
+				full = 199,
+				edge = full - ( margin * 2 ),
+				size = _.extend( wp.media.fit( _.extend({
+					maxWidth:  edge,
+					maxHeight: edge
+				}, this.imageSize( sizeId ) ) ) );
+
+			size.top  = Math.round( margin + ( edge - size.height ) / 2 );
+			size.left = Math.round( margin + ( edge - size.width ) / 2 );
+			return size;
+		},
+
+		shrink: function() {
+			var size = _.pick( this.fit(), 'top', 'left', 'width', 'height' );
+			this.$el.addClass('fit');
+			this.$('.thumbnail').css( size );
+			this.$('.thumbnail img').css( _.extend( size, {
+				top:  0,
+				left: 0
+			} ) );
+		},
+
+		expand: function() {
+			var size = _.pick( this.crop(), 'top', 'left', 'width', 'height' );
+			this.$el.removeClass('fit');
+			this.$('.thumbnail img').css( size );
+			this.$('.thumbnail').css({
+				top:    0,
+				left:   0,
+				width:  199,
+				height: 199
+			});
+		},
+
+		describe: function( event ) {
+			if ( 'image' === this.model.get('type') )
+				this.model.save( 'caption', event.target.value );
+			else
+				this.model.save( 'title', event.target.value );
 		}
 	});
 
@@ -462,20 +552,7 @@
 	 * wp.media.view.Attachment.Library
 	 */
 	media.view.Attachment.Library = media.view.Attachment.extend({
-		className: 'attachment library',
-
-		buttons: {
-			insert: true
-		},
-
-		events: _.defaults({
-			'click .insert': 'insert'
-		}, media.view.Attachment.prototype.events ),
-
-		insert: function() {
-			this.controller.selection.reset([ this.model ]);
-			this.controller.update();
-		}
+		className: 'attachment library'
 	});
 
 	/**
@@ -486,9 +563,11 @@
 			close: true
 		},
 
-		events: {
-			'click .close': 'toggleSelection'
-		}
+		events: (function() {
+			var events = _.clone( media.view.Attachment.prototype.events );
+			delete events['click .attachment-preview'];
+			return events;
+		}())
 	});
 
 	/**
@@ -499,8 +578,8 @@
 		className: 'media-workspace',
 		template:  media.template('media-workspace'),
 
-		// The single `Attachment` view to be used in the `Attachments` view.
-		AttachmentView: media.view.Attachment,
+		// The `options` to be passed to `Attachments` view.
+		attachmentsView: {},
 
 		events: {
 			'dragenter':  'maybeInitUploader',
@@ -511,25 +590,36 @@
 			this.controller = this.options.controller;
 
 			_.defaults( this.options, {
-				selectOne: false,
-				uploader:  {}
+				selectOne:       false,
+				uploader:        {},
+				attachmentsView: {}
 			});
 
 			this.$content = $('<div class="existing-attachments" />');
 
-			this.attachmentsView = new media.view.Attachments({
+			// Generate the `options` passed to the `Attachments` view.
+			// Order of priority from lowest to highest: the provided defaults,
+			// the prototypal `attachmentsView` property, the `attachmentsView`
+			// option for the current instance, and then the `controller` and
+			// `collection` keys, to ensure they're correctly set.
+			this.attachmentsView = _.extend( {
+				directions: this.controller.get('multiple') ? l10n.selectMediaMultiple : l10n.selectMediaSingular
+			}, this.attachmentsView, this.options.attachmentsView, {
 				controller: this.controller,
-				directions: this.controller.get('multiple') ? l10n.selectMediaMultiple : l10n.selectMediaSingular,
-				collection: this.collection,
-
-				AttachmentView: this.AttachmentView
+				collection: this.collection
 			});
 
+			// Initialize the `Attachments` view.
+			this.attachmentsView = new media.view.Attachments( this.attachmentsView );
 			this.$content.append( this.attachmentsView.$el );
 
 			// Track uploading attachments.
 			wp.Uploader.queue.on( 'add remove reset change:percent', this.renderUploadProgress, this );
-			wp.Uploader.queue.on( 'add', this.selectUpload, this );
+
+			// If we're in a workflow that supports multiple attachments,
+			// automatically select any uploading attachments.
+			if ( this.controller.get('multiple') )
+				wp.Uploader.queue.on( 'add', this.selectUpload, this );
 		},
 
 		render: function() {
@@ -581,8 +671,11 @@
 	 * wp.media.view.Workspace.Library
 	 */
 	media.view.Workspace.Library = media.view.Workspace.extend({
-		// The single `Attachment` view to be used in the `Attachments` view.
-		AttachmentView: media.view.Attachment.Library,
+
+		attachmentsView: {
+			// The single `Attachment` view to be used in the `Attachments` view.
+			AttachmentView: media.view.Attachment.Library
+		},
 
 		initialize: function() {
 			media.view.Workspace.prototype.initialize.apply( this, arguments );
@@ -620,7 +713,7 @@
 					'insert-into-post': {
 						text:     l10n.insertIntoPost,
 						priority: 30,
-						click:    _.bind( controller.update, controller )
+						click:    _.bind( controller.update, controller, 'insert' )
 					},
 
 					'add-to-gallery': {
@@ -650,12 +743,48 @@
 		}
 	});
 
+	media.view.Workspace.Library.Gallery = media.view.Workspace.Library.extend({
+		initToolbarView: function() {
+			var controller = this.controller,
+				editing = controller.get('editing'),
+				items = {
+					'selection-preview': new media.view.SelectionPreview({
+						controller: this.controller,
+						collection: this.controller.selection,
+						priority:   -40,
+						clearable:  false
+					}),
+
+					'continue-editing-gallery': {
+						style:    'primary',
+						text:     l10n.continueEditingGallery,
+						priority: 40,
+
+						click: function() {
+							controller.render( 'gallery' );
+						}
+					}
+				};
+
+			this.toolbarView = new media.view.Toolbar({
+				items: items
+			});
+
+			this.$el.addClass('with-toolbar');
+			this.$content.append( this.toolbarView.$el );
+		}
+	});
+
 	/**
 	 * wp.media.view.Workspace.Gallery
 	 */
 	media.view.Workspace.Gallery = media.view.Workspace.extend({
-		// The single `Attachment` view to be used in the `Attachments` view.
-		AttachmentView: media.view.Attachment.Gallery,
+
+		attachmentsView: {
+			// The single `Attachment` view to be used in the `Attachments` view.
+			AttachmentView: media.view.Attachment.Gallery,
+			sortable:       true
+		},
 
 		initialize: function() {
 			media.view.Workspace.prototype.initialize.apply( this, arguments );
@@ -667,31 +796,28 @@
 		// appropriate workflow when the time comes, but is currently here
 		// to test multiple selections.
 		initToolbarView: function() {
-			var controller = this.controller;
+			var controller = this.controller,
+				editing = controller.get('editing'),
+				items = {
+					'update-gallery': {
+						style:    'primary',
+						text:     editing ? l10n.updateGallery : l10n.insertGalleryIntoPost,
+						priority: 40,
+						click:    _.bind( controller.update, controller, 'gallery' )
+					},
 
-			this.toolbarView = new media.view.Toolbar({
-				items: {
 					'return-to-library': {
-						text:     l10n.returnToLibrary,
+						text:     editing ? l10n.addImagesFromLibrary : l10n.returnToLibrary,
 						priority: -40,
 
-						click:  function() {
-							controller.render('library');
+						click: function() {
+							controller.render( editing ? 'gallery-library' : 'library' );
 						}
-					},
-
-					'insert-gallery-into-post': {
-						style:    'primary',
-						text:     l10n.insertGalleryIntoPost,
-						priority: 40,
-						click:    _.bind( controller.update, controller )
-					},
-
-					'add-images-from-library': {
-						text:     l10n.addImagesFromLibrary,
-						priority: 30
 					}
-				}
+				};
+
+			this.toolbarView = new media.view.Toolbar({
+				items: items
 			});
 
 			this.$el.addClass('with-toolbar');
@@ -709,7 +835,7 @@
 		template:  media.template('attachments'),
 
 		events: {
-			'keyup input': 'search'
+			'keyup .search': 'search'
 		},
 
 		initialize: function() {
@@ -718,7 +844,8 @@
 			_.defaults( this.options, {
 				refreshSensitivity: 200,
 				refreshThreshold:   3,
-				AttachmentView:     media.view.Attachment
+				AttachmentView:     media.view.Attachment,
+				sortable:           false
 			});
 
 			_.each(['add','remove'], function( method ) {
@@ -734,6 +861,53 @@
 
 			this.scroll = _.chain( this.scroll ).bind( this ).throttle( this.options.refreshSensitivity ).value();
 			this.$list.on( 'scroll.attachments', this.scroll );
+
+			this.initSortable();
+		},
+
+		initSortable: function() {
+			var collection = this.collection,
+				from;
+
+			if ( ! this.options.sortable || ! $.fn.sortable )
+				return;
+
+			this.$list.sortable({
+				// If the `collection` has a `comparator`, disable sorting.
+				disabled: !! collection.comparator,
+
+				// Prevent attachments from being dragged outside the bounding
+				// box of the list.
+				containment: this.$list,
+
+				// Change the position of the attachment as soon as the
+				// mouse pointer overlaps a thumbnail.
+				tolerance: 'pointer',
+
+				// Record the initial `index` of the dragged model.
+				start: function( event, ui ) {
+					from = ui.item.index();
+				},
+
+				// Update the model's index in the collection.
+				// Do so silently, as the view is already accurate.
+				update: function( event, ui ) {
+					var model = collection.at( from );
+
+					collection.remove( model, {
+						silent: true
+					}).add( model, {
+						at:     ui.item.index(),
+						silent: true
+					});
+				}
+			});
+
+			// If the `orderby` property is changed on the `collection`,
+			// check to see if we have a `comparator`. If so, disable sorting.
+			collection.props.on( 'change:orderby', function() {
+				this.$list.sortable( 'option', 'disabled', !! collection.comparator );
+			}, this );
 		},
 
 		render: function() {
@@ -823,13 +997,17 @@
 		},
 
 		initialize: function() {
+			_.defaults( this.options, {
+				clearable: true
+			});
+
 			this.controller = this.options.controller;
 			this.collection.on( 'add change:url remove', this.render, this );
 			this.render();
 		},
 
 		render: function() {
-			var options = {},
+			var options = _.clone( this.options ),
 				first, sizes, amount;
 
 			// If nothing is selected, display nothing.

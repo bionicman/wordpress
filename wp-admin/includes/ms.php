@@ -55,13 +55,12 @@ function wpmu_delete_blog( $blog_id, $drop = false ) {
 	global $wpdb, $current_site;
 
 	$switch = false;
-	if ( $blog_id != $wpdb->blogid ) {
+	if ( get_current_blog_id() != $blog_id ) {
 		$switch = true;
 		switch_to_blog( $blog_id );
-		$blog = get_blog_details( $blog_id );
-	} else {
-		$blog = $GLOBALS['current_blog'];
 	}
+
+	$blog = get_blog_details( $blog_id );
 
 	do_action( 'delete_blog', $blog_id, $drop );
 
@@ -81,7 +80,6 @@ function wpmu_delete_blog( $blog_id, $drop = false ) {
 		$drop = false;
 
 	if ( $drop ) {
-
 		$drop_tables = apply_filters( 'wpmu_drop_tables', $wpdb->tables( 'blog' ) );
 
 		foreach ( (array) $drop_tables as $table ) {
@@ -122,6 +120,8 @@ function wpmu_delete_blog( $blog_id, $drop = false ) {
 			if ( $dir != $top_dir)
 			@rmdir( $dir );
 		}
+
+		clean_blog_cache( $blog );
 	}
 
 	if ( $switch )
@@ -224,12 +224,12 @@ function send_confirmation_on_profile_email() {
 
 	if ( $current_user->user_email != $_POST['email'] ) {
 		if ( !is_email( $_POST['email'] ) ) {
-			$errors->add( 'user_email', __( "<strong>ERROR</strong>: The e-mail address isn't correct." ), array( 'form-field' => 'email' ) );
+			$errors->add( 'user_email', __( "<strong>ERROR</strong>: The email address isn&#8217;t correct." ), array( 'form-field' => 'email' ) );
 			return;
 		}
 
 		if ( $wpdb->get_var( $wpdb->prepare( "SELECT user_email FROM {$wpdb->users} WHERE user_email=%s", $_POST['email'] ) ) ) {
-			$errors->add( 'user_email', __( "<strong>ERROR</strong>: The e-mail address is already used." ), array( 'form-field' => 'email' ) );
+			$errors->add( 'user_email', __( "<strong>ERROR</strong>: The email address is already used." ), array( 'form-field' => 'email' ) );
 			delete_option( $current_user->ID . '_new_email' );
 			return;
 		}

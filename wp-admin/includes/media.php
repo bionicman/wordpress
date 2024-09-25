@@ -269,7 +269,13 @@ function media_handle_upload($file_id, $post_id, $post_data = array(), $override
 function media_handle_sideload($file_array, $post_id, $desc = null, $post_data = array()) {
 	$overrides = array('test_form'=>false);
 
-	$file = wp_handle_sideload($file_array, $overrides);
+	$time = current_time( 'mysql' );
+	if ( $post = get_post( $post_id ) ) {
+		if ( substr( $post->post_date, 0, 4 ) > 0 )
+			$time = $post->post_date;
+	}
+
+	$file = wp_handle_sideload( $file_array, $overrides, $time );
 	if ( isset($file['error']) )
 		return new WP_Error( 'upload_error', $file['error'] );
 
@@ -384,9 +390,9 @@ function media_buttons($editor_id = 'content') {
 
 	$context = apply_filters('media_buttons_context', __('Upload/Insert %s'));
 
-	$img = '<img src="' . esc_url( admin_url( 'images/media-button.png?ver=20111005' ) ) . '" width="16" height="16" />';
+	$img = '<span class="wp-media-buttons-icon"></span>';
 
-	echo '<a href="#" class="button insert-media" data-editor="' . esc_attr( $editor_id ) . '" title="' . esc_attr__( 'Add Media' ) . '">' . $img . ' Beta Media</a>';
+	echo '<a href="#" class="button insert-media add_media" data-editor="' . esc_attr( $editor_id ) . '" title="' . esc_attr__( 'Add Media' ) . '">' . $img . ' Beta Media</a>';
 
 	echo '<a href="' . esc_url( get_upload_iframe_src() ) . '" class="thickbox add_media" id="' . esc_attr( $editor_id ) . '-add_media" title="' . esc_attr__( 'Add Media' ) . '" onclick="return false;">' . sprintf( $context, $img ) . '</a>';
 }
@@ -2141,7 +2147,7 @@ function edit_form_image_editor() {
 		<div class="imgedit-response" id="imgedit-response-<?php echo $attachment_id; ?>"></div>
 
 		<div class="wp_attachment_image" id="media-head-<?php echo $attachment_id; ?>">
-			<p><img class="thumbnail" src="<?php echo $thumb_url[0]; ?>" style="max-width:100%" width="<?php echo $thumb_url[1]; ?>" alt="" /></p>
+			<p><img class="thumbnail" src="<?php echo set_url_scheme( $thumb_url[0] ); ?>" style="max-width:100%" width="<?php echo $thumb_url[1]; ?>" alt="" /></p>
 			<p><?php echo $image_edit_button; ?></p>
 		</div>
 		<div style="display:none" class="image-editor" id="image-editor-<?php echo $attachment_id; ?>"></div>

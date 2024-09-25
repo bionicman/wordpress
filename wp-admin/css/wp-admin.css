@@ -783,7 +783,7 @@ input.button-secondary {
 	line-height: 17px;
 	height: 15px;
 	margin: 0;
-	padding: 0.25em 0.8em 0.35em;
+	padding: 0.25em 0.85em 0.35em;
 	cursor: pointer;
 	border-width: 1px;
 	border-style: solid;
@@ -795,17 +795,12 @@ input.button-secondary {
 	white-space: nowrap;
 }
 
-.button.button-large,
-.button.button-primary {
-	padding: 0.4em 0.8em 0.5em;
+.button.button-large {
+	padding: 0.4em 1.0em 0.5em;
 }
 
 .button.button-small {
-	padding: 0.15em 0.8em 0.17em;
-}
-
-.button.regular {
-	padding: 0.25em 0.8em 0.35em !important;
+	padding: 0.15em 0.75em 0.17em;
 }
 
 #minor-publishing-actions input,
@@ -1003,11 +998,6 @@ ul#add-to-blog-users {
 	float: left;
 }
 
-#minor-publishing .ajax-loading {
-	padding: 3px 0 0 4px;
-	float: left;
-}
-
 .preview {
 	float: right;
 }
@@ -1099,8 +1089,12 @@ form.upgrade .hint {
 	margin: -0.5em 0 2em 0;
 }
 
-.ajax-feedback {
-	vertical-align: bottom;
+#ajax-loading,
+.ajax-loading,
+.ajax-feedback,
+.imgedit-wait-spin,
+.list-ajax-loading { /* deprecated */
+	visibility: hidden;
 }
 
 #ajax-response.alignleft {
@@ -1127,6 +1121,9 @@ form.upgrade .hint {
 	margin: 0;
 	padding: 8px 20px 12px;
 	position: relative;
+}
+
+#contextual-help-wrap {
 	overflow: auto;
 }
 
@@ -2100,7 +2097,7 @@ html.wp-toolbar {
 
 .postbox .inside,
 .stuffbox .inside {
-	padding: 0 10px;
+	padding: 0 12px 0 10px;
 	line-height: 1.4em;
 }
 
@@ -2934,6 +2931,10 @@ input#link_url {
 	font-size: 11px;
 }
 
+#front-static-pages #edit-slug-box {
+	padding: 0;
+}
+
 #editable-post-name-full {
 	display: none;
 }
@@ -2944,11 +2945,6 @@ input#link_url {
 
 .postarea h3 label {
 	float: left;
-}
-
-#submitpost #ajax-loading,
-#submitpost .ajax-loading {
-	vertical-align: middle;
 }
 
 .submitbox .submit {
@@ -3419,8 +3415,7 @@ div.tabs-panel-inactive {
 	margin: 0;
 }
 
-#front-page-warning,
-#front-static-pages ul,
+#front-static-pages .sub-option,
 ul.export-filters,
 .inline-editor ul.cat-checklist ul,
 .categorydiv ul.categorychecklist ul,
@@ -4470,6 +4465,10 @@ span.imgedit-scale-warn {
 	height: auto;
 }
 
+.theme-install-php .spinner {
+	margin-top: 9px;
+}
+
 h3.available-themes {
 	margin: 0 0 1em;
 	float: left;
@@ -4915,7 +4914,8 @@ h2 .nav-tab {
 
 .pressthis a,
 .pressthis a:hover,
-.pressthis a:focus {
+.pressthis a:focus,
+.pressthis a:active {
 	display: inline-block;
 	position: relative;
 	cursor: move;
@@ -4991,6 +4991,19 @@ h2 .nav-tab {
 .options-general-php .spinner {
 	float: none;
 	margin: -3px 3px;
+}
+
+.js.options-reading-php .if-page-on-front,
+.js.options-reading-php .if-page-for-posts,
+.options-reading-php .if-new-front-page {
+	display: none;
+}
+.options-reading-php .page-on-front .if-page-on-front,
+.options-reading-php .page-for-posts .if-page-for-posts {
+	display: block;
+}
+.options-reading-php .new-front-page .if-new-front-page {
+	display: inline;
 }
 
 /*------------------------------------------------------------------------------
@@ -5863,10 +5876,6 @@ td.media-icon img {
 	max-height: 60px;
 }
 
-.tablenav .list-ajax-loading {
-	margin-top: 7px;
-}
-
 #howto {
 	font-size: 11px;
 	margin: 0 5px;
@@ -5957,11 +5966,11 @@ h3:hover .edit-box {
 }
 
 #dashboard-widgets form .input-text-wrap input {
-	width: 99%;
+	width: 100%;
 }
 
 #dashboard-widgets form .textarea-wrap textarea {
-	width: 99%;
+	width: 100%;
 }
 
 #dashboard-widgets .postbox form .submit {
@@ -5969,10 +5978,6 @@ h3:hover .edit-box {
 	margin: .5em 0 0;
 	padding: 0;
 	border: none;
-}
-
-#dashboard-widgets-wrap #dashboard-widgets .postbox form .submit input {
-	margin: 0 5px 0 0;
 }
 
 #dashboard-widgets-wrap #dashboard-widgets .postbox form .submit #publish {
@@ -6078,7 +6083,7 @@ h3:hover .edit-box {
 	color: red;
 }
 
-#dashboard_right_now .spinner {
+#dashboard_right_now .waiting {
 	color: #e66f00;
 }
 
@@ -6175,6 +6180,11 @@ h3:hover .edit-box {
 }
 
 /* QuickPress */
+#dashboard_quick_press .easy-blogging {
+	padding: 0 8px;
+	text-align: left;
+}
+
 #dashboard_quick_press .input-text-wrap {
 	position: relative;
 }
@@ -6182,6 +6192,10 @@ h3:hover .edit-box {
 #dashboard_quick_press .prompt {
 	color: #bbb;
 	position: absolute;
+}
+
+#dashboard_quick_press div.updated  {
+	padding: 0 5px;
 }
 
 #title-wrap label,
@@ -8030,10 +8044,6 @@ a.widget-action {
 
 .widget-control-actions a:hover {
 	text-decoration: underline;
-}
-
-.widget-control-actions .ajax-feedback {
-	padding-bottom: 3px;
 }
 
 .widget-control-actions div.alignleft {
