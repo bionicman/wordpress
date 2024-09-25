@@ -1,11 +1,11 @@
 <?php
 /**
- * BackPress Scripts Procedural API
+ * Dependencies API: Scripts functions
  *
  * @since 2.6.0
  *
  * @package WordPress
- * @subpackage BackPress
+ * @subpackage Dependencies
  */
 
 /**
@@ -57,7 +57,7 @@ function _wp_scripts_maybe_doing_it_wrong( $function ) {
  * @see WP_Scripts::do_items()
  * @global WP_Scripts $wp_scripts The WP_Scripts object for printing scripts.
  *
- * @since 2.6.0
+ * @since 2.1.0
  *
  * @param string|bool|array $handles Optional. Scripts to be printed. Default 'false'.
  * @return array On success, a processed array of WP_Dependencies items; otherwise, an empty array.
@@ -86,7 +86,7 @@ function wp_print_scripts( $handles = false ) {
 }
 
 /**
- * Add extra code to a registered script.
+ * Adds extra code to a registered script.
  *
  * Code will only be added if the script in already in the queue.
  * Accepts a string $data containing the Code. If two or more code blocks
@@ -122,7 +122,7 @@ function wp_add_inline_script( $handle, $data, $position = 'after' ) {
  * @see WP_Dependencies::add()
  * @see WP_Dependencies::add_data()
  *
- * @since 2.6.0
+ * @since 2.1.0
  * @since 4.3.0 A return value was added.
  *
  * @param string      $handle    Name of the script. Should be unique.
@@ -167,7 +167,7 @@ function wp_register_script( $handle, $src, $deps = array(), $ver = false, $in_f
  * @link https://core.trac.wordpress.org/ticket/11520
  * @global WP_Scripts $wp_scripts The WP_Scripts object for printing scripts.
  *
- * @since 2.6.0
+ * @since 2.2.0
  *
  * @todo Documentation cleanup
  *
@@ -195,7 +195,7 @@ function wp_localize_script( $handle, $object_name, $l10n ) {
  *
  * @see WP_Dependencies::remove()
  *
- * @since 2.6.0
+ * @since 2.1.0
  *
  * @param string $handle Name of the script to be removed.
  */
@@ -220,7 +220,7 @@ function wp_deregister_script( $handle ) {
 		);
 
 		if ( in_array( $handle, $no ) ) {
-			$message = sprintf( __( 'Do not deregister the %1$s script in the administration area. To target the frontend theme, use the %2$s hook.' ),
+			$message = sprintf( __( 'Do not deregister the %1$s script in the administration area. To target the front-end theme, use the %2$s hook.' ),
 				"<code>$handle</code>", '<code>wp_enqueue_scripts</code>' );
 			_doing_it_wrong( __FUNCTION__, $message, '3.6' );
 			return;
@@ -239,7 +239,7 @@ function wp_deregister_script( $handle ) {
  * @see WP_Dependencies::add_data()
  * @see WP_Dependencies::enqueue()
  *
- * @since 2.6.0
+ * @since 2.1.0
  *
  * @param string      $handle    Name of the script.
  * @param string|bool $src       Path to the script from the root directory of WordPress. Example: '/js/myscript.js'.

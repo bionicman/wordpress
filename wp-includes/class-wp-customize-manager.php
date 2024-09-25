@@ -1084,7 +1084,7 @@ final class WP_Customize_Manager {
 	 * that have no corresponding setting created.
 	 *
 	 * This is a mechanism to "wake up" settings that have been dynamically created
-	 * on the frontend and have been sent to WordPress in `$_POST['customized']`. When WP
+	 * on the front end and have been sent to WordPress in `$_POST['customized']`. When WP
 	 * loads, the dynamically-created settings then will get created and previewed
 	 * even though they are not directly created statically with code.
 	 *
@@ -1215,11 +1215,10 @@ final class WP_Customize_Manager {
 	public function remove_panel( $id ) {
 		// Removing core components this way is _doing_it_wrong().
 		if ( in_array( $id, $this->components, true ) ) {
-			/* translators: 1: panel id, 2: filter reference URL, 3: filter name */
-			$message = sprintf( __( 'Removing %1$s manually will cause PHP warnings. Use the <a href="%2$s">%3$s</a> filter instead.' ),
+			/* translators: 1: panel id, 2: link to 'customize_loaded_components' filter reference */
+			$message = sprintf( __( 'Removing %1$s manually will cause PHP warnings. Use the %2$s filter instead.' ),
 				$id,
-				esc_url( 'https://developer.wordpress.org/reference/hooks/customize_loaded_components/' ),
-				'<code>customize_loaded_components</code>'
+				'<a href="' . esc_url( 'https://developer.wordpress.org/reference/hooks/customize_loaded_components/' ) . '"><code>customize_loaded_components</code></a>'
 			);
 
 			_doing_it_wrong( __METHOD__, $message, '4.5' );
@@ -1402,7 +1401,9 @@ final class WP_Customize_Manager {
 	 */
 	public function render_control_templates() {
 		foreach ( $this->registered_control_types as $control_type ) {
-			$control = new $control_type( $this, 'temp', array() );
+			$control = new $control_type( $this, 'temp', array(
+				'settings' => array(),
+			) );
 			$control->print_template();
 		}
 	}
@@ -1673,10 +1674,10 @@ final class WP_Customize_Manager {
 	 */
 	public function customize_pane_settings() {
 		/*
-		 * If the frontend and the admin are served from the same domain, load the
+		 * If the front end and the admin are served from the same domain, load the
 		 * preview over ssl if the Customizer is being loaded over ssl. This avoids
-		 * insecure content warnings. This is not attempted if the admin and frontend
-		 * are on different domains to avoid the case where the frontend doesn't have
+		 * insecure content warnings. This is not attempted if the admin and front end
+		 * are on different domains to avoid the case where the front end doesn't have
 		 * ssl certs. Domain mapping plugins can allow other urls in these conditions
 		 * using the customize_allowed_urls filter.
 		 */
@@ -1727,7 +1728,7 @@ final class WP_Customize_Manager {
 			'panels'   => array(),
 			'sections' => array(),
 			'nonce'    => $this->get_nonces(),
-			'autofocus' => array(),
+			'autofocus' => $this->get_autofocus(),
 			'documentTitleTmpl' => $this->get_document_title_template(),
 			'previewableDevices' => $this->get_previewable_devices(),
 			'selectiveRefreshEnabled' => isset( $this->selective_refresh ),
@@ -1749,20 +1750,6 @@ final class WP_Customize_Manager {
 						$settings['sections'][ $section_id ] = $section->json();
 					}
 				}
-			}
-		}
-
-		// Pass to frontend the Customizer construct being deeplinked.
-		foreach ( $this->get_autofocus() as $type => $id ) {
-			$can_autofocus = (
-				( 'control' === $type && $this->get_control( $id ) && $this->get_control( $id )->check_capabilities() )
-				||
-				( 'section' === $type && isset( $settings['sections'][ $id ] ) )
-				||
-				( 'panel' === $type && isset( $settings['panels'][ $id ] ) )
-			);
-			if ( $can_autofocus ) {
-				$settings['autofocus'][ $type ] = $id;
 			}
 		}
 

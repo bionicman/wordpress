@@ -685,7 +685,7 @@
 						// Fix the height after browser resize.
 						$( window ).on( 'resize.customizer-section', _.debounce( resizeContentHeight, 100 ) );
 
-						section._recalculateTopMargin();
+						setTimeout( _.bind( section._recalculateTopMargin, section ), 0 );
 					};
 				}
 
@@ -1557,7 +1557,7 @@
 			// Watch for changes to the section state
 			inject = function ( sectionId ) {
 				var parentContainer;
-				if ( ! sectionId ) { // @todo allow a control to be embedded without a section, for instance a control embedded in the frontend
+				if ( ! sectionId ) { // @todo allow a control to be embedded without a section, for instance a control embedded in the front end.
 					return;
 				}
 				// Wait for the section to be registered
@@ -3039,10 +3039,10 @@
 
 			// Limit the URL to internal, front-end links.
 			//
-			// If the frontend and the admin are served from the same domain, load the
+			// If the front end and the admin are served from the same domain, load the
 			// preview over ssl if the Customizer is being loaded over ssl. This avoids
-			// insecure content warnings. This is not attempted if the admin and frontend
-			// are on different domains to avoid the case where the frontend doesn't have
+			// insecure content warnings. This is not attempted if the admin and front end
+			// are on different domains to avoid the case where the front end doesn't have
 			// ssl certs.
 
 			this.add( 'previewUrl', params.previewUrl ).setter( function( to ) {
@@ -3468,18 +3468,25 @@
 		});
 
 		// Focus the autofocused element
-		_.each( [ 'panel', 'section', 'control' ], function ( type ) {
-			var instance, id = api.settings.autofocus[ type ];
-			if ( id && api[ type ]( id ) ) {
-				instance = api[ type ]( id );
-				// Wait until the element is embedded in the DOM
-				instance.deferred.embedded.done( function () {
-					// Wait until the preview has activated and so active panels, sections, controls have been set
-					api.previewer.deferred.active.done( function () {
+		_.each( [ 'panel', 'section', 'control' ], function( type ) {
+			var id = api.settings.autofocus[ type ];
+			if ( ! id ) {
+				return;
+			}
+
+			/*
+			 * Defer focus until:
+			 * 1. The panel, section, or control exists (especially for dynamically-created ones).
+			 * 2. The instance is embedded in the document (and so is focusable).
+			 * 3. The preview has finished loading so that the active states have been set.
+			 */
+			api[ type ]( id, function( instance ) {
+				instance.deferred.embedded.done( function() {
+					api.previewer.deferred.active.done( function() {
 						instance.focus();
 					});
 				});
-			}
+			});
 		});
 
 		/**

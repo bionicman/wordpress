@@ -60,6 +60,7 @@ if ( !function_exists('wp_get_current_user') ) :
  *
  * @since 2.0.3
  *
+ * @see _wp_get_current_user()
  * @global WP_User $current_user Checks if the current user is set.
  *
  * @return WP_User Current WP_User instance.
@@ -823,7 +824,7 @@ function wp_set_auth_cookie( $user_id, $remember = false, $secure = '', $token =
 		$secure = is_ssl();
 	}
 
-	// Frontend cookie is secure when the auth cookie is secure and the site's home URL is forced HTTPS.
+	// Front-end cookie is secure when the auth cookie is secure and the site's home URL is forced HTTPS.
 	$secure_logged_in_cookie = $secure && 'https' === parse_url( get_option( 'home' ), PHP_URL_SCHEME );
 
 	/**
@@ -2292,7 +2293,7 @@ function get_avatar( $id_or_email, $size = 96, $default = '', $alt = '', $args =
 	 * Filter whether to retrieve the avatar URL early.
 	 *
 	 * Passing a non-null value will effectively short-circuit get_avatar(), passing
-	 * the value through the {@see 'pre_get_avatar'} filter and returning early.
+	 * the value through the {@see 'get_avatar'} filter and returning early.
 	 *
 	 * @since 4.2.0
 	 *

@@ -1639,23 +1639,23 @@ function post_type_supports( $post_type, $feature ) {
 }
 
 /**
- * Get a list of post type names that support a specific feature.
+ * Retrieves a list of post type names that support a specific feature.
  *
  * @since 4.5.0
  *
- * @global array $_wp_post_type_features
+ * @global array $_wp_post_type_features Post type features
  *
- * @param array|string $args     Single feature or an array of features the post types should support.
+ * @param array|string $feature  Single feature or an array of features the post types should support.
  * @param string       $operator Optional. The logical operation to perform. 'or' means
  *                               only one element from the array needs to match; 'and'
  *                               means all elements must match; 'not' means no elements may
  *                               match. Default 'and'.
  * @return array A list of post type names.
  */
-function get_post_types_by_support( $args, $operator = 'and' ) {
+function get_post_types_by_support( $feature, $operator = 'and' ) {
 	global $_wp_post_type_features;
 
-	$features = array_fill_keys( (array) $args, true );
+	$features = array_fill_keys( (array) $feature, true );
 
 	return array_keys( wp_filter_object_list( $_wp_post_type_features, $features, $operator ) );
 }
@@ -5037,7 +5037,7 @@ function wp_get_attachment_url( $post_id = 0 ) {
 		$url = get_the_guid( $post->ID );
 	}
 
-	// On SSL front-end, URLs should be HTTPS.
+	// On SSL front end, URLs should be HTTPS.
 	if ( is_ssl() && ! is_admin() && 'wp-login.php' !== $GLOBALS['pagenow'] ) {
 		$url = set_url_scheme( $url );
 	}
@@ -6079,7 +6079,7 @@ function _prime_post_caches( $ids, $update_term_cache = true, $update_meta_cache
 }
 
 /**
- * If any trashed posts have a given slug, add a suffix.
+ * Adds a suffix if any trashed posts have a given slug.
  *
  * Store its desired (i.e. current) slug so it can try to reclaim it
  * if the post is untrashed.
@@ -6087,9 +6087,10 @@ function _prime_post_caches( $ids, $update_term_cache = true, $update_meta_cache
  * For internal use.
  *
  * @since 4.5.0
+ * @access private
  *
- * @param string $post_name    Slug.
- * @param string $post__not_in Post ID that should be ignored.
+ * @param string $post_name Slug.
+ * @param string $post_ID   Optional. Post ID that should be ignored. Default 0.
  */
 function wp_add_trashed_suffix_to_post_name_for_trashed_posts( $post_name, $post_ID = 0 ) {
 	$trashed_posts_with_desired_slug = get_posts( array(
@@ -6108,7 +6109,7 @@ function wp_add_trashed_suffix_to_post_name_for_trashed_posts( $post_name, $post
 }
 
 /**
- * For a given post, add a trashed suffix.
+ * Adds a trashed suffix For a given post.
  *
  * Store its desired (i.e. current) slug so it can try to reclaim it
  * if the post is untrashed.
@@ -6116,6 +6117,7 @@ function wp_add_trashed_suffix_to_post_name_for_trashed_posts( $post_name, $post
  * For internal use.
  *
  * @since 4.5.0
+ * @access private
  *
  * @param WP_Post $post The post.
  */
