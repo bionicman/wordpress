@@ -30,7 +30,7 @@
 				'separator'   => '<span class="screen-reader-text">, </span>',
 			) );
 
-			if ( '' != get_the_author_meta( 'description' ) ) {
+			if ( '' !== get_the_author_meta( 'description' ) ) {
 				get_template_part( 'template-parts/biography' );
 			}
 		?>
@@ -42,8 +42,8 @@
 			edit_post_link(
 				sprintf(
 					/* translators: %s: Name of current post */
-					__( 'Edit %s', 'twentysixteen' ),
-					the_title( '<span class="screen-reader-text">', '</span>', false )
+					__( 'Edit<span class="screen-reader-text"> "%s"</span>', 'twentysixteen' ),
+					get_the_title()
 				),
 				'<span class="edit-link">',
 				'</span>'

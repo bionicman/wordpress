@@ -195,10 +195,12 @@
 			}
 		} );
 
-		// Disable the hidden inputs to prevent autofill and submission.
-		$pass1.prop( 'disabled', true );
-		$pass2.prop( 'disabled', true );
-		$pass1Text.prop( 'disabled', true );
+		// Disable hidden inputs to prevent autofill and submission.
+		if ( $pass1.is( ':hidden' ) ) {
+			$pass1.prop( 'disabled', true );
+			$pass2.prop( 'disabled', true );
+			$pass1Text.prop( 'disabled', true );
+		}
 
 		$passwordWrapper = $pass1Row.find( '.wp-pwd' );
 		$generateButton  = $pass1Row.find( 'button.wp-generate-pw' );
@@ -264,6 +266,8 @@
 		$pass1Row.closest('form').on( 'submit', function () {
 			updateLock = false;
 
+			$pass1.prop( 'disabled', false );
+			$pass2.prop( 'disabled', false );
 			$pass2.val( $pass1.val() );
 			$pass1Wrap.removeClass( 'show-password' );
 		});

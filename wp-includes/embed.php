@@ -478,7 +478,7 @@ function get_post_embed_html( $width, $height, $post = null ) {
 		 * and edit wp-embed.js directly.
 		 */
 		$output .=<<<JS
-		!function(a,b){"use strict";function c(){if(!e){e=!0;var a,c,d,f,g=-1!==navigator.appVersion.indexOf("MSIE 10"),h=!!navigator.userAgent.match(/Trident.*rv:11\./),i=b.querySelectorAll("iframe.wp-embedded-content"),j=b.querySelectorAll("blockquote.wp-embedded-content");for(c=0;c<j.length;c++)j[c].style.display="none";for(c=0;c<i.length;c++)d=i[c],d.style.display="",d.getAttribute("data-secret")||(f=Math.random().toString(36).substr(2,10),d.src+="#?secret="+f,d.setAttribute("data-secret",f)),(g||h)&&d.getAttribute("security")&&(a=d.cloneNode(!0),a.removeAttribute("security"),d.parentNode.replaceChild(a,d))}}var d=b.querySelector&&a.addEventListener,e=!1;a.wp=a.wp||{},a.wp.receiveEmbedMessage||(a.wp.receiveEmbedMessage=function(c){var d=c.data;if(d.secret||d.message||d.value){var e,f,g,h,i,j=b.querySelectorAll('iframe[data-secret="'+d.secret+'"]'),k=b.querySelectorAll('blockquote[data-secret="'+d.secret+'"]');for(e=0;e<k.length;e++)k[e].style.display="none";for(e=0;e<j.length;e++)f=j[e],f.style.display="","height"===d.message&&(g=parseInt(d.value,10),g>1e3?g=1e3:200>~~g&&(g=200),f.height=g),"link"===d.message&&(h=b.createElement("a"),i=b.createElement("a"),h.href=f.getAttribute("src"),i.href=d.value,i.host===h.host&&b.activeElement===f&&(a.top.location.href=d.value))}},d&&(a.addEventListener("message",a.wp.receiveEmbedMessage,!1),b.addEventListener("DOMContentLoaded",c,!1),a.addEventListener("load",c,!1)))}(window,document);
+		!function(a,b){"use strict";function c(){if(!e){e=!0;var a,c,d,f,g=-1!==navigator.appVersion.indexOf("MSIE 10"),h=!!navigator.userAgent.match(/Trident.*rv:11\./),i=b.querySelectorAll("iframe.wp-embedded-content"),j=b.querySelectorAll("blockquote.wp-embedded-content");for(c=0;c<j.length;c++)j[c].style.display="none";for(c=0;c<i.length;c++)if(d=i[c],d.style.display="",!d.getAttribute("data-secret")){if(f=Math.random().toString(36).substr(2,10),d.src+="#?secret="+f,d.setAttribute("data-secret",f),g||h)a=d.cloneNode(!0),a.removeAttribute("security"),d.parentNode.replaceChild(a,d)}else;}}var d=!1,e=!1;if(b.querySelector)if(a.addEventListener)d=!0;if(a.wp=a.wp||{},!a.wp.receiveEmbedMessage)if(a.wp.receiveEmbedMessage=function(c){var d=c.data;if(d.secret||d.message||d.value){var e,f,g,h,i,j=b.querySelectorAll('iframe[data-secret="'+d.secret+'"]'),k=b.querySelectorAll('blockquote[data-secret="'+d.secret+'"]');for(e=0;e<k.length;e++)k[e].style.display="none";for(e=0;e<j.length;e++){if(f=j[e],f.style.display="","height"===d.message){if(g=parseInt(d.value,10),g>1e3)g=1e3;else if(200>~~g)g=200;f.height=g}if("link"===d.message)if(h=b.createElement("a"),i=b.createElement("a"),h.href=f.getAttribute("src"),i.href=d.value,i.host===h.host)if(b.activeElement===f)a.top.location.href=d.value}}},d)a.addEventListener("message",a.wp.receiveEmbedMessage,!1),b.addEventListener("DOMContentLoaded",c,!1),a.addEventListener("load",c,!1)}(window,document);
 JS;
 	}
 	$output .= "\n//--><!]]>";
@@ -662,10 +662,6 @@ function _oembed_rest_pre_serve_request( $served, $result, $request, $server ) {
 
 	// Embed links inside the request.
 	$data = $server->response_to_data( $result, false );
-
-	if ( 404 === $result->get_status() ) {
-		$data = $data[0];
-	}
 
 	if ( ! class_exists( 'SimpleXMLElement' ) ) {
 		status_header( 501 );
@@ -957,4 +953,95 @@ function print_embed_scripts() {
  */
 function _oembed_filter_feed_content( $content ) {
 	return str_replace( '<iframe class="wp-embedded-content" sandbox="allow-scripts" security="restricted" style="display:none;"', '<iframe class="wp-embedded-content" sandbox="allow-scripts" security="restricted"', $content );
+}
+
+/**
+ * Prints the necessary markup for the embed comments button.
+ *
+ * @since 4.4.0
+ */
+function print_embed_comments_button() {
+	if ( is_404() || ! ( get_comments_number() || comments_open() ) ) {
+		return;
+	}
+	?>
+	<div class="wp-embed-comments">
+		<a href="<?php comments_link(); ?>" target="_top">
+			<span class="dashicons dashicons-admin-comments"></span>
+			<?php
+			printf(
+				_n(
+					'%s <span class="screen-reader-text">Comment</span>',
+					'%s <span class="screen-reader-text">Comments</span>',
+					get_comments_number()
+				),
+				number_format_i18n( get_comments_number() )
+			);
+			?>
+		</a>
+	</div>
+	<?php
+}
+
+/**
+ * Prints the necessary markup for the embed sharing button.
+ *
+ * @since 4.4.0
+ */
+function print_embed_sharing_button() {
+	if ( is_404() ) {
+		return;
+	}
+	?>
+	<div class="wp-embed-share">
+		<button type="button" class="wp-embed-share-dialog-open" aria-label="<?php esc_attr_e( 'Open sharing dialog' ); ?>">
+			<span class="dashicons dashicons-share"></span>
+		</button>
+	</div>
+	<?php
+}
+
+/**
+ * Prints the necessary markup for the embed sharing dialog.
+ *
+ * @since 4.4.0
+ */
+function print_embed_sharing_dialog() {
+	if ( is_404() ) {
+		return;
+	}
+	?>
+	<div class="wp-embed-share-dialog hidden" role="dialog" aria-label="<?php esc_attr_e( 'Sharing options' ); ?>">
+		<div class="wp-embed-share-dialog-content">
+			<div class="wp-embed-share-dialog-text">
+				<ul class="wp-embed-share-tabs" role="tablist">
+					<li class="wp-embed-share-tab-button wp-embed-share-tab-button-wordpress" role="presentation">
+						<button type="button" role="tab" aria-controls="wp-embed-share-tab-wordpress" aria-selected="true" tabindex="0"><?php esc_html_e( 'WordPress Embed' ); ?></button>
+					</li>
+					<li class="wp-embed-share-tab-button wp-embed-share-tab-button-html" role="presentation">
+						<button type="button" role="tab" aria-controls="wp-embed-share-tab-html" aria-selected="false" tabindex="-1"><?php esc_html_e( 'HTML Embed' ); ?></button>
+					</li>
+				</ul>
+				<div id="wp-embed-share-tab-wordpress" class="wp-embed-share-tab" role="tabpanel" aria-hidden="false">
+					<input type="text" value="<?php the_permalink(); ?>" class="wp-embed-share-input" aria-describedby="wp-embed-share-description-wordpress" tabindex="0" readonly/>
+
+					<p class="wp-embed-share-description" id="wp-embed-share-description-wordpress">
+						<?php _e( 'Copy and paste this URL into your WordPress site to embed' ); ?>
+					</p>
+				</div>
+				<div id="wp-embed-share-tab-html" class="wp-embed-share-tab" role="tabpanel" aria-hidden="true">
+					<textarea class="wp-embed-share-input" aria-describedby="wp-embed-share-description-html" tabindex="0" readonly><?php echo esc_textarea( get_post_embed_html( 600, 400 ) ); ?></textarea>
+
+					<p class="wp-embed-share-description" id="wp-embed-share-description-html">
+						<?php _e( 'Copy and paste this code into your site to embed' ); ?>
+					</p>
+				</div>
+			</div>
+
+			<button type="button" class="wp-embed-share-dialog-close" aria-label="<?php esc_attr_e( 'Close sharing dialog' ); ?>">
+				<span class="dashicons dashicons-no"></span>
+			</button>
+		</div>
+	</div>
+	<?php
 }
