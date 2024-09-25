@@ -198,7 +198,7 @@ if ( ! $ct->errors() || ( 1 == count( $ct->errors()->get_error_codes() )
 
 ?>
 
-<div class="theme-browser">
+<div class="theme-browser" aria-live="polite">
 	<div class="themes">
 
 <?php
@@ -250,10 +250,9 @@ foreach ( $themes as $theme ) :
 <?php endforeach; ?>
 	<br class="clear" />
 	</div>
+	<p class="no-themes"><?php _e( 'No themes found. Try a different search.' ); ?></p>
 </div>
 <div class="theme-overlay"></div>
-
-<p class="no-themes"><?php _e( 'No themes found. Try a different search.' ); ?></p>
 
 <?php
 // List broken themes, if any.
@@ -278,7 +277,7 @@ $can_delete = current_user_can( 'delete_themes' );
 	</tr>
 	<?php foreach ( $broken_themes as $broken_theme ) : ?>
 		<tr>
-			<td><?php echo $broken_theme->get( 'Name' ) ? $broken_theme->display( 'Name' ) : esc_html( $broken_theme->get_stylesheet() ); ?></td>
+			<td><?php echo $broken_theme->get( 'Name' ) ? $broken_theme->display( 'Name' ) : $broken_theme->get_stylesheet(); ?></td>
 			<td><?php echo $broken_theme->errors()->get_error_message(); ?></td>
 			<?php
 			if ( $can_delete ) {

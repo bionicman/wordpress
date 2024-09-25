@@ -405,48 +405,24 @@ function set_screen_options() {
 					return;
 				break;
 			default:
-				$screen_option = false;
-
-				if ( '_page' === substr( $option, -5 ) || 'layout_columns' === $option ) {
-					/**
-					 * Filters a screen option value before it is set.
-					 *
-					 * The filter can also be used to modify non-standard [items]_per_page
-					 * settings. See the parent function for a full list of standard options.
-					 *
-					 * Returning false to the filter will skip saving the current option.
-					 *
-					 * @since 2.8.0
-					 * @since 5.4.2 Only applied to options ending with '_page',
-					 *              or the 'layout_columns' option.
-					 *
-					 * @see set_screen_options()
-					 *
-					 * @param mixed  $screen_option The value to save instead of the option value.
-					 *                              Default false (to skip saving the current option).
-					 * @param string $option        The option name.
-					 * @param int    $value         The option value.
-					 */
-					$screen_option = apply_filters( 'set-screen-option', $screen_option, $option, $value ); // phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores
-				}
 
 				/**
 				 * Filter a screen option value before it is set.
 				 *
-				 * The dynamic portion of the hook, `$option`, refers to the option name.
+				 * The filter can also be used to modify non-standard [items]_per_page
+				 * settings. See the parent function for a full list of standard options.
 				 *
 				 * Returning false to the filter will skip saving the current option.
 				 *
-				 * @since 5.4.2
+				 * @since 2.8.0
 				 *
 				 * @see set_screen_options()
 				 *
-				 * @param mixed   $screen_option The value to save instead of the option value.
-				 *                               Default false (to skip saving the current option).
-				 * @param string  $option        The option name.
-				 * @param int     $value         The option value.
+				 * @param bool|int $value  Screen option value. Default false to skip.
+				 * @param string   $option The option name.
+				 * @param int      $value  The number of rows to use.
 				 */
-				$value = apply_filters( "set_screen_option_{$option}", $screen_option, $option, $value );
+				$value = apply_filters( 'set-screen-option', false, $option, $value );
 
 				if ( false === $value )
 					return;
@@ -865,5 +841,48 @@ function post_form_autocomplete_off() {
 		echo ' autocomplete="off"';
 	}
 }
-
 add_action( 'post_edit_form_tag', 'post_form_autocomplete_off' );
+
+/**
+ * Remove single-use URL parameters and create canonical link based on new URL.
+ *
+ * Remove specific query string parameters from a URL, create the canonical link,
+ * put it in the admin header, and change the current URL to match.
+ *
+ * @since 4.2.0
+ */
+function wp_admin_canonical_url() {
+	$removable_query_args = array(
+		'message', 'settings-updated', 'saved',
+		'update', 'updated','activated',
+		'activate', 'deactivate', 'locked',
+		'deleted', 'trashed', 'untrashed',
+		'enabled', 'disabled', 'skipped',
+	);
+
+	/**
+	 * Filter the list of URL parameters to remove.
+	 *
+	 * @since 4.2.0
+	 *
+	 * @param array $removable_query_args An array of parameters to remove from the URL.
+	 */
+	$removable_query_args = apply_filters( 'removable_query_args', $removable_query_args );
+
+	if ( empty( $removable_query_args ) ) {
+		return;
+	}
+
+	// Ensure we're using an absolute URL.
+	$current_url  = set_url_scheme( 'http://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+	$filtered_url = remove_query_arg( $removable_query_args, $current_url );
+	?>
+	<link id="wp-admin-canonical" rel="canonical" href="<?php echo esc_url( $filtered_url ); ?>" />
+	<script>
+		if ( window.history.replaceState ) {
+			window.history.replaceState( null, null, document.getElementById( 'wp-admin-canonical' ).href );
+		}
+	</script>
+<?php
+}
+add_action( 'admin_head', 'wp_admin_canonical_url' );

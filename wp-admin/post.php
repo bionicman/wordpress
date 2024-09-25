@@ -16,16 +16,14 @@ $submenu_file = 'edit.php';
 
 wp_reset_vars( array( 'action' ) );
 
-if ( isset( $_GET['post'] ) && isset( $_POST['post_ID'] ) && (int) $_GET['post'] !== (int) $_POST['post_ID'] )
-	wp_die( __( 'A post ID mismatch has been detected.' ), __( 'Sorry, you are not allowed to edit this item.' ), 400 );
-elseif ( isset( $_GET['post'] ) )
+if ( isset( $_GET['post'] ) )
  	$post_id = $post_ID = (int) $_GET['post'];
 elseif ( isset( $_POST['post_ID'] ) )
  	$post_id = $post_ID = (int) $_POST['post_ID'];
 else
  	$post_id = $post_ID = 0;
 
-$post = $post_type = $post_type_object = null;
+global $post_type, $post_type_object, $post;
 
 if ( $post_id )
 	$post = get_post( $post_id );
@@ -84,10 +82,6 @@ function redirect_post($post_id = '') {
 	exit;
 }
 
-if ( isset( $_POST['post_type'] ) && $post && $post_type !== $_POST['post_type'] ) {
-	wp_die( __( 'A post type mismatch has been detected.' ), __( 'Sorry, you are not allowed to edit this item.' ), 400 );
-}
-
 if ( isset( $_POST['deletepost'] ) )
 	$action = 'delete';
 elseif ( isset($_POST['wp-preview']) && 'dopreview' == $_POST['wp-preview'] )
@@ -101,7 +95,9 @@ if ( ! $sendback ||
 		$sendback = admin_url( 'upload.php' );
 	} else {
 		$sendback = admin_url( 'edit.php' );
-		$sendback .= ( ! empty( $post_type ) ) ? '?post_type=' . $post_type : '';
+		if ( ! empty( $post_type ) ) {
+			$sendback = add_query_arg( 'post_type', $post_type, $sendback );
+		}
 	}
 } else {
 	$sendback = remove_query_arg( array('trashed', 'untrashed', 'deleted', 'ids'), $sendback );
@@ -119,9 +115,8 @@ case 'post-quickdraft-save':
 	if ( ! wp_verify_nonce( $nonce, 'add-post' ) )
 		$error_msg = __( 'Unable to submit this form, please refresh and try again.' );
 
-	if ( ! current_user_can( 'edit_posts' ) ) {
-		exit;
-	}
+	if ( ! current_user_can( 'edit_posts' ) )
+		$error_msg = __( 'Oops, you don&#8217;t have access to add new drafts.' );
 
 	if ( $error_msg )
 		return wp_dashboard_quick_press( $error_msg );
@@ -164,7 +159,6 @@ case 'edit':
 		wp_die( __( 'You can&#8217;t edit this item because it is in the Trash. Please restore it and try again.' ) );
 
 	if ( ! empty( $_GET['get-post-lock'] ) ) {
-		check_admin_referer( 'lock-post_' . $post_id );
 		wp_set_post_lock( $post_id );
 		wp_redirect( get_edit_post_link( $post_id, 'url' ) );
 		exit();
@@ -227,7 +221,7 @@ case 'editattachment':
 
 	// Update the thumbnail filename
 	$newmeta = wp_get_attachment_metadata( $post_id, true );
-	$newmeta['thumb'] = wp_basename( $_POST['thumb'] );
+	$newmeta['thumb'] = $_POST['thumb'];
 
 	wp_update_attachment_metadata( $post_id, $newmeta );
 

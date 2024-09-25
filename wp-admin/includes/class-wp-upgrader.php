@@ -431,7 +431,7 @@ class WP_Upgrader {
 
 			if ( is_wp_error($removed) ) {
 				return $removed;
-			} else if ( ! $removed ) {
+			} elseif ( ! $removed ) {
 				return new WP_Error('remove_old_failed', $this->strings['remove_old_failed']);
 			}
 		} elseif ( $args['abort_if_destination_exists'] && $wp_filesystem->exists($remote_destination) ) {
@@ -469,7 +469,7 @@ class WP_Upgrader {
 			$destination_name = '';
 		}
 
-		$this->result = compact('local_source', 'source', 'source_name', 'source_files', 'destination', 'destination_name', 'local_destination', 'remote_destination', 'clear_destination', 'delete_source_dir');
+		$this->result = compact( 'source', 'source_files', 'destination', 'destination_name', 'local_destination', 'remote_destination', 'clear_destination' );
 
 		/**
 		 * Filter the install response after the installation has finished.
@@ -637,7 +637,7 @@ class WP_Upgrader {
 			$maintenance_string = '<?php $upgrading = ' . time() . '; ?>';
 			$wp_filesystem->delete($file);
 			$wp_filesystem->put_contents($file, $maintenance_string, FS_CHMOD_FILE);
-		} else if ( !$enable && $wp_filesystem->exists($file) ) {
+		} elseif ( ! $enable && $wp_filesystem->exists( $file ) ) {
 			$this->skin->feedback('maintenance_end');
 			$wp_filesystem->delete($file);
 		}
@@ -824,8 +824,8 @@ class Plugin_Upgrader extends WP_Upgrader {
 	 * @since 2.8.0
 	 * @since 3.7.0 The `$args` parameter was added, making clearing the plugin update cache optional.
 	 *
-	 * @param string $plugins Array of the basename paths of the plugins' main files.
-	 * @param array  $args {
+	 * @param array $plugins Array of the basename paths of the plugins' main files.
+	 * @param array $args {
 	 *     Optional. Other arguments for upgrading several plugins at once. Default empty array.
 	 *
 	 *     @type bool $clear_update_cache Whether to clear the plugin updates cache if successful.
@@ -1351,8 +1351,8 @@ class Theme_Upgrader extends WP_Upgrader {
 	 * @since 3.0.0
 	 * @since 3.7.0 The `$args` parameter was added, making clearing the update cache optional.
 	 *
-	 * @param string $themes The theme slugs.
-	 * @param array  $args {
+	 * @param array $themes The theme slugs.
+	 * @param array $args {
 	 *     Optional. Other arguments for upgrading several themes at once. Default empty array.
 	 *
 	 *     @type bool $clear_update_cache Whether to clear the update cache if successful.
@@ -1896,7 +1896,7 @@ class Language_Pack_Upgrader extends WP_Upgrader {
 		switch ( $update->type ) {
 			case 'core':
 				return 'WordPress'; // Not translated
-				break;
+
 			case 'theme':
 				$theme = wp_get_theme( $update->slug );
 				if ( $theme->exists() )
@@ -2293,30 +2293,6 @@ class File_Upload_Upgrader {
 			if ( isset( $file['error'] ) )
 				wp_die( $file['error'] );
 
-			if ( 'pluginzip' === $form || 'themezip' === $form ) {
-				$archive_is_valid = false;
-
-				/** This filter is documented in wp-admin/includes/file.php */
-				if ( class_exists( 'ZipArchive', false ) && apply_filters( 'unzip_file_use_ziparchive', true ) ) {
-					$archive          = new ZipArchive();
-					$archive_is_valid = $archive->open( $file['file'], ZIPARCHIVE::CHECKCONS );
-
-					if ( true === $archive_is_valid ) {
-						$archive->close();
-					}
-				} else {
-					require_once ABSPATH . 'wp-admin/includes/class-pclzip.php';
-
-					$archive          = new PclZip( $file['file'] );
-					$archive_is_valid = is_array( $archive->properties() );
-				}
-
-				if ( true !== $archive_is_valid ) {
-					wp_delete_file( $file['file'] );
-					wp_die( __( 'Incompatible Archive.' ) );
-				}
-			}
-
 			$this->filename = $_FILES[$form]['name'];
 			$this->package = $file['file'];
 
@@ -2350,12 +2326,8 @@ class File_Upload_Upgrader {
 			if ( ! ( ( $uploads = wp_upload_dir() ) && false === $uploads['error'] ) )
 				wp_die( $uploads['error'] );
 
-			$this->filename = sanitize_file_name( $_GET[ $urlholder ] );
+			$this->filename = $_GET[$urlholder];
 			$this->package = $uploads['basedir'] . '/' . $this->filename;
-
-			if ( 0 !== strpos( realpath( $this->package ), realpath( $uploads['basedir'] ) ) ) {
-				wp_die( __( 'Please select a file' ) );
-			}
 		}
 	}
 

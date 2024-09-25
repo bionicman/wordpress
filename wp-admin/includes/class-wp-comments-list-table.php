@@ -21,6 +21,10 @@ class WP_Comments_List_Table extends WP_List_Table {
 
 	public $pending_count = array();
 
+	public $extra_items;
+
+	private $user_can;
+
 	/**
 	 * Constructor.
 	 *
@@ -332,12 +336,6 @@ class WP_Comments_List_Table extends WP_List_Table {
 	</tr>
 	</thead>
 
-	<tfoot>
-	<tr>
-		<?php $this->print_column_headers( false ); ?>
-	</tr>
-	</tfoot>
-
 	<tbody id="the-comment-list" data-wp-lists="list:comment">
 		<?php $this->display_rows_or_placeholder(); ?>
 	</tbody>
@@ -345,6 +343,13 @@ class WP_Comments_List_Table extends WP_List_Table {
 	<tbody id="the-extra-comment-list" data-wp-lists="list:comment" style="display: none;">
 		<?php $this->items = $this->extra_items; $this->display_rows(); ?>
 	</tbody>
+
+	<tfoot>
+	<tr>
+		<?php $this->print_column_headers( false ); ?>
+	</tr>
+	</tfoot>
+
 </table>
 <?php
 
@@ -356,24 +361,14 @@ class WP_Comments_List_Table extends WP_List_Table {
 
 		$comment = $a_comment;
 		$the_comment_class = wp_get_comment_status( $comment->comment_ID );
+		if ( ! $the_comment_class ) {
+			$the_comment_class = '';
+		}
 		$the_comment_class = join( ' ', get_comment_class( $the_comment_class, $comment->comment_ID, $comment->comment_post_ID ) );
 
 		$post = get_post( $comment->comment_post_ID );
 
 		$this->user_can = current_user_can( 'edit_comment', $comment->comment_ID );
-
-		$edit_post_cap = $post ? 'edit_post' : 'edit_posts';
-		if (
-			current_user_can( $edit_post_cap, $comment->comment_post_ID ) ||
-			(
-				empty( $post->post_password ) &&
-				current_user_can( 'read_post', $comment->comment_post_ID )
-			)
-		) {
-			// The user has access to the post
-		} else {
-			return false;
-		}
 
 		echo "<tr id='comment-$comment->comment_ID' class='$the_comment_class'>";
 		$this->single_row_columns( $comment );
@@ -392,12 +387,10 @@ class WP_Comments_List_Table extends WP_List_Table {
 		global $comment_status;
 		$post = get_post();
 
-		$user_can = $this->user_can;
-
 		$comment_url = esc_url( get_comment_link( $comment->comment_ID ) );
 		$the_comment_status = wp_get_comment_status( $comment->comment_ID );
 
-		if ( $user_can ) {
+		if ( $this->user_can ) {
 			$del_nonce = esc_html( '_wpnonce=' . wp_create_nonce( "delete-comment_$comment->comment_ID" ) );
 			$approve_nonce = esc_html( '_wpnonce=' . wp_create_nonce( "approve-comment_$comment->comment_ID" ) );
 
@@ -433,7 +426,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 
 		echo '</div>';
 		comment_text();
-		if ( $user_can ) { ?>
+		if ( $this->user_can ) { ?>
 		<div id="inline-<?php echo $comment->comment_ID; ?>" class="hidden">
 		<textarea class="comment" rows="1" cols="1"><?php
 			/** This filter is documented in wp-admin/includes/comment.php */
@@ -447,7 +440,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 		<?php
 		}
 
-		if ( $user_can ) {
+		if ( $this->user_can ) {
 			// Preorder it: Approve | Reply | Quick Edit | Edit | Spam | Trash.
 			$actions = array(
 				'approve' => '', 'unapprove' => '',
@@ -460,10 +453,11 @@ class WP_Comments_List_Table extends WP_List_Table {
 
 			// Not looking at all comments.
 			if ( $comment_status && 'all' != $comment_status ) {
-				if ( 'approved' == $the_comment_status )
+				if ( 'approved' == $the_comment_status ) {
 					$actions['unapprove'] = "<a href='$unapprove_url' data-wp-lists='delete:the-comment-list:comment-$comment->comment_ID:e7e7d3:action=dim-comment&amp;new=unapproved' class='vim-u vim-destructive' title='" . esc_attr__( 'Unapprove this comment' ) . "'>" . __( 'Unapprove' ) . '</a>';
-				else if ( 'unapproved' == $the_comment_status )
+				} elseif ( 'unapproved' == $the_comment_status ) {
 					$actions['approve'] = "<a href='$approve_url' data-wp-lists='delete:the-comment-list:comment-$comment->comment_ID:e7e7d3:action=dim-comment&amp;new=approved' class='vim-a vim-destructive' title='" . esc_attr__( 'Approve this comment' ) . "'>" . __( 'Approve' ) . '</a>';
+				}
 			} else {
 				$actions['approve'] = "<a href='$approve_url' data-wp-lists='dim:the-comment-list:comment-$comment->comment_ID:unapproved:e7e7d3:e7e7d3:new=approved' class='vim-a' title='" . esc_attr__( 'Approve this comment' ) . "'>" . __( 'Approve' ) . '</a>';
 				$actions['unapprove'] = "<a href='$unapprove_url' data-wp-lists='dim:the-comment-list:comment-$comment->comment_ID:unapproved:e7e7d3:e7e7d3:new=unapproved' class='vim-u' title='" . esc_attr__( 'Unapprove this comment' ) . "'>" . __( 'Unapprove' ) . '</a>';
@@ -567,9 +561,9 @@ class WP_Comments_List_Table extends WP_List_Table {
 
 		if ( current_user_can( 'edit_post', $post->ID ) ) {
 			$post_link = "<a href='" . get_edit_post_link( $post->ID ) . "'>";
-			$post_link .= esc_html( get_the_title( $post->ID ) ) . '</a>';
+			$post_link .= get_the_title( $post->ID ) . '</a>';
 		} else {
-			$post_link = esc_html( get_the_title( $post->ID ) );
+			$post_link = get_the_title( $post->ID );
 		}
 
 		echo '<div class="response-links"><span class="post-com-count-wrapper">';
@@ -609,16 +603,14 @@ class WP_Comments_List_Table extends WP_List_Table {
 class WP_Post_Comments_List_Table extends WP_Comments_List_Table {
 
 	protected function get_column_info() {
-		$this->_column_headers = array(
+		return array(
 			array(
-			'author'   => __( 'Author' ),
-			'comment'  => _x( 'Comment', 'column name' ),
+				'author'   => __( 'Author' ),
+				'comment'  => _x( 'Comment', 'column name' ),
 			),
 			array(),
 			array(),
 		);
-
-		return $this->_column_headers;
 	}
 
 	protected function get_table_classes() {

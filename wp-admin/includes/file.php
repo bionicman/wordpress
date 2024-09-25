@@ -191,11 +191,10 @@ function validate_file_to_edit( $file, $allowed_files = '' ) {
  *
  * @see wp_handle_upload_error
  *
- * @param array  $file      Reference to a single element of $_FILES. Call the function once for
- *                          each uploaded file.
- * @param array  $overrides An associative array of names => values to override default variables.
- * @param string $time      Time formatted in 'yyyy/mm'.
- * @param string $action    Expected value for $_POST['action'].
+ * @param array       $file      Reference to a single element of $_FILES. Call the function once for each uploaded file.
+ * @param array|false $overrides An associative array of names => values to override default variables. Default false.
+ * @param string      $time      Time formatted in 'yyyy/mm'.
+ * @param string      $action    Expected value for $_POST['action'].
  * @return array On success, returns an associative array of file attributes. On failure, returns
  *               $overrides['upload_error_handler'](&$file, $message ) or array( 'error'=>$message ).
 */
@@ -591,10 +590,6 @@ function _unzip_file_ziparchive($file, $to, $needed_dirs = array() ) {
 		if ( '__MACOSX/' === substr($info['name'], 0, 9) ) // Skip the OS X-created __MACOSX directory
 			continue;
 
-		if ( 0 !== validate_file( $info['name'] ) ) {
-			return new WP_Error( 'invalid_file_ziparchive', __( 'Could not extract file from archive.' ), $info['name'] );
-		}
-
 		$uncompressed_size += $info['size'];
 
 		if ( '/' == substr($info['name'], -1) ) // directory
@@ -747,10 +742,6 @@ function _unzip_file_pclzip($file, $to, $needed_dirs = array()) {
 
 		if ( '__MACOSX/' === substr($file['filename'], 0, 9) ) // Don't extract the OS X-created __MACOSX directory files
 			continue;
-
-		if ( 0 !== validate_file( $file['filename'] ) ) {
-			return new WP_Error( 'invalid_file_pclzip', __( 'Could not extract file from archive.' ), $file['filename'] );
-		}
 
 		if ( ! $wp_filesystem->put_contents( $to . $file['filename'], $file['content'], FS_CHMOD_FILE) )
 			return new WP_Error( 'copy_failed_pclzip', __( 'Could not copy file.' ), $file['filename'] );
@@ -933,11 +924,11 @@ function get_filesystem_method( $args = array(), $context = false, $allow_relaxe
 			}
 
 			if ( $wp_file_owner !== false && $wp_file_owner === $temp_file_owner ) {
-				// WordPress is creating files as the same owner as the WordPress files, 
+				// WordPress is creating files as the same owner as the WordPress files,
 				// this means it's safe to modify & create new files via PHP.
 				$method = 'direct';
 				$GLOBALS['_wp_filesystem_direct_method'] = 'file_owner';
-			} else if ( $allow_relaxed_file_ownership ) {
+			} elseif ( $allow_relaxed_file_ownership ) {
 				// The $context directory is writable, and $allow_relaxed_file_ownership is set, this means we can modify files
 				// safely in this directory. This mode doesn't create new files, only alter existing ones.
 				$method = 'direct';
@@ -986,7 +977,7 @@ function get_filesystem_method( $args = array(), $context = false, $allow_relaxe
  * @param string $type the chosen Filesystem method in use
  * @param boolean $error if the current request has failed to connect
  * @param string $context The directory which is needed access to, The write-test will be performed on this directory by get_filesystem_method()
- * @param string $extra_fields Extra POST fields which should be checked for to be included in the post.
+ * @param array $extra_fields Extra POST fields which should be checked for to be included in the post.
  * @param bool $allow_relaxed_file_ownership Whether to allow Group/World writable.
  * @return boolean False on failure. True on success.
  */
@@ -1026,28 +1017,14 @@ function request_filesystem_credentials($form_post, $type = '', $error = false, 
 
 	$credentials = get_option('ftp_credentials', array( 'hostname' => '', 'username' => ''));
 
-	$submitted_form = wp_unslash( $_POST );
-
-	// Verify nonce, or unset submitted form field values on failure
-	if ( ! isset( $_POST['_fs_nonce'] ) || ! wp_verify_nonce( $_POST['_fs_nonce'], 'filesystem-credentials' ) ) {
-		unset(
-			$submitted_form['hostname'],
-			$submitted_form['username'],
-			$submitted_form['password'],
-			$submitted_form['public_key'],
-			$submitted_form['private_key'],
-			$submitted_form['connection_type']
-		);
-	}
-
 	// If defined, set it to that, Else, If POST'd, set it to that, If not, Set it to whatever it previously was(saved details in option)
-	$credentials['hostname'] = defined('FTP_HOST') ? FTP_HOST : (!empty($submitted_form['hostname']) ? $submitted_form['hostname'] : $credentials['hostname']);
-	$credentials['username'] = defined('FTP_USER') ? FTP_USER : (!empty($submitted_form['username']) ? $submitted_form['username'] : $credentials['username']);
-	$credentials['password'] = defined('FTP_PASS') ? FTP_PASS : (!empty($submitted_form['password']) ? $submitted_form['password'] : '');
+	$credentials['hostname'] = defined('FTP_HOST') ? FTP_HOST : (!empty($_POST['hostname']) ? wp_unslash( $_POST['hostname'] ) : $credentials['hostname']);
+	$credentials['username'] = defined('FTP_USER') ? FTP_USER : (!empty($_POST['username']) ? wp_unslash( $_POST['username'] ) : $credentials['username']);
+	$credentials['password'] = defined('FTP_PASS') ? FTP_PASS : (!empty($_POST['password']) ? wp_unslash( $_POST['password'] ) : '');
 
 	// Check to see if we are setting the public/private keys for ssh
-	$credentials['public_key'] = defined('FTP_PUBKEY') ? FTP_PUBKEY : (!empty($submitted_form['public_key']) ? $submitted_form['public_key'] : '');
-	$credentials['private_key'] = defined('FTP_PRIKEY') ? FTP_PRIKEY : (!empty($submitted_form['private_key']) ? $submitted_form['private_key'] : '');
+	$credentials['public_key'] = defined('FTP_PUBKEY') ? FTP_PUBKEY : (!empty($_POST['public_key']) ? wp_unslash( $_POST['public_key'] ) : '');
+	$credentials['private_key'] = defined('FTP_PRIKEY') ? FTP_PRIKEY : (!empty($_POST['private_key']) ? wp_unslash( $_POST['private_key'] ) : '');
 
 	// Sanitize the hostname, Some people might pass in odd-data:
 	$credentials['hostname'] = preg_replace('|\w+://|', '', $credentials['hostname']); //Strip any schemes off
@@ -1060,15 +1037,15 @@ function request_filesystem_credentials($form_post, $type = '', $error = false, 
 		unset($credentials['port']);
 	}
 
-	if ( ( defined('FTP_SSH') && FTP_SSH ) || ( defined('FS_METHOD') && 'ssh2' == FS_METHOD ) )
+	if ( ( defined( 'FTP_SSH' ) && FTP_SSH ) || ( defined( 'FS_METHOD' ) && 'ssh2' == FS_METHOD ) ) {
 		$credentials['connection_type'] = 'ssh';
-	else if ( (defined('FTP_SSL') && FTP_SSL) && 'ftpext' == $type ) //Only the FTP Extension understands SSL
+	} elseif ( ( defined( 'FTP_SSL' ) && FTP_SSL ) && 'ftpext' == $type ) { //Only the FTP Extension understands SSL
 		$credentials['connection_type'] = 'ftps';
-	else if ( !empty($submitted_form['connection_type']) )
-		$credentials['connection_type'] = $submitted_form['connection_type'];
-	else if ( !isset($credentials['connection_type']) ) //All else fails (And it's not defaulted to something else saved), Default to FTP
+	} elseif ( ! empty( $_POST['connection_type'] ) ) {
+		$credentials['connection_type'] = wp_unslash( $_POST['connection_type'] );
+	} elseif ( ! isset( $credentials['connection_type'] ) ) { //All else fails (And it's not defaulted to something else saved), Default to FTP
 		$credentials['connection_type'] = 'ftp';
-
+	}
 	if ( ! $error &&
 			(
 				( !empty($credentials['password']) && !empty($credentials['username']) && !empty($credentials['hostname']) ) ||
@@ -1205,14 +1182,11 @@ jQuery(function($){
 
 <?php
 foreach ( (array) $extra_fields as $field ) {
-	if ( isset( $submitted_form[ $field ] ) )
-		echo '<input type="hidden" name="' . esc_attr( $field ) . '" value="' . esc_attr( $submitted_form[ $field ] ) . '" />';
+	if ( isset( $_POST[ $field ] ) )
+		echo '<input type="hidden" name="' . esc_attr( $field ) . '" value="' . esc_attr( wp_unslash( $_POST[ $field ] ) ) . '" />';
 }
+submit_button( __( 'Proceed' ), 'button', 'upgrade' );
 ?>
-	<p class="request-filesystem-credentials-action-buttons">
-		<?php wp_nonce_field( 'filesystem-credentials', '_fs_nonce', false, true ); ?>
-		<?php submit_button( __( 'Proceed' ), 'button', 'upgrade', false ); ?>
-	</p>
 </div>
 </form>
 <?php

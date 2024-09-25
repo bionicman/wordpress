@@ -171,16 +171,6 @@ class wpdb {
 	protected $check_current_query = true;
 
 	/**
-	 * Flag to ensure we don't run into recursion problems when checking the collation.
-	 *
-	 * @since 4.2.0
-	 * @access private
-	 * @see wpdb::check_safe_collation()
-	 * @var boolean
-	 */
-	private $checking_collation = false;
-
-	/**
 	 * Saved info on the table column
 	 *
 	 * @since 0.71
@@ -240,7 +230,7 @@ class wpdb {
 	var $ready = false;
 
 	/**
-	 * {@internal Missing Description}}
+	 * Blog ID.
 	 *
 	 * @since 3.0.0
 	 * @access public
@@ -249,7 +239,7 @@ class wpdb {
 	public $blogid = 0;
 
 	/**
-	 * {@internal Missing Description}}
+	 * Site ID.
 	 *
 	 * @since 3.0.0
 	 * @access public
@@ -634,8 +624,6 @@ class wpdb {
 			}
 		}
 
-		$this->init_charset();
-
 		$this->dbuser = $dbuser;
 		$this->dbpassword = $dbpassword;
 		$this->dbname = $dbname;
@@ -727,16 +715,31 @@ class wpdb {
 	public function init_charset() {
 		if ( function_exists('is_multisite') && is_multisite() ) {
 			$this->charset = 'utf8';
-			if ( defined( 'DB_COLLATE' ) && DB_COLLATE )
+			if ( defined( 'DB_COLLATE' ) && DB_COLLATE ) {
 				$this->collate = DB_COLLATE;
-			else
+			} else {
 				$this->collate = 'utf8_general_ci';
+			}
 		} elseif ( defined( 'DB_COLLATE' ) ) {
 			$this->collate = DB_COLLATE;
 		}
 
-		if ( defined( 'DB_CHARSET' ) )
+		if ( defined( 'DB_CHARSET' ) ) {
 			$this->charset = DB_CHARSET;
+		}
+
+		if ( ( $this->use_mysqli && ! ( $this->dbh instanceof mysqli ) )
+		  || ( empty( $this->dbh ) || ! ( $this->dbh instanceof mysqli ) ) ) {
+			return;
+		}
+
+		if ( 'utf8' === $this->charset && $this->has_cap( 'utf8mb4' ) ) {
+			$this->charset = 'utf8mb4';
+		}
+
+		if ( 'utf8mb4' === $this->charset && ( ! $this->collate || stripos( $this->collate, 'utf8_' ) === 0 ) ) {
+			$this->collate = 'utf8mb4_unicode_ci';
+		}
 	}
 
 	/**
@@ -1076,22 +1079,19 @@ class wpdb {
 	function _real_escape( $string ) {
 		if ( $this->dbh ) {
 			if ( $this->use_mysqli ) {
-				$escaped = mysqli_real_escape_string( $this->dbh, $string );
+				return mysqli_real_escape_string( $this->dbh, $string );
 			} else {
-				$escaped = mysql_real_escape_string( $string, $this->dbh );
+				return mysql_real_escape_string( $string, $this->dbh );
 			}
-		} else {
-			$class = get_class( $this );
-			if ( function_exists( '__' ) ) {
-				/* translators: %s: database access abstraction class, usually wpdb or a class extending wpdb */
-				_doing_it_wrong( $class, sprintf( __( '%s must set a database connection for use with escaping.' ), $class ), '3.6.0' );
-			} else {
-				_doing_it_wrong( $class, sprintf( '%s must set a database connection for use with escaping.', $class ), '3.6.0' );
-			}
-			$escaped = addslashes( $string );
 		}
 
-		return $this->add_placeholder_escape( $escaped );
+		$class = get_class( $this );
+		if ( function_exists( '__' ) ) {
+			_doing_it_wrong( $class, sprintf( __( '%s must set a database connection for use with escaping.' ), $class ), E_USER_NOTICE );
+		} else {
+			_doing_it_wrong( $class, sprintf( '%s must set a database connection for use with escaping.', $class ), E_USER_NOTICE );
+		}
+		return addslashes( $string );
 	}
 
 	/**
@@ -1165,120 +1165,58 @@ class wpdb {
 	/**
 	 * Prepares a SQL query for safe execution. Uses sprintf()-like syntax.
 	 *
-	 * The following placeholders can be used in the query string:
+	 * The following directives can be used in the query format string:
 	 *   %d (integer)
 	 *   %f (float)
 	 *   %s (string)
+	 *   %% (literal percentage sign - no argument needed)
 	 *
-	 * All placeholders MUST be left unquoted in the query string. A corresponding argument MUST be passed for each placeholder.
+	 * All of %d, %f, and %s are to be left unquoted in the query string and they need an argument passed for them.
+	 * Literals (%) as parts of the query must be properly written as %%.
 	 *
-	 * For compatibility with old behavior, numbered or formatted string placeholders (eg, %1$s, %5s) will not have quotes
-	 * added by this function, so should be passed with appropriate quotes around them for your usage.
+	 * This function only supports a small subset of the sprintf syntax; it only supports %d (integer), %f (float), and %s (string).
+	 * Does not support sign, padding, alignment, width or precision specifiers.
+	 * Does not support argument numbering/swapping.
 	 *
-	 * Literal percentage signs (%) in the query string must be written as %%. Percentage wildcards (for example,
-	 * to use in LIKE syntax) must be passed via a substitution argument containing the complete LIKE string, these
-	 * cannot be inserted directly in the query string. Also see {@see esc_like()}.
+	 * May be called like {@link http://php.net/sprintf sprintf()} or like {@link http://php.net/vsprintf vsprintf()}.
 	 *
-	 * Arguments may be passed as individual arguments to the method, or as a single array containing all arguments. A combination
-	 * of the two is not supported.
+	 * Both %d and %s should be left unquoted in the query string.
 	 *
-	 * Examples:
-	 *     $wpdb->prepare( "SELECT * FROM `table` WHERE `column` = %s AND `field` = %d OR `other_field` LIKE %s", array( 'foo', 1337, '%bar' ) );
-	 *     $wpdb->prepare( "SELECT DATE_FORMAT(`field`, '%%c') FROM `table` WHERE `column` = %s", 'foo' );
+	 *     wpdb::prepare( "SELECT * FROM `table` WHERE `column` = %s AND `field` = %d", 'foo', 1337 )
+	 *     wpdb::prepare( "SELECT DATE_FORMAT(`field`, '%%c') FROM `table` WHERE `column` = %s", 'foo' );
 	 *
-	 * @link https://secure.php.net/sprintf Description of syntax.
+	 * @link http://php.net/sprintf Description of syntax.
 	 * @since 2.3.0
 	 *
-	 * @param string      $query    Query statement with sprintf()-like placeholders
-	 * @param array|mixed $args     The array of variables to substitute into the query's placeholders if being called with an array of arguments,
-	 *                              or the first variable to substitute into the query's placeholders if being called with individual arguments.
-	 * @param mixed       $args,... further variables to substitute into the query's placeholders if being called wih individual arguments.
-	 * @return string|void Sanitized query string, if there is a query to prepare.
+	 * @param string $query Query statement with sprintf()-like placeholders
+	 * @param array|mixed $args The array of variables to substitute into the query's placeholders if being called like
+	 * 	{@link http://php.net/vsprintf vsprintf()}, or the first variable to substitute into the query's placeholders if
+	 * 	being called like {@link http://php.net/sprintf sprintf()}.
+	 * @param mixed $args,... further variables to substitute into the query's placeholders if being called like
+	 * 	{@link http://php.net/sprintf sprintf()}.
+	 * @return null|false|string Sanitized query string, null if there is no query, false if there is an error and string
+	 * 	if there was something to prepare
 	 */
 	public function prepare( $query, $args ) {
-		if ( is_null( $query ) ) {
+		if ( is_null( $query ) )
 			return;
-		}
 
 		// This is not meant to be foolproof -- but it will catch obviously incorrect usage.
 		if ( strpos( $query, '%' ) === false ) {
-			wp_load_translations_early();
-			_doing_it_wrong( 'wpdb::prepare', sprintf( __( 'The query argument of %s must have a placeholder.' ), 'wpdb::prepare()' ), '3.9.0' );
+			_doing_it_wrong( 'wpdb::prepare', sprintf( __( 'The query argument of %s must have a placeholder.' ), 'wpdb::prepare()' ), '3.9' );
 		}
 
 		$args = func_get_args();
 		array_shift( $args );
-
-		// If args were passed as an array (as in vsprintf), move them up.
-		$passed_as_array = false;
-		if ( is_array( $args[0] ) && count( $args ) == 1 ) {
-			$passed_as_array = true;
+		// If args were passed as an array (as in vsprintf), move them up
+		if ( isset( $args[0] ) && is_array($args[0]) )
 			$args = $args[0];
-		}
-
-		foreach ( $args as $arg ) {
-			if ( ! is_scalar( $arg ) && ! is_null( $arg ) ) {
-				wp_load_translations_early();
-				_doing_it_wrong( 'wpdb::prepare', sprintf( __( 'Unsupported value type (%s).' ), gettype( $arg ) ), '4.8.2' );
-			}
-		}
-
-		/*
-		 * Specify the formatting allowed in a placeholder. The following are allowed:
-		 *
-		 * - Sign specifier. eg, $+d
-		 * - Numbered placeholders. eg, %1$s
-		 * - Padding specifier, including custom padding characters. eg, %05s, %'#5s
-		 * - Alignment specifier. eg, %05-s
-		 * - Precision specifier. eg, %.2f
-		 */
-		$allowed_format = '(?:[1-9][0-9]*[$])?[-+0-9]*(?: |0|\'.)?[-+0-9]*(?:\.[0-9]+)?';
-
-		/*
-		 * If a %s placeholder already has quotes around it, removing the existing quotes and re-inserting them
-		 * ensures the quotes are consistent.
-		 *
-		 * For backwards compatibility, this is only applied to %s, and not to placeholders like %1$s, which are frequently
-		 * used in the middle of longer strings, or as table name placeholders.
-		 */
-		$query = str_replace( "'%s'", '%s', $query ); // Strip any existing single quotes.
-		$query = str_replace( '"%s"', '%s', $query ); // Strip any existing double quotes.
-		$query = preg_replace( '/(?<!%)%s/', "'%s'", $query ); // Quote the strings, avoiding escaped strings like %%s.
-
-		$query = preg_replace( "/(?<!%)(%($allowed_format)?f)/" , '%\\2F', $query ); // Force floats to be locale unaware.
-
-		$query = preg_replace( "/%(?:%|$|(?!($allowed_format)?[sdF]))/", '%%\\1', $query ); // Escape any unescaped percents.
-
-		// Count the number of valid placeholders in the query.
-		$placeholders = preg_match_all( "/(^|[^%]|(%%)+)%($allowed_format)?[sdF]/", $query, $matches );
-
-		if ( count( $args ) !== $placeholders ) {
-			if ( 1 === $placeholders && $passed_as_array ) {
-				// If the passed query only expected one argument, but the wrong number of arguments were sent as an array, bail.
-				wp_load_translations_early();
-				_doing_it_wrong( 'wpdb::prepare', __( 'The query only expected one placeholder, but an array of multiple placeholders was sent.' ), '4.9.0' );
-
-				return;
-			} else {
-				/*
-				 * If we don't have the right number of placeholders, but they were passed as individual arguments,
-				 * or we were expecting multiple arguments in an array, throw a warning.
-				 */
-				wp_load_translations_early();
-				_doing_it_wrong( 'wpdb::prepare',
-					/* translators: 1: number of placeholders, 2: number of arguments passed */
-					sprintf( __( 'The query does not contain the correct number of placeholders (%1$d) for the number of arguments passed (%2$d).' ),
-						$placeholders,
-						count( $args ) ),
-					'4.8.3'
-				);
-			}
-		}
-
+		$query = str_replace( "'%s'", '%s', $query ); // in case someone mistakenly already singlequoted it
+		$query = str_replace( '"%s"', '%s', $query ); // doublequote unquoting
+		$query = preg_replace( '|(?<!%)%f|' , '%F', $query ); // Force floats to be locale unaware
+		$query = preg_replace( '|(?<!%)%s|', "'%s'", $query ); // quote the strings, avoiding escaped strings like %%s
 		array_walk( $args, array( $this, 'escape_by_ref' ) );
-		$query = @vsprintf( $query, $args );
-
-		return $this->add_placeholder_escape( $query );
+		return @vsprintf( $query, $args );
 	}
 
 	/**
@@ -1441,7 +1379,7 @@ class wpdb {
 			while ( mysqli_more_results( $this->dbh ) ) {
 				mysqli_next_result( $this->dbh );
 			}
-		} else if ( is_resource( $this->result ) ) {
+		} elseif ( is_resource( $this->result ) ) {
 			mysql_free_result( $this->result );
 		}
 	}
@@ -1510,9 +1448,9 @@ class wpdb {
 
 				if ( $this->has_connected ) {
 					$attempt_fallback = false;
-				} else if ( defined( 'WP_USE_EXT_MYSQL' ) && ! WP_USE_EXT_MYSQL ) {
+				} elseif ( defined( 'WP_USE_EXT_MYSQL' ) && ! WP_USE_EXT_MYSQL ) {
 					$attempt_fallback = false;
-				} else if ( ! function_exists( 'mysql_connect' ) ) {
+				} elseif ( ! function_exists( 'mysql_connect' ) ) {
 					$attempt_fallback = false;
 				}
 
@@ -1550,11 +1488,17 @@ class wpdb {
 " ), htmlspecialchars( $this->dbhost, ENT_QUOTES ) ), 'db_connect_fail' );
 
 			return false;
-		} else if ( $this->dbh ) {
+		} elseif ( $this->dbh ) {
+			if ( ! $this->has_connected ) {
+				$this->init_charset();
+			}
+
 			$this->has_connected = true;
+
 			$this->set_charset( $this->dbh );
-			$this->set_sql_mode();
+
 			$this->ready = true;
+			$this->set_sql_mode();
 			$this->select( $this->dbname, $this->dbh );
 
 			return true;
@@ -1685,6 +1629,7 @@ class wpdb {
 		}
 
 		$this->check_current_query = true;
+
 		// Keep track of the last query for debug..
 		$this->last_query = $query;
 
@@ -1750,7 +1695,7 @@ class wpdb {
 					$this->last_result[$num_rows] = $row;
 					$num_rows++;
 				}
-			} else if ( is_resource( $this->result ) ) {
+			} elseif ( is_resource( $this->result ) ) {
 				while ( $row = @mysql_fetch_object( $this->result ) ) {
 					$this->last_result[$num_rows] = $row;
 					$num_rows++;
@@ -1791,64 +1736,6 @@ class wpdb {
 		if ( defined( 'SAVEQUERIES' ) && SAVEQUERIES ) {
 			$this->queries[] = array( $query, $this->timer_stop(), $this->get_caller() );
 		}
-	}
-
-	/**
-	 * Generates and returns a placeholder escape string for use in queries returned by ::prepare().
-	 *
-	 * @since 4.8.3
-	 *
-	 * @return string String to escape placeholders.
-	 */
-	public function placeholder_escape() {
-		static $placeholder;
-
-		if ( ! $placeholder ) {
-			// If ext/hash is not present, compat.php's hash_hmac() does not support sha256.
-			$algo = function_exists( 'hash' ) ? 'sha256' : 'sha1';
-			// Old WP installs may not have AUTH_SALT defined.
-			$salt = defined( 'AUTH_SALT' ) && AUTH_SALT ? AUTH_SALT : (string) rand();
-
-			$placeholder = '{' . hash_hmac( $algo, uniqid( $salt, true ), $salt ) . '}';
-		}
-
-		/*
-		 * Add the filter to remove the placeholder escaper. Uses priority 0, so that anything
-		 * else attached to this filter will recieve the query with the placeholder string removed.
-		 */
-		if ( ! has_filter( 'query', array( $this, 'remove_placeholder_escape' ) ) ) {
-			add_filter( 'query', array( $this, 'remove_placeholder_escape' ), 0 );
-		}
-
-		return $placeholder;
-	}
-
-	/**
-	 * Adds a placeholder escape string, to escape anything that resembles a printf() placeholder.
-	 *
-	 * @since 4.8.3
-	 *
-	 * @param string $query The query to escape.
-	 * @return string The query with the placeholder escape string inserted where necessary.
-	 */
-	public function add_placeholder_escape( $query ) {
-		/*
-		 * To prevent returning anything that even vaguely resembles a placeholder,
-		 * we clobber every % we can find.
-		 */
-		return str_replace( '%', $this->placeholder_escape(), $query );
-	}
-
-	/**
-	 * Removes the placeholder escape strings from a query.
-	 *
-	 * @since 4.8.3
-	 *
-	 * @param string $query The query from which the placeholder will be removed.
-	 * @return string The query with the placeholder removed.
-	 */
-	public function remove_placeholder_escape( $query ) {
-		return str_replace( $this->placeholder_escape(), '%', $query );
 	}
 
 	/**
@@ -1912,8 +1799,6 @@ class wpdb {
 	 * @return int|false The number of rows affected, or false on error.
 	 */
 	function _insert_replace_helper( $table, $data, $format = null, $type = 'INSERT' ) {
-		$this->insert_id = 0;
-
 		if ( ! in_array( strtoupper( $type ), array( 'REPLACE', 'INSERT' ) ) ) {
 			return false;
 		}
@@ -1934,6 +1819,7 @@ class wpdb {
 
 		$sql = "$type INTO `$table` ($fields) VALUES ($formats)";
 
+		$this->insert_id = 0;
 		$this->check_current_query = false;
 		return $this->query( $this->prepare( $sql, $values ) );
 	}
@@ -2050,16 +1936,7 @@ class wpdb {
 	 */
 	protected function process_fields( $table, $data, $format ) {
 		$data = $this->process_field_formats( $data, $format );
-		if ( false === $data ) {
-			return false;
-		}
-
 		$data = $this->process_field_charsets( $data, $table );
-		if ( false === $data ) {
-			return false;
-		}
-
-		$data = $this->process_field_lengths( $data, $table );
 		if ( false === $data ) {
 			return false;
 		}
@@ -2125,41 +2002,17 @@ class wpdb {
 				// We can skip this field if we know it isn't a string.
 				// This checks %d/%f versus ! %s because it's sprintf() could take more.
 				$value['charset'] = false;
+			} elseif ( $this->check_ascii( $value['value'] ) ) {
+				// If it's ASCII, then we don't need the charset. We can skip this field.
+				$value['charset'] = false;
 			} else {
 				$value['charset'] = $this->get_col_charset( $table, $field );
 				if ( is_wp_error( $value['charset'] ) ) {
 					return false;
 				}
-			}
 
-			$data[ $field ] = $value;
-		}
-
-		return $data;
-	}
-
-	/**
-	 * For string fields, record the maximum string length that field can safely save.
-	 *
-	 * @since 4.2.1
-	 * @access protected
-	 *
-	 * @param array  $data  As it comes from the wpdb::process_field_charsets() method.
-	 * @param string $table Table name.
-	 * @return array|False The same array as $data with additional 'length' keys, or false if
-	 *                     any of the values were too long for their corresponding field.
-	 */
-	protected function process_field_lengths( $data, $table ) {
-		foreach ( $data as $field => $value ) {
-			if ( '%d' === $value['format'] || '%f' === $value['format'] ) {
-				// We can skip this field if we know it isn't a string.
-				// This checks %d/%f versus ! %s because it's sprintf() could take more.
-				$value['length'] = false;
-			} else {
-				$value['length'] = $this->get_col_length( $table, $field );
-				if ( is_wp_error( $value['length'] ) ) {
-					return false;
-				}
+				// This isn't ASCII. Don't have strip_invalid_text() re-check.
+				$value['ascii'] = false;
 			}
 
 			$data[ $field ] = $value;
@@ -2184,10 +2037,6 @@ class wpdb {
 	 */
 	public function get_var( $query = null, $x = 0, $y = 0 ) {
 		$this->func_call = "\$db->get_var(\"$query\", $x, $y)";
-
-		if ( $this->check_current_query && $this->check_safe_collation( $query ) ) {
-			$this->check_current_query = false;
-		}
 
 		if ( $query ) {
 			$this->query( $query );
@@ -2217,11 +2066,6 @@ class wpdb {
 	 */
 	public function get_row( $query = null, $output = OBJECT, $y = 0 ) {
 		$this->func_call = "\$db->get_row(\"$query\",$output,$y)";
-
-		if ( $this->check_current_query && $this->check_safe_collation( $query ) ) {
-			$this->check_current_query = false;
-		}
-
 		if ( $query ) {
 			$this->query( $query );
 		} else {
@@ -2259,10 +2103,6 @@ class wpdb {
 	 * @return array Database query result. Array indexed from 0 by SQL result row number.
 	 */
 	public function get_col( $query = null , $x = 0 ) {
-		if ( $this->check_current_query && $this->check_safe_collation( $query ) ) {
-			$this->check_current_query = false;
-		}
-
 		if ( $query ) {
 			$this->query( $query );
 		}
@@ -2290,10 +2130,6 @@ class wpdb {
 	 */
 	public function get_results( $query = null, $output = OBJECT ) {
 		$this->func_call = "\$db->get_results(\"$query\", $output)";
-
-		if ( $this->check_current_query && $this->check_safe_collation( $query ) ) {
-			$this->check_current_query = false;
-		}
 
 		if ( $query ) {
 			$this->query( $query );
@@ -2369,10 +2205,7 @@ class wpdb {
 		}
 
 		$charsets = $columns = array();
-
-		$table_parts = explode( '.', $table );
-		$table = '`' . implode( '`.`', $table_parts ) . '`';
-		$results = $this->get_results( "SHOW FULL COLUMNS FROM $table" );
+		$results = $this->get_results( "SHOW FULL COLUMNS FROM `$table`" );
 		if ( ! $results ) {
 			return new WP_Error( 'wpdb_get_table_charset_failure' );
 		}
@@ -2496,99 +2329,6 @@ class wpdb {
 	}
 
 	/**
-	 * Retrieve the maximum string length allowed in a given column.
-	 * The length may either be specified as a byte length or a character length.
-	 *
-	 * @since 4.2.1
-	 * @access public
-	 *
-	 * @param string $table  Table name.
-	 * @param string $column Column name.
-	 * @return mixed array( 'length' => (int), 'type' => 'byte' | 'char' )
-	 *               false if the column has no length (for example, numeric column)
-	 *               WP_Error object if there was an error.
-	 */
-	public function get_col_length( $table, $column ) {
-		$tablekey = strtolower( $table );
-		$columnkey = strtolower( $column );
-
-		// Skip this entirely if this isn't a MySQL database.
-		if ( false === $this->is_mysql ) {
-			return false;
-		}
-
-		if ( empty( $this->col_meta[ $tablekey ] ) ) {
-			// This primes column information for us.
-			$table_charset = $this->get_table_charset( $table );
-			if ( is_wp_error( $table_charset ) ) {
-				return $table_charset;
-			}
-		}
-
-		if ( empty( $this->col_meta[ $tablekey ][ $columnkey ] ) ) {
-			return false;
-		}
-
-		$typeinfo = explode( '(', $this->col_meta[ $tablekey ][ $columnkey ]->Type );
-
-		$type = strtolower( $typeinfo[0] );
-		if ( ! empty( $typeinfo[1] ) ) {
-			$length = trim( $typeinfo[1], ')' );
-		} else {
-			$length = false;
-		}
-
-		switch( $type ) {
-			case 'char':
-			case 'varchar':
-				return array(
-					'type'   => 'char',
-					'length' => (int) $length,
-				);
-				break;
-			case 'binary':
-			case 'varbinary':
-				return array(
-					'type'   => 'byte',
-					'length' => (int) $length,
-				);
-				break;
-			case 'tinyblob':
-			case 'tinytext':
-				return array(
-					'type'   => 'byte',
-					'length' => 255,        // 2^8 - 1
-				);
-				break;
-			case 'blob':
-			case 'text':
-				return array(
-					'type'   => 'byte',
-					'length' => 65535,      // 2^16 - 1
-				);
-				break;
-			case 'mediumblob':
-			case 'mediumtext':
-				return array(
-					'type'   => 'byte',
-					'length' => 16777215,   // 2^24 - 1
-				);
-				break;
-			case 'longblob':
-			case 'longtext':
-				return array(
-					'type'   => 'byte',
-					'length' => 4294967295, // 2^32 - 1
-				);
-				break;
-			default:
-				return false;
-		}
-
-		return false;
-	}
-
-	/**
 	 * Check if a string is ASCII.
 	 *
 	 * The negative regex is faster for non-ASCII strings, as it allows
@@ -2613,64 +2353,6 @@ class wpdb {
 	}
 
 	/**
-	 * Check if the query is accessing a collation considered safe on the current version of MySQL.
-	 *
-	 * @since 4.2.0
-	 * @access protected
-	 *
-	 * @param string $query The query to check.
-	 * @return bool True if the collation is safe, false if it isn't.
-	 */
-	protected function check_safe_collation( $query ) {
-		if ( $this->checking_collation ) {
-			return true;
-		}
-
-		// We don't need to check the collation for queries that don't read data.
-		$query = ltrim( $query, "\r\n\t (" );
-		if ( preg_match( '/^(?:SHOW|DESCRIBE|DESC|EXPLAIN|CREATE)\s/i', $query ) ) {
-			return true;
-		}
-
-		// All-ASCII queries don't need extra checking.
-		if ( $this->check_ascii( $query ) ) {
-			return true;
-		}
-
-		$table = $this->get_table_from_query( $query );
-		if ( ! $table ) {
-			return false;
-		}
-
-		$this->checking_collation = true;
-		$collation = $this->get_table_charset( $table );
-		$this->checking_collation = false;
-
-		// Tables with no collation, or latin1 only, don't need extra checking.
-		if ( false === $collation || 'latin1' === $collation ) {
-			return true;
-		}
-
-		$table = strtolower( $table );
-		if ( empty( $this->col_meta[ $table ] ) ) {
-			return false;
-		}
-
-		// If any of the columns don't have one of these collations, it needs more sanity checking.
-		foreach( $this->col_meta[ $table ] as $col ) {
-			if ( empty( $col->Collation ) ) {
-				continue;
-			}
-
-			if ( ! in_array( $col->Collation, array( 'utf8_general_ci', 'utf8_bin', 'utf8mb4_general_ci', 'utf8mb4_bin' ), true ) ) {
-				return false;
-			}
-		}
-
-		return true;
-	}
-
-	/**
 	 * Strips any invalid characters based on value/charset pairs.
 	 *
 	 * @since 4.2.0
@@ -2684,60 +2366,51 @@ class wpdb {
 	 *                        such as 'field' are retained in each value array. If we cannot
 	 *                        remove invalid characters, a {@see WP_Error} object is returned.
 	 */
-		// If any of the columns don't have one of these collations, it needs more sanity checking.
 	protected function strip_invalid_text( $data ) {
+		// Some multibyte character sets that we can check in PHP.
+		$mb_charsets = array(
+			'ascii'   => 'ASCII',
+			'big5'    => 'BIG-5',
+			'eucjpms' => 'eucJP-win',
+			'gb2312'  => 'EUC-CN',
+			'ujis'    => 'EUC-JP',
+			'utf32'   => 'UTF-32',
+		);
+
+		$supported_charsets = array();
+		if ( function_exists( 'mb_list_encodings' ) ) {
+			$supported_charsets = mb_list_encodings();
+		}
+
 		$db_check_string = false;
 
 		foreach ( $data as &$value ) {
 			$charset = $value['charset'];
 
-			if ( is_array( $value['length'] ) ) {
-				$length = $value['length']['length'];
-				$truncate_by_byte_length = 'byte' === $value['length']['type'];
-			} else {
-				$length = false;
-				// Since we have no length, we'll never truncate.
-				// Initialize the variable to false. true would take us
-				// through an unnecessary (for this case) codepath below.
-				$truncate_by_byte_length = false;
-			}
-
-			// There's no charset to work with.
-			if ( false === $charset ) {
+			// Column isn't a string, or is latin1, which will will happily store anything.
+			if ( false === $charset || 'latin1' === $charset ) {
 				continue;
 			}
 
-			// Column isn't a string.
 			if ( ! is_string( $value['value'] ) ) {
 				continue;
 			}
 
-			$needs_validation = true;
-			if (
-				// latin1 can store any byte sequence
-				'latin1' === $charset
-			||
-				// ASCII is always OK.
-				( ! isset( $value['ascii'] ) && $this->check_ascii( $value['value'] ) )
-			) {
-				$truncate_by_byte_length = true;
-				$needs_validation = false;
+			// ASCII is always OK.
+			if ( ! isset( $value['ascii'] ) && $this->check_ascii( $value['value'] ) ) {
+				continue;
 			}
 
-			if ( $truncate_by_byte_length ) {
-				mbstring_binary_safe_encoding();
-				if ( false !== $length && strlen( $value['value'] ) > $length ) {
-					$value['value'] = substr( $value['value'], 0, $length );
-				}
-				reset_mbstring_encoding();
-
-				if ( ! $needs_validation ) {
+			// Convert the text locally.
+			if ( $supported_charsets ) {
+				if ( isset( $mb_charsets[ $charset ] ) && in_array( $mb_charsets[ $charset ], $supported_charsets ) ) {
+					$value['value'] = mb_convert_encoding( $value['value'], $mb_charsets[ $charset ], $mb_charsets[ $charset ] );
 					continue;
 				}
 			}
 
 			// utf8 can be handled by regex, which is a bunch faster than a DB lookup.
-			if ( ( 'utf8' === $charset || 'utf8mb3' === $charset || 'utf8mb4' === $charset ) && function_exists( 'mb_strlen' ) ) {
+			if ( 'utf8' === $charset || 'utf8mb3' === $charset || 'utf8mb4' === $charset ) {
 				$regex = '/
 					(
 						(?: [\x00-\x7F]                  # single-byte sequences   0xxxxxxx
@@ -2747,7 +2420,7 @@ class wpdb {
 						|   \xED[\x80-\x9F][\x80-\xBF]
 						|   [\xEE-\xEF][\x80-\xBF]{2}';
 
-				if ( 'utf8mb4' === $charset ) {
+				if ( 'utf8mb4' === $charset) {
 					$regex .= '
 						|    \xF0[\x90-\xBF][\x80-\xBF]{2} # four-byte sequences   11110xxx 10xxxxxx * 3
 						|    [\xF1-\xF3][\x80-\xBF]{3}
@@ -2755,16 +2428,11 @@ class wpdb {
 					';
 				}
 
-				$regex .= '){1,40}                          # ...one or more times
+				$regex .= '){1,50}                          # ...one or more times
 					)
 					| .                                  # anything else
 					/x';
 				$value['value'] = preg_replace( $regex, '$1', $value['value'] );
-
-
-				if ( false !== $length && mb_strlen( $value['value'], 'UTF-8' ) > $length ) {
-					$value['value'] = mb_substr( $value['value'], 0, $length, 'UTF-8' );
-				}
 				continue;
 			}
 
@@ -2777,45 +2445,45 @@ class wpdb {
 			$queries = array();
 			foreach ( $data as $col => $value ) {
 				if ( ! empty( $value['db'] ) ) {
-					// We're going to need to truncate by characters or bytes, depending on the length value we have.
-					if ( 'byte' === $value['length']['type'] ) {
-						// Using binary causes LEFT() to truncate by bytes.
-						$charset = 'binary';
-					} else {
-						$charset = $value['charset'];
+					if ( ! isset( $queries[ $value['charset'] ] ) ) {
+						$queries[ $value['charset'] ] = array();
 					}
 
-					if ( is_array( $value['length'] ) ) {
-						$length = sprintf( '%.0f', $value['length']['length'] );
-						$queries[ $col ] = $this->prepare( "CONVERT( LEFT( CONVERT( %s USING $charset ), $length ) USING {$this->charset} )", $value['value'] );
-					} else if ( 'binary' !== $charset ) {
-						// If we don't have a length, there's no need to convert binary - it will always return the same result.
-						$queries[ $col ] = $this->prepare( "CONVERT( CONVERT( %s USING $charset ) USING {$this->charset} )", $value['value'] );
-					}
-
-					unset( $data[ $col ]['db'] );
+					// Split the CONVERT() calls by charset, so we can make sure the connection is right
+					$queries[ $value['charset'] ][ $col ] = $this->prepare( "CONVERT( %s USING {$value['charset']} )", $value['value'] );
 				}
 			}
 
-			$sql = array();
-			foreach ( $queries as $column => $query ) {
+			$connection_charset = $this->charset;
+			foreach ( $queries as $charset => $query ) {
 				if ( ! $query ) {
 					continue;
 				}
 
-				$sql[] = $query . " AS x_$column";
-			}
-
-			$this->check_current_query = false;
-			$row = $this->get_row( "SELECT " . implode( ', ', $sql ), ARRAY_A );
-			if ( ! $row ) {
-				return new WP_Error( 'wpdb_strip_invalid_text_failure' );
-			}
-
-			foreach ( array_keys( $data ) as $column ) {
-				if ( isset( $row["x_$column"] ) ) {
-					$data[ $column ]['value'] = $row["x_$column"];
+				// Change the charset to match the string(s) we're converting
+				if ( $charset !== $connection_charset ) {
+					$connection_charset = $charset;
+					$this->set_charset( $this->dbh, $charset );
 				}
+
+				$this->check_current_query = false;
+
+				$row = $this->get_row( "SELECT " . implode( ', ', $query ), ARRAY_N );
+				if ( ! $row ) {
+					$this->set_charset( $this->dbh, $connection_charset );
+					return new WP_Error( 'wpdb_strip_invalid_text_failure' );
+				}
+
+				$cols = array_keys( $query );
+				$col_count = count( $cols );
+				for ( $ii = 0; $ii < $col_count; $ii++ ) {
+					$data[ $cols[ $ii ] ]['value'] = $row[ $ii ];
+				}
+			}
+
+			// Don't forget to change the charset back!
+			if ( $connection_charset !== $this->charset ) {
+				$this->set_charset( $this->dbh );
 			}
 		}
 
@@ -2832,12 +2500,6 @@ class wpdb {
 	 * @return string|WP_Error The converted query, or a {@see WP_Error} object if the conversion fails.
 	 */
 	protected function strip_invalid_text_from_query( $query ) {
-		// We don't need to check the collation for queries that don't read data.
-		$trimmed_query = ltrim( $query, "\r\n\t (" );
-		if ( preg_match( '/^(?:SHOW|DESCRIBE|DESC|EXPLAIN|CREATE)\s/i', $trimmed_query ) ) {
-			return $query;
-		}
-
 		$table = $this->get_table_from_query( $query );
 		if ( $table ) {
 			$charset = $this->get_table_charset( $table );
@@ -2857,7 +2519,6 @@ class wpdb {
 			'value'   => $query,
 			'charset' => $charset,
 			'ascii'   => false,
-			'length'  => false,
 		);
 
 		$data = $this->strip_invalid_text( array( $data ) );
@@ -2880,7 +2541,7 @@ class wpdb {
 	 * @return string|WP_Error The converted string, or a `WP_Error` object if the conversion fails.
 	 */
 	public function strip_invalid_text_for_column( $table, $column, $value ) {
-		if ( ! is_string( $value ) ) {
+		if ( ! is_string( $value ) || $this->check_ascii( $value ) ) {
 			return $value;
 		}
 
@@ -2897,7 +2558,7 @@ class wpdb {
 			$column => array(
 				'value'   => $value,
 				'charset' => $charset,
-				'length'  => $this->get_col_length( $table, $column ),
+				'ascii'   => false,
 			)
 		);
 
@@ -2938,16 +2599,16 @@ class wpdb {
 				. '|REPLACE(?:\s+LOW_PRIORITY|\s+DELAYED)?(?:\s+INTO)?'
 				. '|UPDATE(?:\s+LOW_PRIORITY)?(?:\s+IGNORE)?'
 				. '|DELETE(?:\s+LOW_PRIORITY|\s+QUICK|\s+IGNORE)*(?:\s+FROM)?'
-				. ')\s+((?:[0-9a-zA-Z$_.`-]|[\xC2-\xDF][\x80-\xBF])+)/is', $query, $maybe ) ) {
-			return str_replace( '`', '', $maybe[1] );
+				. ')\s+`?([\w-]+)`?/is', $query, $maybe ) ) {
+			return $maybe[1];
 		}
 
 		// SHOW TABLE STATUS and SHOW TABLES
 		if ( preg_match( '/^\s*(?:'
 				. 'SHOW\s+TABLE\s+STATUS.+(?:LIKE\s+|WHERE\s+Name\s*=\s*)'
 				. '|SHOW\s+(?:FULL\s+)?TABLES.+(?:LIKE\s+|WHERE\s+Name\s*=\s*)'
-				. ')\W((?:[0-9a-zA-Z$_.`-]|[\xC2-\xDF][\x80-\xBF])+)\W/is', $query, $maybe ) ) {
-			return str_replace( '`', '', $maybe[1] );
+				. ')\W([\w-]+)\W/is', $query, $maybe ) ) {
+			return $maybe[1];
 		}
 
 		// Big pattern for the rest of the table-related queries.
@@ -2965,8 +2626,8 @@ class wpdb {
 				. '|LOAD\s+DATA.*INFILE.*INTO\s+TABLE'
 				. '|(?:GRANT|REVOKE).*ON\s+TABLE'
 				. '|SHOW\s+(?:.*FROM|.*TABLE)'
-				. ')\s+\(*\s*((?:[0-9a-zA-Z$_.`-]|[\xC2-\xDF][\x80-\xBF])+)\s*\)*/is', $query, $maybe ) ) {
-			return str_replace( '`', '', $maybe[1] );
+				. ')\s+\(*\s*`?([\w-]+)`?\s*\)*/is', $query, $maybe ) ) {
+			return $maybe[1];
 		}
 
 		return false;
@@ -3140,7 +2801,14 @@ class wpdb {
 			case 'set_charset' :
 				return version_compare( $version, '5.0.7', '>=' );
 			case 'utf8mb4' :      // @since 4.1.0
-				return version_compare( $version, '5.5.3', '>=' );
+				if ( version_compare( $version, '5.5.3', '<' ) ) {
+					return false;
+				}
+				if ( $this->use_mysqli ) {
+					return mysqli_get_client_version( $this->dbh ) >= 50503;
+				} else {
+					return mysql_get_client_version( $this->dbh ) >= 50503;
+				}
 		}
 
 		return false;

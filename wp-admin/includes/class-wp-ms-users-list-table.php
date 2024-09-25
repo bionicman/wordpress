@@ -149,20 +149,19 @@ class WP_MS_Users_List_Table extends WP_List_Table {
 	public function display_rows() {
 		global $mode;
 
-		$alt = '';
 		$super_admins = get_super_admins();
 		foreach ( $this->items as $user ) {
-			$alt = ( 'alternate' == $alt ) ? '' : 'alternate';
+			$class = '';
 
 			$status_list = array( 'spam' => 'site-spammed', 'deleted' => 'site-deleted' );
 
 			foreach ( $status_list as $status => $col ) {
 				if ( $user->$status )
-					$alt .= " $col";
+					$class .= " $col";
 			}
 
 			?>
-			<tr class="<?php echo $alt; ?>">
+			<tr class="<?php echo trim( $class ); ?>">
 			<?php
 
 			list( $columns, $hidden ) = $this->get_column_info();
@@ -225,7 +224,7 @@ class WP_MS_Users_List_Table extends WP_List_Table {
 					break;
 
 					case 'email':
-						echo "<td $attributes><a href='" . esc_url( "mailto:$user->user_email" ) . "'>$user->user_email</a></td>";
+						echo "<td $attributes><a href='mailto:$user->user_email'>$user->user_email</a></td>";
 					break;
 
 					case 'registered':

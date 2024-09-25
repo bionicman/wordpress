@@ -86,11 +86,11 @@ function wptexturize($text, $reset = false) {
 
 		// if a plugin has provided an autocorrect array, use it
 		if ( isset($wp_cockneyreplace) ) {
-			$cockney = array_keys($wp_cockneyreplace);
-			$cockneyreplace = array_values($wp_cockneyreplace);
+			$cockney = array_keys( $wp_cockneyreplace );
+			$cockneyreplace = array_values( $wp_cockneyreplace );
 		} elseif ( "'" != $apos ) { // Only bother if we're doing a replacement.
-			$cockney = array( "'tain't", "'twere", "'twas", "'tis", "'twill", "'til", "'bout", "'nuff", "'round", "'cause" );
-			$cockneyreplace = array( $apos . "tain" . $apos . "t", $apos . "twere", $apos . "twas", $apos . "tis", $apos . "twill", $apos . "til", $apos . "bout", $apos . "nuff", $apos . "round", $apos . "cause" );
+			$cockney = array( "'tain't", "'twere", "'twas", "'tis", "'twill", "'til", "'bout", "'nuff", "'round", "'cause", "'em" );
+			$cockneyreplace = array( $apos . "tain" . $apos . "t", $apos . "twere", $apos . "twas", $apos . "tis", $apos . "twill", $apos . "til", $apos . "bout", $apos . "nuff", $apos . "round", $apos . "cause", $apos . "em" );
 		} else {
 			$cockney = $cockneyreplace = array();
 		}
@@ -174,9 +174,9 @@ function wptexturize($text, $reset = false) {
 
 		// Dashes and spaces
 		$dynamic[ '/---/' ] = $em_dash;
-		$dynamic[ '/(?<=' . $spaces . ')--(?=' . $spaces . ')/' ] = $em_dash;
+		$dynamic[ '/(?<=^|' . $spaces . ')--(?=$|' . $spaces . ')/' ] = $em_dash;
 		$dynamic[ '/(?<!xn)--/' ] = $en_dash;
-		$dynamic[ '/(?<=' . $spaces . ')-(?=' . $spaces . ')/' ] = $en_dash;
+		$dynamic[ '/(?<=^|' . $spaces . ')-(?=$|' . $spaces . ')/' ] = $en_dash;
 
 		$dynamic_characters['dash'] = array_keys( $dynamic );
 		$dynamic_replacements['dash'] = array_values( $dynamic );
@@ -405,13 +405,10 @@ function wpautop($pee, $br = true) {
 
 	$pee = preg_replace('|<br />\s*<br />|', "\n\n", $pee);
 	// Space things out a little
-	$allblocks = '(?:table|thead|tfoot|caption|col|colgroup|tbody|tr|td|th|div|dl|dd|dt|ul|ol|li|pre|form|map|area|blockquote|address|math|style|p|h[1-6]|hr|fieldset|legend|section|article|aside|hgroup|header|footer|nav|figure|details|menu|summary)';
+	$allblocks = '(?:table|thead|tfoot|caption|col|colgroup|tbody|tr|td|th|div|dl|dd|dt|ul|ol|li|pre|form|map|area|blockquote|address|math|style|p|h[1-6]|hr|fieldset|legend|section|article|aside|hgroup|header|footer|nav|figure|figcaption|details|menu|summary)';
 	$pee = preg_replace('!(<' . $allblocks . '[^>]*>)!', "\n$1", $pee);
 	$pee = preg_replace('!(</' . $allblocks . '>)!', "$1\n\n", $pee);
 	$pee = str_replace(array("\r\n", "\r"), "\n", $pee); // cross-platform newlines
-
-	// Find newlines in all elements and add placeholders.
-	$pee = wp_replace_in_html_tags( $pee, array( "\n" => " <!-- wpnl --> " ) );
 
 	if ( strpos( $pee, '<option' ) !== false ) {
 		// no P/BR around option
@@ -464,107 +461,7 @@ function wpautop($pee, $br = true) {
 	if ( !empty($pre_tags) )
 		$pee = str_replace(array_keys($pre_tags), array_values($pre_tags), $pee);
 
-	// Restore newlines in all elements.
-	$pee = str_replace( " <!-- wpnl --> ", "\n", $pee );
-
 	return $pee;
-}
-
-/**
- * Separate HTML elements and comments from the text.
- *
- * @since 4.2.4
- *
- * @param string $input The text which has to be formatted.
- * @return array The formatted text.
- */
-function wp_html_split( $input ) {
-	static $regex;
-
-	if ( ! isset( $regex ) ) {
-		$comments =
-			  '!'           // Start of comment, after the <.
-			. '(?:'         // Unroll the loop: Consume everything until --> is found.
-			.     '-(?!->)' // Dash not followed by end of comment.
-			.     '[^\-]*+' // Consume non-dashes.
-			. ')*+'         // Loop possessively.
-			. '(?:-->)?';   // End of comment. If not found, match all input.
-
-		$cdata =
-			  '!\[CDATA\['  // Start of comment, after the <.
-			. '[^\]]*+'     // Consume non-].
-			. '(?:'         // Unroll the loop: Consume everything until ]]> is found.
-			.     '](?!]>)' // One ] not followed by end of comment.
-			.     '[^\]]*+' // Consume non-].
-			. ')*+'         // Loop possessively.
-			. '(?:]]>)?';   // End of comment. If not found, match all input.
-
-		$regex =
-			  '/('              // Capture the entire match.
-			.     '<'           // Find start of element.
-			.     '(?(?=!--)'   // Is this a comment?
-			.         $comments // Find end of comment.
-			.     '|'
-			.         '(?(?=!\[CDATA\[)' // Is this a comment?
-			.             $cdata // Find end of comment.
-			.         '|'
-			.             '[^>]*>?' // Find end of element. If not found, match all input.
-			.         ')'
-			.     ')'
-			. ')/s';
-	}
-
-	return preg_split( $regex, $input, -1, PREG_SPLIT_DELIM_CAPTURE );
-}
-
-/**
- * Replace characters or phrases within HTML elements only.
- *
- * @since 4.2.3
- *
- * @param string $haystack The text which has to be formatted.
- * @param array $replace_pairs In the form array('from' => 'to', ...).
- * @return string The formatted text.
- */
-function wp_replace_in_html_tags( $haystack, $replace_pairs ) {
-	// Find all elements.
-	$textarr = wp_html_split( $haystack );
-	$changed = false;
-
-	// Optimize when searching for one item.
-	if ( 1 === count( $replace_pairs ) ) {
-		// Extract $needle and $replace.
-		foreach ( $replace_pairs as $needle => $replace );
-
-		// Loop through delimeters (elements) only.
-		for ( $i = 1, $c = count( $textarr ); $i < $c; $i += 2 ) { 
-			if ( false !== strpos( $textarr[$i], $needle ) ) {
-				$textarr[$i] = str_replace( $needle, $replace, $textarr[$i] );
-				$changed = true;
-			}
-		}
-	} else {
-		// Extract all $needles.
-		$needles = array_keys( $replace_pairs );
-
-		// Loop through delimeters (elements) only.
-		for ( $i = 1, $c = count( $textarr ); $i < $c; $i += 2 ) { 
-			foreach ( $needles as $needle ) {
-				if ( false !== strpos( $textarr[$i], $needle ) ) {
-					$textarr[$i] = strtr( $textarr[$i], $replace_pairs );
-					$changed = true;
-					// After one strtr() break out of the foreach loop and look at next element.
-					break;
-				}
-			}
-		}
-	}
-
-	if ( $changed ) {
-		$haystack = implode( $textarr );
-	}
-
-	return $haystack;
 }
 
 /**
@@ -653,14 +550,14 @@ function seems_utf8($str) {
 	reset_mbstring_encoding();
 	for ($i=0; $i < $length; $i++) {
 		$c = ord($str[$i]);
-		if ($c < 0x80) $n = 0; # 0bbbbbbb
-		elseif (($c & 0xE0) == 0xC0) $n=1; # 110bbbbb
-		elseif (($c & 0xF0) == 0xE0) $n=2; # 1110bbbb
-		elseif (($c & 0xF8) == 0xF0) $n=3; # 11110bbb
-		elseif (($c & 0xFC) == 0xF8) $n=4; # 111110bb
-		elseif (($c & 0xFE) == 0xFC) $n=5; # 1111110b
-		else return false; # Does not match any model
-		for ($j=0; $j<$n; $j++) { # n bytes matching 10bbbbbb follow ?
+		if ($c < 0x80) $n = 0; // 0bbbbbbb
+		elseif (($c & 0xE0) == 0xC0) $n=1; // 110bbbbb
+		elseif (($c & 0xF0) == 0xE0) $n=2; // 1110bbbb
+		elseif (($c & 0xF8) == 0xF0) $n=3; // 11110bbb
+		elseif (($c & 0xFC) == 0xF8) $n=4; // 111110bb
+		elseif (($c & 0xFE) == 0xFC) $n=5; // 1111110b
+		else return false; // Does not match any model
+		for ($j=0; $j<$n; $j++) { // n bytes matching 10bbbbbb follow ?
 			if ((++$i == $length) || ((ord($str[$i]) & 0xC0) != 0x80))
 				return false;
 		}
@@ -736,9 +633,9 @@ function _wp_specialchars( $string, $quote_style = ENT_NOQUOTES, $charset = fals
 		// Now re-encode everything except &entity;
 		$string = preg_split( '/(&#?x?[0-9a-z]+;)/i', $string, -1, PREG_SPLIT_DELIM_CAPTURE );
 
-		for ( $i = 0; $i < count( $string ); $i += 2 )
+		for ( $i = 0, $c = count( $string ); $i < $c; $i += 2 ) {
 			$string[$i] = @htmlspecialchars( $string[$i], $quote_style, $charset );
-
+		}
 		$string = implode( '', $string );
 	}
 
@@ -863,14 +760,12 @@ function wp_check_invalid_utf8( $string, $strip = false ) {
  * Encode the Unicode values to be used in the URI.
  *
  * @since 1.5.0
- * @since 5.8.3 Added the `encode_ascii_characters` parameter.
  *
  * @param string $utf8_string
  * @param int $length Max length of the string
- * @param bool   $encode_ascii_characters Whether to encode ascii characters such as < " '
  * @return string String with Unicode encoded for URI.
  */
-function utf8_uri_encode( $utf8_string, $length = 0, $encode_ascii_characters = false ) {
+function utf8_uri_encode( $utf8_string, $length = 0 ) {
 	$unicode = '';
 	$values = array();
 	$num_octets = 1;
@@ -885,29 +780,31 @@ function utf8_uri_encode( $utf8_string, $length = 0, $encode_ascii_characters = 
 		$value = ord( $utf8_string[ $i ] );
 
 		if ( $value < 128 ) {
-			$char                = chr( $value );
-			$encoded_char        = $encode_ascii_characters ? rawurlencode( $char ) : $char;
-			$encoded_char_length = strlen( $encoded_char );
-			if ( $length && ( $unicode_length + $encoded_char_length ) > $length ) {
+			if ( $length && ( $unicode_length >= $length ) )
 				break;
-			}
-			$unicode        .= $encoded_char;
-			$unicode_length += $encoded_char_length;
+			$unicode .= chr($value);
+			$unicode_length++;
 		} else {
-			if ( count( $values ) == 0 ) $num_octets = ( $value < 224 ) ? 2 : 3;
+			if ( count( $values ) == 0 ) {
+				if ( $value < 224 ) {
+					$num_octets = 2;
+				} elseif ( $value < 240 ) {
+					$num_octets = 3;
+				} else {
+					$num_octets = 4;
+				}
+			}
 
 			$values[] = $value;
 
 			if ( $length && ( $unicode_length + ($num_octets * 3) ) > $length )
 				break;
 			if ( count( $values ) == $num_octets ) {
-				if ($num_octets == 3) {
-					$unicode .= '%' . dechex($values[0]) . '%' . dechex($values[1]) . '%' . dechex($values[2]);
-					$unicode_length += 9;
-				} else {
-					$unicode .= '%' . dechex($values[0]) . '%' . dechex($values[1]);
-					$unicode_length += 6;
+				for ( $j = 0; $j < $num_octets; $j++ ) {
+					$unicode .= '%' . dechex( $values[ $j ] );
 				}
+
+				$unicode_length += $num_octets * 3;
 
 				$values = array();
 				$num_octets = 1;
@@ -1131,6 +1028,7 @@ function remove_accents($string) {
 
 		$string = strtr($string, $chars);
 	} else {
+		$chars = array();
 		// Assume ISO-8859-1 if not UTF-8
 		$chars['in'] = chr(128).chr(131).chr(138).chr(142).chr(154).chr(158)
 			.chr(159).chr(162).chr(165).chr(181).chr(192).chr(193).chr(194)
@@ -1146,6 +1044,7 @@ function remove_accents($string) {
 		$chars['out'] = "EfSZszYcYuAAAAAACEEEEIIIINOOOOOOUUUUYaaaaaaceeeeiiiinoooooouuuuyy";
 
 		$string = strtr($string, $chars['in'], $chars['out']);
+		$double_chars = array();
 		$double_chars['in'] = array(chr(140), chr(156), chr(198), chr(208), chr(222), chr(223), chr(230), chr(240), chr(254));
 		$double_chars['out'] = array('OE', 'oe', 'AE', 'DH', 'TH', 'ss', 'ae', 'dh', 'th');
 		$string = str_replace($double_chars['in'], $double_chars['out'], $string);
@@ -1161,8 +1060,7 @@ function remove_accents($string) {
  * operating systems and special characters requiring special escaping
  * to manipulate at the command line. Replaces spaces and consecutive
  * dashes with a single dash. Trims period, dash and underscore from beginning
- * and end of filename. It is not guaranteed that this function will return a
- * filename that is allowed to be uploaded.
+ * and end of filename.
  *
  * @since 2.1.0
  *
@@ -1172,24 +1070,6 @@ function remove_accents($string) {
 function sanitize_file_name( $filename ) {
 	$filename_raw = $filename;
 	$special_chars = array("?", "[", "]", "/", "\\", "=", "<", ">", ":", ";", ",", "'", "\"", "&", "$", "#", "*", "(", ")", "|", "~", "`", "!", "{", "}", chr(0));
-
-	// Check for support for utf8 in the installed PCRE library once and store the result in a static.
-	static $utf8_pcre = null;
-	if ( ! isset( $utf8_pcre ) ) {
-		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-		$utf8_pcre = @preg_match( '/^./u', 'a' );
-	}
-
-	if ( ! seems_utf8( $filename ) ) {
-		$_ext     = pathinfo( $filename, PATHINFO_EXTENSION );
-		$_name    = pathinfo( $filename, PATHINFO_FILENAME );
-		$filename = sanitize_title_with_dashes( $_name ) . '.' . $_ext;
-	}
-
-	if ( $utf8_pcre ) {
-		$filename = preg_replace( "#\x{00a0}#siu", ' ', $filename );
-	}
-
 	/**
 	 * Filter the list of characters to remove from a filename.
 	 *
@@ -1199,18 +1079,11 @@ function sanitize_file_name( $filename ) {
 	 * @param string $filename_raw  Filename as it was passed into sanitize_file_name().
 	 */
 	$special_chars = apply_filters( 'sanitize_file_name_chars', $special_chars, $filename_raw );
+	$filename = preg_replace( "#\x{00a0}#siu", ' ', $filename );
 	$filename = str_replace( $special_chars, '', $filename );
 	$filename = str_replace( array( '%20', '+' ), '-', $filename );
 	$filename = preg_replace( '/[\r\n\t -]+/', '-', $filename );
 	$filename = trim( $filename, '.-_' );
-
-	if ( false === strpos( $filename, '.' ) ) {
-		$mime_types = wp_get_mime_types();
-		$filetype = wp_check_filetype( 'test.' . $filename, $mime_types );
-		if ( $filetype['ext'] === $filename ) {
-			$filename = 'unnamed-file.' . $filetype['ext'];
-		}
-	}
 
 	// Split the filename into a base and extension[s]
 	$parts = explode('.', $filename);
@@ -1444,23 +1317,21 @@ function sanitize_title_with_dashes( $title, $raw_title = '', $context = 'displa
 }
 
 /**
- * Ensures a string is a valid SQL 'order by' clause.
+ * Ensures a string is a valid SQL order by clause.
  *
- * Accepts one or more columns, with or without a sort order (ASC / DESC).
- * e.g. 'column_1', 'column_1, column_2', 'column_1 ASC, column_2 DESC' etc.
- *
- * Also accepts 'RAND()'.
+ * Accepts one or more columns, with or without ASC/DESC, and also accepts
+ * RAND().
  *
  * @since 2.5.1
  *
- * @param string $orderby Order by clause to be validated.
- * @return string|bool Returns $orderby if valid, false otherwise.
+ * @param string $orderby Order by string to be checked.
+ * @return false|string Returns the order by clause if it is a match, false otherwise.
  */
-function sanitize_sql_orderby( $orderby ) {
-	if ( preg_match( '/^\s*(([a-z0-9_]+|`[a-z0-9_]+`)(\s+(ASC|DESC))?\s*(,\s*(?=[a-z0-9_`])|$))+$/i', $orderby ) || preg_match( '/^\s*RAND\(\s*\)\s*$/i', $orderby ) ) {
-		return $orderby;
-	}
-	return false;
+function sanitize_sql_orderby( $orderby ){
+	preg_match('/^\s*([a-z0-9_]+(\s+(ASC|DESC))?(\s*,\s*|\s*$))+|^\s*RAND\(\s*\)\s*$/i', $orderby, $obmatches);
+	if ( !$obmatches )
+		return false;
+	return $orderby;
 }
 
 /**
@@ -1637,7 +1508,7 @@ function force_balance_tags( $text ) {
 				// or close to be safe $tag = '/' . $tag;
 			}
 			// if stacktop value = tag close value then pop
-			else if ( $tagstack[$stacksize - 1] == $tag ) { // found closing tag
+			elseif ( $tagstack[$stacksize - 1] == $tag ) { // found closing tag
 				$tag = '</' . $tag . '>'; // Close Tag
 				// Pop
 				array_pop( $tagstack );
@@ -1894,7 +1765,7 @@ function rawurlencode_deep( $value ) {
  */
 function antispambot( $email_address, $hex_encoding = 0 ) {
 	$email_no_spam_address = '';
-	for ( $i = 0; $i < strlen( $email_address ); $i++ ) {
+	for ( $i = 0, $len = strlen( $email_address ); $i < $len; $i++ ) {
 		$j = rand( 0, 1 + $hex_encoding );
 		if ( $j == 0 ) {
 			$email_no_spam_address .= '&#' . ord( $email_address[$i] ) . ';';
@@ -2172,6 +2043,15 @@ function translate_smiley( $matches ) {
 
 	$smiley = trim( reset( $matches ) );
 	$img = $wpsmiliestrans[ $smiley ];
+
+	$matches = array();
+	$ext = preg_match( '/\.([^.]+)$/', $img, $matches ) ? strtolower( $matches[1] ) : false;
+	$image_exts = array( 'jpg', 'jpeg', 'jpe', 'gif', 'png' );
+
+	// Don't convert smilies that aren't images - they're probably emoji.
+	if ( ! in_array( $ext, $image_exts ) ) {
+		return $img;
+	}
 
 	/**
 	 * Filter the Smiley image URL before it's used in the image element.
@@ -2472,7 +2352,7 @@ function iso8601_to_datetime($date_string, $timezone = 'user') {
 
 		return gmdate('Y-m-d H:i:s', $timestamp);
 
-	} else if ($timezone == 'user') {
+	} elseif ($timezone == 'user') {
 		return preg_replace('#([0-9]{4})([0-9]{2})([0-9]{2})T([0-9]{2}):([0-9]{2}):([0-9]{2})(Z|[\+|\-][0-9]{2,4}){0,1}#', '$1-$2-$3 $4:$5:$6', $date_string);
 	}
 }
@@ -3399,10 +3279,12 @@ function wp_make_link_relative( $link ) {
  * @return string Sanitized value.
  */
 function sanitize_option($option, $value) {
+	global $wpdb;
 
 	switch ( $option ) {
 		case 'admin_email' :
 		case 'new_admin_email' :
+			$value = $wpdb->strip_invalid_text_for_column( $wpdb->options, 'option_value', $value );
 			$value = sanitize_email( $value );
 			if ( ! is_email( $value ) ) {
 				$value = get_option( $option ); // Resets option to stored value in the case of failed sanitization
@@ -3451,6 +3333,7 @@ function sanitize_option($option, $value) {
 
 		case 'blogdescription':
 		case 'blogname':
+			$value = $wpdb->strip_invalid_text_for_column( $wpdb->options, 'option_value', $value );
 			$value = wp_kses_post( $value );
 			$value = esc_html( $value );
 			break;
@@ -3473,6 +3356,7 @@ function sanitize_option($option, $value) {
 		case 'mailserver_login':
 		case 'mailserver_pass':
 		case 'upload_path':
+			$value = $wpdb->strip_invalid_text_for_column( $wpdb->options, 'option_value', $value );
 			$value = strip_tags( $value );
 			$value = wp_kses_data( $value );
 			break;
@@ -3489,6 +3373,7 @@ function sanitize_option($option, $value) {
 			break;
 
 		case 'siteurl':
+			$value = $wpdb->strip_invalid_text_for_column( $wpdb->options, 'option_value', $value );
 			if ( (bool)preg_match( '#http(s?)://(.+)#i', $value) ) {
 				$value = esc_url_raw($value);
 			} else {
@@ -3499,6 +3384,7 @@ function sanitize_option($option, $value) {
 			break;
 
 		case 'home':
+			$value = $wpdb->strip_invalid_text_for_column( $wpdb->options, 'option_value', $value );
 			if ( (bool)preg_match( '#http(s?)://(.+)#i', $value) ) {
 				$value = esc_url_raw($value);
 			} else {
@@ -3519,6 +3405,7 @@ function sanitize_option($option, $value) {
 			break;
 
 		case 'illegal_names':
+			$value = $wpdb->strip_invalid_text_for_column( $wpdb->options, 'option_value', $value );
 			if ( ! is_array( $value ) )
 				$value = explode( ' ', $value );
 
@@ -3530,6 +3417,7 @@ function sanitize_option($option, $value) {
 
 		case 'limited_email_domains':
 		case 'banned_email_domains':
+			$value = $wpdb->strip_invalid_text_for_column( $wpdb->options, 'option_value', $value );
 			if ( ! is_array( $value ) )
 				$value = explode( "\n", $value );
 
@@ -3556,6 +3444,7 @@ function sanitize_option($option, $value) {
 		case 'permalink_structure':
 		case 'category_base':
 		case 'tag_base':
+			$value = $wpdb->strip_invalid_text_for_column( $wpdb->options, 'option_value', $value );
 			$value = esc_url_raw( $value );
 			$value = str_replace( 'http://', '', $value );
 			break;
@@ -3567,6 +3456,7 @@ function sanitize_option($option, $value) {
 
 		case 'moderation_keys':
 		case 'blacklist_keys':
+			$value = $wpdb->strip_invalid_text_for_column( $wpdb->options, 'option_value', $value );
 			$value = explode( "\n", $value );
 			$value = array_filter( array_map( 'trim', $value ) );
 			$value = array_unique( $value );
@@ -3647,7 +3537,7 @@ function wp_pre_kses_less_than_callback( $matches ) {
  * @link http://www.php.net/sprintf
  *
  * @param string $pattern The string which formatted args are inserted.
- * @param mixed $args,... Arguments to be formatted into the $pattern string.
+ * @param mixed  $args ,... Arguments to be formatted into the $pattern string.
  * @return string The formatted string.
  */
 function wp_sprintf( $pattern ) {
@@ -4139,4 +4029,166 @@ function wp_spaces_regexp() {
 	}
 
 	return $spaces;
+}
+
+/**
+ * Print the important emoji-related styles.
+ *
+ * @since 4.2.0
+ */
+function print_emoji_styles() {
+?>
+<style type="text/css">
+img.wp-smiley,
+img.emoji {
+	border: none !important;
+	box-shadow: none !important;
+	height: 1em !important;
+	width: 1em !important;
+	margin: 0 .05em 0 .1em !important;
+	vertical-align: -0.1em !important;
+	background: none !important;
+	padding: 0 !important;
+}
+</style>
+<?php
+}
+
+/**
+ * Convert any 4 byte emoji in a string to their equivalent HTML entity.
+ * Currently, only Unicode 7 emoji are supported. Unicode 8 emoji will be added
+ * when the spec in finalised, along with the new skin-tone modifiers.
+ *
+ * This allows us to store emoji in a DB using the utf8 character set.
+ *
+ * @since 4.2.0
+ *
+ * @param string $content The content to encode.
+ * @return string The encoded content.
+ */
+function wp_encode_emoji( $content ) {
+	if ( function_exists( 'mb_convert_encoding' ) ) {
+		$regex = '/(
+		     \x23\xE2\x83\xA3               # Digits
+		     [\x30-\x39]\xE2\x83\xA3
+		   | \xF0\x9F[\x85-\x88][\xA6-\xBF] # Enclosed characters
+		   | \xF0\x9F[\x8C-\x97][\x80-\xBF] # Misc
+		   | \xF0\x9F\x98[\x80-\xBF]        # Smilies
+		   | \xF0\x9F\x99[\x80-\x8F]
+		   | \xF0\x9F\x9A[\x80-\xBF]        # Transport and map symbols
+		   | \xF0\x9F\x99[\x80-\x85]
+		)/x';
+
+		$matches = array();
+		if ( preg_match_all( $regex, $content, $matches ) ) {
+			if ( ! empty( $matches[1] ) ) {
+				foreach( $matches[1] as $emoji ) {
+					/*
+					 * UTF-32's hex encoding is the same as HTML's hex encoding.
+					 * So, by converting the emoji from UTF-8 to UTF-32, we magically
+					 * get the correct hex encoding.
+					 */
+					$unpacked = unpack( 'H*', mb_convert_encoding( $emoji, 'UTF-32', 'UTF-8' ) );
+					if ( isset( $unpacked[1] ) ) {
+						$entity = '&#x' . trim( $unpacked[1], '0' ) . ';';
+						$content = str_replace( $emoji, $entity, $content );
+					}
+				}
+			}
+		}
+	}
+
+	return $content;
+}
+
+/**
+ * Convert emoji to a static <img> link.
+ *
+ * @since 4.2.0
+ *
+ * @param string $text The content to encode.
+ * @return string The encoded content.
+ */
+function wp_staticize_emoji( $text ) {
+	$text = wp_encode_emoji( $text );
+
+	if ( ! class_exists( 'DOMDocument' ) ) {
+		return $text;
+	}
+
+	/** This filter is documented in wp-includes/script-loader.php */
+	$cdn_url = apply_filters( 'emoji_url', '//s0.wp.com/wp-content/mu-plugins/emoji/twemoji/72x72/' );
+	/** This filter is documented in wp-includes/script-loader.php */
+	$ext = apply_filters( 'emoji_ext', '.png' );
+
+	$output = '';
+	// HTML loop taken from smiley function, which was taking from texturize function. It'll never be consolidated.
+	$textarr = preg_split( '/(<.*>)/U', $text, -1, PREG_SPLIT_DELIM_CAPTURE ); // capture the tags as well as in between
+	$stop = count( $textarr );// loop stuff
+
+	// Ignore proessing of specific tags
+	$tags_to_ignore = 'code|pre|style|script|textarea';
+	$ignore_block_element = '';
+
+	for ( $i = 0; $i < $stop; $i++ ) {
+		$content = $textarr[$i];
+
+		// If we're in an ignore block, wait until we find its closing tag
+		if ( '' == $ignore_block_element && preg_match( '/^<(' . $tags_to_ignore . ')>/', $content, $matches ) )  {
+			$ignore_block_element = $matches[1];
+		}
+
+		// If it's not a tag and not in ignore block
+		if ( '' ==  $ignore_block_element && strlen( $content ) > 0 && '<' != $content[0] ) {
+			$matches = array();
+			if ( preg_match_all( '/(&#x1f1(e[6-9a-f]|f[0-9a-f]);){2}/', $content, $matches ) ) {
+				if ( ! empty( $matches[0] ) ) {
+					foreach ( $matches[0] as $flag ) {
+						$chars = str_replace( array( '&#x', ';'), '', $flag );
+
+						list( $char1, $char2 ) = str_split( $chars, 5 );
+						$entity = '<img src="https:' . $cdn_url . $char1 . '-' . $char2 . $ext . '" class="wp-smiley" style="height: 1em;" />';
+
+						$content = str_replace( $flag, $entity, $content );
+					}
+				}
+			}
+
+			// Loosely match the Emoji Unicode range.
+			$regex = '/(&#x[2-3][0-9a-f]{3};|&#x1f[1-6][0-9a-f]{2};)/';
+
+			$matches = array();
+			if ( preg_match_all( $regex, $content, $matches ) ) {
+				if ( ! empty( $matches[1] ) ) {
+					foreach ( $matches[1] as $emoji ) {
+						$char = str_replace( array( '&#x', ';'), '', $emoji );
+						$entity = '<img src="https:' . $cdn_url . $char . $ext . '" class="wp-smiley" style="height: 1em;" />';
+
+						$content = str_replace( $emoji, $entity, $content );
+					}
+				}
+			}
+		}
+
+		// did we exit ignore block
+		if ( '' != $ignore_block_element && '</' . $ignore_block_element . '>' == $content )  {
+			$ignore_block_element = '';
+		}
+
+		$output .= $content;
+	}
+
+	return $output;
+}
+
+/**
+ * Convert emoji in emails into static images.
+ *
+ * @param array $mail The email data array.
+ *
+ * @return array The email data array, with emoji in the message staticized.
+ */
+function mail_emoji( $mail ) {
+	$mail['message'] = wp_staticize_emoji( $mail['message'], true );
+	return $mail;
 }

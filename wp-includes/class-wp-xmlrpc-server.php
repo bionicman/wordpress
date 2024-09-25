@@ -41,8 +41,6 @@ class wp_xmlrpc_server extends IXR_Server {
 	 * or replace XMLRPC methods.
 	 *
 	 * @since 1.5.0
-	 *
-	 * @return wp_xmlrpc_server
 	 */
 	public function __construct() {
 		$this->methods = array(
@@ -163,7 +161,10 @@ class wp_xmlrpc_server extends IXR_Server {
 	 * @return mixed|bool Return value of the callback, false otherwise.
 	 */
 	public function __call( $name, $arguments ) {
-		return call_user_func_array( array( $this, $name ), $arguments );
+		if ( '_multisite_getUsersBlogs' === $name ) {
+			return call_user_func_array( array( $this, $name ), $arguments );
+		}
+		return false;
 	}
 
 	public function serve_request() {
@@ -331,11 +332,6 @@ class wp_xmlrpc_server extends IXR_Server {
 			if ( isset($meta['id']) ) {
 				$meta['id'] = (int) $meta['id'];
 				$pmeta = get_metadata_by_mid( 'post', $meta['id'] );
-
-				if ( ! $pmeta || $pmeta->post_id != $post_id ) {
-					continue;
-				}
-
 				if ( isset($meta['key']) ) {
 					$meta['key'] = wp_unslash( $meta['key'] );
 					if ( $meta['key'] !== $pmeta->meta_key )
@@ -1121,13 +1117,13 @@ class wp_xmlrpc_server extends IXR_Server {
 			return $this->error;
 
 		// convert the date field back to IXR form
-		if ( isset( $content_struct['post_date'] ) && ! is_a( $content_struct['post_date'], 'IXR_Date' ) ) {
+		if ( isset( $content_struct['post_date'] ) && ! ( $content_struct['post_date'] instanceof IXR_Date ) ) {
 			$content_struct['post_date'] = $this->_convert_date( $content_struct['post_date'] );
 		}
 
 		// ignore the existing GMT date if it is empty or a non-GMT date was supplied in $content_struct,
 		// since _insert_post will ignore the non-GMT date if the GMT date is set
-		if ( isset( $content_struct['post_date_gmt'] ) && ! is_a( $content_struct['post_date_gmt'], 'IXR_Date' ) ) {
+		if ( isset( $content_struct['post_date_gmt'] ) && ! ( $content_struct['post_date_gmt'] instanceof IXR_Date ) ) {
 			if ( $content_struct['post_date_gmt'] == '0000-00-00 00:00:00' || isset( $content_struct['post_date'] ) ) {
 				unset( $content_struct['post_date_gmt'] );
 			} else {
@@ -1154,56 +1150,6 @@ class wp_xmlrpc_server extends IXR_Server {
 		return $count > 1;
 	}
 
-	private function _validate_boolean( $var ) {
-		if ( is_bool( $var ) ) {
-			return $var;
-		}
-
-		if ( is_string( $var ) && 'false' === strtolower( $var ) ) {
-			return false;
-		}
-
-		return (bool) $var;
-	}
-
-	/**
-	 * Encapsulate the logic for sticking a post
-	 * and determining if the user has permission to do so
-	 *
-	 * @since 4.3.0
-	 * @access private
-	 *
-	 * @param array $post_data
-	 * @param bool  $update
-	 * @return void|IXR_Error
-	 */
-	private function _toggle_sticky( $post_data, $update = false ) {
-		$post_type = get_post_type_object( $post_data['post_type'] );
-
-		// Private and password-protected posts cannot be stickied.
-		if ( 'private' === $post_data['post_status'] || ! empty( $post_data['post_password'] ) ) {
-			// Error if the client tried to stick the post, otherwise, silently unstick.
-			if ( ! empty( $post_data['sticky'] ) ) {
-				return new IXR_Error( 401, __( 'Sorry, you cannot stick a private post.' ) );
-			}
-
-			if ( $update ) {
-				unstick_post( $post_data['ID'] );
-			}
-		} elseif ( isset( $post_data['sticky'] ) )  {
-			if ( ! current_user_can( $post_type->cap->edit_others_posts ) ) {
-				return new IXR_Error( 401, __( 'Sorry, you are not allowed to stick this post.' ) );
-			}
-
-			$sticky = $this->_validate_boolean( $post_data['sticky'] );
-			if ( $sticky ) {
-				stick_post( $post_data['ID'] );
-			} else {
-				unstick_post( $post_data['ID'] );
-			}
-		}
-	}
-
 	/**
 	 * Helper method for wp_newPost and wp_editPost, containing shared logic.
 	 *
@@ -1214,31 +1160,10 @@ class wp_xmlrpc_server extends IXR_Server {
 	 * @param array|IXR_Error $content_struct Post data to insert.
 	 */
 	protected function _insert_post( $user, $content_struct ) {
-		$defaults = array(
-			'post_status'    => 'draft',
-			'post_type'      => 'post',
-			'post_author'    => null,
-			'post_password'  => null,
-			'post_excerpt'   => null,
-			'post_content'   => null,
-			'post_title'     => null,
-			'post_date'      => null,
-			'post_date_gmt'  => null,
-			'post_format'    => null,
-			'post_name'      => null,
-			'post_thumbnail' => null,
-			'post_parent'    => null,
-			'ping_status'    => null,
-			'comment_status' => null,
-			'custom_fields'  => null,
-			'terms_names'    => null,
-			'terms'          => null,
-			'sticky'         => null,
-			'enclosure'      => null,
-			'ID'             => null,
-		);
+		$defaults = array( 'post_status' => 'draft', 'post_type' => 'post', 'post_author' => 0,
+			'post_password' => '', 'post_excerpt' => '', 'post_content' => '', 'post_title' => '' );
 
-		$post_data = wp_parse_args( array_intersect_key( $content_struct, $defaults ), $defaults );
+		$post_data = wp_parse_args( $content_struct, $defaults );
 
 		$post_type = get_post_type_object( $post_data['post_type'] );
 		if ( ! $post_type )
@@ -1317,9 +1242,20 @@ class wp_xmlrpc_server extends IXR_Server {
 		$post_ID = $post_data['ID'];
 
 		if ( $post_data['post_type'] == 'post' ) {
-			$error = $this->_toggle_sticky( $post_data, $update );
-			if ( $error ) {
-				return $error;
+			// Private and password-protected posts cannot be stickied.
+			if ( $post_data['post_status'] == 'private' || ! empty( $post_data['post_password'] ) ) {
+				// Error if the client tried to stick the post, otherwise, silently unstick.
+				if ( ! empty( $post_data['sticky'] ) )
+					return new IXR_Error( 401, __( 'Sorry, you cannot stick a private post.' ) );
+				if ( $update )
+					unstick_post( $post_ID );
+			} elseif ( isset( $post_data['sticky'] ) )  {
+				if ( ! current_user_can( $post_type->cap->edit_others_posts ) )
+					return new IXR_Error( 401, __( 'Sorry, you are not allowed to stick this post.' ) );
+				if ( $post_data['sticky'] )
+					stick_post( $post_ID );
+				else
+					unstick_post( $post_ID );
 			}
 		}
 
@@ -1419,6 +1355,9 @@ class wp_xmlrpc_server extends IXR_Server {
 
 			$post_data['tax_input'] = $terms;
 			unset( $post_data['terms'], $post_data['terms_names'] );
+		} else {
+			// do not allow direct submission of 'tax_input', clients must use 'terms' and/or 'terms_names'
+			unset( $post_data['tax_input'], $post_data['post_category'], $post_data['tags_input'] );
 		}
 
 		if ( isset( $post_data['post_format'] ) ) {
@@ -1581,7 +1520,7 @@ class wp_xmlrpc_server extends IXR_Server {
 	 *
 	 * @uses get_post()
 	 * @param array $args Method parameters. Contains:
-	 *  - int     $blog_id (unset)
+	 *  - int     $blog_id (unused)
 	 *  - string  $username
 	 *  - string  $password
 	 *  - int     $post_id
@@ -2607,8 +2546,6 @@ class wp_xmlrpc_server extends IXR_Server {
 		// Items not escaped here will be escaped in newPost.
 		$username	= $this->escape($args[1]);
 		$password	= $this->escape($args[2]);
-		$page		= $args[3];
-		$publish	= $args[4];
 
 		if ( !$user = $this->login($username, $password) )
 			return $this->error;
@@ -3160,7 +3097,7 @@ class wp_xmlrpc_server extends IXR_Server {
 	 *
 	 * @since 2.7.0
 	 *
-	 * @param array $args. Contains:
+	 * @param array $args Contains:
 	 *  - blog_id (unused)
 	 *  - username
 	 *  - password
@@ -3273,10 +3210,11 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		if ( !$user ) {
 			$logged_in = false;
-			if ( $allow_anon && get_option('comment_registration') )
+			if ( $allow_anon && get_option('comment_registration') ) {
 				return new IXR_Error( 403, __( 'You must be registered to comment' ) );
-			else if ( !$allow_anon )
+			} elseif ( ! $allow_anon ) {
 				return $this->error;
+			}
 		} else {
 			$logged_in = true;
 		}
@@ -3291,21 +3229,6 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		if ( ! get_post($post_id) )
 			return new IXR_Error( 404, __( 'Invalid post ID.' ) );
-
-		if (
-			'publish' === get_post_status( $post_id ) &&
-			! current_user_can( 'edit_post', $post_id ) &&
-			post_password_required( $post_id )
-		) {
-			return new IXR_Error( 403, __( 'Sorry, you are not allowed to comment on this post.' ) );
-		}
-
-		if (
-			'private' === get_post_status( $post_id ) &&
-			! current_user_can( 'read_post', $post_id )
-		) {
-			return new IXR_Error( 403, __( 'Sorry, you are not allowed to comment on this post.' ) );
-		}
 
 		$comment = array();
 		$comment['comment_post_ID'] = $post_id;
@@ -3623,10 +3546,8 @@ class wp_xmlrpc_server extends IXR_Server {
 		/** This action is documented in wp-includes/class-wp-xmlrpc-server.php */
 		do_action( 'xmlrpc_call', 'wp.getMediaItem' );
 
-		$attachment = get_post( $attachment_id );
-		if ( ! $attachment || 'attachment' !== $attachment->post_type ) {
+		if ( ! $attachment = get_post($attachment_id) )
 			return new IXR_Error( 404, __( 'Invalid attachment ID.' ) );
-		}
 
 		return $this->_prepare_media_item( $attachment );
 	}
@@ -3713,7 +3634,7 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		$formats = get_post_format_strings();
 
-		# find out if they want a list of currently supports formats
+		// find out if they want a list of currently supports formats
 		if ( isset( $args[3] ) && is_array( $args[3] ) ) {
 			if ( $args[3]['show-supported'] ) {
 				if ( current_theme_supports( 'post-formats' ) ) {
@@ -4291,7 +4212,6 @@ class wp_xmlrpc_server extends IXR_Server {
 		$username  = $args[2];
 		$password   = $args[3];
 		$content     = $args[4];
-		$publish     = $args[5];
 
 		if ( ! $user = $this->login( $username, $password ) ) {
 			return $this->error;
@@ -4357,7 +4277,6 @@ class wp_xmlrpc_server extends IXR_Server {
 		$post_ID     = (int) $args[1];
 		$username  = $args[2];
 		$password   = $args[3];
-		$publish     = $args[4];
 
 		if ( !$user = $this->login($username, $password) )
 			return $this->error;
@@ -4527,7 +4446,6 @@ class wp_xmlrpc_server extends IXR_Server {
 					break;
 				default:
 					return new IXR_Error( 401, __( 'Invalid post type' ) );
-					break;
 			}
 			$author = get_userdata( $content_struct['wp_author_id'] );
 			if ( ! $author )
@@ -4662,12 +4580,10 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		// Only posts can be sticky
 		if ( $post_type == 'post' && isset( $content_struct['sticky'] ) ) {
-			$data = $postdata;
-			$data['sticky'] = $content_struct['sticky'];
-			$error = $this->_toggle_sticky( $data );
-			if ( $error ) {
-				return $error;
-			}
+			if ( $content_struct['sticky'] == true )
+				stick_post( $post_ID );
+			elseif ( $content_struct['sticky'] == false )
+				unstick_post( $post_ID );
 		}
 
 		if ( isset($content_struct['custom_fields']) )
@@ -4817,7 +4733,6 @@ class wp_xmlrpc_server extends IXR_Server {
 		$menu_order = $postdata['menu_order'];
 
 		// Let WordPress manage slug if none was provided.
-		$post_name = "";
 		$post_name = $postdata['post_name'];
 		if ( isset($content_struct['wp_slug']) )
 			$post_name = $content_struct['wp_slug'];
@@ -4853,7 +4768,6 @@ class wp_xmlrpc_server extends IXR_Server {
 					break;
 				default:
 					return new IXR_Error( 401, __( 'Invalid post type' ) );
-					break;
 			}
 			$post_author = $content_struct['wp_author_id'];
 		}
@@ -4953,8 +4867,8 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		$tags_input = isset( $content_struct['mt_keywords'] ) ? $content_struct['mt_keywords'] : null;
 
-		if ( 'publish' == $post_status || 'private' == $post_status ) {
-			if ( 'page' == $post_type && ! current_user_can( 'publish_pages' ) ) {
+		if ( ('publish' == $post_status) ) {
+			if ( ( 'page' == $post_type ) && ! current_user_can( 'publish_pages' ) ) {
 				return new IXR_Error( 401, __( 'Sorry, you do not have the right to publish this page.' ) );
 			} elseif ( ! current_user_can( 'publish_posts' ) ) {
 				return new IXR_Error( 401, __( 'Sorry, you do not have the right to publish this post.' ) );
@@ -4998,13 +4912,10 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		// Only posts can be sticky
 		if ( $post_type == 'post' && isset( $content_struct['sticky'] ) ) {
-			$data = $newpost;
-			$data['sticky'] = $content_struct['sticky'];
-			$data['post_type'] = 'post';
-			$error = $this->_toggle_sticky( $data, true );
-			if ( $error ) {
-				return $error;
-			}
+			if ( $content_struct['sticky'] == true )
+				stick_post( $post_ID );
+			elseif ( $content_struct['sticky'] == false )
+				unstick_post( $post_ID );
 		}
 
 		if ( isset($content_struct['custom_fields']) )
@@ -5767,8 +5678,6 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		$pagelinkedfrom = $args[0];
 		$pagelinkedto   = $args[1];
-
-		$title = '';
 
 		$pagelinkedfrom = str_replace('&amp;', '&', $pagelinkedfrom);
 		$pagelinkedto = str_replace('&amp;', '&', $pagelinkedto);

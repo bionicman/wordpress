@@ -108,8 +108,6 @@ if ( $user->exists() ) {
 		) {
 			kses_remove_filters(); // start with a clean slate
 			kses_init_filters(); // set up the filters
-			remove_filter( 'pre_comment_content', 'wp_filter_post_kses' );
-			add_filter( 'pre_comment_content', 'wp_filter_kses' );
 		}
 	}
 } else {
@@ -123,7 +121,7 @@ $comment_type = '';
 if ( get_option('require_name_email') && !$user->exists() ) {
 	if ( 6 > strlen( $comment_author_email ) || '' == $comment_author ) {
 		wp_die( __( '<strong>ERROR</strong>: please fill the required fields (name, email).' ), 200 );
-	} else if ( ! is_email( $comment_author_email ) ) {
+	} elseif ( ! is_email( $comment_author_email ) ) {
 		wp_die( __( '<strong>ERROR</strong>: please enter a valid email address.' ), 200 );
 	}
 }

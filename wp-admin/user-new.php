@@ -69,7 +69,7 @@ if ( isset($_REQUEST['action']) && 'adduser' == $_REQUEST['action'] ) {
 			add_existing_user_to_blog( array( 'user_id' => $user_id, 'role' => $_REQUEST[ 'role' ] ) );
 			$redirect = add_query_arg( array('update' => 'addnoconfirmation'), 'user-new.php' );
 		} else {
-			$newuser_key = wp_generate_password( 20, false );
+			$newuser_key = substr( md5( $user_id ), 0, 5 );
 			add_option( 'new_user_' . $newuser_key, array( 'user_id' => $user_id, 'email' => $user_details->user_email, 'role' => $_REQUEST[ 'role' ] ) );
 
 			$roles = get_editable_roles();
@@ -280,7 +280,7 @@ if ( is_multisite() ) {
 		$type  = 'text';
 	}
 ?>
-<form action="" method="post" name="adduser" id="adduser" class="validate" novalidate="novalidate"<?php
+<form method="post" name="adduser" id="adduser" class="validate" novalidate="novalidate"<?php
 	/**
 	 * Fires inside the adduser form tag.
 	 *
@@ -324,7 +324,7 @@ if ( is_multisite() ) {
  */
 do_action( 'user_new_form', 'add-existing-user' );
 ?>
-<?php submit_button( __( 'Add Existing User '), 'primary', 'adduser', true, array( 'id' => 'addusersub' ) ); ?>
+<?php submit_button( __( 'Add Existing User' ), 'primary', 'adduser', true, array( 'id' => 'addusersub' ) ); ?>
 </form>
 <?php
 } // is_multisite()
@@ -334,7 +334,7 @@ if ( current_user_can( 'create_users') ) {
 		echo '<h3 id="create-new-user">' . __( 'Add New User' ) . '</h3>';
 ?>
 <p><?php _e('Create a brand new user and add them to this site.'); ?></p>
-<form action="" method="post" name="createuser" id="createuser" class="validate" novalidate="novalidate"<?php
+<form method="post" name="createuser" id="createuser" class="validate" novalidate="novalidate"<?php
 	/** This action is documented in wp-admin/user-new.php */
 	do_action( 'user_new_form_tag' );
 ?>>
@@ -431,7 +431,7 @@ if ( apply_filters( 'show_password_fields', true ) ) : ?>
 do_action( 'user_new_form', 'add-new-user' );
 ?>
 
-<?php submit_button( __( 'Add New User '), 'primary', 'createuser', true, array( 'id' => 'createusersub' ) ); ?>
+<?php submit_button( __( 'Add New User' ), 'primary', 'createuser', true, array( 'id' => 'createusersub' ) ); ?>
 
 </form>
 <?php } // current_user_can('create_users') ?>

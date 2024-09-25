@@ -406,6 +406,7 @@ function search_theme_directories( $force = false ) {
 	$found_themes = array();
 
 	$wp_theme_directories = (array) $wp_theme_directories;
+	$relative_theme_roots = array();
 
 	// Set up maybe-relative, maybe-absolute array of theme directories.
 	// We always want to return absolute, but we need to cache relative
@@ -672,8 +673,9 @@ function preview_theme() {
 
 	// Prevent theme mods to current theme being used on theme being previewed
 	add_filter( 'pre_option_theme_mods_' . get_option( 'stylesheet' ), '__return_empty_array' );
+
+	ob_start( 'preview_theme_ob_filter' );
 }
-add_action('setup_theme', 'preview_theme');
 
 /**
  * Private function to modify the current template when previewing a theme
@@ -709,7 +711,7 @@ function _preview_theme_stylesheet_filter() {
  * @return string
  */
 function preview_theme_ob_filter( $content ) {
-	return $content;
+	return preg_replace_callback( "|(<a.*?href=([\"']))(.*?)([\"'].*?>)|", 'preview_theme_ob_filter_callback', $content );
 }
 
 /**
@@ -724,7 +726,26 @@ function preview_theme_ob_filter( $content ) {
  * @return string
  */
 function preview_theme_ob_filter_callback( $matches ) {
-	return $matches[0];
+	if ( strpos($matches[4], 'onclick') !== false )
+		$matches[4] = preg_replace('#onclick=([\'"]).*?(?<!\\\)\\1#i', '', $matches[4]); //Strip out any onclicks from rest of <a>. (?<!\\\) means to ignore the '" if it's escaped by \  to prevent breaking mid-attribute.
+	if (
+		( false !== strpos($matches[3], '/wp-admin/') )
+	||
+		( false !== strpos( $matches[3], '://' ) && 0 !== strpos( $matches[3], home_url() ) )
+	||
+		( false !== strpos($matches[3], '/feed/') )
+	||
+		( false !== strpos($matches[3], '/trackback/') )
+	)
+		return $matches[1] . "#$matches[2] onclick=$matches[2]return false;" . $matches[4];
+
+	$stylesheet = isset( $_GET['stylesheet'] ) ? $_GET['stylesheet'] : '';
+	$template   = isset( $_GET['template'] )   ? $_GET['template']   : '';
+
+	$link = add_query_arg( array( 'preview' => 1, 'template' => $template, 'stylesheet' => $stylesheet, 'preview_iframe' => 1 ), $matches[3] );
+	if ( 0 === strpos($link, 'preview=1') )
+		$link = "?$link";
+	return $matches[1] . esc_attr( $link ) . $matches[4];
 }
 
 /**
@@ -913,7 +934,7 @@ function get_theme_mod( $name, $default = false ) {
  * @since 2.1.0
  *
  * @param string $name Theme modification name.
- * @param string $value theme modification value.
+ * @param mixed  $value theme modification value.
  */
 function set_theme_mod( $name, $value ) {
 	$mods = get_theme_mods();
@@ -1014,11 +1035,22 @@ function display_header_text() {
 }
 
 /**
+ * Check whether a header image is set or not.
+ *
+ * @since 4.2.0
+ *
+ * @return bool
+ */
+function has_header_image() {
+	return (bool) get_header_image();
+}
+
+/**
  * Retrieve header image for custom header.
  *
  * @since 2.1.0
  *
- * @return string
+ * @return string|false
  */
 function get_header_image() {
 	$url = get_theme_mod( 'header_image', get_theme_support( 'custom-header', 'default-image' ) );
@@ -1121,7 +1153,10 @@ function is_random_header_image( $type = 'any' ) {
  * @since 2.1.0
  */
 function header_image() {
-	echo esc_url( get_header_image() );
+	$image = get_header_image();
+	if ( $image ) {
+		echo esc_url( $image );
+	}
 }
 
 /**
@@ -1641,7 +1676,6 @@ function _custom_header_background_just_in_time() {
 		}
 	}
 }
-add_action( 'wp_loaded', '_custom_header_background_just_in_time' );
 
 /**
  * Gets the theme support arguments passed when registering that support
@@ -1850,8 +1884,6 @@ function _delete_attachment_theme_mod( $id ) {
 		remove_theme_mod( 'background_image' );
 }
 
-add_action( 'delete_attachment', '_delete_attachment_theme_mod' );
-
 /**
  * Checks if a theme has been changed and runs 'after_switch_theme' hook on the next WP load
  *
@@ -1908,7 +1940,6 @@ function _wp_customize_include() {
 	// Init Customize class
 	$GLOBALS['wp_customize'] = new WP_Customize_Manager;
 }
-add_action( 'plugins_loaded', '_wp_customize_include' );
 
 /**
  * Adds settings for the customize-loader script.
@@ -1932,7 +1963,8 @@ function _wp_customize_loader_settings() {
 		'isCrossDomain' => $cross_domain,
 		'browser'       => $browser,
 		'l10n'          => array(
-			'saveAlert' => __( 'The changes you made will be lost if you navigate away from this page.' ),
+			'saveAlert'       => __( 'The changes you made will be lost if you navigate away from this page.' ),
+			'mainIframeTitle' => __( 'Customizer' ),
 		),
 	);
 
@@ -1944,7 +1976,6 @@ function _wp_customize_loader_settings() {
 
 	$wp_scripts->add_data( 'customize-loader', 'data', $script );
 }
-add_action( 'admin_enqueue_scripts', '_wp_customize_loader_settings' );
 
 /**
  * Returns a URL to load the Customizer.
@@ -2011,5 +2042,5 @@ function wp_customize_support_script() {
 function is_customize_preview() {
 	global $wp_customize;
 
-	return is_a( $wp_customize, 'WP_Customize_Manager' ) && $wp_customize->is_preview();
+	return ( $wp_customize instanceof WP_Customize_Manager ) && $wp_customize->is_preview();
 }

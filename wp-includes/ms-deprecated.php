@@ -166,20 +166,21 @@ function get_blog_list( $start = 0, $num = 10, $deprecated = '' ) {
 	global $wpdb;
 	$blogs = $wpdb->get_results( $wpdb->prepare("SELECT blog_id, domain, path FROM $wpdb->blogs WHERE site_id = %d AND public = '1' AND archived = '0' AND mature = '0' AND spam = '0' AND deleted = '0' ORDER BY registered DESC", $wpdb->siteid), ARRAY_A );
 
+	$blog_list = array();
 	foreach ( (array) $blogs as $details ) {
 		$blog_list[ $details['blog_id'] ] = $details;
 		$blog_list[ $details['blog_id'] ]['postcount'] = $wpdb->get_var( "SELECT COUNT(ID) FROM " . $wpdb->get_blog_prefix( $details['blog_id'] ). "posts WHERE post_status='publish' AND post_type='post'" );
 	}
-	unset( $blogs );
-	$blogs = $blog_list;
 
-	if ( false == is_array( $blogs ) )
+	if ( ! $blog_list ) {
 		return array();
+	}
 
-	if ( $num == 'all' )
-		return array_slice( $blogs, $start, count( $blogs ) );
-	else
-		return array_slice( $blogs, $start, $num );
+	if ( $num == 'all' ) {
+		return array_slice( $blog_list, $start, count( $blog_list ) );
+	} else {
+		return array_slice( $blog_list, $start, $num );
+	}
 }
 
 /**
@@ -193,15 +194,18 @@ function get_most_active_blogs( $num = 10, $display = true ) {
 	$blogs = get_blog_list( 0, 'all', false ); // $blog_id -> $details
 	if ( is_array( $blogs ) ) {
 		reset( $blogs );
+		$most_active = array();
+		$blog_list = array();
 		foreach ( (array) $blogs as $key => $details ) {
 			$most_active[ $details['blog_id'] ] = $details['postcount'];
 			$blog_list[ $details['blog_id'] ] = $details; // array_slice() removes keys!!
 		}
 		arsort( $most_active );
 		reset( $most_active );
-		foreach ( (array) $most_active as $key => $details )
+		$t = array();
+		foreach ( (array) $most_active as $key => $details ) {
 			$t[ $key ] = $blog_list[ $key ];
-
+		}
 		unset( $most_active );
 		$most_active = $t;
 	}
@@ -239,13 +243,10 @@ function wpmu_admin_do_redirect( $url = '' ) {
 	_deprecated_function( __FUNCTION__, '3.3' );
 
 	$ref = '';
-	if ( isset( $_GET['ref'] ) && isset( $_POST['ref'] ) && $_GET['ref'] !== $_POST['ref'] ) {
-		wp_die( __( 'A variable mismatch has been detected.' ), __( 'Sorry, you are not allowed to view this item.' ), 400 );
-	} elseif ( isset( $_POST['ref'] ) ) {
-		$ref = $_POST[ 'ref' ];
-	} elseif ( isset( $_GET['ref'] ) ) {
-		$ref = $_GET[ 'ref' ];
-	}
+	if ( isset( $_GET['ref'] ) )
+		$ref = $_GET['ref'];
+	if ( isset( $_POST['ref'] ) )
+		$ref = $_POST['ref'];
 
 	if ( $ref ) {
 		$ref = wpmu_admin_redirect_add_updated_param( $ref );
@@ -258,9 +259,7 @@ function wpmu_admin_do_redirect( $url = '' ) {
 	}
 
 	$url = wpmu_admin_redirect_add_updated_param( $url );
-	if ( isset( $_GET['redirect'] ) && isset( $_POST['redirect'] ) && $_GET['redirect'] !== $_POST['redirect'] ) {
-		wp_die( __( 'A variable mismatch has been detected.' ), __( 'Sorry, you are not allowed to view this item.' ), 400 );
-	} elseif ( isset( $_GET['redirect'] ) ) {
+	if ( isset( $_GET['redirect'] ) ) {
 		if ( substr( $_GET['redirect'], 0, 2 ) == 's_' )
 			$url .= '&action=blogs&s='. esc_html( substr( $_GET['redirect'], 2 ) );
 	} elseif ( isset( $_POST['redirect'] ) ) {

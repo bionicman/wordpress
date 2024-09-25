@@ -346,11 +346,13 @@ function wp_login_url($redirect = '', $force_reauth = false) {
 	 * Filter the login URL.
 	 *
 	 * @since 2.8.0
+	 * @since 4.2.0 The `$force_reauth` parameter was added.
 	 *
-	 * @param string $login_url The login URL.
-	 * @param string $redirect  The path to redirect to on login, if supplied.
+	 * @param string $login_url    The login URL.
+	 * @param string $redirect     The path to redirect to on login, if supplied.
+	 * @param bool   $force_reauth Whether to force reauthorization, even if a cookie is present.
 	 */
-	return apply_filters( 'login_url', $login_url, $redirect );
+	return apply_filters( 'login_url', $login_url, $redirect, $force_reauth );
 }
 
 /**
@@ -716,9 +718,9 @@ function get_bloginfo( $show = '', $filter = 'raw' ) {
 /**
  * Display title tag with contents.
  *
+ * @ignore
  * @since 4.1.0
  * @access private
- * @internal
  *
  * @see wp_title()
  */
@@ -1312,7 +1314,7 @@ function get_archives_link($url, $text, $format = 'html', $before = '', $after =
  *     @type string     $before          Markup to prepend to the beginning of each link. Default empty.
  *     @type string     $after           Markup to append to the end of each link. Default empty.
  *     @type bool       $show_post_count Whether to display the post count alongside the link. Default false.
- *     @type bool       $echo            Whether to echo or return the links list. Default 1|true to echo.
+ *     @type bool|int   $echo            Whether to echo or return the links list. Default 1|true to echo.
  *     @type string     $order           Whether to use ascending or descending order. Accepts 'ASC', or 'DESC'.
  *                                       Default 'DESC'.
  * }
@@ -1438,7 +1440,6 @@ function wp_get_archives( $args = '' ) {
 		$key = "wp_get_archives:$key:$last_changed";
 		if ( ! $results = wp_cache_get( $key, 'posts' ) ) {
 			$results = $wpdb->get_results( $query );
-			$cache[ $key ] = $results;
 			wp_cache_set( $key, $results, 'posts' );
 		}
 		if ( $results ) {
@@ -1482,7 +1483,7 @@ function wp_get_archives( $args = '' ) {
 			}
 		}
 	} elseif ( ( 'postbypost' == $r['type'] ) || ('alpha' == $r['type'] ) ) {
-		$orderby = ( 'alpha' == $r['type'] ) ? 'post_title ASC ' : 'post_date DESC ';
+		$orderby = ( 'alpha' == $r['type'] ) ? 'post_title ASC ' : 'post_date DESC, ID DESC ';
 		$query = "SELECT * FROM $wpdb->posts $join $where ORDER BY $orderby $limit";
 		$key = md5( $query );
 		$key = "wp_get_archives:$key:$last_changed";
@@ -1657,6 +1658,8 @@ function get_calendar($initial = true, $echo = true) {
 	<tbody>
 	<tr>';
 
+	$daywithpost = array();
+
 	// Get days with posts
 	$dayswithposts = $wpdb->get_results("SELECT DISTINCT DAYOFMONTH(post_date)
 		FROM $wpdb->posts WHERE post_date >= '{$thisyear}-{$thismonth}-01 00:00:00'
@@ -1666,8 +1669,6 @@ function get_calendar($initial = true, $echo = true) {
 		foreach ( (array) $dayswithposts as $daywith ) {
 			$daywithpost[] = $daywith[0];
 		}
-	} else {
-		$daywithpost = array();
 	}
 
 	if (strpos($_SERVER['HTTP_USER_AGENT'], 'MSIE') !== false || stripos($_SERVER['HTTP_USER_AGENT'], 'camino') !== false || stripos($_SERVER['HTTP_USER_AGENT'], 'safari') !== false)
@@ -1757,10 +1758,6 @@ function get_calendar($initial = true, $echo = true) {
 function delete_get_calendar_cache() {
 	wp_cache_delete( 'get_calendar', 'calendar' );
 }
-add_action( 'save_post', 'delete_get_calendar_cache' );
-add_action( 'delete_post', 'delete_get_calendar_cache' );
-add_action( 'update_option_start_of_week', 'delete_get_calendar_cache' );
-add_action( 'update_option_gmt_offset', 'delete_get_calendar_cache' );
 
 /**
  * Display all of the allowed tags in HTML format with attributes.
@@ -2364,24 +2361,6 @@ function wp_no_robots() {
 }
 
 /**
- * Display a noindex,noarchive meta tag and referrer origin-when-cross-origin meta tag.
- *
- * Outputs a noindex,noarchive meta tag that tells web robots not to index or cache the page content.
- * Outputs a referrer origin-when-cross-origin meta tag that tells the browser not to send the full
- * url as a referrer to other sites when cross-origin assets are loaded.
- *
- * Typical usage is as a wp_head callback. add_action( 'wp_head', 'wp_sensitive_page_meta' );
- *
- * @since 5.0.0
- */
-function wp_sensitive_page_meta() {
-	?>
-	<meta name='robots' content='noindex,noarchive' />
-	<meta name='referrer' content='strict-origin-when-cross-origin' />
-	<?php
-}
-
-/**
  * Whether the user should have a WYSIWIG editor.
  *
  * Checks that the user requires a WYSIWIG editor and that the editor is
@@ -2531,14 +2510,12 @@ function language_attributes($doctype = 'html') {
 	if ( function_exists( 'is_rtl' ) && is_rtl() )
 		$attributes[] = 'dir="rtl"';
 
-	if ( $lang = get_bloginfo( 'language' ) ) {
-		if ( get_option( 'html_type' ) == 'text/html' || $doctype == 'html' ) {
-			$attributes[] = 'lang="' . esc_attr( $lang ) . '"';
-		}
+	if ( $lang = get_bloginfo('language') ) {
+		if ( get_option('html_type') == 'text/html' || $doctype == 'html' )
+			$attributes[] = "lang=\"$lang\"";
 
-		if ( get_option( 'html_type' ) != 'text/html' || $doctype == 'xhtml' ) {
-			$attributes[] = 'xml:lang="' . esc_attr( $lang ) . '"';
-		}
+		if ( get_option('html_type') != 'text/html' || $doctype == 'xhtml' )
+			$attributes[] = "xml:lang=\"$lang\"";
 	}
 
 	$output = implode(' ', $attributes);
@@ -2887,8 +2864,9 @@ function wp_admin_css_uri( $file = 'wp-admin' ) {
  */
 function wp_admin_css( $file = 'wp-admin', $force_echo = false ) {
 	global $wp_styles;
-	if ( !is_a($wp_styles, 'WP_Styles') )
+	if ( ! ( $wp_styles instanceof WP_Styles ) ) {
 		$wp_styles = new WP_Styles();
+	}
 
 	// For backward compatibility
 	$handle = 0 === strpos( $file, 'css/' ) ? substr( $file, 4 ) : $file;
@@ -3017,25 +2995,25 @@ function get_the_generator( $type = '' ) {
 
 	switch ( $type ) {
 		case 'html':
-			$gen = '<meta name="generator" content="WordPress ' . esc_attr( get_bloginfo( 'version' ) ) . '">';
+			$gen = '<meta name="generator" content="WordPress ' . get_bloginfo( 'version' ) . '">';
 			break;
 		case 'xhtml':
-			$gen = '<meta name="generator" content="WordPress ' . esc_attr( get_bloginfo( 'version' ) ) . '" />';
+			$gen = '<meta name="generator" content="WordPress ' . get_bloginfo( 'version' ) . '" />';
 			break;
 		case 'atom':
-			$gen = '<generator uri="https://wordpress.org/" version="' . esc_attr( get_bloginfo_rss( 'version' ) ) . '">WordPress</generator>';
+			$gen = '<generator uri="http://wordpress.org/" version="' . get_bloginfo_rss( 'version' ) . '">WordPress</generator>';
 			break;
 		case 'rss2':
-			$gen = '<generator>' . esc_url_raw( 'https://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) ) . '</generator>';
+			$gen = '<generator>http://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) . '</generator>';
 			break;
 		case 'rdf':
-			$gen = '<admin:generatorAgent rdf:resource="' . esc_url_raw( 'https://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) ) . '" />';
+			$gen = '<admin:generatorAgent rdf:resource="http://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) . '" />';
 			break;
 		case 'comment':
-			$gen = '<!-- generator="WordPress/' . esc_attr( get_bloginfo( 'version' ) ) . '" -->';
+			$gen = '<!-- generator="WordPress/' . get_bloginfo( 'version' ) . '" -->';
 			break;
 		case 'export':
-			$gen = '<!-- generator="WordPress/' . esc_attr( get_bloginfo_rss( 'version' ) ) . '" created="' . date( 'Y-m-d H:i' ) . '" -->';
+			$gen = '<!-- generator="WordPress/' . get_bloginfo_rss('version') . '" created="'. date('Y-m-d H:i') . '" -->';
 			break;
 	}
 
@@ -3146,18 +3124,3 @@ function wp_heartbeat_settings( $settings ) {
 
 	return $settings;
 }
-
-/**
- * Temporary function to add a missing style rule to the themes page.
- * This avoids the need to ship an entirely rebuilt wp-admin.css in partial builds.
- *
- * @since 4.1.1
- * @ignore
- */
-function _wp_add_themesphp_notice_styling() {
-	global $pagenow;
-	if ( 'themes.php' == $pagenow ) {
-		echo "<style type='text/css'>.themes-php div.notice { margin: 0 0 20px 0; clear: both; }</style>\n";
-	}
-}
-add_action( 'admin_head', '_wp_add_themesphp_notice_styling' );

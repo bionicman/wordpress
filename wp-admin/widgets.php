@@ -17,8 +17,6 @@ if ( ! current_user_can('edit_theme_options') )
 
 $widgets_access = get_user_setting( 'widgets_access' );
 if ( isset($_GET['widgets-access']) ) {
-	check_admin_referer( 'widgets-access' );
-
 	$widgets_access = 'on' == $_GET['widgets-access'] ? 'on' : 'off';
 	set_user_setting( 'widgets_access', $widgets_access );
 }
@@ -318,7 +316,13 @@ require_once( ABSPATH . 'wp-admin/admin-header.php' ); ?>
 	if ( current_user_can( 'customize' ) ) {
 		printf(
 			' <a class="add-new-h2 hide-if-no-customize" href="%1$s">%2$s</a>',
-			admin_url( 'customize.php?autofocus[panel]=widgets' ),
+			esc_url( add_query_arg(
+				array(
+					array( 'autofocus' => array( 'panel' => 'widgets' ) ),
+					'return' => urlencode( wp_unslash( $_SERVER['REQUEST_URI'] ) )
+				),
+				admin_url( 'customize.php' )
+			) ),
 			__( 'Manage in Customizer' )
 		);
 	}
@@ -430,7 +434,7 @@ foreach ( $theme_sidebars as $sidebar => $registered_sidebar ) {
 </div>
 </div>
 </div>
-<form action="" method="post">
+<form method="post">
 <?php wp_nonce_field( 'save-sidebar-widgets', '_wpnonce_widgets', false ); ?>
 </form>
 <br class="clear" />

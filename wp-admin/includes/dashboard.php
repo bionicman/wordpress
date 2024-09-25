@@ -155,7 +155,7 @@ function wp_add_dashboard_widget( $widget_id, $widget_name, $callback, $control_
 }
 
 function _wp_dashboard_control_callback( $dashboard, $meta_box ) {
-	echo '<form action="" method="post" class="dashboard-widget-control-form">';
+	echo '<form method="post" class="dashboard-widget-control-form">';
 	wp_dashboard_trigger_widget_control( $meta_box['id'] );
 	wp_nonce_field( 'edit-dashboard-widget_' . $meta_box['id'], 'dashboard-widget-nonce' );
 	echo '<input type="hidden" name="widget_id" value="' . esc_attr($meta_box['id']) . '" />';
@@ -379,14 +379,16 @@ function wp_network_dashboard_right_now() {
 
 	<form action="<?php echo network_admin_url('users.php'); ?>" method="get">
 		<p>
-			<input type="search" name="s" value="" size="30" autocomplete="off" />
+			<label class="screen-reader-text" for="search-users"><?php _e( 'Search Users' ); ?></label>
+			<input type="search" name="s" value="" size="30" autocomplete="off" id="search-users"/>
 			<?php submit_button( __( 'Search Users' ), 'button', 'submit', false, array( 'id' => 'submit_users' ) ); ?>
 		</p>
 	</form>
 
 	<form action="<?php echo network_admin_url('sites.php'); ?>" method="get">
 		<p>
-			<input type="search" name="s" value="" size="30" autocomplete="off" />
+			<label class="screen-reader-text" for="search-sites"><?php _e( 'Search Sites' ); ?></label>
+			<input type="search" name="s" value="" size="30" autocomplete="off" id="search-sites"/>
 			<?php submit_button( __( 'Search Sites' ), 'button', 'submit', false, array( 'id' => 'submit_sites' ) ); ?>
 		</p>
 	</form>
@@ -415,10 +417,6 @@ function wp_network_dashboard_right_now() {
  */
 function wp_dashboard_quick_press( $error_msg = false ) {
 	global $post_ID;
-
-	if ( ! current_user_can( 'edit_posts' ) ) {
-		return;
-	}
 
 	/* Check if a new auto-draft (= no new post_ID) is needed or if the old can be used */
 	$last_post_id = (int) get_user_option( 'dashboard_quick_press_last_post_id' ); // Get the last post_ID
@@ -522,7 +520,7 @@ function wp_dashboard_recent_drafts( $drafts = false ) {
 function _wp_dashboard_recent_comments_row( &$comment, $show_date = true ) {
 	$GLOBALS['comment'] =& $comment;
 
-	$comment_post_title = _draft_or_post_title( $comment->comment_post_ID );
+	$comment_post_title = strip_tags(get_the_title( $comment->comment_post_ID ));
 
 	if ( current_user_can( 'edit_post', $comment->comment_post_ID ) ) {
 		$comment_post_url = get_edit_post_link( $comment->comment_post_ID );
@@ -693,6 +691,15 @@ function wp_dashboard_recent_posts( $args ) {
 		'cache_results'  => false,
 		'perm'           => ( 'future' === $args['status'] ) ? 'editable' : 'readable',
 	);
+
+	/**
+	 * Filter the query arguments used for the Recent Posts widget.
+	 *
+	 * @since 4.2.0
+	 *
+	 * @param array $query_args The arguments passed to WP_Query to produce the list of posts.
+	 */
+	$query_args = apply_filters( 'dashboard_recent_posts_query_args', $query_args );
 	$posts = new WP_Query( $query_args );
 
 	if ( $posts->have_posts() ) {
@@ -719,15 +726,12 @@ function wp_dashboard_recent_posts( $args ) {
 				$relative = date_i18n( __( 'M jS' ), $time );
 			}
 
-			if ( current_user_can( 'edit_post', get_the_ID() ) ) {
-				/* translators: 1: relative date, 2: time, 3: post edit link, 4: post title */
-				$format = __( '<span>%1$s, %2$s</span> <a href="%3$s">%4$s</a>' );
-				printf( "<li>$format</li>", $relative, get_the_time(), get_edit_post_link(), _draft_or_post_title() );
-			} else {
-				/* translators: 1: relative date, 2: time, 3: post title */
-				$format = __( '<span>%1$s, %2$s</span> %3$s' );
-				printf( "<li>$format</li>", $relative, get_the_time(), _draft_or_post_title() );
-			}
+			// Use the post edit link for those who can edit, the permalink otherwise.
+			$recent_post_link = current_user_can( 'edit_post', get_the_ID() ) ? get_edit_post_link() : get_permalink();
+
+			/* translators: 1: relative date, 2: time, 3: post edit link or permalink, 4: post title */
+			$format = __( '<span>%1$s, %2$s</span> <a href="%3$s">%4$s</a>' );
+			printf( "<li>$format</li>", $relative, get_the_time(), $recent_post_link, _draft_or_post_title() );
 		}
 
 		echo '</ul>';
@@ -778,18 +782,8 @@ function wp_dashboard_recent_comments( $total_items = 5 ) {
 		echo '<h4>' . __( 'Comments' ) . '</h4>';
 
 		echo '<div id="the-comment-list" data-wp-lists="list:comment">';
-		foreach ( $comments as $comment ) {
-			$comment_post = get_post( $comment->comment_post_ID );
-			if (
-				current_user_can( 'edit_post', $comment->comment_post_ID ) ||
-				(
-					empty( $comment_post->post_password ) &&
-					current_user_can( 'read_post', $comment->comment_post_ID )
-				)
-			) {
-				_wp_dashboard_recent_comments_row( $comment );
-			}
-		}
+		foreach ( $comments as $comment )
+			_wp_dashboard_recent_comments_row( $comment );
 		echo '</div>';
 
 		if ( current_user_can('edit_posts') )

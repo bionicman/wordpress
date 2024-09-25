@@ -182,7 +182,7 @@ function number_format_i18n( $number, $decimals = 0 ) {
 /**
  * Convert number of bytes largest unit bytes will fit into.
  *
- * It is easier to read 1kB than 1024 bytes and 1MB than 1048576 bytes. Converts
+ * It is easier to read 1 kB than 1024 bytes and 1 MB than 1048576 bytes. Converts
  * number of bytes to human readable number by taking the number of that unit
  * that the bytes will go into it. Supports TB value.
  *
@@ -206,11 +206,14 @@ function size_format( $bytes, $decimals = 0 ) {
 		'GB' => 1073741824,     // pow( 1024, 3)
 		'MB' => 1048576,        // pow( 1024, 2)
 		'kB' => 1024,           // pow( 1024, 1)
-		'B ' => 1,              // pow( 1024, 0)
+		'B'  => 1,              // pow( 1024, 0)
 	);
-	foreach ( $quant as $unit => $mag )
-		if ( doubleval($bytes) >= $mag )
+
+	foreach ( $quant as $unit => $mag ) {
+		if ( doubleval( $bytes ) >= $mag ) {
 			return number_format_i18n( $bytes / $mag, $decimals ) . ' ' . $unit;
+		}
+	}
 
 	return false;
 }
@@ -700,7 +703,7 @@ function _http_build_query( $data, $prefix = null, $sep = null, $key = '', $urle
 			$k = $key . '%5B' . $k . '%5D';
 		if ( $v === null )
 			continue;
-		elseif ( $v === FALSE )
+		elseif ( $v === false )
 			$v = '0';
 
 		if ( is_array($v) || is_object($v) )
@@ -866,7 +869,7 @@ function wp_remote_fopen( $uri ) {
  *
  * @since 2.0.0
  *
- * @param string $query_vars Default WP_Query arguments.
+ * @param string|array $query_vars Default WP_Query arguments.
  */
 function wp( $query_vars = '' ) {
 	global $wp, $wp_query, $wp_the_query;
@@ -1434,7 +1437,7 @@ function wp_get_referer() {
 	$ref = false;
 	if ( ! empty( $_REQUEST['_wp_http_referer'] ) )
 		$ref = wp_unslash( $_REQUEST['_wp_http_referer'] );
-	else if ( ! empty( $_SERVER['HTTP_REFERER'] ) )
+	elseif ( ! empty( $_SERVER['HTTP_REFERER'] ) )
 		$ref = wp_unslash( $_SERVER['HTTP_REFERER'] );
 
 	if ( $ref && $ref !== wp_unslash( $_SERVER['REQUEST_URI'] ) )
@@ -1492,11 +1495,6 @@ function wp_mkdir_p( $target ) {
 	if ( file_exists( $target ) )
 		return @is_dir( $target );
 
-	// Do not allow path traversals.
-	if ( false !== strpos( $target, '../' ) || false !== strpos( $target, '..' . DIRECTORY_SEPARATOR ) ) {
-		return false;
-	}
-
 	// We need to find the permissions of the parent folder that exists and inherit that.
 	$target_parent = dirname( $target );
 	while ( '.' != $target_parent && ! is_dir( $target_parent ) ) {
@@ -1518,7 +1516,7 @@ function wp_mkdir_p( $target ) {
 		 */
 		if ( $dir_perms != ( $dir_perms & ~umask() ) ) {
 			$folder_parts = explode( '/', substr( $target, strlen( $target_parent ) + 1 ) );
-			for ( $i = 1; $i <= count( $folder_parts ); $i++ ) {
+			for ( $i = 1, $c = count( $folder_parts ); $i <= $c; $i++ ) {
 				@chmod( $target_parent . '/' . implode( '/', array_slice( $folder_parts, 0, $i ) ), $dir_perms );
 			}
 		}
@@ -1580,38 +1578,18 @@ function path_join( $base, $path ) {
 /**
  * Normalize a filesystem path.
  *
- * On windows systems, replaces backslashes with forward slashes
- * and forces upper-case drive letters.
- * Allows for two leading slashes for Windows network shares, but
- * ensures that all other duplicate slashes are reduced to a single.
+ * Replaces backslashes with forward slashes for Windows systems, and ensures
+ * no duplicate slashes exist.
  *
  * @since 3.9.0
- * @since 4.4.0 Ensures upper-case drive letters on Windows systems.
- * @since 4.5.0 Allows for Windows network shares.
- * @since 4.9.7 Allows for PHP file wrappers.
  *
  * @param string $path Path to normalize.
  * @return string Normalized path.
  */
 function wp_normalize_path( $path ) {
-	$wrapper = '';
-	if ( wp_is_stream( $path ) ) {
-		list( $wrapper, $path ) = explode( '://', $path, 2 );
-		$wrapper .= '://';
-	}
-
-	// Standardise all paths to use /
 	$path = str_replace( '\\', '/', $path );
-
-	// Replace multiple slashes down to a singular, allowing for network shares having two slashes.
-	$path = preg_replace( '|(?<=.)/+|', '/', $path );
-
-	// Windows paths should uppercase the drive letter
-	if ( ':' === substr( $path, 1, 1 ) ) {
-		$path = ucfirst( $path );
-	}
-
-	return $wrapper . $path;
+	$path = preg_replace( '|/+|','/', $path );
+	return $path;
 }
 
 /**
@@ -1692,11 +1670,11 @@ function wp_is_writable( $path ) {
  */
 function win_is_writable( $path ) {
 
-	if ( $path[strlen( $path ) - 1] == '/' ) // if it looks like a directory, check a random file within the directory
+	if ( $path[strlen( $path ) - 1] == '/' ) { // if it looks like a directory, check a random file within the directory
 		return win_is_writable( $path . uniqid( mt_rand() ) . '.tmp');
-	else if ( is_dir( $path ) ) // If it's a directory (and not a file) check a random file within the directory
+	} elseif ( is_dir( $path ) ) { // If it's a directory (and not a file) check a random file within the directory
 		return win_is_writable( $path . '/' . uniqid( mt_rand() ) . '.tmp' );
-
+	}
 	// check tmp file for read/write capabilities
 	$should_delete_tmp_file = !file_exists( $path );
 	$f = @fopen( $path, 'a' );
@@ -2041,7 +2019,7 @@ function wp_ext2type( $ext ) {
 		'image'       => array( 'jpg', 'jpeg', 'jpe',  'gif',  'png',  'bmp',   'tif',  'tiff', 'ico' ),
 		'audio'       => array( 'aac', 'ac3',  'aif',  'aiff', 'm3a',  'm4a',   'm4b',  'mka',  'mp1',  'mp2',  'mp3', 'ogg', 'oga', 'ram', 'wav', 'wma' ),
 		'video'       => array( '3g2',  '3gp', '3gpp', 'asf', 'avi',  'divx', 'dv',   'flv',  'm4v',   'mkv',  'mov',  'mp4',  'mpeg', 'mpg', 'mpv', 'ogm', 'ogv', 'qt',  'rm', 'vob', 'wmv' ),
-		'document'    => array( 'doc', 'docx', 'docm', 'dotm', 'odt',  'pages', 'pdf',  'xps',  'oxps', 'rtf',  'wp', 'wpd', 'psd' ),
+		'document'    => array( 'doc', 'docx', 'docm', 'dotm', 'odt',  'pages', 'pdf',  'xps',  'oxps', 'rtf',  'wp', 'wpd', 'psd', 'xcf' ),
 		'spreadsheet' => array( 'numbers',     'ods',  'xls',  'xlsx', 'xlsm',  'xlsb' ),
 		'interactive' => array( 'swf', 'key',  'ppt',  'pptx', 'pptm', 'pps',   'ppsx', 'ppsm', 'sldx', 'sldm', 'odp' ),
 		'text'        => array( 'asc', 'csv',  'tsv',  'txt' ),
@@ -2074,7 +2052,7 @@ function wp_check_filetype( $filename, $mimes = null ) {
 	$ext = false;
 
 	foreach ( $mimes as $ext_preg => $mime_match ) {
-		$ext_preg = '!\.(' . $ext_preg . ')$!i';
+		$ext_preg = '!\.(' . $ext_preg . ')(\?.*)?$!i';
 		if ( preg_match( $ext_preg, $filename, $ext_matches ) ) {
 			$type = $mime_match;
 			$ext = $ext_matches[1];
@@ -2093,7 +2071,7 @@ function wp_check_filetype( $filename, $mimes = null ) {
  * If it's determined that the extension does not match the file's real type,
  * then the "proper_filename" value will be set with a proper filename and extension.
  *
- * Currently this function only supports renaming images validated via wp_get_image_mime().
+ * Currently this function only supports validating images known to getimagesize().
  *
  * @since 3.0.0
  *
@@ -2118,15 +2096,14 @@ function wp_check_filetype_and_ext( $file, $filename, $mimes = null ) {
 		return compact( 'ext', 'type', 'proper_filename' );
 	}
 
-	// Validate image types.
-	if ( $type && 0 === strpos( $type, 'image/' ) ) {
+	// We're able to validate images using GD
+	if ( $type && 0 === strpos( $type, 'image/' ) && function_exists('getimagesize') ) {
 
 		// Attempt to figure out what type of image it actually is
-		$real_mime = wp_get_image_mime( $file );
+		$imgstats = @getimagesize( $file );
 
-		if ( ! $real_mime ) {
-			$type = $ext = false;
-		} elseif ( $real_mime != $type ) {
+		// If getimagesize() knows what kind of image it really is and if the real MIME doesn't match the claimed MIME
+		if ( !empty($imgstats['mime']) && $imgstats['mime'] != $type ) {
 			/**
 			 * Filter the list mapping image mime types to their respective extensions.
 			 *
@@ -2143,10 +2120,10 @@ function wp_check_filetype_and_ext( $file, $filename, $mimes = null ) {
 			) );
 
 			// Replace whatever is after the last period in the filename with the correct extension
-			if ( ! empty( $mime_to_ext[ $real_mime ] ) ) {
+			if ( ! empty( $mime_to_ext[ $imgstats['mime'] ] ) ) {
 				$filename_parts = explode( '.', $filename );
 				array_pop( $filename_parts );
-				$filename_parts[] = $mime_to_ext[ $real_mime ];
+				$filename_parts[] = $mime_to_ext[ $imgstats['mime'] ];
 				$new_filename = implode( '.', $filename_parts );
 
 				if ( $new_filename != $filename ) {
@@ -2156,64 +2133,7 @@ function wp_check_filetype_and_ext( $file, $filename, $mimes = null ) {
 				$wp_filetype = wp_check_filetype( $new_filename, $mimes );
 				$ext = $wp_filetype['ext'];
 				$type = $wp_filetype['type'];
-			} else {
-				$type = $ext = false;
 			}
-		}
-	}
-
-	// Validate files that didn't get validated during previous checks.
-	if ( $type && ! $real_mime && extension_loaded( 'fileinfo' ) ) {
-		$finfo = finfo_open( FILEINFO_MIME_TYPE );
-		$real_mime = finfo_file( $finfo, $file );
-		finfo_close( $finfo );
-
-		// fileinfo often misidentifies obscure files as one of these types
-		$nonspecific_types = array(
-			'application/octet-stream',
-			'application/encrypted',
-			'application/CDFV2-encrypted',
-			'application/zip',
-		);
-
-		/*
-		 * If $real_mime doesn't match the content type we're expecting from the file's extension,
-		 * we need to do some additional vetting. Media types and those listed in $nonspecific_types are
-		 * allowed some leeway, but anything else must exactly match the real content type.
-		 */
-		if ( in_array( $real_mime, $nonspecific_types, true ) ) {
-			// File is a non-specific binary type. That's ok if it's a type that generally tends to be binary.
-			if ( !in_array( substr( $type, 0, strcspn( $type, '/' ) ), array( 'application', 'video', 'audio' ) ) ) {
-				$type = $ext = false;
-			}
-		} elseif ( 0 === strpos( $real_mime, 'video/' ) || 0 === strpos( $real_mime, 'audio/' ) ) {
-			/*
-			 * For these types, only the major type must match the real value.
-			 * This means that common mismatches are forgiven: application/vnd.apple.numbers is often misidentified as application/zip,
-			 * and some media files are commonly named with the wrong extension (.mov instead of .mp4)
-			 */
-
-			if ( substr( $real_mime, 0, strcspn( $real_mime, '/' ) ) !== substr( $type, 0, strcspn( $type, '/' ) ) ) {
-				$type = $ext = false;
-			}
-		} else {
-			if ( $type !== $real_mime ) {
-				/*
-				 * Everything else including image/* and application/*: 
-				 * If the real content type doesn't match the file extension, assume it's dangerous.
-				 */
-				$type = $ext = false;
-			}
-
-		}
-	}
-
-	// The mime type must be allowed 
-	if ( $type ) {
-		$allowed = get_allowed_mime_types();
-
-		if ( ! in_array( $type, $allowed ) ) {
-			$type = $ext = false;
 		}
 	}
 
@@ -2233,41 +2153,10 @@ function wp_check_filetype_and_ext( $file, $filename, $mimes = null ) {
 }
 
 /**
- * Returns the real mime type of an image file.
- *
- * This depends on exif_imagetype() or getimagesize() to determine real mime types.
- *
- * @since 4.7.1
- *
- * @param string $file Full path to the file.
- * @return string|false The actual mime type or false if the type cannot be determined.
- */
-function wp_get_image_mime( $file ) {
-	/*
-	 * Use exif_imagetype() to check the mimetype if available or fall back to
-	 * getimagesize() if exif isn't avaialbe. If either function throws an Exception
-	 * we assume the file could not be validated.
-	 */
-	try {
-		if ( is_callable( 'exif_imagetype' ) ) {
-			$mime = image_type_to_mime_type( exif_imagetype( $file ) );
-		} elseif ( function_exists( 'getimagesize' ) ) {
-			$imagesize = getimagesize( $file );
-			$mime = ( isset( $imagesize['mime'] ) ) ? $imagesize['mime'] : false;
-		} else {
-			$mime = false;
-		}
-	} catch ( Exception $e ) {
-		$mime = false;
-	}
-
-	return $mime;
-}
-
-/**
  * Retrieve list of mime types and file extensions.
  *
  * @since 3.5.0
+ * @since 4.2.0 Support was added for GIMP (xcf) files.
  *
  * @return array Array of mime types keyed by the file extension regex corresponding to those types.
  */
@@ -2289,7 +2178,7 @@ function wp_get_mime_types() {
 	'gif' => 'image/gif',
 	'png' => 'image/png',
 	'bmp' => 'image/bmp',
-	'tif|tiff' => 'image/tiff',
+	'tiff|tif' => 'image/tiff',
 	'ico' => 'image/x-icon',
 	// Video formats.
 	'asf|asx' => 'video/x-ms-asf',
@@ -2339,6 +2228,7 @@ function wp_get_mime_types() {
 	'7z' => 'application/x-7z-compressed',
 	'exe' => 'application/x-msdownload',
 	'psd' => 'application/octet-stream',
+	'xcf' => 'application/octet-stream',
 	// MS Office formats.
 	'doc' => 'application/msword',
 	'pot|pps|ppt' => 'application/vnd.ms-powerpoint',
@@ -2400,9 +2290,8 @@ function get_allowed_mime_types( $user = null ) {
 	if ( function_exists( 'current_user_can' ) )
 		$unfiltered = $user ? user_can( $user, 'unfiltered_html' ) : current_user_can( 'unfiltered_html' );
 
-	if ( empty( $unfiltered ) ) {
-		unset( $t['htm|html'], $t['js'] );
-	}
+	if ( empty( $unfiltered ) )
+		unset( $t['htm|html'] );
 
 	/**
 	 * Filter list of allowed mime types and file extensions.
@@ -2434,16 +2323,8 @@ function wp_nonce_ays( $action ) {
 		$html .= sprintf( __( "Do you really want to <a href='%s'>log out</a>?"), wp_logout_url( $redirect_to ) );
 	} else {
 		$html = __( 'Are you sure you want to do this?' );
-		if ( wp_get_referer() ) {
-			$wp_http_referer = remove_query_arg( 'updated', wp_get_referer() );
-			$wp_http_referer = wp_validate_redirect( esc_url_raw( $wp_http_referer ) );
-			$html           .= '</p><p>';
-			$html           .= sprintf(
-				'<a href="%s">%s</a>',
-				esc_url( $wp_http_referer ),
-				__( 'Please try again.' )
-			);
-		}
+		if ( wp_get_referer() )
+			$html .= "</p><p><a href='" . esc_url( remove_query_arg( 'updated', wp_get_referer() ) ) . "'>" . __( 'Please try again.' ) . "</a>";
 	}
 
 	wp_die( $html, __( 'WordPress Failure Notice' ), 403 );
@@ -2805,11 +2686,11 @@ function wp_json_encode( $data, $options = 0, $depth = 512 ) {
 /**
  * Perform sanity checks on data that shall be encoded to JSON.
  *
- * @see wp_json_encode()
- *
+ * @ignore
  * @since 4.1.0
  * @access private
- * @internal
+ *
+ * @see wp_json_encode()
  *
  * @param mixed $data  Variable (usually an array or object) to encode as JSON.
  * @param int   $depth Maximum depth to walk through $data. Must be greater than 0.
@@ -2868,11 +2749,11 @@ function _wp_json_sanity_check( $data, $depth ) {
 /**
  * Convert a string to UTF-8, so that it can be safely encoded to JSON.
  *
- * @see _wp_json_sanity_check()
- *
+ * @ignore
  * @since 4.1.0
  * @access private
- * @internal
+ *
+ * @see _wp_json_sanity_check()
  *
  * @param string $string The string which is to be converted.
  * @return string The checked string.
@@ -3064,51 +2945,51 @@ function smilies_init() {
 
 	if ( !isset( $wpsmiliestrans ) ) {
 		$wpsmiliestrans = array(
-		':mrgreen:' => 'icon_mrgreen.gif',
-		':neutral:' => 'icon_neutral.gif',
-		':twisted:' => 'icon_twisted.gif',
-		  ':arrow:' => 'icon_arrow.gif',
-		  ':shock:' => 'icon_eek.gif',
-		  ':smile:' => 'icon_smile.gif',
-		    ':???:' => 'icon_confused.gif',
-		   ':cool:' => 'icon_cool.gif',
-		   ':evil:' => 'icon_evil.gif',
-		   ':grin:' => 'icon_biggrin.gif',
-		   ':idea:' => 'icon_idea.gif',
-		   ':oops:' => 'icon_redface.gif',
-		   ':razz:' => 'icon_razz.gif',
-		   ':roll:' => 'icon_rolleyes.gif',
-		   ':wink:' => 'icon_wink.gif',
-		    ':cry:' => 'icon_cry.gif',
-		    ':eek:' => 'icon_surprised.gif',
-		    ':lol:' => 'icon_lol.gif',
-		    ':mad:' => 'icon_mad.gif',
-		    ':sad:' => 'icon_sad.gif',
-		      '8-)' => 'icon_cool.gif',
-		      '8-O' => 'icon_eek.gif',
-		      ':-(' => 'icon_sad.gif',
-		      ':-)' => 'icon_smile.gif',
-		      ':-?' => 'icon_confused.gif',
-		      ':-D' => 'icon_biggrin.gif',
-		      ':-P' => 'icon_razz.gif',
-		      ':-o' => 'icon_surprised.gif',
-		      ':-x' => 'icon_mad.gif',
-		      ':-|' => 'icon_neutral.gif',
-		      ';-)' => 'icon_wink.gif',
+		':mrgreen:' => 'mrgreen.png',
+		':neutral:' => "\xf0\x9f\x98\x90",
+		':twisted:' => "\xf0\x9f\x98\x88",
+		  ':arrow:' => "\xe2\x9e\xa1",
+		  ':shock:' => "\xf0\x9f\x98\xaf",
+		  ':smile:' => 'simple-smile.png',
+		    ':???:' => "\xf0\x9f\x98\xaf",
+		   ':cool:' => "\xf0\x9f\x98\x8e",
+		   ':evil:' => "\xf0\x9f\x91\xbf",
+		   ':grin:' => "\xf0\x9f\x98\x84",
+		   ':idea:' => "\xf0\x9f\x92\xa1",
+		   ':oops:' => "\xf0\x9f\x98\xb3",
+		   ':razz:' => "\xf0\x9f\x98\x9b",
+		   ':roll:' => 'rolleyes.png',
+		   ':wink:' => "\xf0\x9f\x98\x89",
+		    ':cry:' => "\xf0\x9f\x98\xa5",
+		    ':eek:' => "\xf0\x9f\x98\xaf",
+		    ':lol:' => "\xf0\x9f\x98\x84",
+		    ':mad:' => "\xf0\x9f\x98\xa1",
+		    ':sad:' => "\xf0\x9f\x98\xa6",
+		      '8-)' => "\xf0\x9f\x98\x8e",
+		      '8-O' => "\xf0\x9f\x98\xaf",
+		      ':-(' => "\xf0\x9f\x98\xa6",
+		      ':-)' => 'simple-smile.png',
+		      ':-?' => "\xf0\x9f\x98\xaf",
+		      ':-D' => "\xf0\x9f\x98\x84",
+		      ':-P' => "\xf0\x9f\x98\x9b",
+		      ':-o' => "\xf0\x9f\x98\xaf",
+		      ':-x' => "\xf0\x9f\x98\xa1",
+		      ':-|' => "\xf0\x9f\x98\x90",
+		      ';-)' => "\xf0\x9f\x98\x89",
 		// This one transformation breaks regular text with frequency.
-		//     '8)' => 'icon_cool.gif',
-		       '8O' => 'icon_eek.gif',
-		       ':(' => 'icon_sad.gif',
-		       ':)' => 'icon_smile.gif',
-		       ':?' => 'icon_confused.gif',
-		       ':D' => 'icon_biggrin.gif',
-		       ':P' => 'icon_razz.gif',
-		       ':o' => 'icon_surprised.gif',
-		       ':x' => 'icon_mad.gif',
-		       ':|' => 'icon_neutral.gif',
-		       ';)' => 'icon_wink.gif',
-		      ':!:' => 'icon_exclaim.gif',
-		      ':?:' => 'icon_question.gif',
+		//     '8)' => "\xf0\x9f\x98\x8e",
+		       '8O' => "\xf0\x9f\x98\xaf",
+		       ':(' => "\xf0\x9f\x98\xa6",
+		       ':)' => 'simple-smile.png',
+		       ':?' => "\xf0\x9f\x98\xaf",
+		       ':D' => "\xf0\x9f\x98\x84",
+		       ':P' => "\xf0\x9f\x98\x9b",
+		       ':o' => "\xf0\x9f\x98\xaf",
+		       ':x' => "\xf0\x9f\x98\xa1",
+		       ':|' => "\xf0\x9f\x98\x90",
+		       ';)' => "\xf0\x9f\x98\x89",
+		      ':!:' => "\xe2\x9d\x97",
+		      ':?:' => "\xe2\x9d\x93",
 		);
 	}
 
@@ -3293,8 +3174,9 @@ function wp_list_filter( $list, $args = array(), $operator = 'AND' ) {
  * @param int|string $field     Field from the object to place instead of the entire object
  * @param int|string $index_key Optional. Field from the object to use as keys for the new array.
  *                              Default null.
- * @return array Array of found values. If $index_key is set, an array of found values with keys
- *               corresponding to $index_key.
+ * @return array Array of found values. If `$index_key` is set, an array of found values with keys
+ *               corresponding to `$index_key`. If `$index_key` is null, array keys from the original
+ *               `$list` will be preserved in the results.
  */
 function wp_list_pluck( $list, $field, $index_key = null ) {
 	if ( ! $index_key ) {
@@ -3740,7 +3622,7 @@ function iis7_supports_permalinks() {
 		 * Lastly we make sure that PHP is running via FastCGI. This is important because if it runs
 		 * via ISAPI then pretty permalinks will not work.
 		 */
-		$supports_permalinks = class_exists('DOMDocument') && isset($_SERVER['IIS_UrlRewriteModule']) && ( php_sapi_name() == 'cgi-fcgi' );
+		$supports_permalinks = class_exists('DOMDocument') && isset($_SERVER['IIS_UrlRewriteModule']) && ( PHP_SAPI == 'cgi-fcgi' );
 	}
 
 	/**
@@ -3768,9 +3650,6 @@ function iis7_supports_permalinks() {
  * @return int 0 means nothing is wrong, greater than 0 means something was wrong.
  */
 function validate_file( $file, $allowed_files = '' ) {
-	// Normalize path for Windows servers
-	$file = wp_normalize_path( $file );
-
 	if ( false !== strpos( $file, '..' ) )
 		return 1;
 
@@ -4444,7 +4323,7 @@ function send_nosniff_header() {
 /**
  * Return a MySQL expression for selecting the week number based on the start_of_week option.
  *
- * @internal
+ * @ignore
  * @since 3.0.0
  *
  * @param string $column Database column.
@@ -4938,27 +4817,22 @@ function wp_validate_boolean( $var ) {
 }
 
 /**
- * Deletes a file if its path is within the given directory.
+ * Delete a file
  *
- * @since 4.9.7
+ * @since 4.2.0
  *
- * @param string $file      Absolute path to the file to delete.
- * @param string $directory Absolute path to a directory.
- * @return bool True on success, false on failure.
+ * @param string $file The path to the file to delete.
  */
-function wp_delete_file_from_directory( $file, $directory ) {
-	$real_file = realpath( wp_normalize_path( $file ) );
-	$real_directory = realpath( wp_normalize_path( $directory ) );
-
-	if ( false === $real_file || false === $real_directory || strpos( wp_normalize_path( $real_file ), trailingslashit( wp_normalize_path( $real_directory ) ) ) !== 0 ) {
-		return false;
-	}
-
-	/** This filter is documented in wp-admin/custom-header.php */
+function wp_delete_file( $file ) {
+	/**
+	 * Filter the path of the file to delete.
+	 *
+	 * @since 2.1.0
+	 *
+	 * @param string $medium Path to the file to delete.
+	 */
 	$delete = apply_filters( 'wp_delete_file', $file );
 	if ( ! empty( $delete ) ) {
 		@unlink( $delete );
 	}
-
-	return true;
 }
