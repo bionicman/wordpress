@@ -240,7 +240,7 @@ function wp_link_category_checklist( $link_id = 0 ) {
  */
 function get_inline_data($post) {
 	$post_type_object = get_post_type_object($post->post_type);
-	if ( ! current_user_can($post_type_object->cap->edit_post, $post->ID) )
+	if ( ! current_user_can( 'edit_post', $post->ID ) )
 		return;
 
 	$title = esc_textarea( trim( $post->post_title ) );
@@ -985,6 +985,8 @@ function remove_meta_box($id, $screen, $context) {
 function do_accordion_sections( $screen, $context, $object ) {
 	global $wp_meta_boxes;
 
+	wp_enqueue_script( 'accordion' );
+
 	if ( empty( $screen ) )
 		$screen = get_current_screen();
 	elseif ( is_string( $screen ) )
@@ -1002,7 +1004,7 @@ function do_accordion_sections( $screen, $context, $object ) {
 		if ( ! isset( $wp_meta_boxes ) || ! isset( $wp_meta_boxes[$page] ) || ! isset( $wp_meta_boxes[$page][$context] ) )
 			break;
 
-		foreach ( array( 'high', 'sorted', 'core', 'default', 'low' ) as $priority ) {
+		foreach ( array( 'high', 'core', 'default', 'low' ) as $priority ) {
 			if ( isset( $wp_meta_boxes[$page][$context][$priority] ) ) {
 				foreach ( $wp_meta_boxes[$page][$context][$priority] as $box ) {
 					if ( false == $box || ! $box['title'] )

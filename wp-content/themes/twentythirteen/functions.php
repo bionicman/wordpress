@@ -34,20 +34,20 @@ if ( ! isset( $content_width ) )
 /**
  * Adds support for a custom header image.
  */
-require( get_template_directory() . '/inc/custom-header.php' );
+require get_template_directory() . '/inc/custom-header.php';
 
 /**
  * Twenty Thirteen only works in WordPress 3.6 or later.
  */
 if ( version_compare( $GLOBALS['wp_version'], '3.6-alpha', '<' ) )
-	require( get_template_directory() . '/inc/back-compat.php' );
+	require get_template_directory() . '/inc/back-compat.php';
 
 /**
  * Sets up theme defaults and registers the various WordPress features that
  * Twenty Thirteen supports.
  *
  * @uses load_theme_textdomain() For translation/localization support.
- * @uses add_editor_style() To add a Visual Editor stylesheet.
+ * @uses add_editor_style() To add Visual Editor stylesheets.
  * @uses add_theme_support() To add support for automatic feed links, post
  * formats, and post thumbnails.
  * @uses register_nav_menu() To add support for a navigation menu.
@@ -70,9 +70,9 @@ function twentythirteen_setup() {
 
 	/*
 	 * This theme styles the visual editor to resemble the theme style,
-	 * specifically font, colors, and column width.
+	 * specifically font, colors, icons, and column width.
 	 */
-	add_editor_style( 'css/editor-style.css' );
+	add_editor_style( array( 'css/editor-style.css', 'fonts/genericons.css' ) );
 
 	// Adds RSS feed links to <head> for posts and comments.
 	add_theme_support( 'automatic-feed-links' );
@@ -168,6 +168,8 @@ function twentythirteen_fonts() {
 	$fonts_url = twentythirteen_fonts_url();
 	if ( ! empty( $fonts_url ) )
 		wp_enqueue_style( 'twentythirteen-fonts', esc_url_raw( $fonts_url ), array(), null );
+
+	wp_enqueue_style( 'genericons', get_template_directory_uri() . '/fonts/genericons.css', array(), '2.09' );
 }
 add_action( 'wp_enqueue_scripts', 'twentythirteen_fonts' );
 
@@ -218,7 +220,7 @@ function twentythirteen_scripts_styles() {
 		wp_enqueue_script( 'jquery-masonry' );
 
 	// Loads JavaScript file with functionality specific to Twenty Thirteen.
-	wp_enqueue_script( 'twentythirteen-script', get_template_directory_uri() . '/js/functions.js', array( 'jquery' ), '20130423', true );
+	wp_enqueue_script( 'twentythirteen-script', get_template_directory_uri() . '/js/functions.js', array( 'jquery' ), '20130625a', true );
 
 	// Loads our main stylesheet.
 	wp_enqueue_style( 'twentythirteen-style', get_stylesheet_uri() );
@@ -272,7 +274,7 @@ function twentythirteen_widgets_init() {
 	register_sidebar( array(
 		'name'          => __( 'Main Widget Area', 'twentythirteen' ),
 		'id'            => 'sidebar-1',
-		'description'   => __( 'Appears in the footer section of the site', 'twentythirteen' ),
+		'description'   => __( 'Appears in the footer section of the site.', 'twentythirteen' ),
 		'before_widget' => '<aside id="%1$s" class="widget %2$s">',
 		'after_widget'  => '</aside>',
 		'before_title'  => '<h3 class="widget-title">',
@@ -303,7 +305,7 @@ function twentythirteen_paging_nav() {
 	global $wp_query;
 
 	// Don't print empty markup if there's only one page.
-	if ( $wp_query->max_num_pages < 2 && ( is_home() || is_archive() || is_search() ) )
+	if ( $wp_query->max_num_pages < 2 )
 		return;
 	?>
 	<nav class="navigation paging-navigation" role="navigation">
@@ -337,7 +339,7 @@ function twentythirteen_post_nav() {
 
 	// Don't print empty markup if there's nowhere to navigate.
 	$previous = ( is_attachment() ) ? get_post( $post->post_parent ) : get_adjacent_post( false, '', true );
-	$next = get_adjacent_post( false, '', false );
+	$next     = get_adjacent_post( false, '', false );
 
 	if ( ! $next && ! $previous )
 		return;
@@ -442,30 +444,33 @@ function twentythirteen_the_attached_image() {
 	 * looking at the last image in a gallery), or, in a gallery of one, just the
 	 * link to that image file.
 	 */
-	$attachments = array_values( get_children( array(
+	$attachment_ids = get_posts( array(
 		'post_parent'    => $post->post_parent,
+		'fields'         => 'ids',
+		'numberposts'    => -1,
 		'post_status'    => 'inherit',
 		'post_type'      => 'attachment',
 		'post_mime_type' => 'image',
 		'order'          => 'ASC',
 		'orderby'        => 'menu_order ID'
-	) ) );
+	) );
 
 	// If there is more than 1 attachment in a gallery...
-	if ( count( $attachments ) > 1 ) {
-		foreach ( $attachments as $k => $attachment ) {
-			if ( $attachment->ID == $post->ID )
+	if ( count( $attachment_ids ) > 1 ) {
+		foreach ( $attachment_ids as $attachment_id ) {
+			if ( $attachment_id == $post->ID ) {
+				$next_id = current( $attachment_ids );
 				break;
+			}
 		}
-		$k++;
 
 		// get the URL of the next image attachment...
-		if ( isset( $attachments[ $k ] ) )
-			$next_attachment_url = get_attachment_link( $attachments[ $k ]->ID );
+		if ( $next_id )
+			$next_attachment_url = get_attachment_link( $next_id );
 
 		// or get the URL of the first image attachment.
 		else
-			$next_attachment_url = get_attachment_link( $attachments[0]->ID );
+			$next_attachment_url = get_attachment_link( array_shift( $attachment_ids ) );
 	}
 
 	printf( '<a href="%1$s" title="%2$s" rel="attachment">%3$s</a>',
@@ -479,7 +484,7 @@ endif;
 /**
  * Returns the URL from the post.
  *
- * @uses get_content_url() to get the URL in the post meta (if it exists) or
+ * @uses get_url_in_content() to get the URL in the post meta (if it exists) or
  * the first link found in the post content.
  *
  * Falls back to the post permalink if no URL is found in the post.
@@ -490,7 +495,7 @@ endif;
  */
 function twentythirteen_get_link_url() {
 	$content = get_the_content();
-	$has_url = get_content_url( $content );
+	$has_url = get_url_in_content( $content );
 
 	return ( $has_url ) ? $has_url : apply_filters( 'the_permalink', get_permalink() );
 }
