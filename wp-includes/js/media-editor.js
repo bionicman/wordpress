@@ -1048,17 +1048,7 @@
 		 * @returns {wp.media.view.MediaFrame}
 		 */
 		open: function( id, options ) {
-			var workflow, focusTrap;
-
-			if ( 'ontouchend' in document ) {
-				// Close the onscreen keyboard
-				if ( ! focusTrap ) {
-					focusTrap = $( '<input type="text" />' );
-				}
-
-				$( document.body ).append( focusTrap );
-				focusTrap.focus().blur().remove();
-			}
+			var workflow;
 
 			options = options || {};
 

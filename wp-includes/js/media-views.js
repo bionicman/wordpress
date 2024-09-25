@@ -1,6 +1,8 @@
 /* global _wpMediaViewsL10n, confirm, getUserSetting, setUserSetting */
-(function($, _){
-	var media = wp.media, l10n;
+( function( $, _ ) {
+	var l10n,
+		media = wp.media,
+		isTouchDevice = ( 'ontouchend' in document );
 
 	// Link any localized strings.
 	l10n = media.view.l10n = typeof _wpMediaViewsL10n === 'undefined' ? {} : _wpMediaViewsL10n;
@@ -1790,7 +1792,7 @@
 		deactivateMode: function( mode ) {
 			// Bail if the mode isn't active.
 			if ( ! this.isModeActive( mode ) ) {
-				return;
+				return this;
 			}
 			this.activeModes.remove( this.activeModes.where( { id: mode } ) );
 			this.$el.removeClass( 'mode-' + mode );
@@ -1833,6 +1835,10 @@
 		className: 'media-frame',
 		template:  media.template('media-frame'),
 		regions:   ['menu','title','content','toolbar','router'],
+
+		events: {
+			'click div.media-frame-title h1': 'toggleMenu'
+		},
 
 		/**
 		 * @global wp.Uploader
@@ -1883,6 +1889,10 @@
 			this.on( 'title:create:default', this.createTitle, this );
 			this.title.mode('default');
 
+			this.on( 'title:render', function( view ) {
+				view.$el.append( '<span class="dashicons dashicons-arrow-down"></span>' );
+			});
+
 			// Bind default menu.
 			this.on( 'menu:create:default', this.createMenu, this );
 		},
@@ -1918,6 +1928,11 @@
 				controller: this
 			});
 		},
+
+		toggleMenu: function() {
+			this.$el.find( '.media-menu' ).toggleClass( 'visible' );
+		},
+
 		/**
 		 * @param {Object} toolbar
 		 * @this wp.media.controller.Region
@@ -2555,7 +2570,10 @@
 			}).render();
 
 			this.content.set( view );
-			view.url.focus();
+
+			if ( ! isTouchDevice ) {
+				view.url.focus();
+			}
 		},
 
 		editSelectionContent: function() {
@@ -3204,7 +3222,8 @@
 		 */
 		open: function() {
 			var $el = this.$el,
-				options = this.options;
+				options = this.options,
+				mceEditor;
 
 			if ( $el.is(':visible') ) {
 				return this;
@@ -3224,7 +3243,22 @@
 			// Disable page scrolling.
 			$( 'body' ).addClass( 'modal-open' );
 
-			$el.show().find( '.media-modal-close' ).focus();
+			$el.show();
+
+			// Try to close the onscreen keyboard
+			if ( 'ontouchend' in document ) {
+				if ( ( mceEditor = window.tinymce && window.tinymce.activeEditor )  && ! mceEditor.isHidden() && mceEditor.iframeElement ) {
+					mceEditor.iframeElement.focus();
+					mceEditor.iframeElement.blur();
+
+					setTimeout( function() {
+						mceEditor.iframeElement.blur();
+					}, 100 );
+				}
+			}
+
+			$el.find( '.media-modal-close' ).focus();
+
 			return this.propagate('open');
 		},
 
@@ -4412,13 +4446,17 @@
 
 			// When selecting a tab along the left side,
 			// focus should be transferred into the main panel
-			$('.media-frame-content input').first().focus();
+			if ( ! isTouchDevice ) {
+				$('.media-frame-content input').first().focus();
+			}
 		},
 
 		click: function() {
 			var state = this.options.state;
+
 			if ( state ) {
 				this.controller.setState( state );
+				this.views.parent.$el.removeClass( 'visible' ); // TODO: or hide on any click, see below
 			}
 		},
 		/**
@@ -4452,6 +4490,17 @@
 		property:  'state',
 		ItemView:  media.view.MenuItem,
 		region:    'menu',
+
+		/* TODO: alternatively hide on any click anywhere
+		events: {
+			'click': 'click'
+		},
+
+		click: function() {
+			this.$el.removeClass( 'visible' );
+		},
+		*/
+
 		/**
 		 * @param {Object} options
 		 * @param {string} id
@@ -4747,6 +4796,7 @@
 				this.$bar.width( this.model.get('percent') + '%' );
 			}
 		},
+
 		/**
 		 * @param {Object} event
 		 */
@@ -4771,12 +4821,18 @@
 
 			// In the grid view, bubble up an edit:attachment event to the controller.
 			if ( this.controller.isModeActive( 'grid' ) ) {
-				// Pass the current target to restore focus when closing
-				this.controller.trigger( 'edit:attachment', this.model, event.currentTarget );
+				if ( this.controller.isModeActive( 'edit' ) ) {
+					// Pass the current target to restore focus when closing
+					this.controller.trigger( 'edit:attachment', this.model, event.currentTarget );
 
-				// Don't scroll the view and don't attempt to submit anything.
-				event.stopPropagation();
-				return;
+					// Don't scroll the view and don't attempt to submit anything.
+					event.stopPropagation();
+					return;
+				}
+
+				if ( this.controller.isModeActive( 'select' ) ) {
+					method = 'toggle';
+				}
 			}
 
 			if ( event.shiftKey ) {
@@ -4788,6 +4844,8 @@
 			this.toggleSelection({
 				method: method
 			});
+
+			this.controller.trigger( 'selection:toggle' );
 
 			// Don't scroll the view and don't attempt to submit anything.
 			event.stopPropagation();
@@ -4878,7 +4936,9 @@
 				selection.single( model );
 
 				// When selecting attachments, focus should be transferred to the right details panel
-				$('.attachment-details input').first().focus();
+				if ( ! isTouchDevice ) {
+					$('.attachment-details input').first().focus();
+				}
 
 				return;
 
@@ -4888,18 +4948,23 @@
 				selection[ this.selected() ? 'remove' : 'add' ]( model );
 				selection.single( model );
 
-				if ( this.selected() ) {
+				if ( ! isTouchDevice && this.selected() ) {
 					// When selecting an attachment, focus should be transferred to the right details panel
 					$('.attachment-details input').first().focus();
 				}
 
 				return;
+			} else if ( 'add' === method ) {
+				selection.add( model );
+				selection.single( model );
+				return;
 			}
 
 			// Fixes bug that loses focus when selecting a featured image
-			if ( !method ) {
+			if ( ! method ) {
 				method = 'add';
 			}
+
 			if ( method !== 'add' ) {
 				method = 'reset';
 			}
@@ -4948,7 +5013,9 @@
 					.find( '.check' ).attr( 'tabindex', '0' );
 
 			// When selecting an attachment, focus should be transferred to the right details panel
-			$('.attachment-details input').first().focus();
+			if ( ! isTouchDevice ) {
+				$('.attachment-details input').first().focus();
+			}
 		},
 		/**
 		 * @param {Backbone.Model} model
@@ -5215,12 +5282,12 @@
 			this.el.id = _.uniqueId('__attachments-view-');
 
 			_.defaults( this.options, {
-				refreshSensitivity: 200,
+				refreshSensitivity: isTouchDevice ? 300 : 200,
 				refreshThreshold:   3,
 				AttachmentView:     media.view.Attachment,
 				sortable:           false,
 				resize:             true,
-				idealColumnWidth:   150
+				idealColumnWidth:   $( window ).width() < 640 ? 135 : 150
 			});
 
 			this._viewsByCid = {};
@@ -5253,7 +5320,8 @@
 			_.bindAll( this, 'setColumns' );
 
 			if ( this.options.resize ) {
-				$( window ).on( 'resize.attachments', this.setColumns );
+				$( window ).on( 'resize.media-modal-columns', this.setColumns );
+				this.controller.on( 'open', this.setColumns );
 			}
 
 			// Call this.setColumns() after this view has been rendered in the DOM so
@@ -5263,7 +5331,7 @@
 
 		dispose: function() {
 			this.collection.props.off( null, null, this );
-			$( window ).off( 'resize.attachments', this.setColumns );
+			$( window ).off( 'resize.media-modal-columns' );
 
 			/**
 			 * call 'dispose' directly on the parent class
@@ -5272,19 +5340,22 @@
 		},
 
 		setColumns: function() {
-			var prev = this.columns;
+			var prev = this.columns,
+				width = this.$el.width();
 
-			this.columns = Math.round( this.$el.width() / this.options.idealColumnWidth );
+			if ( width ) {
+				this.columns = Math.round( width / this.options.idealColumnWidth ) || 1;
 
-			if ( prev !== this.columns ) {
-				this.$el.attr( 'data-columns', this.columns );
+				if ( ! prev || prev !== this.columns ) {
+					this.$el.attr( 'data-columns', this.columns );
+				}
 			}
 		},
 
 		initSortable: function() {
 			var collection = this.collection;
 
-			if ( ! this.options.sortable || ! $.fn.sortable ) {
+			if ( isTouchDevice || ! this.options.sortable || ! $.fn.sortable ) {
 				return;
 			}
 
@@ -5347,7 +5418,7 @@
 		},
 
 		refreshSortable: function() {
-			if ( ! this.options.sortable || ! $.fn.sortable ) {
+			if ( isTouchDevice || ! this.options.sortable || ! $.fn.sortable ) {
 				return;
 			}
 
@@ -5600,6 +5671,7 @@
 				filters[ key ] = {
 					text: text,
 					props: {
+						status:  null,
 						type:    key,
 						uploadedTo: null,
 						orderby: 'date',
@@ -5611,6 +5683,7 @@
 			filters.all = {
 				text:  l10n.allMediaItems,
 				props: {
+					status:  null,
 					type:    null,
 					uploadedTo: null,
 					orderby: 'date',
@@ -5619,55 +5692,47 @@
 				priority: 10
 			};
 
-			filters.uploaded = {
-				text:  l10n.uploadedToThisPost,
-				props: {
-					type:    null,
-					uploadedTo: media.view.settings.post.id,
-					orderby: 'menuOrder',
-					order:   'ASC'
-				},
-				priority: 20
-			};
-
-			this.filters = filters;
-		}
-	});
-
-	/**
-	 * wp.media.view.AttachmentFilters.FileTypes
-	 *
-	 * @constructor
-	 * @augments wp.media.view.AttachmentFilters
-	 * @augments wp.media.View
-	 * @augments wp.Backbone.View
-	 * @augments Backbone.View
-	 */
-	media.view.AttachmentFilters.mimeTypes = media.view.AttachmentFilters.extend({
-		createFilters: function() {
-			var filters = {};
-
-			_.each( media.view.settings.mimeTypes || {}, function( text, key ) {
-				filters[ key ] = {
-					text: text,
+			if ( media.view.settings.post.id ) {
+				filters.uploaded = {
+					text:  l10n.uploadedToThisPost,
 					props: {
-						type:    key,
-						uploadedTo: null,
-						orderby: 'date',
-						order:   'DESC'
-					}
+						status:  null,
+						type:    null,
+						uploadedTo: media.view.settings.post.id,
+						orderby: 'menuOrder',
+						order:   'ASC'
+					},
+					priority: 20
 				};
-			});
-			filters.all = {
-				text:  l10n.allMediaTypes,
+			}
+
+			filters.unattached = {
+				text:  l10n.unattached,
 				props: {
-					type:    null,
-					uploadedTo: null,
-					orderby: 'date',
-					order:   'DESC'
+					status:     null,
+					uploadedTo: 0,
+					type:       null,
+					orderby:    'menuOrder',
+					order:      'ASC'
 				},
-				priority: 10
+				priority: 50
 			};
+
+			if ( media.view.settings.mediaTrash &&
+				this.controller.activeModes.where( { id: 'grid' } ).length ) {
+
+				filters.trash = {
+					text:  l10n.trash,
+					props: {
+						uploadedTo: null,
+						status:     'trash',
+						type:       null,
+						orderby:    'date',
+						order:      'DESC'
+					},
+					priority: 50
+				};
+			}
 
 			this.filters = filters;
 		}
@@ -5702,7 +5767,9 @@
 			this.updateContent();
 			if ( this.options.sidebar ) {
 				this.createSidebar();
-			} else {
+			}
+
+			if ( ! this.options.sidebar || 'errors' === this.options.sidebar ) {
 				this.$el.addClass( 'hide-sidebar' );
 			}
 
@@ -5718,10 +5785,7 @@
 		},
 
 		createToolbar: function() {
-			var filters,
-				LibraryViewSwitcher,
-				FiltersConstructor,
-				screenReaderText;
+			var LibraryViewSwitcher, Filters;
 
 			/**
 			 * @member {wp.media.view.Toolbar}
@@ -5732,6 +5796,38 @@
 
 			this.views.add( this.toolbar );
 
+			this.toolbar.set( 'spinner', new media.view.Spinner({
+				priority: -60
+			}) );
+
+			if ( -1 !== $.inArray( this.options.filters, [ 'uploaded', 'all' ] ) ) {
+				// "Filters" will return a <select>, need to render
+				// screen reader text before
+				this.toolbar.set( 'filtersLabel', new media.view.Label({
+					value: l10n.filterByType,
+					attributes: {
+						'for':  'media-attachment-filters'
+					},
+					priority:   -80
+				}).render() );
+
+				if ( 'uploaded' === this.options.filters ) {
+					this.toolbar.set( 'filters', new media.view.AttachmentFilters.Uploaded({
+						controller: this.controller,
+						model:      this.collection.props,
+						priority:   -80
+					}).render() );
+				} else {
+					Filters = new media.view.AttachmentFilters.All({
+						controller: this.controller,
+						model:      this.collection.props,
+						priority:   -80
+					});
+
+					this.toolbar.set( 'filters', Filters.render() );
+				}
+			}
+
 			// Feels odd to bring the global media library switcher into the Attachment
 			// browser view. Is this a use case for doAction( 'add:toolbar-items:attachments-browser', this.toolbar );
 			// which the controller can tap into and add this view?
@@ -5740,54 +5836,98 @@
 					className: 'view-switch media-grid-view-switch',
 					template: media.template( 'media-library-view-switcher')
 				});
+
 				this.toolbar.set( 'libraryViewSwitcher', new LibraryViewSwitcher({
 					controller: this.controller,
 					priority: -90
 				}).render() );
 
-				this.toolbar.set( 'bulkSelection', new media.view.BulkSelection({
-					controller: this.controller,
-					priority: -70
+				// DateFilter is a <select>, screen reader text needs to be rendered before
+				this.toolbar.set( 'dateFilterLabel', new media.view.Label({
+					value: l10n.filterByDate,
+					attributes: {
+						'for': 'media-attachment-date-filters'
+					},
+					priority: -75
 				}).render() );
 				this.toolbar.set( 'dateFilter', new media.view.DateFilter({
 					controller: this.controller,
 					model:      this.collection.props,
 					priority: -75
 				}).render() );
-			}
 
-			filters = this.options.filters;
-			if ( 'uploaded' === filters ) {
-				FiltersConstructor = media.view.AttachmentFilters.Uploaded;
-			} else if ( 'all' === filters ) {
-				FiltersConstructor = media.view.AttachmentFilters.All;
-			} else if ( 'mime-types' === filters ) {
-				FiltersConstructor = media.view.AttachmentFilters.mimeTypes;
-			}
-
-			if ( FiltersConstructor ) {
-				this.toolbar.set( 'filters', new FiltersConstructor({
+				// BulkSelection is a <div> with subviews, including screen reader text
+				this.toolbar.set( 'selectModeToggleButton', new media.view.SelectModeToggleButton({
+					text: l10n.bulkSelect,
 					controller: this.controller,
-					model:      this.collection.props,
-					priority:   -80
+					priority: -70
 				}).render() );
 
-				screenReaderText = $( '<label class="screen-reader-text" for="media-attachment-filters">' + l10n.select + '</label>' );
-				this.toolbar.get( 'filters' ).$el.before( screenReaderText );
+				this.toolbar.set( 'deleteSelectedButton', new media.view.DeleteSelectedButton({
+					filters: Filters,
+					style: 'primary',
+					disabled: true,
+					text: media.view.settings.mediaTrash ? l10n.trashSelected : l10n.deleteSelected,
+					controller: this.controller,
+					priority: -60,
+					click: function() {
+						var model, changed = [],
+							selection = this.controller.state().get( 'selection' ),
+							library = this.controller.state().get( 'library' );
+
+						if ( ! selection.length ) {
+							return;
+						}
+
+						if ( ! media.view.settings.mediaTrash && ! confirm( l10n.warnBulkDelete ) ) {
+							return;
+						}
+
+						if ( media.view.settings.mediaTrash &&
+							'trash' !== selection.at( 0 ).get( 'status' ) &&
+							! confirm( l10n.warnBulkTrash ) ) {
+
+							return;
+						}
+
+						while ( selection.length > 0 ) {
+							model = selection.at( 0 );
+							if ( media.view.settings.mediaTrash && 'trash' === model.get( 'status' ) ) {
+								model.set( 'status', 'inherit' );
+								changed.push( model.save() );
+								selection.remove( model );
+							} else if ( media.view.settings.mediaTrash ) {
+								model.set( 'status', 'trash' );
+								changed.push( model.save() );
+								selection.remove( model );
+							} else {
+								model.destroy();
+							}
+						}
+
+						if ( changed.length ) {
+							$.when( changed ).then( function() {
+								library._requery( true );
+							} );
+						}
+					}
+				}).render() );
 			}
 
-			this.toolbar.set( 'spinner', new media.view.Spinner({
-				priority: -70
-			}) );
-
 			if ( this.options.search ) {
+				// Search is an input, screen reader text needs to be rendered before
+				this.toolbar.set( 'searchLabel', new media.view.Label({
+					value: l10n.searchMediaLabel,
+					attributes: {
+						'for': 'media-search-input'
+					},
+					priority:   60
+				}).render() );
 				this.toolbar.set( 'search', new media.view.Search({
 					controller: this.controller,
 					model:      this.collection.props,
 					priority:   60
 				}).render() );
-				screenReaderText = $( '<label class="screen-reader-text" for="media-search-input">' + l10n.search + '</label>' );
-				this.toolbar.get( 'search' ).$el.before( screenReaderText );
 			}
 
 			if ( this.options.dragInfo ) {
@@ -5817,14 +5957,14 @@
 
 			if ( ! this.collection.length ) {
 				this.toolbar.get( 'spinner' ).show();
-				this.collection.more().done(function() {
+				this.dfd = this.collection.more().done( function() {
 					if ( ! view.collection.length ) {
 						noItemsView.$el.removeClass( 'hidden' );
 					} else {
 						noItemsView.$el.addClass( 'hidden' );
 					}
 					view.toolbar.get( 'spinner' ).hide();
-				});
+				} );
 			} else {
 				noItemsView.$el.addClass( 'hidden' );
 				view.toolbar.get( 'spinner' ).hide();
@@ -5927,6 +6067,11 @@
 					userSettings: this.model.get('displayUserSettings')
 				}) );
 			}
+
+			// Show the sidebar on mobile
+			if ( this.model.id === 'insert' ) {
+				sidebar.$el.addClass( 'visible' );
+			}
 		},
 
 		disposeSingle: function() {
@@ -5934,6 +6079,8 @@
 			sidebar.unset('details');
 			sidebar.unset('compat');
 			sidebar.unset('display');
+			// Hide the sidebar on mobile
+			sidebar.$el.removeClass( 'visible' );
 		}
 	});
 
@@ -6277,7 +6424,7 @@
 			$input.removeClass( 'hidden' );
 
 			// If the input is visible, focus and select its contents.
-			if ( $input.is(':visible') ) {
+			if ( ! isTouchDevice && $input.is(':visible') ) {
 				$input.focus()[0].select();
 			}
 		}
@@ -6332,9 +6479,9 @@
 			'change [data-setting] textarea': 'updateSetting',
 			'click .delete-attachment':       'deleteAttachment',
 			'click .trash-attachment':        'trashAttachment',
+			'click .untrash-attachment':      'untrashAttachment',
 			'click .edit-attachment':         'editAttachment',
 			'click .refresh-attachment':      'refreshAttachment',
-			'click .advanced-toggle':         'onToggleAdvanced',
 			'keydown':                        'toggleSelectionHandler'
 		},
 
@@ -6346,17 +6493,6 @@
 			 * call 'initialize' directly on the parent class
 			 */
 			media.view.Attachment.prototype.initialize.apply( this, arguments );
-		},
-
-		/**
-		 * Render view, then check if the advanced details should be shown.
-		 */
-		render: function(){
-			media.view.Attachment.prototype.render.apply( this, arguments );
-
-			if ( 'show' === getUserSetting( 'advImgDetails' ) ) {
-				this.toggleAdvanced( true );
-			}
 		},
 		/**
 		 * @param {Object} event
@@ -6377,9 +6513,31 @@
 		 * @param {Object} event
 		 */
 		trashAttachment: function( event ) {
+			var library = this.controller.library;
 			event.preventDefault();
 
-			this.model.destroy();
+			if ( media.view.settings.mediaTrash &&
+				'edit-metadata' === this.controller.content.mode() ) {
+
+				this.model.set( 'status', 'trash' );
+				this.model.save().done( function() {
+					library._requery( true );
+				} );
+			}  else {
+				this.model.destroy();
+			}
+		},
+		/**
+		 * @param {Object} event
+		 */
+		untrashAttachment: function( event ) {
+			var library = this.controller.library;
+			event.preventDefault();
+
+			this.model.set( 'status', 'inherit' );
+			this.model.save().done( function() {
+				library._requery( true );
+			} );
 		},
 		/**
 		 * @param {Object} event
@@ -6414,27 +6572,8 @@
 				$('.attachments-browser .details').focus();
 				return false;
 			}
-		},
-
-		onToggleAdvanced: function( event ) {
-			event.preventDefault();
-			this.toggleAdvanced();
-		},
-
-		toggleAdvanced: function( show ) {
-			var $advanced = this.$( '.advanced-section' ), mode = 'show';
-
-			if ( $advanced.hasClass('advanced-visible') || false === show ) {
-				$advanced.removeClass('advanced-visible');
-				$advanced.find('.advanced-settings').addClass('hidden');
-				mode = 'hide';
-			} else {
-				$advanced.addClass('advanced-visible');
-				$advanced.find('.advanced-settings').removeClass('hidden');
-			}
-
-			setUserSetting( 'advImgDetails', mode );
 		}
+
 	});
 
 	/**
@@ -6594,6 +6733,27 @@
 	});
 
 	/**
+	 * @constructor
+	 * @augments wp.media.View
+	 * @augments wp.Backbone.View
+	 * @augments Backbone.View
+	 */
+	media.view.Label = media.View.extend({
+		tagName: 'label',
+		className: 'screen-reader-text',
+
+		initialize: function() {
+			this.value = this.options.value;
+		},
+
+		render: function() {
+			this.$el.html( this.value );
+
+			return this;
+		}
+	});
+
+	/**
 	 * wp.media.view.EmbedUrl
 	 *
 	 * @constructor
@@ -6647,7 +6807,9 @@
 		},
 
 		ready: function() {
-			this.focus();
+			if ( ! isTouchDevice ) {
+				this.focus();
+			}
 		},
 
 		url: function( event ) {
@@ -6726,7 +6888,7 @@
 	/**
 	 * wp.media.view.EmbedImage
 	 *
-	 * @contructor
+	 * @constructor
 	 * @augments wp.media.view.Settings.AttachmentDisplay
 	 * @augments wp.media.view.Settings
 	 * @augments wp.media.View
@@ -6753,7 +6915,7 @@
 	/**
 	 * wp.media.view.ImageDetails
 	 *
-	 * @contructor
+	 * @constructor
 	 * @augments wp.media.view.Settings.AttachmentDisplay
 	 * @augments wp.media.view.Settings
 	 * @augments wp.media.View
@@ -6869,7 +7031,6 @@
 				value = Math.round( this.model.get( 'aspectRatio' ) * num );
 				this.model.set( 'customWidth', value, { silent: true  } );
 				this.$( '[data-setting="customWidth"]' ).val( value );
-
 			}
 		},
 

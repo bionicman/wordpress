@@ -25,6 +25,7 @@ class WP_Plugin_Install_List_Table extends WP_List_Table {
 	 * within get_plugins().
 	 *
 	 * @since 4.0.0
+	 * @access protected
 	 */
 	protected function get_installed_plugin_slugs() {
 		$slugs = array();
@@ -321,6 +322,12 @@ class WP_Plugin_Install_List_Table extends WP_List_Table {
 			'ul' => array(), 'ol' => array(), 'li' => array(), 'p' => array(), 'br' => array()
 		);
 
+		$plugins_group_titles = array(
+			'Performance' => _x( 'Performance', 'Plugin installer group title' ),
+			'Social'      => _x( 'Social',      'Plugin installer group title' ),
+			'Tools'       => _x( 'Tools',       'Plugin installer group title' ),
+		);
+
 		list( $columns, $hidden ) = $this->get_column_info();
 
 		$style = array();
@@ -338,7 +345,10 @@ class WP_Plugin_Install_List_Table extends WP_List_Table {
 			// Display the group heading if there is one
 			if ( isset( $plugin['group'] ) && $plugin['group'] != $group ) {
 				if ( isset( $this->groups[ $plugin['group'] ] ) ) {
-					$group_name = translate( $this->groups[ $plugin['group'] ] ); // Does this need context?
+					$group_name = $this->groups[ $plugin['group'] ];
+					if ( isset( $plugins_group_titles[ $group_name ] ) ) {
+						$group_name = $plugins_group_titles[ $group_name ];
+					}
 				} else {
 					$group_name = $plugin['group'];
 				}
@@ -375,13 +385,15 @@ class WP_Plugin_Install_List_Table extends WP_List_Table {
 				switch ( $status['status'] ) {
 					case 'install':
 						if ( $status['url'] ) {
-							$action_links[] = '<a class="install-now button" href="' . $status['url'] . '" aria-labelledby="' . $plugin['slug'] . '">' . __( 'Install Now' ) . '</a>';
+							/* translators: 1: Plugin name and version. */
+							$action_links[] = '<a class="install-now button" href="' . $status['url'] . '" aria-label="' . esc_attr( sprintf( __( 'Install %s now' ), $name ) ) . '">' . __( 'Install Now' ) . '</a>';
 						}
 
 						break;
 					case 'update_available':
 						if ( $status['url'] ) {
-							$action_links[] = '<a class="button" href="' . $status['url'] . '" aria-labelledby="' . $plugin['slug'] . '">' . __( 'Update Now' ) . '</a>';
+							/* translators: 1: Plugin name and version */
+							$action_links[] = '<a class="button" href="' . $status['url'] . '" aria-label="' . esc_attr( sprintf( __( 'Update %s now' ), $name ) ) . '">' . __( 'Update Now' ) . '</a>';
 						}
 
 						break;
@@ -395,7 +407,8 @@ class WP_Plugin_Install_List_Table extends WP_List_Table {
 			$details_link   = self_admin_url( 'plugin-install.php?tab=plugin-information&amp;plugin=' . $plugin['slug'] .
 								'&amp;TB_iframe=true&amp;width=600&amp;height=550' );
 
-			$action_links[] = '<a href="' . esc_url( $details_link ) . '" class="thickbox" aria-labelledby="' . $plugin['slug'] . '" data-title="' . esc_attr( $name ) . '">' . __( 'More Details' ) . '</a>';
+			/* translators: 1: Plugin name and version. */
+			$action_links[] = '<a href="' . esc_url( $details_link ) . '" class="thickbox" aria-label="' . esc_attr( sprintf( __( 'More information about %s' ), $name ) ) . '" data-title="' . esc_attr( $name ) . '">' . __( 'More Details' ) . '</a>';
 
 
 			/**

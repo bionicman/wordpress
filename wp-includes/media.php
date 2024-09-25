@@ -1874,7 +1874,14 @@ function wp_video_shortcode( $attr, $content = '' ) {
 	}
 	$html .= '</video>';
 
-	$output = sprintf( '<div style="width: %dpx; max-width: 100%%;" class="wp-video">%s</div>', $atts['width'], $html );
+	$width_rule = $height_rule = '';
+	if ( ! empty( $atts['width'] ) ) {
+		$width_rule = sprintf( 'width: %dpx; ', $atts['width'] );
+	}
+	if ( ! empty( $atts['height'] ) ) {
+		$height_rule = sprintf( 'height: %dpx; ', $atts['height'] );
+	}
+	$output = sprintf( '<div style="%s%s" class="wp-video">%s</div>', $width_rule, $height_rule, $html );
 
 	/**
 	 * Filter the output of the video shortcode.
@@ -2288,7 +2295,7 @@ function wp_embed_handler_googlevideo( $matches, $attr, $url, $rawattr ) {
  * @since 4.0.0
  *
  * @param array  $matches The regex matches from the provided regex when calling
- *                        {@link wp_embed_register_handler()}.
+ *                        {@see wp_embed_register_handler()}.
  * @param array  $attr    Embed attributes.
  * @param string $url     The original URL that was matched by the regex.
  * @param array  $rawattr The original unmodified attributes.
@@ -2640,7 +2647,7 @@ function wp_prepare_attachment_for_js( $attachment ) {
 		if ( $parent_type && $parent_type->show_ui && current_user_can( 'edit_post', $attachment->post_parent ) ) {
 			$response['uploadedToLink'] = get_edit_post_link( $attachment->post_parent, 'raw' );
 		}
-		$response['uploadedToTitle'] = $post_parent->post_title ? $post_parent->post_title : __( '(No title)' );
+		$response['uploadedToTitle'] = $post_parent->post_title ? $post_parent->post_title : __( '(no title)' );
 	}
 
 	$attached_file = get_attached_file( $attachment->ID );
@@ -2862,6 +2869,7 @@ function wp_enqueue_media( $args = array() ) {
 		'embedMimes'   => $ext_mimes,
 		'contentWidth' => $content_width,
 		'months'       => $months,
+		'mediaTrash'   => MEDIA_TRASH ? 1 : 0
 	);
 
 	$post = null;
@@ -2923,12 +2931,22 @@ function wp_enqueue_media( $args = array() ) {
 		'allDates'               => __( 'All dates' ),
 		'noItemsFound'           => __( 'No items found.' ),
 		'insertIntoPost'         => $hier ? __( 'Insert into page' ) : __( 'Insert into post' ),
+		'unattached'             => __( 'Unattached' ),
+		'trash'                  => __( 'Trash' ),
 		'uploadedToThisPost'     => $hier ? __( 'Uploaded to this page' ) : __( 'Uploaded to this post' ),
 		'warnDelete'             => __( "You are about to permanently delete this item.\n  'Cancel' to stop, 'OK' to delete." ),
 		'warnBulkDelete'         => __( "You are about to permanently delete these items.\n  'Cancel' to stop, 'OK' to delete." ),
-		'bulkActions'            => __( 'Bulk Actions' ),
+		'warnBulkTrash'          => __( "You are about to trash these items.\n  'Cancel' to stop, 'OK' to delete." ),
+		'bulkSelect'             => __( 'Bulk Select' ),
+		'cancelSelection'        => __( 'Cancel Selection' ),
+		'trashSelected'          => __( 'Trash Selected' ),
+		'untrashSelected'        => __( 'Untrash Selected' ),
+		'deleteSelected'         => __( 'Delete Selected' ),
 		'deletePermanently'      => __( 'Delete Permanently' ),
 		'apply'                  => __( 'Apply' ),
+		'filterByDate'           => __( 'Filter by date' ),
+		'filterByType'           => __( 'Filter by type' ),
+		'searchMediaLabel'       => __( 'Search Media' ),
 
 		// Library Details
 		'attachmentDetails'  => __( 'Attachment Details' ),
@@ -3287,6 +3305,7 @@ function attachment_url_to_postid( $url ) {
  * @since 4.0.0
  *
  * @global $wp_version
+ *
  * @return array The relevant CSS file URLs.
  */
 function wp_media_mce_styles() {
