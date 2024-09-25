@@ -42,5 +42,4 @@ class Requests_Utility_FilteredIterator extends ArrayIterator {
 		$value = call_user_func($this->callback, $value);
 		return $value;
 	}
-
 }

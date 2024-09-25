@@ -586,6 +586,23 @@ function get_metadata_by_mid( $meta_type, $meta_id ) {
 
 	$id_column = ( 'user' == $meta_type ) ? 'umeta_id' : 'meta_id';
 
+	/**
+	 * Filters whether to retrieve metadata of a specific type by meta ID.
+	 *
+	 * The dynamic portion of the hook, `$meta_type`, refers to the meta
+	 * object type (comment, post, term, or user). Returning a non-null value
+	 * will effectively short-circuit the function.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param mixed $value    The value get_metadata_by_mid() should return.
+	 * @param int   $meta_id  Meta ID.
+	 */
+	$check = apply_filters( "get_{$meta_type}_metadata_by_mid", null, $meta_id );
+	if ( null !== $check ) {
+		return $check;
+	}
+
 	$meta = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM $table WHERE $id_column = %d", $meta_id ) );
 
 	if ( empty( $meta ) )
@@ -630,6 +647,25 @@ function update_metadata_by_mid( $meta_type, $meta_id, $meta_value, $meta_key = 
 
 	$column = sanitize_key($meta_type . '_id');
 	$id_column = 'user' == $meta_type ? 'umeta_id' : 'meta_id';
+
+	/**
+	 * Filters whether to update metadata of a specific type by meta ID.
+	 *
+	 * The dynamic portion of the hook, `$meta_type`, refers to the meta
+	 * object type (comment, post, term, or user). Returning a non-null value
+	 * will effectively short-circuit the function.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param null|bool   $check      Whether to allow updating metadata for the given type.
+	 * @param int         $meta_id    Meta ID.
+	 * @param mixed       $meta_value Meta value. Must be serializable if non-scalar.
+	 * @param string|bool $meta_key   Meta key, if provided.
+	 */
+	$check = apply_filters( "update_{$meta_type}_metadata_by_mid", null, $meta_id, $meta_value, $meta_key );
+	if ( null !== $check ) {
+		return (bool) $check;
+	}
 
 	// Fetch the meta and go on if it's found.
 	if ( $meta = get_metadata_by_mid( $meta_type, $meta_id ) ) {
@@ -725,6 +761,23 @@ function delete_metadata_by_mid( $meta_type, $meta_id ) {
 	$column = sanitize_key($meta_type . '_id');
 	$id_column = 'user' == $meta_type ? 'umeta_id' : 'meta_id';
 
+	/**
+	 * Filters whether to delete metadata of a specific type by meta ID.
+	 *
+	 * The dynamic portion of the hook, `$meta_type`, refers to the meta
+	 * object type (comment, post, term, or user). Returning a non-null value
+	 * will effectively short-circuit the function.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param null|bool $delete  Whether to allow metadata deletion of the given type.
+	 * @param int       $meta_id Meta ID.
+	 */
+	$check = apply_filters( "delete_{$meta_type}_metadata_by_mid", null, $meta_id );
+	if ( null !== $check ) {
+		return (bool) $check;
+	}
+
 	// Fetch the meta and go on if it's found.
 	if ( $meta = get_metadata_by_mid( $meta_type, $meta_id ) ) {
 		$object_id = $meta->{$column};
@@ -810,6 +863,23 @@ function update_meta_cache($meta_type, $object_ids) {
 	}
 
 	$object_ids = array_map('intval', $object_ids);
+
+	/**
+	 * Filters whether to update the metadata cache of a specific type.
+	 *
+	 * The dynamic portion of the hook, `$meta_type`, refers to the meta
+	 * object type (comment, post, term, or user). Returning a non-null value
+	 * will effectively short-circuit the function.
+	 *
+	 * @since 5.0.0
+	 *
+	 * @param mixed $check      Whether to allow updating the meta cache of the given type.
+	 * @param array $object_ids Array of object IDs to update the meta cache for.
+	 */
+	$check = apply_filters( "update_{$meta_type}_metadata_cache", null, $object_ids );
+	if ( null !== $check ) {
+		return (bool) $check;
+	}
 
 	$cache_key = $meta_type . '_meta';
 	$ids = array();
@@ -923,9 +993,8 @@ function _get_meta_table($type) {
  *                               term, or user).
  * @return bool True if the key is protected, false otherwise.
  */
-function is_protected_meta( $meta_key, $meta_type = '' ) {
-	$sanitized_key = preg_replace( "/[^\x20-\x7E\p{L}]/", '', $meta_key );
-	$protected     = strlen( $sanitized_key ) > 0 && ( '_' === $sanitized_key[0] );
+function is_protected_meta( $meta_key, $meta_type = null ) {
+	$protected = ( '_' == $meta_key[0] );
 
 	/**
 	 * Filters whether a meta key is protected.

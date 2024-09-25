@@ -33,14 +33,6 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 	protected $meta;
 
 	/**
-	 * Passwordless post access permitted.
-	 *
-	 * @since 5.7.1
-	 * @var int[]
-	 */
-	protected $password_check_passed = array();
-
-	/**
 	 * Constructor.
 	 *
 	 * @since 4.7.0
@@ -143,38 +135,6 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 		}
 
 		return true;
-	}
-
-	/**
-	 * Override the result of the post password check for REST requested posts.
-	 *
-	 * Allow users to read the content of password protected posts if they have
-	 * previously passed a permission check or if they have the `edit_post` capability
-	 * for the post being checked.
-	 *
-	 * @since 5.7.1
-	 *
-	 * @param bool    $required Whether the post requires a password check.
-	 * @param WP_Post $post     The post been password checked.
-	 * @return bool Result of password check taking in to account REST API considerations.
-	 */
-	public function check_password_required( $required, $post ) {
-		if ( ! $required ) {
-			return $required;
-		}
-
-		$post = get_post( $post );
-
-		if ( ! $post ) {
-			return $required;
-		}
-
-		if ( ! empty( $this->password_check_passed[ $post->ID ] ) ) {
-			// Password previously checked and approved.
-			return false;
-		}
-
-		return ! current_user_can( 'edit_post', $post->ID );
 	}
 
 	/**
@@ -332,7 +292,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 
 		// Allow access to all password protected posts if the context is edit.
 		if ( 'edit' === $request['context'] ) {
-			add_filter( 'post_password_required', array( $this, 'check_password_required' ), 10, 2 );
+			add_filter( 'post_password_required', '__return_false' );
 		}
 
 		$posts = array();
@@ -348,7 +308,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 
 		// Reset filter.
 		if ( 'edit' === $request['context'] ) {
-			remove_filter( 'post_password_required', array( $this, 'check_password_required' ) );
+			remove_filter( 'post_password_required', '__return_false' );
 		}
 
 		$page = (int) $query_args['paged'];
@@ -446,7 +406,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 
 		// Allow access to all password protected posts if the context is edit.
 		if ( 'edit' === $request['context'] ) {
-			add_filter( 'post_password_required', array( $this, 'check_password_required' ), 10, 2 );
+			add_filter( 'post_password_required', '__return_false' );
 		}
 
 		if ( $post ) {
@@ -474,14 +434,8 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 			return false;
 		}
 
-		/*
-		 * Users always gets access to password protected content in the edit
-		 * context if they have the `edit_post` meta capability.
-		 */
-		if (
-			'edit' === $request['context'] &&
-			current_user_can( 'edit_post', $post->ID )
-		) {
+		// Edit context always gets access to password-protected posts.
+		if ( 'edit' === $request['context'] ) {
 			return true;
 		}
 
@@ -537,7 +491,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 			return new WP_Error( 'rest_cannot_edit_others', __( 'Sorry, you are not allowed to create posts as this user.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
-		if ( ! empty( $request['sticky'] ) && ! current_user_can( $post_type->cap->edit_others_posts ) && ! current_user_can( $post_type->cap->publish_posts ) ) {
+		if ( ! empty( $request['sticky'] ) && ! current_user_can( $post_type->cap->edit_others_posts ) ) {
 			return new WP_Error( 'rest_cannot_assign_sticky', __( 'Sorry, you are not allowed to make posts sticky.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
@@ -646,6 +600,19 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 
 		$request->set_param( 'context', 'edit' );
 
+		/**
+		 * Fires after a single post is completely created or updated via the REST API.
+		 *
+		 * The dynamic portion of the hook name, `$this->post_type`, refers to the post type slug.
+		 *
+		 * @since 5.0.0
+		 *
+		 * @param WP_Post         $post     Inserted or updated post object.
+		 * @param WP_REST_Request $request  Request object.
+		 * @param bool            $creating True when creating a post, false when updating.
+		 */
+		do_action( "rest_after_insert_{$this->post_type}", $post, $request, true );
+
 		$response = $this->prepare_item_for_response( $post, $request );
 		$response = rest_ensure_response( $response );
 
@@ -679,7 +646,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 			return new WP_Error( 'rest_cannot_edit_others', __( 'Sorry, you are not allowed to update posts as this user.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
-		if ( ! empty( $request['sticky'] ) && ! current_user_can( $post_type->cap->edit_others_posts ) && ! current_user_can( $post_type->cap->publish_posts ) ) {
+		if ( ! empty( $request['sticky'] ) && ! current_user_can( $post_type->cap->edit_others_posts ) ) {
 			return new WP_Error( 'rest_cannot_assign_sticky', __( 'Sorry, you are not allowed to make posts sticky.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
@@ -771,6 +738,9 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 		}
 
 		$request->set_param( 'context', 'edit' );
+
+		/** This action is documented in wp-includes/rest-api/endpoints/class-wp-rest-posts-controller.php */
+		do_action( "rest_after_insert_{$this->post_type}", $post, $request, false );
 
 		$response = $this->prepare_item_for_response( $post, $request );
 
@@ -910,7 +880,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 			 *
 			 * @param string $value The query_var value.
 			 */
-			$query_args[ $key ] = apply_filters( "rest_query_var-{$key}", $value );
+			$query_args[ $key ] = apply_filters( "rest_query_var-{$key}", $value ); // phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores
 		}
 
 		if ( 'post' !== $this->post_type || ! isset( $query_args['ignore_sticky_posts'] ) ) {
@@ -968,7 +938,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 	 * @return stdClass|WP_Error Post object or WP_Error.
 	 */
 	protected function prepare_item_for_database( $request ) {
-		$prepared_post = new stdClass();
+		$prepared_post = new stdClass;
 
 		// Post ID.
 		if ( isset( $request['id'] ) ) {
@@ -1531,19 +1501,19 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 		$has_password_filter = false;
 
 		if ( $this->can_access_password_content( $post, $request ) ) {
-			$this->password_check_passed[ $post->ID ] = true;
 			// Allow access to the post, permissions already checked before.
-			add_filter( 'post_password_required', array( $this, 'check_password_required' ), 10, 2 );
+			add_filter( 'post_password_required', '__return_false' );
 
 			$has_password_filter = true;
 		}
 
 		if ( in_array( 'content', $fields, true ) ) {
 			$data['content'] = array(
-				'raw'       => $post->post_content,
+				'raw'           => $post->post_content,
 				/** This filter is documented in wp-includes/post-template.php */
-				'rendered'  => post_password_required( $post ) ? '' : apply_filters( 'the_content', $post->post_content ),
-				'protected' => (bool) $post->post_password,
+				'rendered'      => post_password_required( $post ) ? '' : apply_filters( 'the_content', $post->post_content ),
+				'protected'     => (bool) $post->post_password,
+				'block_version' => block_version( $post->post_content ),
 			);
 		}
 
@@ -1559,7 +1529,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 
 		if ( $has_password_filter ) {
 			// Reset filter.
-			remove_filter( 'post_password_required', array( $this, 'check_password_required' ) );
+			remove_filter( 'post_password_required', '__return_false' );
 		}
 
 		if ( in_array( 'author', $fields, true ) ) {
@@ -1619,6 +1589,23 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 			if ( in_array( $base, $fields, true ) ) {
 				$terms = get_the_terms( $post, $taxonomy->name );
 				$data[ $base ] = $terms ? array_values( wp_list_pluck( $terms, 'term_id' ) ) : array();
+			}
+		}
+
+		$post_type_obj = get_post_type_object( $post->post_type );
+		if ( is_post_type_viewable( $post_type_obj ) && $post_type_obj->public  ) {
+
+			if ( ! function_exists( 'get_sample_permalink' ) ) {
+				require_once ABSPATH . '/wp-admin/includes/post.php';
+			}
+
+			$sample_permalink = get_sample_permalink( $post->ID, $post->post_title, '' );
+
+			if ( in_array( 'permalink_template', $fields, true ) ) {
+				$data['permalink_template'] = $sample_permalink[0];
+			}
+			if ( in_array( 'generated_slug', $fields, true ) ) {
+				$data['generated_slug'] = $sample_permalink[1];
 			}
 		}
 
@@ -1817,6 +1804,10 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 			$rels[] = 'https://api.w.org/action-publish';
 		}
 
+		if ( current_user_can( 'unfiltered_html' ) ) {
+			$rels[] = 'https://api.w.org/action-unfiltered-html';
+		}
+
 		if ( 'post' === $post_type->name ) {
 			if ( current_user_can( $post_type->cap->edit_others_posts ) && current_user_can( $post_type->cap->publish_posts ) ) {
 				$rels[] = 'https://api.w.org/action-sticky';
@@ -1950,6 +1941,21 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 		);
 
 		$post_type_obj = get_post_type_object( $this->post_type );
+		if ( is_post_type_viewable( $post_type_obj ) && $post_type_obj->public ) {
+			$schema['properties']['permalink_template'] = array(
+				'description' => __( 'Permalink template for the object.' ),
+				'type'        => 'string',
+				'context'     => array( 'edit' ),
+				'readonly'    => true,
+			);
+
+			$schema['properties']['generated_slug'] = array(
+				'description' => __( 'Slug automatically generated from the object title.' ),
+				'type'        => 'string',
+				'context'     => array( 'edit' ),
+				'readonly'    => true,
+			);
+		}
 
 		if ( $post_type_obj->hierarchical ) {
 			$schema['properties']['parent'] = array(
@@ -2055,6 +2061,12 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 								'description' => __( 'HTML content for the object, transformed for display.' ),
 								'type'        => 'string',
 								'context'     => array( 'view', 'edit' ),
+								'readonly'    => true,
+							),
+							'block_version' => array(
+								'description' => __( 'Version of the content block format used by the object.' ),
+								'type'        => 'integer',
+								'context'     => array( 'edit' ),
 								'readonly'    => true,
 							),
 							'protected'       => array(
@@ -2225,6 +2237,22 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 				),
 			);
 		}
+
+		$links[] = array(
+			'rel'          => 'https://api.w.org/action-unfiltered-html',
+			'title'        => __( 'The current user can post unfiltered HTML markup and JavaScript.' ),
+			'href'         => $href,
+			'targetSchema' => array(
+				'type'        => 'object',
+				'properties'  => array(
+					'content' => array(
+						'raw' => array(
+							'type' => 'string',
+						),
+					),
+				),
+			),
+		);
 
 		if ( 'post' === $this->post_type ) {
 			$links[] = array(
@@ -2525,7 +2553,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 
 			$post_type_obj = get_post_type_object( $this->post_type );
 
-			if ( current_user_can( $post_type_obj->cap->edit_posts ) ) {
+			if ( current_user_can( $post_type_obj->cap->edit_posts ) || 'private' === $status && current_user_can( $post_type_obj->cap->read_private_posts ) ) {
 				$result = rest_validate_request_arg( $status, $request, $parameter );
 				if ( is_wp_error( $result ) ) {
 					return $result;

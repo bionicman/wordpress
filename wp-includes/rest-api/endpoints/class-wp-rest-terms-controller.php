@@ -127,35 +127,6 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Checks if the terms for a post can be read.
-	 *
-	 * @since 6.0.3
-	 *
-	 * @param WP_Post         $post    Post object.
-	 * @param WP_REST_Request $request Full details about the request.
-	 * @return bool Whether the terms for the post can be read.
-	 */
-	public function check_read_terms_permission_for_post( $post, $request ) {
-		// If the requested post isn't associated with this taxonomy, deny access.
-		if ( ! is_object_in_taxonomy( $post->post_type, $this->taxonomy ) ) {
-			return false;
-		}
-
-		// Grant access if the post is publicly viewable.
-		if ( is_post_publicly_viewable( $post ) ) {
-			return true;
-		}
-
-		// Otherwise grant access if the post is readable by the logged in user.
-		if ( current_user_can( 'read_post', $post->ID ) ) {
-			return true;
-		}
-
-		// Otherwise, deny access.
-		return false;
-	}
-
-	/**
 	 * Checks if a request has access to read terms in the specified taxonomy.
 	 *
 	 * @since 4.7.0
@@ -165,43 +136,12 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 	 */
 	public function get_items_permissions_check( $request ) {
 		$tax_obj = get_taxonomy( $this->taxonomy );
-
 		if ( ! $tax_obj || ! $this->check_is_taxonomy_allowed( $this->taxonomy ) ) {
 			return false;
 		}
-
 		if ( 'edit' === $request['context'] && ! current_user_can( $tax_obj->cap->edit_terms ) ) {
-			return new WP_Error(
-				'rest_forbidden_context',
-				__( 'Sorry, you are not allowed to edit terms in this taxonomy.' ),
-				array( 'status' => rest_authorization_required_code() )
-			);
+			return new WP_Error( 'rest_forbidden_context', __( 'Sorry, you are not allowed to edit terms in this taxonomy.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
-
-		if ( ! empty( $request['post'] ) ) {
-			$post = get_post( $request['post'] );
-
-			if ( ! $post ) {
-				return new WP_Error(
-					'rest_post_invalid_id',
-					__( 'Invalid post ID.' ),
-					array(
-						'status' => 400,
-					)
-				);
-			}
-
-			if ( ! $this->check_read_terms_permission_for_post( $post, $request ) ) {
-				return new WP_Error(
-					'rest_forbidden_context',
-					__( 'Sorry, you are not allowed to view terms for this post.' ),
-					array(
-						'status' => rest_authorization_required_code(),
-					)
-				);
-			}
-		}
-
 		return true;
 	}
 
@@ -478,7 +418,7 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 			if ( $term_id = $term->get_error_data( 'term_exists' ) ) {
 				$existing_term = get_term( $term_id, $this->taxonomy );
 				$term->add_data( $existing_term->term_id, 'term_exists' );
-				$term->add_data( array( 'status' => 409, 'term_id' => $term_id ) );
+				$term->add_data( array( 'status' => 400, 'term_id' => $term_id ) );
 			}
 
 			return $term;
@@ -515,6 +455,19 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 		}
 
 		$request->set_param( 'context', 'view' );
+
+		/**
+		 * Fires after a single term is completely created or updated via the REST API.
+		 *
+		 * The dynamic portion of the hook name, `$this->taxonomy`, refers to the taxonomy slug.
+		 *
+		 * @since 5.0.0
+		 *
+		 * @param WP_Term         $term     Inserted or updated term object.
+		 * @param WP_REST_Request $request  Request object.
+		 * @param bool            $creating True when creating a term, false when updating.
+		 */
+		do_action( "rest_after_insert_{$this->taxonomy}", $term, $request, true );
 
 		$response = $this->prepare_item_for_response( $term, $request );
 		$response = rest_ensure_response( $response );
@@ -604,6 +557,9 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 		}
 
 		$request->set_param( 'context', 'view' );
+
+		/** This action is documented in wp-includes/rest-api/endpoints/class-wp-rest-terms-controller.php */
+		do_action( "rest_after_insert_{$this->taxonomy}", $term, $request, false );
 
 		$response = $this->prepare_item_for_response( $term, $request );
 
