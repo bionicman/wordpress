@@ -1758,7 +1758,7 @@ function wp_video_shortcode( $attr, $content = '' ) {
 		}
 	}
 
-	$yt_pattern = '#^https?://(:?www\.)?(:?youtube\.com/watch|youtu\.be/)#';
+	$yt_pattern = '#^https?://(?:www\.)?(?:youtube\.com/watch|youtu\.be/)#';
 
 	$primary = false;
 	if ( ! empty( $atts['src'] ) ) {
@@ -2628,6 +2628,7 @@ function wp_prepare_attachment_for_js( $attachment ) {
 			'edit'   => false
 		),
 		'editLink'   => false,
+		'meta'       => false,
 	);
 
 	$author = new WP_User( $attachment->post_author );
@@ -2635,7 +2636,10 @@ function wp_prepare_attachment_for_js( $attachment ) {
 
 	if ( $attachment->post_parent ) {
 		$post_parent = get_post( $attachment->post_parent );
-		$response['uploadedToLink'] = get_edit_post_link( $attachment->post_parent, 'raw' );
+		$parent_type = get_post_type_object( $post_parent->post_type );
+		if ( $parent_type && $parent_type->show_ui && current_user_can( 'edit_post', $attachment->post_parent ) ) {
+			$response['uploadedToLink'] = get_edit_post_link( $attachment->post_parent, 'raw' );
+		}
 		$response['uploadedToTitle'] = $post_parent->post_title ? $post_parent->post_title : __( '(No title)' );
 	}
 
@@ -2725,6 +2729,8 @@ function wp_prepare_attachment_for_js( $attachment ) {
 
 		$response['meta'] = array();
 		foreach ( wp_get_attachment_id3_keys( $attachment, 'js' ) as $key => $label ) {
+			$response['meta'][ $key ] = false;
+
 			if ( ! empty( $meta[ $key ] ) ) {
 				$response['meta'][ $key ] = $meta[ $key ];
 			}
@@ -2772,7 +2778,7 @@ function wp_enqueue_media( $args = array() ) {
 	if ( did_action( 'wp_enqueue_media' ) )
 		return;
 
-	global $content_width, $wpdb;
+	global $content_width, $wpdb, $wp_locale;
 
 	$defaults = array(
 		'post' => null,
@@ -2825,6 +2831,15 @@ function wp_enqueue_media( $args = array() ) {
 		AND post_mime_type LIKE 'video%'
 		LIMIT 1
 	" );
+	$months = $wpdb->get_results( $wpdb->prepare( "
+		SELECT DISTINCT YEAR( post_date ) AS year, MONTH( post_date ) AS month
+		FROM $wpdb->posts
+		WHERE post_type = %s
+		ORDER BY post_date DESC
+	", 'attachment' ) );
+	foreach ( $months as $month_year ) {
+		$month_year->text = sprintf( __( '%1$s %2$d' ), $wp_locale->get_month( $month_year->month ), $month_year->year );
+	}
 
 	$settings = array(
 		'tabs'      => $tabs,
@@ -2846,6 +2861,7 @@ function wp_enqueue_media( $args = array() ) {
 		'embedExts'    => $exts,
 		'embedMimes'   => $ext_mimes,
 		'contentWidth' => $content_width,
+		'months'       => $months,
 	);
 
 	$post = null;
@@ -2904,6 +2920,7 @@ function wp_enqueue_media( $args = array() ) {
 		'returnToLibrary'        => __( '&#8592; Return to library' ),
 		'allMediaItems'          => __( 'All media items' ),
 		'allMediaTypes'          => __( 'All media types' ),
+		'allDates'               => __( 'All dates' ),
 		'noItemsFound'           => __( 'No items found.' ),
 		'insertIntoPost'         => $hier ? __( 'Insert into page' ) : __( 'Insert into post' ),
 		'uploadedToThisPost'     => $hier ? __( 'Uploaded to this page' ) : __( 'Uploaded to this post' ),

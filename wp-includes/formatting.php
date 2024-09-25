@@ -392,6 +392,12 @@ function wpautop($pee, $br = true) {
 	$pee = preg_replace('!(</' . $allblocks . '>)!', "$1\n\n", $pee);
 	$pee = str_replace(array("\r\n", "\r"), "\n", $pee); // cross-platform newlines
 
+	if ( strpos( $pee, '<option' ) !== false ) {
+		// no P/BR around option
+		$pee = preg_replace( '|\s*<option|', '<option', $pee );
+		$pee = preg_replace( '|</option>\s*|', '</option>', $pee );
+	}
+
 	if ( strpos( $pee, '</object>' ) !== false ) {
 		// no P/BR around param and embed
 		$pee = preg_replace( '|(<object[^>]*>)\s*|', '$1', $pee );
@@ -1049,6 +1055,7 @@ function sanitize_file_name( $filename ) {
 	$special_chars = apply_filters( 'sanitize_file_name_chars', $special_chars, $filename_raw );
 	$filename = preg_replace( "#\x{00a0}#siu", ' ', $filename );
 	$filename = str_replace($special_chars, '', $filename);
+	$filename = str_replace( array( '%20', '+' ), '-', $filename );
 	$filename = preg_replace('/[\s-]+/', '-', $filename);
 	$filename = trim($filename, '.-_');
 

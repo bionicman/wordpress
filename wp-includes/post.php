@@ -2314,7 +2314,7 @@ function _count_posts_cache_key( $type = 'post', $perm = '' ) {
 	$cache_key = 'posts-' . $type;
 	if ( 'readable' == $perm && is_user_logged_in() ) {
 		$post_type_object = get_post_type_object( $type );
-		if ( ! current_user_can( $post_type_object->cap->read_private_posts ) ) {
+		if ( $post_type_object && ! current_user_can( $post_type_object->cap->read_private_posts ) ) {
 			$cache_key .= '_' . $perm . '_' . get_current_user_id();
 		}
 	}
@@ -3146,7 +3146,7 @@ function wp_insert_post( $postarr, $wp_error = false ) {
 	}
 
 	$post_status = empty( $postarr['post_status'] ) ? 'draft' : $postarr['post_status'];
-	if ( 'attachment' === $post_type && ! in_array( $post_status, array( 'inherit', 'private' ) ) ) {
+	if ( 'attachment' === $post_type && ! in_array( $post_status, array( 'inherit', 'private', 'trash' ) ) ) {
 		$post_status = 'inherit';
 	}
 

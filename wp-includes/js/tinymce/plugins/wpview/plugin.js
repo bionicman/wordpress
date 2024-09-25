@@ -76,7 +76,7 @@ tinymce.PluginManager.add( 'wpview', function( editor ) {
 		editor.nodeChanged();
 	}
 
-	function handleEnter( view, before, keyCode ) {
+	function handleEnter( view, before, key ) {
 		var dom = editor.dom,
 			padNode = dom.create( 'p' );
 
@@ -92,7 +92,7 @@ tinymce.PluginManager.add( 'wpview', function( editor ) {
 
 		deselect();
 
-		if ( before && keyCode === VK.ENTER ) {
+		if ( before && key === VK.ENTER ) {
 			setViewCursor( before, view );
 		} else {
 			editor.selection.setCursorLocation( padNode, 0 );
@@ -101,14 +101,28 @@ tinymce.PluginManager.add( 'wpview', function( editor ) {
 		editor.nodeChanged();
 	}
 
+	function removeView( view ) {
+		// TODO: trigger an event to run a clean up function.
+		// Maybe `jQuery( view ).trigger( 'remove' );`?
+		editor.undoManager.transact( function() {
+			handleEnter( view );
+			editor.dom.remove( view );
+		});
+	}
+
 	function select( viewNode ) {
 		var clipboard,
 			dom = editor.dom;
 
 		// Bail if node is already selected.
-		if ( viewNode === selected ) {
+		if ( ! viewNode || viewNode === selected ) {
 			return;
 		}
+
+		// Make sure that the editor is focused.
+		// It is possible that the editor is not focused when the mouse event fires
+		// without focus, the selection will not work properly.
+		editor.getBody().focus();
 
 		deselect();
 		selected = viewNode;
@@ -124,11 +138,6 @@ tinymce.PluginManager.add( 'wpview', function( editor ) {
 		// Both of the following are necessary to prevent manipulating the selection/focus
 		dom.bind( clipboard, 'beforedeactivate focusin focusout', _stop );
 		dom.bind( selected, 'beforedeactivate focusin focusout', _stop );
-
-		// Make sure that the editor is focused.
-		// It is possible that the editor is not focused when the mouse event fires
-		// without focus, the selection will not work properly.
-		editor.getBody().focus();
 
 		// select the hidden div
 		editor.selection.select( clipboard, true );
@@ -183,6 +192,10 @@ tinymce.PluginManager.add( 'wpview', function( editor ) {
 
 		if ( ! event.content ) {
 			return;
+		}
+
+		if ( selected ) {
+			removeView( selected );
 		}
 
 		if ( ! event.initial ) {
@@ -273,8 +286,7 @@ tinymce.PluginManager.add( 'wpview', function( editor ) {
 		});
 
 		editor.dom.bind( editor.getBody().parentNode, 'mousedown mouseup click', function( event ) {
-			var view = getView( event.target ),
-				deselectEventType;
+			var view = getView( event.target );
 
 			firstFocus = false;
 
@@ -282,34 +294,24 @@ tinymce.PluginManager.add( 'wpview', function( editor ) {
 			if ( view ) {
 				event.stopPropagation();
 
-				// Hack to try and keep the block resize handles from appearing. They will show on mousedown and then be removed on mouseup.
-				if ( Env.ie <= 10 ) {
-					deselect();
+				if ( event.type === 'mousedown' && ! event.metaKey && ! event.ctrlKey ) {
+					if ( editor.dom.hasClass( event.target, 'edit' ) ) {
+						wp.mce.views.edit( view );
+						editor.focus();
+						return false;
+					} else if ( editor.dom.hasClass( event.target, 'remove' ) ) {
+						removeView( view );
+						return false;
+					}
 				}
 
 				select( view );
-
-				if ( event.type === 'click' && ! event.metaKey && ! event.ctrlKey ) {
-					if ( editor.dom.hasClass( event.target, 'edit' ) ) {
-						wp.mce.views.edit( view );
-					} else if ( editor.dom.hasClass( event.target, 'remove' ) ) {
-						editor.dom.remove( view );
-					}
-				}
 
 				// Returning false stops the ugly bars from appearing in IE11 and stops the view being selected as a range in FF.
 				// Unfortunately, it also inhibits the dragging of views to a new location.
 				return false;
 			} else {
-				// Fix issue with deselecting a view in IE8. Without this hack, clicking content above the view wouldn't actually deselect it
-				// and the caret wouldn't be placed at the mouse location
-				if ( Env.ie && Env.ie <= 8 ) {
-					deselectEventType = 'mouseup';
-				} else {
-					deselectEventType = 'mousedown';
-				}
-
-				if ( event.type === deselectEventType ) {
+				if ( event.type === 'mousedown' ) {
 					deselect();
 				}
 			}
@@ -336,207 +338,182 @@ tinymce.PluginManager.add( 'wpview', function( editor ) {
 
 	// (De)select views when arrow keys are used to navigate the content of the editor.
 	editor.on( 'keydown', function( event ) {
-		if ( event.metaKey || event.ctrlKey || ( keyCode >= 112 && keyCode <= 123 ) ) {
-			return;
-		}
-
-		if ( selected ) {
-			return;
-		}
-
-		var keyCode = event.keyCode,
+		var key = event.keyCode,
 			dom = editor.dom,
 			selection = editor.selection,
-			node = selection.getNode(),
-			view = getView( node ),
-			cursorBefore, cursorAfter,
+			node, view, cursorBefore, cursorAfter,
 			range, clonedRange, tempRange;
 
-		lastKeyDownNode = node;
-
-		// Make sure we don't delete part of a view.
-		// If the range ends or starts with the view, we'll need to trim it.
-		if ( ! selection.isCollapsed() ) {
-			range = selection.getRng();
-
-			if ( view = getView( range.endContainer ) ) {
-				clonedRange = range.cloneRange();
-				selection.select( view.previousSibling, true );
-				selection.collapse();
-				tempRange = selection.getRng();
-				clonedRange.setEnd( tempRange.endContainer, tempRange.endOffset );
-				selection.setRng( clonedRange );
-			} else if ( view = getView( range.startContainer ) ) {
-				clonedRange = range.cloneRange();
-				clonedRange.setStart( view.nextSibling, 0 );
-				selection.setRng( clonedRange );
+		if ( selected ) {
+			// Ignore key presses that involve the command or control key, but continue when in combination with backspace or v.
+			// Also ignore the F# keys.
+			if ( ( ( event.metaKey || event.ctrlKey ) && key !== VK.BACKSPACE && key !== 86 ) || ( key >= 112 && key <= 123 ) ) {
+				// Remove the view when pressing cmd/ctrl+x on keyup, otherwise the browser can't copy the content.
+				if ( ( event.metaKey || event.ctrlKey ) && key === 88 ) {
+					toRemove = selected;
+				}
+				return;
 			}
-		}
 
-		if ( ! view ) {
-			return;
-		}
+			view = getView( selection.getNode() );
 
-		if ( ! ( ( cursorBefore = dom.hasClass( view, 'wpview-selection-before' ) ) ||
-				( cursorAfter = dom.hasClass( view, 'wpview-selection-after' ) ) ) ) {
-			return;
-		}
+			// If the caret is not within the selected view, deselect the view and bail.
+			if ( view !== selected ) {
+				deselect();
+				return;
+			}
 
-		if ( ( cursorAfter && keyCode === VK.UP ) || ( cursorBefore && keyCode === VK.BACKSPACE ) ) {
-			if ( view.previousSibling ) {
-				if ( getView( view.previousSibling ) ) {
-					setViewCursor( false, view.previousSibling );
+			if ( key === VK.LEFT ) {
+				setViewCursor( true, view );
+				event.preventDefault();
+			} else if ( key === VK.UP ) {
+				if ( view.previousSibling ) {
+					if ( getView( view.previousSibling ) ) {
+						setViewCursor( true, view.previousSibling );
+					} else {
+						deselect();
+						selection.select( view.previousSibling, true );
+						selection.collapse();
+					}
 				} else {
-					if ( dom.isEmpty( view.previousSibling ) && keyCode === VK.BACKSPACE ) {
-						dom.remove( view.previousSibling );
+					setViewCursor( true, view );
+				}
+				event.preventDefault();
+			} else if ( key === VK.RIGHT ) {
+				setViewCursor( false, view );
+				event.preventDefault();
+			} else if ( key === VK.DOWN ) {
+				if ( view.nextSibling ) {
+					if ( getView( view.nextSibling ) ) {
+						setViewCursor( false, view.nextSibling );
+					} else {
+						deselect();
+						selection.setCursorLocation( view.nextSibling, 0 );
+					}
+				} else {
+					setViewCursor( false, view );
+				}
+				event.preventDefault();
+			// Ignore keys that don't insert anything.
+			} else if ( ( key > 47 || VK.SPACEBAR || key === VK.ENTER || key === VK.DELETE || key === VK.BACKSPACE ) && key !== 144 && key !== 145 ) {
+				removeView( selected );
+
+				if ( key === VK.ENTER || key === VK.DELETE || key === VK.BACKSPACE ) {
+					event.preventDefault();
+				}
+			}
+		} else {
+			if ( event.metaKey || event.ctrlKey || ( key >= 112 && key <= 123 ) ) {
+				return;
+			}
+
+			node = selection.getNode();
+			lastKeyDownNode = node;
+			view = getView( node );
+
+			// Make sure we don't delete part of a view.
+			// If the range ends or starts with the view, we'll need to trim it.
+			if ( ! selection.isCollapsed() ) {
+				range = selection.getRng();
+
+				if ( view = getView( range.endContainer ) ) {
+					clonedRange = range.cloneRange();
+					selection.select( view.previousSibling, true );
+					selection.collapse();
+					tempRange = selection.getRng();
+					clonedRange.setEnd( tempRange.endContainer, tempRange.endOffset );
+					selection.setRng( clonedRange );
+				} else if ( view = getView( range.startContainer ) ) {
+					clonedRange = range.cloneRange();
+					clonedRange.setStart( view.nextSibling, 0 );
+					selection.setRng( clonedRange );
+				}
+			}
+
+			if ( ! view ) {
+				// Make sure we don't eat any content.
+				if ( event.keyCode === VK.BACKSPACE ) {
+					if ( editor.dom.isEmpty( node ) ) {
+						if ( view = getView( node.previousSibling ) ) {
+							setViewCursor( false, view );
+							editor.dom.remove( node );
+							event.preventDefault();
+						}
+					} else if ( ( range = selection.getRng() ) &&
+							range.startOffset === 0 &&
+							range.endOffset === 0 &&
+							( view = getView( node.previousSibling ) ) ) {
+						setViewCursor( false, view );
+						event.preventDefault();
+					}
+				}
+				return;
+			}
+
+			if ( ! ( ( cursorBefore = dom.hasClass( view, 'wpview-selection-before' ) ) ||
+					( cursorAfter = dom.hasClass( view, 'wpview-selection-after' ) ) ) ) {
+				return;
+			}
+
+			if ( ( cursorAfter && key === VK.UP ) || ( cursorBefore && key === VK.BACKSPACE ) ) {
+				if ( view.previousSibling ) {
+					if ( getView( view.previousSibling ) ) {
+						setViewCursor( false, view.previousSibling );
+					} else {
+						if ( dom.isEmpty( view.previousSibling ) && key === VK.BACKSPACE ) {
+							dom.remove( view.previousSibling );
+						} else {
+							selection.select( view.previousSibling, true );
+							selection.collapse();
+						}
+					}
+				} else {
+					setViewCursor( true, view );
+				}
+				event.preventDefault();
+			} else if ( cursorAfter && ( key === VK.DOWN || key === VK.RIGHT ) ) {
+				if ( view.nextSibling ) {
+					if ( getView( view.nextSibling ) ) {
+						setViewCursor( key === VK.RIGHT, view.nextSibling );
+					} else {
+						selection.setCursorLocation( view.nextSibling, 0 );
+					}
+				}
+				event.preventDefault();
+			} else if ( cursorBefore && ( key === VK.UP || key ===  VK.LEFT ) ) {
+				if ( view.previousSibling ) {
+					if ( getView( view.previousSibling ) ) {
+						setViewCursor( key === VK.UP, view.previousSibling );
 					} else {
 						selection.select( view.previousSibling, true );
 						selection.collapse();
 					}
 				}
-			} else {
-				setViewCursor( true, view );
-			}
-			event.preventDefault();
-		} else if ( cursorAfter && ( keyCode === VK.DOWN || keyCode === VK.RIGHT ) ) {
-			if ( view.nextSibling ) {
-				if ( getView( view.nextSibling ) ) {
-					setViewCursor( keyCode === VK.RIGHT, view.nextSibling );
+				event.preventDefault();
+			} else if ( cursorBefore && key === VK.DOWN ) {
+				if ( view.nextSibling ) {
+					if ( getView( view.nextSibling ) ) {
+						setViewCursor( true, view.nextSibling );
+					} else {
+						selection.setCursorLocation( view.nextSibling, 0 );
+					}
 				} else {
-					selection.setCursorLocation( view.nextSibling, 0 );
-				}
-			}
-			event.preventDefault();
-		} else if ( cursorBefore && ( keyCode === VK.UP || keyCode ===  VK.LEFT ) ) {
-			if ( view.previousSibling ) {
-				if ( getView( view.previousSibling ) ) {
-					setViewCursor( keyCode === VK.UP, view.previousSibling );
-				} else {
-					selection.select( view.previousSibling, true );
-					selection.collapse();
-				}
-			}
-			event.preventDefault();
-		} else if ( cursorBefore && keyCode === VK.DOWN ) {
-			if ( view.nextSibling ) {
-				if ( getView( view.nextSibling ) ) {
-					setViewCursor( true, view.nextSibling );
-				} else {
-					selection.setCursorLocation( view.nextSibling, 0 );
-				}
-			} else {
-				setViewCursor( false, view );
-			}
-			event.preventDefault();
-		} else if ( ( cursorAfter && keyCode === VK.LEFT ) || ( cursorBefore && keyCode === VK.RIGHT ) ) {
-			select( view );
-			event.preventDefault();
-			event.stopImmediatePropagation();
-		} else if ( cursorAfter && keyCode === VK.BACKSPACE ) {
-			dom.remove( view );
-			event.preventDefault();
-		} else if ( cursorAfter ) {
-			handleEnter( view );
-		} else if ( cursorBefore ) {
-			handleEnter( view , true, keyCode );
-		}
-
-		if ( keyCode === VK.ENTER ) {
-			event.preventDefault();
-		}
-	});
-
-	// Handle key presses for selected views.
-	editor.on( 'keydown', function( event ) {
-		var dom = editor.dom,
-			keyCode = event.keyCode,
-			selection = editor.selection,
-			view;
-
-		// If a view isn't selected, let the event go on its merry way.
-		if ( ! selected ) {
-			return;
-		}
-
-		// Let key presses that involve the command or control keys through.
-		// Also, let any of the F# keys through.
-		if ( event.metaKey || event.ctrlKey || ( keyCode >= 112 && keyCode <= 123 ) ) {
-			// But remove the view when cmd/ctrl + x/backspace are pressed.
-			if ( ( event.metaKey || event.ctrlKey ) && ( keyCode === 88 || keyCode === VK.BACKSPACE ) ) {
-				// We'll remove a cut view on keyup, otherwise the browser can't copy the content.
-				if ( keyCode === 88 ) {
-					toRemove = selected;
-				} else {
-					editor.dom.remove( selected );
-				}
-			}
-			return;
-		}
-
-		view = getView( selection.getNode() );
-
-		// If the caret is not within the selected view, deselect the view and bail.
-		if ( view !== selected ) {
-			deselect();
-			return;
-		}
-
-		if ( keyCode === VK.LEFT ) {
-			setViewCursor( true, view );
-		} else if ( keyCode === VK.UP ) {
-			if ( view.previousSibling ) {
-				if ( getView( view.previousSibling ) ) {
-					setViewCursor( true, view.previousSibling );
-				} else {
-					deselect();
-					selection.select( view.previousSibling, true );
-					selection.collapse();
-				}
-			} else {
-				setViewCursor( true, view );
-			}
-
-		} else if ( keyCode === VK.RIGHT ) {
-			setViewCursor( false, view );
-		} else if ( keyCode === VK.DOWN ) {
-			if ( view.nextSibling ) {
-				if ( getView( view.nextSibling ) ) {
-					setViewCursor( false, view.nextSibling );
-				} else {
-					deselect();
-					selection.setCursorLocation( view.nextSibling, 0 );
-				}
-			} else {
-				setViewCursor( false, view );
-			}
-		} else if ( keyCode === VK.ENTER ) {
-			handleEnter( view );
-		} else if ( keyCode === VK.DELETE || keyCode === VK.BACKSPACE ) {
-			dom.remove( selected );
-		}
-
-		event.preventDefault();
-	});
-
-	// Make sure we don't eat any content.
-	editor.on( 'keydown', function( event ) {
-		var selection = editor.selection,
-			node, range, view;
-
-		if ( event.keyCode === VK.BACKSPACE ) {
-			node = selection.getNode();
-
-			if ( editor.dom.isEmpty( node ) ) {
-				if ( view = getView( node.previousSibling ) ) {
 					setViewCursor( false, view );
-					editor.dom.remove( node );
-					event.preventDefault();
 				}
-			} else if ( ( range = selection.getRng() ) &&
-					range.startOffset === 0 &&
-					range.endOffset === 0 &&
-					( view = getView( node.previousSibling ) ) ) {
-				setViewCursor( false, view );
+				event.preventDefault();
+			} else if ( ( cursorAfter && key === VK.LEFT ) || ( cursorBefore && key === VK.RIGHT ) ) {
+				select( view );
+				event.preventDefault();
+			} else if ( cursorAfter && key === VK.BACKSPACE ) {
+				removeView( view );
+				event.preventDefault();
+			} else if ( cursorAfter ) {
+				handleEnter( view );
+			} else if ( cursorBefore ) {
+				handleEnter( view , true, key );
+			}
+
+			if ( key === VK.ENTER ) {
 				event.preventDefault();
 			}
 		}
@@ -544,7 +521,7 @@ tinymce.PluginManager.add( 'wpview', function( editor ) {
 
 	editor.on( 'keyup', function() {
 		if ( toRemove ) {
-			editor.dom.remove( toRemove );
+			removeView( toRemove );
 			toRemove = false;
 		}
 	});
@@ -580,9 +557,12 @@ tinymce.PluginManager.add( 'wpview', function( editor ) {
 
 		clearInterval( cursorInterval );
 
-		dom.removeClass( views, 'wpview-selection-before' );
-		dom.removeClass( views, 'wpview-selection-after' );
-		dom.removeClass( views, 'wpview-cursor-hide' );
+		// This runs a lot and is faster than replacing each class separately
+		tinymce.each( views, function ( view ) {
+			if ( view.className ) {
+				view.className = view.className.replace( / ?\bwpview-(?:selection-before|selection-after|cursor-hide)\b/g, '' );
+			}
+		});
 
 		if ( focus ) {
 			if ( view ) {

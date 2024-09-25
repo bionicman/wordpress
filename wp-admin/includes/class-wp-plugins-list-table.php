@@ -298,13 +298,13 @@ class WP_Plugins_List_Table extends WP_List_Table {
 		return $actions;
 	}
 
-	public function bulk_actions() {
+	public function bulk_actions( $which ) {
 		global $status;
 
 		if ( in_array( $status, array( 'mustuse', 'dropins' ) ) )
 			return;
 
-		parent::bulk_actions();
+		parent::bulk_actions( $which );
 	}
 
 	protected function extra_tablenav( $which ) {
@@ -404,15 +404,6 @@ class WP_Plugins_List_Table extends WP_List_Table {
 				} // end if $is_active
 				
 			 } // end if $screen->in_admin( 'network' )
-
-			// Details link using API info, if available
-			if ( ( ! is_multisite() || $screen->in_admin( 'network' ) ) && isset( $plugin_data['slug'] ) ) {
-				$actions['details'] = sprintf( '<a href="%s" class="thickbox" title="%s">%s</a>',
-					esc_url( self_admin_url( 'plugin-install.php?tab=plugin-information&plugin=' . $plugin_data['slug'] .
-						'&TB_iframe=true&width=600&height=550' ) ),
-					esc_attr( sprintf( __( 'More information about %s' ), $plugin_data['Name'] ) ),
-					__( 'Details' ) );
-			}
 
 			if ( ( ! is_multisite() || $screen->in_admin( 'network' ) ) && current_user_can('edit_plugins') && is_writable(WP_PLUGIN_DIR . '/' . $plugin_file) )
 				$actions['edit'] = '<a href="plugin-editor.php?file=' . $plugin_file . '" title="' . esc_attr__('Open this file in the Plugin Editor') . '" class="edit">' . __('Edit') . '</a>';
@@ -517,8 +508,21 @@ class WP_Plugins_List_Table extends WP_List_Table {
 							$author = '<a href="' . $plugin_data['AuthorURI'] . '">' . $plugin_data['Author'] . '</a>';
 						$plugin_meta[] = sprintf( __( 'By %s' ), $author );
 					}
-					if ( ! empty( $plugin_data['PluginURI'] ) )
-						$plugin_meta[] = '<a href="' . $plugin_data['PluginURI'] . '">' . __( 'Visit plugin site' ) . '</a>';
+
+					if ( ( ! is_multisite() || $screen->in_admin( 'network' ) ) ) {
+						// Details link using API info, if available
+						if ( isset( $plugin_data['slug'] ) ) {
+							$plugin_meta[] = sprintf( '<a href="%s" class="thickbox">%s</a>',
+								esc_url( self_admin_url( 'plugin-install.php?tab=plugin-information&plugin=' . $plugin_data['slug'] .
+									'&TB_iframe=true&width=600&height=550' ) ),
+								__( 'View details' ) );
+						} elseif ( ! empty( $plugin_data['PluginURI'] ) ) {
+							$plugin_meta[] = sprintf( '<a href="%s">%s</a>',
+								esc_url( $plugin_data['PluginURI'] ),
+								__( 'Visit plugin site' )
+							);
+						}
+					}
 
 					/**
 					 * Filter the array of row meta for each plugin in the Plugins list table.

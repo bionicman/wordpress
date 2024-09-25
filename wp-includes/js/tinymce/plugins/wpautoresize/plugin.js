@@ -21,7 +21,9 @@
  * it's initialized.
  */
 tinymce.PluginManager.add( 'wpautoresize', function( editor ) {
-	var settings = editor.settings, oldSize = 0;
+	var settings = editor.settings,
+		oldSize = 0,
+		isActive = false;
 
 	function isFullscreen() {
 		return editor.plugins.fullscreen && editor.plugins.fullscreen.isFullscreen();
@@ -37,11 +39,16 @@ tinymce.PluginManager.add( 'wpautoresize', function( editor ) {
 	function resize( e ) {
 		var deltaSize, doc, body, docElm, DOM = tinymce.DOM, resizeHeight, myHeight, marginTop, marginBottom;
 
-		doc = editor.getDoc();
-		if (!doc) {
+		if ( ! isActive ) {
 			return;
 		}
 
+		doc = editor.getDoc();
+		if ( ! doc ) {
+			return;
+		}
+
+		e = e || {};
 		body = doc.body;
 		docElm = doc.documentElement;
 		resizeHeight = settings.autoresize_min_height;
@@ -59,6 +66,11 @@ tinymce.PluginManager.add( 'wpautoresize', function( editor ) {
 		marginTop = editor.dom.getStyle( body, 'margin-top', true );
 		marginBottom = editor.dom.getStyle( body, 'margin-bottom', true );
 		myHeight = body.offsetHeight + parseInt( marginTop, 10 ) + parseInt( marginBottom, 10 );
+
+		// IE < 11, other?
+		if ( myHeight && myHeight < docElm.offsetHeight ) {
+			myHeight = docElm.offsetHeight;
+		}
 
 		// Make sure we have a valid height
 		if ( isNaN( myHeight ) || myHeight <= 0 ) {
@@ -93,6 +105,8 @@ tinymce.PluginManager.add( 'wpautoresize', function( editor ) {
 			if ( tinymce.isWebKit && deltaSize < 0 ) {
 				resize( e );
 			}
+
+			editor.fire( 'wp-autoresize', { height: resizeHeight } );
 		}
 	}
 
@@ -102,7 +116,7 @@ tinymce.PluginManager.add( 'wpautoresize', function( editor ) {
 	 */
 	function wait( times, interval, callback ) {
 		setTimeout( function() {
-			resize({});
+			resize();
 
 			if ( times-- ) {
 				wait( times, interval, callback );
@@ -120,23 +134,33 @@ tinymce.PluginManager.add( 'wpautoresize', function( editor ) {
 
 	function on() {
 		if ( ! editor.dom.hasClass( editor.getBody(), 'wp-autoresize' ) ) {
+			isActive = true;
 			editor.dom.addClass( editor.getBody(), 'wp-autoresize' );
 			// Add appropriate listeners for resizing the content area
 			editor.on( 'nodechange setcontent keyup FullscreenStateChanged', resize );
+			resize();
 		}
 	}
 
 	function off() {
+		var doc;
+
 		// Don't turn off if the setting is 'on'
 		if ( ! settings.wp_autoresize_on ) {
+			isActive = false;
+			doc = editor.getDoc();
 			editor.dom.removeClass( editor.getBody(), 'wp-autoresize' );
 			editor.off( 'nodechange setcontent keyup FullscreenStateChanged', resize );
+			doc.body.style.overflowY = 'auto';
+			doc.documentElement.style.overflowY = 'auto'; // Old IE
 			oldSize = 0;
 		}
 	}
 
 	if ( settings.wp_autoresize_on ) {
 		// Turn resizing on when the editor loads
+		isActive = true;
+
 		editor.on( 'init', function() {
 			editor.dom.addClass( editor.getBody(), 'wp-autoresize' );
 		});
@@ -149,7 +173,7 @@ tinymce.PluginManager.add( 'wpautoresize', function( editor ) {
 
 		if ( editor.getParam( 'autoresize_on_init', true ) ) {
 			editor.on( 'init', function() {
-				// Hit it 20 times in 100 ms intervals
+				// Hit it 10 times in 200 ms intervals
 				wait( 10, 200, function() {
 					// Hit it 5 times in 1 sec intervals
 					wait( 5, 1000 );
@@ -157,6 +181,11 @@ tinymce.PluginManager.add( 'wpautoresize', function( editor ) {
 			});
 		}
 	}
+
+	// Reset the stored size
+	editor.on( 'show', function() {
+		oldSize = 0;
+	});
 
 	// Register the command
 	editor.addCommand( 'wpAutoResize', resize );

@@ -218,6 +218,10 @@ body.iframe {
 	padding-top: 1px;
 }
 
+body.modal-open {
+	overflow: hidden;
+}
+
 iframe,
 img {
 	border: 0;
@@ -708,9 +712,6 @@ td.help {
 .postbox .hndle,
 .stuffbox .hndle,
 .control-section .accordion-section-title,
-h3.dashboard-widget-title,
-h3.dashboard-widget-title span,
-h3.dashboard-widget-title small,
 .sidebar-name,
 #nav-menu-header,
 #nav-menu-footer,
@@ -746,7 +747,7 @@ h3.dashboard-widget-title small,
 }
 
 /* @todo can we combine these into a class or use an existing dashicon one? */
-#welcome-panel.welcome-panel .welcome-panel-close::before,
+#welcome-panel.welcome-panel .welcome-panel-close:before,
 .tagchecklist span a:before,
 #bulk-titles div a:before {
 	background: none;
@@ -756,10 +757,18 @@ h3.dashboard-widget-title small,
 	font: normal 16px/1 'dashicons';
 	speak: none;
 	height: 20px;
-	margin: 2px 0;
 	text-align: center;
 	width: 20px;
 	-webkit-font-smoothing: antialiased !important;
+}
+
+#welcome-panel.welcome-panel .welcome-panel-close:before {
+	margin: 0;
+}
+
+.tagchecklist span a:before,
+#bulk-titles div a:before {
+	margin: 2px 0;
 }
 
 #welcome-panel.welcome-panel .welcome-panel-close:hover:before,
@@ -1014,6 +1023,15 @@ th.action-links {
 	font-size: 16px;
 	font-weight: 300;
 	line-height: 1.5;
+}
+
+.wp-filter-no-results {
+	color: #999;
+	font-size: 18px;
+	font-style: normal;
+	margin: 0;
+	padding: 100px 0 0;
+	text-align: center;
 }
 
 .wp-filter-drawer-toggle {
@@ -1333,7 +1351,6 @@ form.upgrade .hint {
 	display: none;
 	margin: 0 0px -1px 20px;
 	position: relative;
-	z-index: 10;
 	background-color: #fff;
 	border: 1px solid #ddd;
 	border-top: none;
@@ -1356,7 +1373,6 @@ form.upgrade .hint {
 #screen-meta-links .screen-meta-toggle {
 	position: relative;
 	top: 0;
-	z-index: 10;
 }
 
 #screen-meta-links a {
@@ -2509,15 +2525,25 @@ body.index-php .tb-close-icon {
 	line-height: 48px;
 	width: 48px;
 	height: 48px;
+	-webkit-transition: color .1s ease-in-out, background .1s ease-in-out;
+	transition: color .1s ease-in-out, background .1s ease-in-out;
 }
 
+body.plugin-install-php .tb-close-icon:focus,
 body.plugin-install-php .tb-close-icon:hover,
+body.import-php .tb-close-icon:focus,
 body.import-php .tb-close-icon:hover,
+body.plugins-php .tb-close-icon:focus,
 body.plugins-php .tb-close-icon:hover,
+body.update-core-php .tb-close-icon:focus,
 body.update-core-php .tb-close-icon:hover,
+body.index-php .tb-close-icon:focus,
 body.index-php .tb-close-icon:hover {
 	background: #0074a2;
 	color: #fff;
+	outline: none;
+	-webkit-box-shadow: none;
+	box-shadow: none;
 }
 
 body.plugin-install-php .tb-close-icon:before,

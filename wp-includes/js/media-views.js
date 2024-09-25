@@ -630,14 +630,6 @@
 				}) );
 			}
 
-			if ( ! this.get('edge') ) {
-				this.set( 'edge', 150 );
-			}
-
-			if ( ! this.get('gutter') ) {
-				this.set( 'gutter', 8 );
-			}
-
 			this.resetDisplays();
 		},
 
@@ -830,16 +822,17 @@
 			// Attachments browser defaults. @see media.view.AttachmentsBrowser
 			searchable:      false,
 			sortable:        true,
+			display:         false,
 			// Initial region modes.
 			content:         'browse',
 			toolbar:         'gallery-edit',
 
-			describe:        true,
-			displaySettings: true,
-			dragInfo:        true,
-			edge:            199,
-			editing:         false,
-			priority:        60,
+			describe:         true,
+			displaySettings:  true,
+			dragInfo:         true,
+			idealColumnWidth: 170,
+			editing:          false,
+			priority:         60,
 
 			// Don't sync the selection, as the Edit Gallery library
 			// *is* the selection.
@@ -988,12 +981,12 @@
 			// Region mode defaults.
 			content:      'browse',
 
-			describe:     true,
-			dragInfo:     true,
-			edge:         199,
-			editing:      false,
-			priority:     60,
-			SettingsView: false,
+			describe:         true,
+			dragInfo:         true,
+			idealColumnWidth: 170,
+			editing:          false,
+			priority:         60,
+			SettingsView:     false,
 
 			// Don't sync the selection, as the Edit {Collection} library
 			// *is* the selection.
@@ -1685,8 +1678,12 @@
 	 */
 	media.view.Frame = media.View.extend({
 		initialize: function() {
+			_.defaults( this.options, {
+				mode: [ 'select' ]
+			});
 			this._createRegions();
 			this._createStates();
+			this._createModes();
 		},
 
 		_createRegions: function() {
@@ -1721,12 +1718,99 @@
 				this.states.add( this.options.states );
 			}
 		},
+		_createModes: function() {
+			// Store active "modes" that the frame is in. Unrelated to region modes.
+			this.activeModes = new Backbone.Collection();
+			this.activeModes.on( 'add remove reset', _.bind( this.triggerModeEvents, this ) );
+
+			_.each( this.options.mode, function( mode ) {
+				this.activateMode( mode );
+			}, this );
+		},
 		/**
 		 * @returns {wp.media.view.Frame} Returns itself to allow chaining
 		 */
 		reset: function() {
 			this.states.invoke( 'trigger', 'reset' );
 			return this;
+		},
+		/**
+		 * Map activeMode collection events to the frame.
+		 */
+		triggerModeEvents: function( model, collection, options ) {
+			var collectionEvent,
+				modeEventMap = {
+					add: 'activate',
+					remove: 'deactivate'
+				},
+				eventToTrigger;
+			// Probably a better way to do this.
+			_.each( options, function( value, key ) {
+				if ( value ) {
+					collectionEvent = key;
+				}
+			} );
+
+			if ( ! _.has( modeEventMap, collectionEvent ) ) {
+				return;
+			}
+
+			eventToTrigger = model.get('id') + ':' + modeEventMap[collectionEvent];
+			this.trigger( eventToTrigger );
+		},
+		/**
+		 * Activate a mode on the frame.
+		 *
+		 * @param string mode Mode ID.
+		 * @returns {this} Returns itself to allow chaining.
+		 */
+		activateMode: function( mode ) {
+			// Bail if the mode is already active.
+			if ( this.isModeActive( mode ) ) {
+				return;
+			}
+			this.activeModes.add( [ { id: mode } ] );
+			// Add a CSS class to the frame so elements can be styled for the mode.
+			this.$el.addClass( 'mode-' + mode );
+			/**
+			 * Frame mode activation event.
+			 *
+			 * @event this#{mode}:activate
+			 */
+			this.trigger( mode + ':activate' );
+
+			return this;
+		},
+		/**
+		 * Deactivate a mode on the frame.
+		 *
+		 * @param string mode Mode ID.
+		 * @returns {this} Returns itself to allow chaining.
+		 */
+		deactivateMode: function( mode ) {
+			// Bail if the mode isn't active.
+			if ( ! this.isModeActive( mode ) ) {
+				return;
+			}
+			this.activeModes.remove( this.activeModes.where( { id: mode } ) );
+			this.$el.removeClass( 'mode-' + mode );
+			/**
+			 * Frame mode deactivation event.
+			 *
+			 * @event this#{mode}:deactivate
+			 */
+			this.trigger( mode + ':deactivate' );
+
+			return this;
+		},
+		/**
+		 * Check if a mode is enabled on the frame.
+		 *
+		 * @param  string mode Mode ID.
+		 * @return bool
+		 */
+		isModeActive: function( mode ) {
+			return Boolean( this.activeModes.where( { id: mode } ).length );
 		}
 	});
 
@@ -1759,8 +1843,7 @@
 			_.defaults( this.options, {
 				title:    '',
 				modal:    true,
-				uploader: true,
-				mode:     [ 'select' ]
+				uploader: true
 			});
 
 			// Ensure core UI is enabled.
@@ -1775,14 +1858,6 @@
 
 				this.modal.content( this );
 			}
-
-			// Store active "modes" that the frame is in. Unrelated to region modes.
-			this.activeModes = new Backbone.Collection();
-			this.activeModes.on( 'add remove reset', _.bind( this.triggerModeEvents, this ) );
-
-			_.each( this.options.mode, function( mode ) {
-				this.activateMode( mode );
-			}, this );
 
 			// Force the uploader off if the upload limit has been exceeded or
 			// if the browser isn't supported.
@@ -1948,85 +2023,6 @@
 
 			window.tb_remove = this._tb_remove;
 			delete this._tb_remove;
-		},
-
-		/**
-		 * Map activeMode collection events to the frame.
-		 */
-		triggerModeEvents: function( model, collection, options ) {
-			var collectionEvent,
-				modeEventMap = {
-					add: 'activate',
-					remove: 'deactivate'
-				},
-				eventToTrigger;
-			// Probably a better way to do this.
-			_.each( options, function( value, key ) {
-				if ( value ) {
-					collectionEvent = key;
-				}
-			} );
-
-			if ( ! _.has( modeEventMap, collectionEvent ) )
-				return;
-
-			eventToTrigger = model.get('id') + ':' + modeEventMap[collectionEvent];
-			this.trigger( eventToTrigger );
-		},
-		/**
-		 * Activate a mode on the frame.
-		 *
-		 * @param string mode Mode ID.
-		 * @returns {this} Returns itself to allow chaining.
-		 */
-		activateMode: function( mode ) {
-			// Bail if the mode is already active.
-			if ( this.isModeActive( mode ) ) {
-				return;
-			}
-			this.activeModes.add( [ { id: mode } ] );
-			// Add a css class to the frame for anything that needs to be styled
-			// for the mode.
-			this.$el.addClass( 'mode-' + mode );
-			/**
-			 * Frame mode activation event.
-			 *
-			 * @event this#{mode}:activate
-			 */
-			this.trigger( mode + ':activate' );
-
-			return this;
-		},
-		/**
-		 * Deactivate a mode on the frame.
-		 *
-		 * @param string mode Mode ID.
-		 * @returns {this} Returns itself to allow chaining.
-		 */
-		deactivateMode: function( mode ) {
-			// Bail if the mode isn't active.
-			if ( ! this.isModeActive( mode ) ) {
-				return;
-			}
-			this.activeModes.remove( this.activeModes.where( { id: mode } ) );
-			this.$el.removeClass( 'mode-' + mode );
-			/**
-			 * Frame mode deactivation event.
-			 *
-			 * @event this#{mode}:deactivate
-			 */
-			this.trigger( mode + ':deactivate' );
-
-			return this;
-		},
-		/**
-		 * Check if a mode is enabled on the frame.
-		 *
-		 * @param  string mode Mode ID.
-		 * @return bool
-		 */
-		isModeActive: function( mode ) {
-			return Boolean( this.activeModes.where( { id: mode } ).length );
 		}
 	});
 
@@ -2171,11 +2167,12 @@
 				sortable:   state.get('sortable'),
 				search:     state.get('searchable'),
 				filters:    state.get('filterable'),
-				display:    state.get('displaySettings'),
+				display:    state.has('display') ? state.get('display') : state.get('displaySettings'),
 				dragInfo:   state.get('dragInfo'),
 
-				suggestedWidth:  state.get('suggestedWidth'),
-				suggestedHeight: state.get('suggestedHeight'),
+				idealColumnWidth: state.get('idealColumnWidth'),
+				suggestedWidth:   state.get('suggestedWidth'),
+				suggestedHeight:  state.get('suggestedHeight'),
 
 				AttachmentView: state.get('AttachmentView')
 			});
@@ -3224,6 +3221,9 @@
 				};
 			}
 
+			// Disable page scrolling.
+			$( 'body' ).addClass( 'modal-open' );
+
 			$el.show().find( '.media-modal-close' ).focus();
 			return this.propagate('open');
 		},
@@ -3238,6 +3238,9 @@
 			if ( ! this.views.attached || ! this.$el.is(':visible') ) {
 				return this;
 			}
+
+			// Enable page scrolling.
+			$( 'body' ).removeClass( 'modal-open' );
 
 			// Hide modal and remove restricted media modal tab focus once it's closed
 			this.$el.hide().undelegate( 'keydown' );
@@ -3685,12 +3688,14 @@
 				suggestedHeight = this.controller.state().get('suggestedHeight'),
 				data = {};
 
+			data.message = this.options.message;
 			data.canClose = this.options.canClose;
 
 			if ( suggestedWidth && suggestedHeight ) {
 				data.suggestedWidth = suggestedWidth;
 				data.suggestedHeight = suggestedHeight;
 			}
+
 			return data;
 		},
 		/**
@@ -4631,10 +4636,19 @@
 		buttons: {},
 
 		initialize: function() {
-			var selection = this.options.selection;
+			var selection = this.options.selection,
+				options = _.defaults( this.options, {
+					rerenderOnModelChange: true
+				} );
+			this.$el.attr( {
+				'aria-label'  : this.model.get( 'title' ),
+				'aria-checked': false,
+				'data-id'     : this.model.get( 'id' )
+			} );
 
-			this.$el.attr('aria-label', this.model.attributes.title).attr('aria-checked', false);
-			this.model.on( 'change', this.render, this );
+			if ( options.rerenderOnModelChange ) {
+				this.model.on( 'change', this.render, this );
+			}
 			this.model.on( 'change:title', this._syncTitle, this );
 			this.model.on( 'change:caption', this._syncCaption, this );
 			this.model.on( 'change:artist', this._syncArtist, this );
@@ -4646,11 +4660,10 @@
 			this.model.on( 'remove', this.deselect, this );
 			if ( selection ) {
 				selection.on( 'reset', this.updateSelect, this );
+				// Update the model's details view.
+				this.model.on( 'selection:single selection:unsingle', this.details, this );
+				this.details( this.model, this.controller.state().get('selection') );
 			}
-
-			// Update the model's details view.
-			this.model.on( 'selection:single selection:unsingle', this.details, this );
-			this.details( this.model, this.controller.state().get('selection') );
 		},
 		/**
 		 * @returns {wp.media.view.Attachment} Returns itself to allow chaining
@@ -4740,6 +4753,11 @@
 		toggleSelectionHandler: function( event ) {
 			var method;
 
+			// Don't do anything inside inputs.
+			if ( 'INPUT' === event.target.nodeName ) {
+				return;
+			}
+
 			// Catch arrow events
 			if ( 37 === event.keyCode || 38 === event.keyCode || 39 === event.keyCode || 40 === event.keyCode ) {
 				this.arrowEvent(event);
@@ -4752,8 +4770,12 @@
 			}
 
 			// In the grid view, bubble up an edit:attachment event to the controller.
-			if ( this.controller.activeModes.where( { id: 'edit' } ).length ) {
-				this.controller.trigger( 'edit:attachment', this.model );
+			if ( this.controller.isModeActive( 'grid' ) ) {
+				// Pass the current target to restore focus when closing
+				this.controller.trigger( 'edit:attachment', this.model, event.currentTarget );
+
+				// Don't scroll the view and don't attempt to submit anything.
+				event.stopPropagation();
 				return;
 			}
 
@@ -4766,6 +4788,9 @@
 			this.toggleSelection({
 				method: method
 			});
+
+			// Don't scroll the view and don't attempt to submit anything.
+			event.stopPropagation();
 		},
 		/**
 		 * @param {Object} event
@@ -4773,8 +4798,8 @@
 		arrowEvent: function( event ) {
 			var attachment = $('.attachments-browser .attachment'),
 				attachmentsWidth = $('.attachments-browser .attachments').width(),
-				thumbnailWidth = attachment.first().innerWidth() + 16,
-				thumbnailsPerRow = Math.floor(attachmentsWidth/thumbnailWidth),
+				thumbnailWidth = attachment.first().outerWidth(),
+				thumbnailsPerRow = Math.round( attachmentsWidth / thumbnailWidth ),
 				totalThumnails = attachment.length,
 				totalRows = Math.ceil(totalThumnails/thumbnailsPerRow),
 				thisIndex = attachment.filter( ':focus' ).index(),
@@ -5186,12 +5211,6 @@
 			tabIndex: -1
 		},
 
-		cssTemplate: media.template('attachments-css'),
-
-		events: {
-			'scroll': 'scroll'
-		},
-
 		initialize: function() {
 			this.el.id = _.uniqueId('__attachments-view-');
 
@@ -5200,7 +5219,8 @@
 				refreshThreshold:   3,
 				AttachmentView:     media.view.Attachment,
 				sortable:           false,
-				resize:             true
+				resize:             true,
+				idealColumnWidth:   150
 			});
 
 			this._viewsByCid = {};
@@ -5222,61 +5242,43 @@
 
 			this.collection.on( 'reset', this.render, this );
 
-			// Throttle the scroll handler.
+			// Throttle the scroll handler and bind this.
 			this.scroll = _.chain( this.scroll ).bind( this ).throttle( this.options.refreshSensitivity ).value();
+
+			this.options.scrollElement = this.options.scrollElement || this.el;
+			$( this.options.scrollElement ).on( 'scroll', this.scroll );
 
 			this.initSortable();
 
-			_.bindAll( this, 'css' );
-			this.model.on( 'change:edge change:gutter', this.css, this );
-			this._resizeCss = _.debounce( _.bind( this.css, this ), this.refreshSensitivity );
+			_.bindAll( this, 'setColumns' );
+
 			if ( this.options.resize ) {
-				$(window).on( 'resize.attachments', this._resizeCss );
+				$( window ).on( 'resize.attachments', this.setColumns );
 			}
 
-			// Call this.css() after this view has been rendered in the DOM so
+			// Call this.setColumns() after this view has been rendered in the DOM so
 			// attachments get proper width applied.
-			_.defer( this.css, this );
+			_.defer( this.setColumns, this );
 		},
 
 		dispose: function() {
 			this.collection.props.off( null, null, this );
-			$(window).off( 'resize.attachments', this._resizeCss );
+			$( window ).off( 'resize.attachments', this.setColumns );
+
 			/**
 			 * call 'dispose' directly on the parent class
 			 */
 			media.View.prototype.dispose.apply( this, arguments );
 		},
 
-		css: function() {
-			var $css = $( '#' + this.el.id + '-css' );
+		setColumns: function() {
+			var prev = this.columns;
 
-			if ( $css.length ) {
-				$css.remove();
+			this.columns = Math.round( this.$el.width() / this.options.idealColumnWidth );
+
+			if ( prev !== this.columns ) {
+				this.$el.attr( 'data-columns', this.columns );
 			}
-
-			media.view.Attachments.$head().append( this.cssTemplate({
-				id:     this.el.id,
-				edge:   this.edge(),
-				gutter: this.model.get('gutter')
-			}) );
-		},
-		/**
-		 * @returns {Number}
-		 */
-		edge: function() {
-			var edge = this.model.get('edge'),
-				gutter, width, columns;
-
-			if ( ! this.$el.is(':visible') ) {
-				return edge;
-			}
-
-			gutter  = this.model.get('gutter') * 2;
-			width   = this.$el.width() - gutter;
-			columns = Math.ceil( width / ( edge + gutter ) );
-			edge = Math.floor( ( width - ( columns * gutter ) ) / columns );
-			return edge;
 		},
 
 		initSortable: function() {
@@ -5393,33 +5395,35 @@
 
 		scroll: function() {
 			var view = this,
+				el = this.options.scrollElement,
+				scrollTop = el.scrollTop,
 				toolbar;
 
-			if ( ! this.$el.is(':visible') || ! this.collection.hasMore() ) {
+			// The scroll event occurs on the document, but the element
+			// that should be checked is the document body.
+			if ( el == document ) {
+				el = document.body;
+				scrollTop = $(document).scrollTop();
+			}
+
+			if ( ! $(el).is(':visible') || ! this.collection.hasMore() ) {
 				return;
 			}
 
 			toolbar = this.views.parent.toolbar;
 
 			// Show the spinner only if we are close to the bottom.
-			if ( this.el.scrollHeight - ( this.el.scrollTop + this.el.clientHeight ) < this.el.clientHeight / 3 ) {
+			if ( el.scrollHeight - ( scrollTop + el.clientHeight ) < el.clientHeight / 3 ) {
 				toolbar.get('spinner').show();
 			}
 
-			if ( this.el.scrollHeight < this.el.scrollTop + ( this.el.clientHeight * this.options.refreshThreshold ) ) {
+			if ( el.scrollHeight < scrollTop + ( el.clientHeight * this.options.refreshThreshold ) ) {
 				this.collection.more().done(function() {
 					view.scroll();
 					toolbar.get('spinner').hide();
 				});
 			}
 		}
-	}, {
-		$head: (function() {
-			var $head;
-			return function() {
-				return $head = $head || $('head');
-			};
-		}())
 	});
 
 	/**
@@ -5499,13 +5503,19 @@
 			this.select();
 		},
 
+		/**
+		 * @abstract
+		 */
 		createFilters: function() {
 			this.filters = {};
 		},
 
+		/**
+		 * When the selection changes, set the Query properties
+		 * accordingly for the selected filter.
+		 */
 		change: function() {
 			var filter = this.filters[ this.el.value ];
-
 			if ( filter ) {
 				this.model.set( filter.props );
 			}
@@ -5735,9 +5745,14 @@
 					priority: -90
 				}).render() );
 
-				this.toolbar.set( 'BulkSelection', new media.view.BulkSelection({
+				this.toolbar.set( 'bulkSelection', new media.view.BulkSelection({
 					controller: this.controller,
 					priority: -70
+				}).render() );
+				this.toolbar.set( 'dateFilter', new media.view.DateFilter({
+					controller: this.controller,
+					model:      this.collection.props,
+					priority: -75
 				}).render() );
 			}
 
@@ -5791,19 +5806,27 @@
 		},
 
 		updateContent: function() {
-			var view = this;
+			var view = this,
+				noItemsView;
+
+			if ( this.controller.isModeActive( 'grid' ) ) {
+				noItemsView = view.attachmentsNoResults;
+			} else {
+				noItemsView = view.uploader;
+			}
+
 			if ( ! this.collection.length ) {
 				this.toolbar.get( 'spinner' ).show();
 				this.collection.more().done(function() {
 					if ( ! view.collection.length ) {
-						view.attachmentsNoResults.$el.removeClass( 'hidden' );
+						noItemsView.$el.removeClass( 'hidden' );
 					} else {
-						view.attachmentsNoResults.$el.addClass( 'hidden' );
+						noItemsView.$el.addClass( 'hidden' );
 					}
 					view.toolbar.get( 'spinner' ).hide();
 				});
 			} else {
-				this.attachmentsNoResults.$el.addClass( 'hidden' );
+				noItemsView.$el.addClass( 'hidden' );
 				view.toolbar.get( 'spinner' ).hide();
 			}
 		},
@@ -5816,7 +5839,7 @@
 				canClose:   this.controller.isModeActive( 'grid' )
 			});
 
-			this.uploader.$el.addClass( 'hidden' );
+			this.uploader.hide();
 			this.views.add( this.uploader );
 		},
 
@@ -5835,6 +5858,8 @@
 				selection:            this.options.selection,
 				model:                this.model,
 				sortable:             this.options.sortable,
+				scrollElement:        this.options.scrollElement,
+				idealColumnWidth:     this.options.idealColumnWidth,
 
 				// The single `Attachment` view to be used in the `Attachments` view.
 				AttachmentView: this.options.AttachmentView
@@ -5851,8 +5876,6 @@
 			this.attachmentsNoResults.$el.html( l10n.noMedia );
 
 			this.views.add( this.attachmentsNoResults );
-
-
 		},
 
 		createSidebar: function() {
@@ -5945,10 +5968,7 @@
 				controller: this.controller,
 				collection: this.collection,
 				selection:  this.collection,
-				model:      new Backbone.Model({
-					edge:   40,
-					gutter: 5
-				})
+				model:      new Backbone.Model()
 			});
 
 			this.views.set( '.selection-view', this.attachments );
@@ -6314,24 +6334,29 @@
 			'click .trash-attachment':        'trashAttachment',
 			'click .edit-attachment':         'editAttachment',
 			'click .refresh-attachment':      'refreshAttachment',
+			'click .advanced-toggle':         'onToggleAdvanced',
 			'keydown':                        'toggleSelectionHandler'
 		},
 
 		initialize: function() {
+			this.options = _.defaults( this.options, {
+				rerenderOnModelChange: false
+			});
 			/**
 			 * call 'initialize' directly on the parent class
 			 */
 			media.view.Attachment.prototype.initialize.apply( this, arguments );
 		},
+
 		/**
-		 * @returns {wp.media.view..Attachment.Details} Returns itself to allow chaining
+		 * Render view, then check if the advanced details should be shown.
 		 */
-		render: function() {
-			/**
-			 * call 'render' directly on the parent class
-			 */
+		render: function(){
 			media.view.Attachment.prototype.render.apply( this, arguments );
-			return this;
+
+			if ( 'show' === getUserSetting( 'advImgDetails' ) ) {
+				this.toggleAdvanced( true );
+			}
 		},
 		/**
 		 * @param {Object} event
@@ -6379,21 +6404,43 @@
 			this.model.fetch();
 		},
 		/**
+		 * When reverse tabbing(shift+tab) out of the right details panel, deliver
+		 * the focus to the item in the list that was being edited.
+		 *
 		 * @param {Object} event
 		 */
 		toggleSelectionHandler: function( event ) {
-			// Reverse tabbing out of the right details panel
-			// should take me back to the item in the list that was being edited.
 			if ( 'keydown' === event.type && 9 === event.keyCode && event.shiftKey && event.target === $( ':tabbable', this.$el ).filter( ':first' )[0] ) {
 				$('.attachments-browser .details').focus();
 				return false;
 			}
-		}
+		},
 
+		onToggleAdvanced: function( event ) {
+			event.preventDefault();
+			this.toggleAdvanced();
+		},
+
+		toggleAdvanced: function( show ) {
+			var $advanced = this.$( '.advanced-section' ), mode = 'show';
+
+			if ( $advanced.hasClass('advanced-visible') || false === show ) {
+				$advanced.removeClass('advanced-visible');
+				$advanced.find('.advanced-settings').addClass('hidden');
+				mode = 'hide';
+			} else {
+				$advanced.addClass('advanced-visible');
+				$advanced.find('.advanced-settings').removeClass('hidden');
+			}
+
+			setUserSetting( 'advImgDetails', mode );
+		}
 	});
 
 	/**
 	 * wp.media.view.AttachmentCompat
+	 *
+	 * A view to display fields added via the `attachment_fields_to_edit` filter.
 	 *
 	 * @constructor
 	 * @augments wp.media.View
