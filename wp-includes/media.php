@@ -53,9 +53,9 @@ function image_constrain_size_for_editor($width, $height, $size = 'medium') {
 		// if no width is set, default to the theme content width if available
 	}
 	elseif ( $size == 'large' ) {
-		// we're inserting a large size image into the editor.  if it's a really
+		// We're inserting a large size image into the editor. If it's a really
 		// big image we'll scale it down to fit reasonably within the editor
-		// itself, and within the theme's content width if it's known.  the user
+		// itself, and within the theme's content width if it's known. The user
 		// can resize it in the editor if they wish.
 		$max_width = intval(get_option('large_size_w'));
 		$max_height = intval(get_option('large_size_h'));
@@ -1096,7 +1096,7 @@ class WP_Embed {
 <script type="text/javascript">
 /* <![CDATA[ */
 	jQuery(document).ready(function($){
-		$.get("<?php echo admin_url( 'admin-ajax.php?action=oembed-cache&post=' . $post_ID ); ?>");
+		$.get("<?php echo admin_url( 'admin-ajax.php?action=oembed-cache&post=' . $post_ID, 'relative' ); ?>");
 	});
 /* ]]> */
 </script>
@@ -1442,4 +1442,45 @@ function wp_embed_handler_googlevideo( $matches, $attr, $url, $rawattr ) {
 	return apply_filters( 'embed_googlevideo', '<embed type="application/x-shockwave-flash" src="http://video.google.com/googleplayer.swf?docid=' . esc_attr($matches[2]) . '&amp;hl=en&amp;fs=true" style="width:' . esc_attr($width) . 'px;height:' . esc_attr($height) . 'px" allowFullScreen="true" allowScriptAccess="always" />', $matches, $attr, $url, $rawattr );
 }
 
-?>
+/**
+ * Prints default plupload arguments.
+ *
+ * @since 3.4.0
+ */
+function wp_plupload_default_settings() {
+	global $wp_scripts;
+
+	$max_upload_size = wp_max_upload_size();
+
+	$settings = array(
+		'runtimes'            => 'html5,silverlight,flash,html4',
+		'file_data_name'      => 'async-upload', // key passed to $_FILE.
+		'multiple_queues'     => true,
+		'max_file_size'       => $max_upload_size . 'b',
+		'url'                 => admin_url( 'admin-ajax.php', 'relative' ),
+		'flash_swf_url'       => includes_url( 'js/plupload/plupload.flash.swf' ),
+		'silverlight_xap_url' => includes_url( 'js/plupload/plupload.silverlight.xap' ),
+		'filters'             => array( array( 'title' => __( 'Allowed Files' ), 'extensions' => '*') ),
+		'multipart'           => true,
+		'urlstream_upload'    => true,
+	);
+
+	$settings = apply_filters( 'plupload_default_settings', $settings );
+
+	$params = array(
+		'action' => 'upload-attachment',
+	);
+
+	$params = apply_filters( 'plupload_default_params', $params );
+	$params['_wpnonce'] = wp_create_nonce( 'media-form' );
+	$settings['multipart_params'] = $params;
+
+	$script = 'var wpPluploadDefaults = ' . json_encode( $settings ) . ';';
+
+	$data = $wp_scripts->get_data( 'wp-plupload', 'data' );
+	if ( $data )
+		$script = "$data\n$script";
+
+	$wp_scripts->add_data( 'wp-plupload', 'data', $script );
+}
+add_action( 'customize_controls_enqueue_scripts', 'wp_plupload_default_settings' );

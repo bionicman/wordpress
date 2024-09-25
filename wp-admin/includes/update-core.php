@@ -244,6 +244,7 @@ $_old_files = array(
 'wp-includes/classes.php',
 // 3.2
 'wp-includes/default-embeds.php',
+'wp-includes/js/tinymce/plugins/media/img',
 'wp-includes/js/tinymce/plugins/wordpress/img/more.gif',
 'wp-includes/js/tinymce/plugins/wordpress/img/toolbars.gif',
 'wp-includes/js/tinymce/plugins/wordpress/img/help.gif',
@@ -324,6 +325,11 @@ $_old_files = array(
 'wp-includes/js/tinymce/themes/advanced/skins/wp_theme/img/down_arrow.gif',
 'wp-includes/js/tinymce/themes/advanced/skins/wp_theme/img/fade-butt.png',
 'wp-includes/js/tinymce/themes/advanced/skins/wp_theme/img/separator.gif',
+// 3.4
+'wp-admin/images/logo-login.png',
+'wp-admin/index-extra.php',
+'wp-admin/network/index-extra.php',
+'wp-admin/user/index-extra.php',
 );
 
 /**
@@ -335,7 +341,7 @@ $_old_files = array(
  * introduced version present here being older than the current installed version.
  *
  * The content of this array should follow the following format:
- *  Filename (relative to wp-content) => Introduced version
+ * Filename (relative to wp-content) => Introduced version
  * Directories should be noted by suffixing it with a trailing slash (/)
  *
  * @since 3.2.0
@@ -406,7 +412,7 @@ function update_core($from, $to) {
 	$mysql_version  = $wpdb->db_version();
 	$required_php_version = '5.2.4';
 	$required_mysql_version = '5.0';
-	$wp_version = '3.3.3';
+	$wp_version = '3.4';
 	$php_compat     = version_compare( $php_version, $required_php_version, '>=' );
 	if ( file_exists( WP_CONTENT_DIR . '/db.php' ) && empty( $wpdb->is_mysql ) )
 		$mysql_compat = true;
@@ -601,7 +607,7 @@ function _copy_dir($from, $to, $skip_list = array() ) {
 /**
  * Redirect to the About WordPress page after a successful upgrade.
  *
- * This function is only needed when the existing install is older than 3.3.0.
+ * This function is only needed when the existing install is older than 3.3.0 (3.4.0 for multisite).
  *
  * @since 3.3.0
  *
@@ -609,8 +615,13 @@ function _copy_dir($from, $to, $skip_list = array() ) {
 function _redirect_to_about_wordpress( $new_version ) {
 	global $wp_version, $pagenow, $action;
 
-	if ( version_compare( $wp_version, '3.3', '>=' ) )
+	if ( is_multisite() ) {
+		// Change to self_admin_url().
+		if ( version_compare( $wp_version, '3.4-alpha', '>=' ) )
+			return;
+	} elseif ( version_compare( $wp_version, '3.3', '>=' ) ) {
 		return;
+	}
 
 	// Ensure we only run this on the update-core.php page. wp_update_core() could be called in other contexts.
 	if ( 'update-core.php' != $pagenow )
@@ -624,12 +635,12 @@ function _redirect_to_about_wordpress( $new_version ) {
 
 	// See do_core_upgrade()
 	show_message( __('WordPress updated successfully') );
-	show_message( '<span class="hide-if-no-js">' . sprintf( __( 'Welcome to WordPress %1$s. You will be redirected to the About WordPress screen. If not, click <a href="%s">here</a>.' ), $new_version, esc_url( admin_url( 'about.php?updated' ) ) ) . '</span>' );
-	show_message( '<span class="hide-if-js">' . sprintf( __( 'Welcome to WordPress %1$s. <a href="%2$s">Learn more</a>.' ), $new_version, esc_url( admin_url( 'about.php?updated' ) ) ) . '</span>' );
+	show_message( '<span class="hide-if-no-js">' . sprintf( __( 'Welcome to WordPress %1$s. You will be redirected to the About WordPress screen. If not, click <a href="%s">here</a>.' ), $new_version, esc_url( self_admin_url( 'about.php?updated' ) ) ) . '</span>' );
+	show_message( '<span class="hide-if-js">' . sprintf( __( 'Welcome to WordPress %1$s. <a href="%2$s">Learn more</a>.' ), $new_version, esc_url( self_admin_url( 'about.php?updated' ) ) ) . '</span>' );
 	echo '</div>';
 	?>
 <script type="text/javascript">
-window.location = '<?php echo admin_url( 'about.php?updated' ); ?>';
+window.location = '<?php echo self_admin_url( 'about.php?updated' ); ?>';
 </script>
 	<?php
 

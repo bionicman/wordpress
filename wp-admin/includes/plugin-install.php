@@ -45,9 +45,9 @@ function plugins_api($action, $args = null) {
 		if ( is_wp_error($request) ) {
 			$res = new WP_Error('plugins_api_failed', __('An Unexpected HTTP Error occurred during the API request.'), $request->get_error_message() );
 		} else {
-			$res = unserialize( wp_remote_retrieve_body( $request ) );
-			if ( false === $res )
-				$res = new WP_Error('plugins_api_failed', __('An unknown error occurred.'), wp_remote_retrieve_body( $request ) );
+			$res = maybe_unserialize( wp_remote_retrieve_body( $request ) );
+			if ( ! is_object( $res ) && ! is_array( $res ) )
+				$res = new WP_Error('plugins_api_failed', __('An unknown error occurred during the API request.'), wp_remote_retrieve_body( $request ) );
 		}
 	} elseif ( !is_wp_error($res) ) {
 		$res->external = true;
@@ -123,11 +123,11 @@ function install_search_form(){
 	?><form id="search-plugins" method="get" action="">
 		<input type="hidden" name="tab" value="search" />
 		<select name="type" id="typeselector">
-			<option value="term"<?php selected('term', $type) ?>><?php _e('Term'); ?></option>
+			<option value="term"<?php selected('term', $type) ?>><?php _e('Keyword'); ?></option>
 			<option value="author"<?php selected('author', $type) ?>><?php _e('Author'); ?></option>
 			<option value="tag"<?php selected('tag', $type) ?>><?php _ex('Tag', 'Plugin Installer'); ?></option>
 		</select>
-		<input type="text" name="s" value="<?php echo esc_attr($term) ?>" />
+		<input type="search" name="s" value="<?php echo esc_attr($term) ?>" />
 		<label class="screen-reader-text" for="plugin-search-input"><?php _e('Search Plugins'); ?></label>
 		<?php submit_button( __( 'Search Plugins' ), 'button', 'plugin-search-input', false ); ?>
 	</form><?php
@@ -167,7 +167,6 @@ add_action('install_plugins_search', 'display_plugins_table');
 add_action('install_plugins_featured', 'display_plugins_table');
 add_action('install_plugins_popular', 'display_plugins_table');
 add_action('install_plugins_new', 'display_plugins_table');
-add_action('install_plugins_updated', 'display_plugins_table');
 
 /**
  * Determine the status we can perform on a plugin.
@@ -199,7 +198,7 @@ function install_plugin_install_status($api, $loop = false) {
 	}
 
 	if ( 'install' == $status ) {
-		if ( is_dir( WP_PLUGIN_DIR  . '/' . $api->slug ) ) {
+		if ( is_dir( WP_PLUGIN_DIR . '/' . $api->slug ) ) {
 			$installed_plugin = get_plugins('/' . $api->slug);
 			if ( empty($installed_plugin) ) {
 				if ( current_user_can('install_plugins') )
@@ -245,12 +244,24 @@ function install_plugin_information() {
 	if ( is_wp_error($api) )
 		wp_die($api);
 
-	$plugins_allowedtags = array('a' => array('href' => array(), 'title' => array(), 'target' => array()),
-								'abbr' => array('title' => array()), 'acronym' => array('title' => array()),
-								'code' => array(), 'pre' => array(), 'em' => array(), 'strong' => array(),
-								'div' => array(), 'p' => array(), 'ul' => array(), 'ol' => array(), 'li' => array(),
-								'h1' => array(), 'h2' => array(), 'h3' => array(), 'h4' => array(), 'h5' => array(), 'h6' => array(),
-								'img' => array('src' => array(), 'class' => array(), 'alt' => array()));
+	$plugins_allowedtags = array(
+		'a' => array( 'href' => array(), 'title' => array(), 'target' => array() ),
+		'abbr' => array( 'title' => array() ), 'acronym' => array( 'title' => array() ),
+		'code' => array(), 'pre' => array(), 'em' => array(), 'strong' => array(),
+		'div' => array(), 'p' => array(), 'ul' => array(), 'ol' => array(), 'li' => array(),
+		'h1' => array(), 'h2' => array(), 'h3' => array(), 'h4' => array(), 'h5' => array(), 'h6' => array(),
+		'img' => array( 'src' => array(), 'class' => array(), 'alt' => array() )
+	);
+
+	$plugins_section_titles = array(
+		'description'  => _x('Description',  'Plugin installer section title'),
+		'installation' => _x('Installation', 'Plugin installer section title'),
+		'faq'          => _x('FAQ',          'Plugin installer section title'),
+		'screenshots'  => _x('Screenshots',  'Plugin installer section title'),
+		'changelog'    => _x('Changelog',    'Plugin installer section title'),
+		'other_notes'  => _x('Other Notes',  'Plugin installer section title')
+	);
+
 	//Sanitize HTML
 	foreach ( (array)$api->sections as $section_name => $content )
 		$api->sections[$section_name] = wp_kses($content, $plugins_allowedtags);
@@ -268,14 +279,16 @@ function install_plugin_information() {
 	echo "<ul id='sidemenu'>\n";
 	foreach ( (array)$api->sections as $section_name => $content ) {
 
-		$title = $section_name;
-		$title = ucwords(str_replace('_', ' ', $title));
+		if ( isset( $plugins_section_titles[ $section_name ] ) )
+			$title = $plugins_section_titles[ $section_name ];
+		else
+			$title = ucwords( str_replace( '_', ' ', $section_name ) );
 
 		$class = ( $section_name == $section ) ? ' class="current"' : '';
 		$href = add_query_arg( array('tab' => $tab, 'section' => $section_name) );
 		$href = esc_url($href);
-		$san_title = esc_attr(sanitize_title_with_dashes($title));
-		echo "\t<li><a name='$san_title' target='' href='$href'$class>$title</a></li>\n";
+		$san_section = esc_attr( $section_name );
+		echo "\t<li><a name='$san_section' href='$href' $class>$title</a></li>\n";
 	}
 	echo "</ul>\n";
 	echo "</div>\n";
@@ -322,7 +335,7 @@ function install_plugin_information() {
 <?php endif; if ( ! empty($api->slug) && empty($api->external) ) : ?>
 			<li><a target="_blank" href="http://wordpress.org/extend/plugins/<?php echo $api->slug ?>/"><?php _e('WordPress.org Plugin Page &#187;') ?></a></li>
 <?php endif; if ( ! empty($api->homepage) ) : ?>
-			<li><a target="_blank" href="<?php echo $api->homepage ?>"><?php _e('Plugin Homepage  &#187;') ?></a></li>
+			<li><a target="_blank" href="<?php echo $api->homepage ?>"><?php _e('Plugin Homepage &#187;') ?></a></li>
 <?php endif; ?>
 		</ul>
 		<?php if ( ! empty($api->rating) ) : ?>
@@ -347,18 +360,20 @@ function install_plugin_information() {
 			echo '<div class="updated"><p>' . __('<strong>Warning:</strong> This plugin has <strong>not been marked as compatible</strong> with your version of WordPress.') . '</p></div>';
 
 		foreach ( (array)$api->sections as $section_name => $content ) {
-			$title = $section_name;
-			$title[0] = strtoupper($title[0]);
-			$title = str_replace('_', ' ', $title);
+
+			if ( isset( $plugins_section_titles[ $section_name ] ) )
+				$title = $plugins_section_titles[ $section_name ];
+			else
+				$title = ucwords( str_replace( '_', ' ', $section_name ) );
 
 			$content = links_add_base_url($content, 'http://wordpress.org/extend/plugins/' . $api->slug . '/');
 			$content = links_add_target($content, '_blank');
 
-			$san_title = esc_attr(sanitize_title_with_dashes($title));
+			$san_section = esc_attr( $section_name );
 
 			$display = ( $section_name == $section ) ? 'block' : 'none';
 
-			echo "\t<div id='section-{$san_title}' class='section' style='display: {$display};'>\n";
+			echo "\t<div id='section-{$san_section}' class='section' style='display: {$display};'>\n";
 			echo "\t\t<h2 class='long-header'>$title</h2>";
 			echo $content;
 			echo "\t</div>\n";

@@ -33,7 +33,7 @@ get_current_screen()->add_help_tab( array(
 	'content' => '<p>' . __('You can customize the display of this screen in a number of ways:') . '</p>' .
 					'<ul>' .
 					'<li>' . __('You can hide/display columns based on your needs and decide how many users to list per screen using the Screen Options tab.') . '</li>' .
-					'<li>' . __('You can filter the list of users by User Role using the text links in the upper left to show All, Administrator, Editor, Author, Contributor, or Subscriber. The default view is to show all users.  Unused User Roles are not listed.') . '</li>' .
+					'<li>' . __('You can filter the list of users by User Role using the text links in the upper left to show All, Administrator, Editor, Author, Contributor, or Subscriber. The default view is to show all users. Unused User Roles are not listed.') . '</li>' .
 					'<li>' . __('You can view all posts made by a user by clicking on the number under the Posts column.') . '</li>' .
 					'</ul>'
 ) );
@@ -338,6 +338,13 @@ default:
 		wp_redirect( add_query_arg( 'paged', $total_pages ) );
 		exit;
 	}
+
+	if ( is_multisite() && current_user_can( 'promote_users' ) && ! wp_is_large_network( 'users' )
+		&& ( is_super_admin() || apply_filters( 'autocomplete_users_for_site_admins', false ) )
+	) {
+		wp_enqueue_script( 'user-search' );
+	}
+
 	include('./admin-header.php');
 
 	$messages = array();

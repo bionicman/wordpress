@@ -47,6 +47,7 @@ class WP_oEmbed {
 			'http://wordpress.tv/*'                         => array( 'http://wordpress.tv/oembed/',              false ),
 			'#http://(.+\.)?polldaddy\.com/.*#i'            => array( 'http://polldaddy.com/oembed/',             true  ),
 			'#http://(www\.)?funnyordie\.com/videos/.*#i'   => array( 'http://www.funnyordie.com/oembed',         true  ),
+			'#https?://(www\.)?twitter.com/.+?/status(es)?/.*#i' => array( 'http://api.twitter.com/1/statuses/oembed.{format}', true ),
 		) );
 
 		// Fix any embeds that contain new lines in the middle of the HTML which breaks wpautop().
@@ -247,7 +248,7 @@ class WP_oEmbed {
 				$return = ( !empty($data->title) ) ? '<a href="' . esc_url($url) . '">' . esc_html($data->title) . '</a>' : false;
 				break;
 
-			default;
+			default:
 				$return = false;
 		}
 
@@ -291,5 +292,3 @@ function &_wp_oembed_get_object() {
 
 	return $wp_oembed;
 }
-
-?>

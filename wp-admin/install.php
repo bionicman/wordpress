@@ -10,13 +10,13 @@
 if ( false ) {
 ?>
 <!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml" >
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
 	<title>Error: PHP is not running</title>
 </head>
 <body>
-	<h1 id="logo"><img alt="WordPress" src="images/wordpress-logo.png" /></h1>
+	<h1 id="logo"><img alt="WordPress" src="images/wordpress-logo.png?ver=20120216" /></h1>
 	<h2>Error: PHP is not running</h2>
 	<p>WordPress requires that your web server is running PHP. Your server does not have PHP installed, or PHP is turned off.</p>
 </body>
@@ -61,7 +61,7 @@ function display_header() {
 	<?php wp_admin_css( 'install', true ); ?>
 </head>
 <body<?php if ( is_rtl() ) echo ' class="rtl"'; ?>>
-<h1 id="logo"><img alt="WordPress" src="images/wordpress-logo.png" /></h1>
+<h1 id="logo"><img alt="WordPress" src="images/wordpress-logo.png?ver=20120216" /></h1>
 
 <?php
 } // end display_header()
@@ -131,7 +131,7 @@ function display_setup_form( $error = null ) {
 		</tr>
 		<tr>
 			<th scope="row"><label for="blog_public"><?php _e( 'Privacy' ); ?></label></th>
-			<td colspan="2"><label><input type="checkbox" name="blog_public" value="1" <?php checked( $blog_public ); ?> /> <?php _e( 'Allow my site to appear in search engines like Google and Technorati.' ); ?></label></td>
+			<td colspan="2"><label><input type="checkbox" name="blog_public" value="1" <?php checked( $blog_public ); ?> /> <?php _e( 'Allow search engines to index this site.' ); ?></label></td>
 		</tr>
 	</table>
 	<p class="step"><input type="submit" name="Submit" value="<?php esc_attr_e( 'Install WordPress' ); ?>" class="button" /></p>
@@ -167,7 +167,7 @@ switch($step) {
 	case 1: // Step 1, direct link.
 	  display_header();
 ?>
-<h1><?php _e( 'Welcome' ); ?></h1>
+<h1><?php _ex( 'Welcome', 'Howdy' ); ?></h1>
 <p><?php printf( __( 'Welcome to the famous five minute WordPress installation process! You may want to browse the <a href="%s">ReadMe documentation</a> at your leisure. Otherwise, just fill in the information below and you&#8217;ll be on your way to using the most extendable and powerful personal publishing platform in the world.' ), '../readme.html' ); ?></p>
 
 <h1><?php _e( 'Information needed' ); ?></h1>
@@ -207,7 +207,7 @@ switch($step) {
 			$error = true;
 		} elseif ( ! is_email( $admin_email ) ) {
 			// TODO: poka-yoke
-			display_setup_form( __( 'that isn&#8217;t a valid e-mail address.  E-mail addresses look like: <code>username@example.com</code>' ) );
+			display_setup_form( __( 'that isn&#8217;t a valid e-mail address. E-mail addresses look like: <code>username@example.com</code>' ) );
 			$error = true;
 		}
 

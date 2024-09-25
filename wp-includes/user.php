@@ -65,7 +65,6 @@ function wp_signon( $credentials = '', $secure_cookie = '' ) {
 	return $user;
 }
 
-
 /**
  * Authenticate the user using the username and password.
  */
@@ -154,7 +153,7 @@ function wp_authenticate_cookie($user, $username, $password) {
 function count_user_posts($userid) {
 	global $wpdb;
 
-	$where = get_posts_by_author_sql('post', TRUE, $userid);
+	$where = get_posts_by_author_sql('post', true, $userid);
 
 	$count = $wpdb->get_var( "SELECT COUNT(*) FROM $wpdb->posts $where" );
 
@@ -165,11 +164,12 @@ function count_user_posts($userid) {
  * Number of posts written by a list of users.
  *
  * @since 3.0.0
- * @param array $user_ids Array of user IDs.
+ *
+ * @param array $users Array of user IDs.
  * @param string|array $post_type Optional. Post type to check. Defaults to post.
  * @return array Amount of posts each user has written.
  */
-function count_many_users_posts($users, $post_type = 'post' ) {
+function count_many_users_posts( $users, $post_type = 'post' ) {
 	global $wpdb;
 
 	$count = array();
@@ -359,7 +359,6 @@ class WP_User_Query {
 	var $query_orderby;
 	var $query_limit;
 
-
 	/**
 	 * PHP5 constructor
 	 *
@@ -379,6 +378,7 @@ class WP_User_Query {
 				'include' => array(),
 				'exclude' => array(),
 				'search' => '',
+				'search_columns' => array(),
 				'orderby' => 'login',
 				'order' => 'ASC',
 				'offset' => '',
@@ -477,14 +477,19 @@ class WP_User_Query {
 			if ( $wild )
 				$search = trim($search, '*');
 
-			if ( false !== strpos( $search, '@') )
-				$search_columns = array('user_email');
-			elseif ( is_numeric($search) )
-				$search_columns = array('user_login', 'ID');
-			elseif ( preg_match('|^https?://|', $search) )
-				$search_columns = array('user_url');
-			else
-				$search_columns = array('user_login', 'user_nicename');
+			$search_columns = array();
+			if ( $qv['search_columns'] )
+				$search_columns = array_intersect( $qv['search_columns'], array( 'ID', 'user_login', 'user_email', 'user_url', 'user_nicename' ) );
+			if ( ! $search_columns ) {
+				if ( false !== strpos( $search, '@') )
+					$search_columns = array('user_email');
+				elseif ( is_numeric($search) )
+					$search_columns = array('user_login', 'ID');
+				elseif ( preg_match('|^https?://|', $search) && ! wp_is_large_network( 'users' ) )
+					$search_columns = array('user_url');
+				else
+					$search_columns = array('user_login', 'user_nicename');
+			}
 
 			$this->query_where .= $this->get_search_sql( $search, $search_columns, $wild );
 		}
@@ -725,8 +730,8 @@ function get_blogs_of_user( $user_id, $all = false ) {
  * @since MU 1.1
  * @uses get_blogs_of_user()
  *
- * @param int $user_id The unique ID of the user
- * @param int $blog Optional. If no blog_id is provided, current site is used
+ * @param int $user_id Optional. The unique ID of the user. Defaults to the current user.
+ * @param int $blog_id Optional. ID of the blog to check. Defaults to the current site.
  * @return bool
  */
 function is_user_member_of_blog( $user_id = 0, $blog_id = 0 ) {
@@ -793,7 +798,7 @@ function delete_user_meta($user_id, $meta_key, $meta_value = '') {
  * @link http://codex.wordpress.org/Function_Reference/get_user_meta
  *
  * @param int $user_id Post ID.
- * @param string $key The meta key to retrieve.
+ * @param string $key Optional. The meta key to retrieve. By default, returns data for all keys.
  * @param bool $single Whether to return a single value.
  * @return mixed Will be an array if $single is false. Will be value of meta data field if $single
  *  is true.
@@ -828,7 +833,7 @@ function update_user_meta($user_id, $meta_key, $meta_value, $prev_value = '') {
  * Count number of users who have each of the user roles.
  *
  * Assumes there are neither duplicated nor orphaned capabilities meta_values.
- * Assumes role names are unique phrases.  Same assumption made by WP_User_Query::prepare_query()
+ * Assumes role names are unique phrases. Same assumption made by WP_User_Query::prepare_query()
  * Using $strategy = 'time' this is CPU-intensive and should handle around 10^7 users.
  * Using $strategy = 'memory' this is memory-intensive and should handle around 10^5 users, but see WP Bug #12257.
  *
@@ -855,7 +860,7 @@ function count_users($strategy = 'time') {
 		// Build a CPU-intensive query that will return concise information.
 		$select_count = array();
 		foreach ( $avail_roles as $this_role => $name ) {
-			$select_count[] = "COUNT(NULLIF(`meta_value` LIKE '%" . like_escape($this_role) . "%', FALSE))";
+			$select_count[] = "COUNT(NULLIF(`meta_value` LIKE '%\"" . like_escape( $this_role ) . "\"%', false))";
 		}
 		$select_count = implode(', ', $select_count);
 
@@ -940,12 +945,12 @@ function setup_userdata($for_user_id = '') {
 		return;
 	}
 
-	$userdata	= $user;
-	$user_login	= $user->user_login;
-	$user_email	= $user->user_email;
-	$user_url	= $user->user_url;
-	$user_pass_md5	= md5($user->user_pass);
-	$user_identity	= $user->display_name;
+	$userdata   = $user;
+	$user_login = $user->user_login;
+	$user_email = $user->user_email;
+	$user_url   = $user->user_url;
+	$user_pass_md5 = md5( $user->user_pass );
+	$user_identity = $user->display_name;
 }
 
 /**
@@ -974,7 +979,7 @@ function setup_userdata($for_user_id = '') {
  * <li>id - Default is the value of the 'name' parameter. ID attribute of select element.</li>
  * <li>class - Class attribute of select element.</li>
  * <li>blog_id - ID of blog (Multisite only). Defaults to ID of current blog.</li>
- * <li>who - Which users to query.  Currently only 'authors' is supported. Default is all users.</li>
+ * <li>who - Which users to query. Currently only 'authors' is supported. Default is all users.</li>
  * </ol>
  *
  * @since 2.3.0
@@ -1056,17 +1061,12 @@ function wp_dropdown_users( $args = '' ) {
  * when calling filters.
  *
  * @since 2.3.0
- * @uses apply_filters() Calls 'edit_$field' and '{$field_no_prefix}_edit_pre' passing $value and
- *  $user_id if $context == 'edit' and field name prefix == 'user_'.
- *
- * @uses apply_filters() Calls 'edit_user_$field' passing $value and $user_id if $context == 'db'.
- * @uses apply_filters() Calls 'pre_$field' passing $value if $context == 'db' and field name prefix == 'user_'.
- * @uses apply_filters() Calls '{$field}_pre' passing $value if $context == 'db' and field name prefix != 'user_'.
- *
+ * @uses apply_filters() Calls 'edit_$field' passing $value and $user_id if $context == 'edit'.
+ *  $field is prefixed with 'user_' if it isn't already.
+ * @uses apply_filters() Calls 'pre_$field' passing $value if $context == 'db'. $field is prefixed with
+ *  'user_' if it isn't already.
  * @uses apply_filters() Calls '$field' passing $value, $user_id and $context if $context == anything
- *  other than 'raw', 'edit' and 'db' and field name prefix == 'user_'.
- * @uses apply_filters() Calls 'user_$field' passing $value if $context == anything other than 'raw',
- *  'edit' and 'db' and field name prefix != 'user_'.
+ *  other than 'raw', 'edit' and 'db'. $field is prefixed with 'user_' if it isn't already.
  *
  * @param string $field The user Object field name.
  * @param mixed $value The user Object value.
@@ -1086,11 +1086,7 @@ function sanitize_user_field($field, $value, $user_id, $context) {
 	if ( !is_string($value) && !is_numeric($value) )
 		return $value;
 
-	$prefixed = false;
-	if ( false !== strpos($field, 'user_') ) {
-		$prefixed = true;
-		$field_no_prefix = str_replace('user_', '', $field);
-	}
+	$prefixed = false !== strpos( $field, 'user_' );
 
 	if ( 'edit' == $context ) {
 		if ( $prefixed ) {
@@ -1461,7 +1457,6 @@ function wp_create_user($username, $password, $email = '') {
 	return wp_insert_user($userdata);
 }
 
-
 /**
  * Return a list of meta keys that wp_insert_user() is supposed to set.
  *
@@ -1493,5 +1488,3 @@ function _wp_get_user_contactmethods( $user = null ) {
 	);
 	return apply_filters( 'user_contactmethods', $user_contactmethods, $user );
 }
-
-?>

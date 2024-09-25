@@ -317,7 +317,7 @@ $(document).ready( function() {
 		var el = e.target, selStart = el.selectionStart, selEnd = el.selectionEnd, val = el.value, scroll, sel;
 
 		try {
-			this.lastKey = 9; // not a standard DOM property, lastKey is to help stop Opera tab event.  See blur handler below.
+			this.lastKey = 9; // not a standard DOM property, lastKey is to help stop Opera tab event. See blur handler below.
 		} catch(err) {}
 
 		if ( document.selection ) {
@@ -351,7 +351,7 @@ $(document).ready( function() {
 		});
 	}
 
-	// auto-fold the menu when screen is under 800px
+	// auto-fold the menu when screen is under 900px
 	$(window).bind('resize.autofold', function(){
 		if ( getUserSetting('mfold') == 'f' )
 			return;
@@ -359,7 +359,7 @@ $(document).ready( function() {
 		var width = $(window).width();
 
 		// fold admin menu
-		if ( width <= 800 ) {
+		if ( width <= 900 ) {
 			if ( !folded ) {
 				$(document.body).addClass('folded');
 				folded = true;

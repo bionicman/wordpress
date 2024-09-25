@@ -16,17 +16,7 @@ $wp_list_table = _get_list_table('WP_Themes_List_Table');
 
 if ( current_user_can( 'switch_themes' ) && isset($_GET['action'] ) ) {
 	if ( 'activate' == $_GET['action'] ) {
-		check_admin_referer('switch-theme_' . $_GET['stylesheet']);
-		$themes = get_allowed_themes();
-		foreach ( $themes as $theme ) {
-			if ( $theme['Stylesheet'] == $_GET['stylesheet'] &&
-				$theme['Template'] == $_GET['template'] ) {
-					$found = true;
-					break;
-			}
-		}
-		if ( empty( $found ) )
-			wp_die( __( 'Cheatin&#8217; uh?' ) );
+		check_admin_referer('switch-theme_' . $_GET['template']);
 		switch_theme($_GET['template'], $_GET['stylesheet']);
 		wp_redirect( admin_url('themes.php?activated=true') );
 		exit;
@@ -86,7 +76,7 @@ require_once('./admin-header.php');
 ?>
 
 <?php if ( ! validate_current_theme() ) : ?>
-<div id="message1" class="updated"><p><?php _e('The active theme is broken.  Reverting to the default theme.'); ?></p></div>
+<div id="message1" class="updated"><p><?php _e('The active theme is broken. Reverting to the default theme.'); ?></p></div>
 <?php elseif ( isset($_GET['activated']) ) :
 		if ( isset($wp_registered_sidebars) && count( (array) $wp_registered_sidebars ) && current_user_can('edit_theme_options') ) { ?>
 <div id="message2" class="updated"><p><?php printf( __('New theme activated. This theme supports widgets, please visit the <a href="%s">widgets settings</a> screen to configure them.'), admin_url( 'widgets.php' ) ); ?></p></div><?php
@@ -106,17 +96,18 @@ if ( ! is_multisite() && current_user_can( 'install_themes' ) ) : ?>
 <h2><?php echo esc_html( $title ); ?>
 <?php endif; ?>
 </h2>
-
-<h3><?php _e('Current Theme'); ?></h3>
+<?php $ct = wp_get_theme(); ?>
 <div id="current-theme">
-<?php if ( $ct->screenshot ) : ?>
-<img src="<?php echo $ct->theme_root_uri . '/' . $ct->stylesheet . '/' . $ct->screenshot; ?>" alt="<?php esc_attr_e('Current theme preview'); ?>" />
+<h3><?php _e( 'Current Theme' ); ?></h3>
+<?php if ( $screenshot = $ct->get_screenshot() ) : ?>
+<img src="<?php echo esc_url( $screenshot ); ?>" alt="<?php esc_attr_e( 'Current theme preview'); ?>" />
 <?php endif; ?>
 <h4><?php
 	/* translators: 1: theme title, 2: theme version, 3: theme author */
-	printf(__('%1$s %2$s by %3$s'), $ct->title, $ct->version, $ct->author) ; ?></h4>
-<p class="theme-description"><?php echo $ct->description; ?></p>
+	printf( __( '%1$s %2$s by %3$s' ), $ct->display('Name'), $ct->display('Version'), $ct->display('Author') ) ; ?></h4>
+<p class="theme-description"><?php echo $ct->display('Description'); ?></p>
 <div class="theme-options">
+	<a href="#" class="load-customize hide-if-no-js" data-customize-template="<?php echo esc_attr( $ct->get_template() ); ?>" data-customize-stylesheet="<?php echo esc_attr( $ct->get_stylesheet() ); ?>" title="<?php echo esc_attr( sprintf( __( 'Customize &#8220;%s&#8221;' ), $ct->get('Name') ) ); ?>"><?php _e( 'Customize' )?></a>
 	<span><?php _e( 'Options:' )?></span>
 	<?php
 	// Pretend you didn't see this.
@@ -127,10 +118,10 @@ if ( ! is_multisite() && current_user_can( 'install_themes' ) ) : ?>
 			if ( 'themes.php' == $item[2] || 'theme-editor.php' == $item[2] )
 				continue;
 			// 0 = name, 1 = capability, 2 = file
-			if ( ( strcmp($self, $item[2]) == 0 && empty($parent_file)) || ($parent_file && ($item[2] == $parent_file)) ) $class = ' class="current"';
-
+			if ( ( strcmp($self, $item[2]) == 0 && empty($parent_file)) || ($parent_file && ($item[2] == $parent_file)) )
+				$class = ' class="current"';
 			if ( !empty($submenu[$item[2]]) ) {
-				$submenu[$item[2]] = array_values($submenu[$item[2]]);  // Re-index.
+				$submenu[$item[2]] = array_values($submenu[$item[2]]); // Re-index.
 				$menu_hook = get_plugin_page_hook($submenu[$item[2]][0][2], $item[2]);
 				if ( file_exists(WP_PLUGIN_DIR . "/{$submenu[$item[2]][0][2]}") || !empty($menu_hook))
 					$options[] = "<a href='admin.php?page={$submenu[$item[2]][0][2]}'$class>{$item[0]}</a>";
@@ -146,12 +137,8 @@ if ( ! is_multisite() && current_user_can( 'install_themes' ) ) : ?>
 		}
 	}
 	echo implode ( ' | ', $options );
-
-	if ( $ct->tags ) : ?>
-	<p><?php _e('Tags:'); ?> <?php echo join(', ', $ct->tags); ?></p>
-	<?php endif; ?>
-</div>
-<?php theme_update_available($ct); ?>
+?></div>
+<?php theme_update_available( $ct ); ?>
 
 </div>
 
@@ -164,15 +151,15 @@ if ( ! current_user_can( 'switch_themes' ) ) {
 }
 ?>
 
-<h3><?php _e('Available Themes'); ?></h3>
+<h3 class="available-themes"><?php _e('Available Themes'); ?></h3>
 
-<?php if ( !empty( $_REQUEST['s'] ) || !empty( $_REQUEST['filter'] ) || $wp_list_table->has_items() ) : ?>
+<?php if ( !empty( $_REQUEST['s'] ) || !empty( $_REQUEST['features'] ) || $wp_list_table->has_items() ) : ?>
 
 <form class="search-form filter-form" action="" method="get">
 
 <p class="search-box">
 	<label class="screen-reader-text" for="theme-search-input"><?php _e('Search Installed Themes'); ?>:</label>
-	<input type="text" id="theme-search-input" name="s" value="<?php _admin_search_query(); ?>" />
+	<input type="search" id="theme-search-input" name="s" value="<?php _admin_search_query(); ?>" />
 	<?php submit_button( __( 'Search Installed Themes' ), 'button', false, false, array( 'id' => 'search-submit' ) ); ?>
 	<a id="filter-click" href="?filter=1"><?php _e( 'Feature Filter' ); ?></a>
 </p>
@@ -208,9 +195,9 @@ if ( ! current_user_can( 'switch_themes' ) ) {
 	<?php endforeach; ?>
 
 	<div class="feature-container">
-		<?php submit_button( __( 'Apply Filters' ), 'button-secondary submitter', false, false, array( 'style' => 'margin-left: 120px', 'id' => 'filter-submit' ) ); ?>
+		<?php submit_button( __( 'Apply Filters' ), 'button-secondary submitter', false, false, array( 'id' => 'filter-submit' ) ); ?>
 		&nbsp;
-		<small><a id="mini-filter-click" href="<?php echo esc_url( remove_query_arg( array('filter', 'features', 'submit') ) ); ?>"><?php _e( 'Close filters' )?></a></small>
+		<a id="mini-filter-click" href="<?php echo esc_url( remove_query_arg( array('filter', 'features', 'submit') ) ); ?>"><?php _e( 'Close filters' )?></a>
 	</div>
 	<br/>
 	</div>
@@ -228,8 +215,7 @@ if ( ! current_user_can( 'switch_themes' ) ) {
 
 <?php
 // List broken themes, if any.
-$broken_themes = get_broken_themes();
-if ( current_user_can('edit_themes') && count( $broken_themes ) ) {
+if ( ! is_multisite() && current_user_can('edit_themes') && $broken_themes = wp_get_themes( array( 'errors' => true ) ) ) {
 ?>
 
 <h3><?php _e('Broken Themes'); ?></h3>
@@ -241,20 +227,13 @@ if ( current_user_can('edit_themes') && count( $broken_themes ) ) {
 		<th><?php _e('Description'); ?></th>
 	</tr>
 <?php
-	$theme = '';
-
-	$theme_names = array_keys($broken_themes);
-	natcasesort($theme_names);
-
-	foreach ($theme_names as $theme_name) {
-		$title = $broken_themes[$theme_name]['Title'];
-		$description = $broken_themes[$theme_name]['Description'];
-
-		$theme = ('class="alternate"' == $theme) ? '' : 'class="alternate"';
+	$alt = '';
+	foreach ( $broken_themes as $broken_theme ) {
+		$alt = ('class="alternate"' == $alt) ? '' : 'class="alternate"';
 		echo "
-		<tr $theme>
-			 <td>$title</td>
-			 <td>$description</td>
+		<tr $alt>
+			 <td>" . $broken_theme->get('Name') ."</td>
+			 <td>" . $broken_theme->errors()->get_error_message() . "</td>
 		</tr>";
 	}
 ?>

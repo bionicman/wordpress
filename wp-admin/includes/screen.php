@@ -114,7 +114,6 @@ function get_hidden_meta_boxes( $screen ) {
  *
  * @param string $option An option name.
  * @param mixed $args Option-dependent arguments.
- * @return void
  */
 function add_screen_option( $option, $args = array() ) {
 	$current_screen = get_current_screen();
@@ -176,7 +175,7 @@ function get_screen_icon( $screen = '' ) {
  *
  * @since 3.1.0
  *
- * @return object Current screen object
+ * @return WP_Screen Current screen object
  */
 function get_current_screen() {
 	global $current_screen;
@@ -196,7 +195,7 @@ function get_current_screen() {
  * @param mixed $hook_name Optional. The hook name (also known as the hook suffix) used to determine the screen,
  *	or an existing screen object.
  */
-function set_current_screen( $hook_name =  '' ) {
+function set_current_screen( $hook_name = '' ) {
 	WP_Screen::get( $hook_name )->set_current_screen();
 }
 
@@ -208,7 +207,7 @@ function set_current_screen( $hook_name =  '' ) {
  */
 final class WP_Screen {
 	/**
-	 * Any action associated with the screen. 'add' for *-add.php and *-new.php screens.  Empty otherwise.
+	 * Any action associated with the screen. 'add' for *-add.php and *-new.php screens. Empty otherwise.
 	 *
 	 * @since 3.3.0
 	 * @var string
@@ -217,7 +216,7 @@ final class WP_Screen {
 	public $action;
 
 	/**
-	 * The base type of the screen.  This is typically the same as $id but with any post types and taxonomies stripped.
+	 * The base type of the screen. This is typically the same as $id but with any post types and taxonomies stripped.
 	 * For example, for an $id of 'edit-post' the base is 'edit'.
 	 *
 	 * @since 3.3.0
@@ -539,7 +538,7 @@ final class WP_Screen {
 	 *
 	 * @since 3.3.0
 	 *
-	 * @param string $parent_file The parent file of the screen.  Typically the $parent_file global.
+	 * @param string $parent_file The parent file of the screen. Typically the $parent_file global.
 	 */
 	function set_parentage( $parent_file ) {
 		$this->parent_file = $parent_file;
@@ -565,7 +564,8 @@ final class WP_Screen {
 	 *
 	 * @since 3.3.0
 	 *
-	 * @param string
+	 * @param string $option Option ID.
+	 * @param mixed $key Optional. Specific array key for when the option is an array.
 	 */
 	public function get_option( $option, $key = false ) {
 		if ( ! isset( $this->_options[ $option ] ) )
@@ -576,6 +576,31 @@ final class WP_Screen {
 			return null;
 		}
 		return $this->_options[ $option ];
+	}
+
+	/**
+	 * Gets the help tabs registered for the screen.
+	 *
+	 * @since 3.4.0
+	 *
+	 * @return array Help tabs with arguments.
+	 */
+	public function get_help_tabs() {
+		return $this->_help_tabs;
+	}
+
+	/**
+	 * Gets the arguments for a help tab.
+	 *
+	 * @since 3.4.0
+	 *
+	 * @param string $id Help Tab ID.
+	 * @return array Help tab arguments.
+	 */
+	public function get_help_tab( $id ) {
+		if ( ! isset( $this->_help_tabs[ $id ] ) )
+			return null;
+		return $this->_help_tabs[ $id ];
 	}
 
 	/**
@@ -606,7 +631,8 @@ final class WP_Screen {
 		if ( ! $args['id'] || ! $args['title'] )
 			return;
 
-		$this->_help_tabs[] = $args;
+		// Allows for overriding an existing tab with that ID.
+		$this->_help_tabs[ $args['id'] ] = $args;
 	}
 
 	/**
@@ -629,6 +655,17 @@ final class WP_Screen {
 		$this->_help_tabs = array();
 	}
 
+	/**
+	 * Gets the content from a contextual help sidebar.
+	 *
+	 * @since 3.4.0
+	 *
+	 * @return string Contents of the help sidebar.
+	 */
+	public function get_help_sidebar() {
+		return $this->_help_sidebar;
+	}
+	
 	/**
 	 * Add a sidebar to the contextual help for the screen.
 	 * Call this in template files after admin.php is loaded and before admin-header.php is loaded to add a sidebar to the contextual help.
@@ -657,7 +694,7 @@ final class WP_Screen {
 		$old_help = apply_filters( 'contextual_help', $old_help, $this->id, $this );
 
 		// Default help only if there is no old-style block of text and no new-style help tabs.
-		if ( empty( $old_help ) && empty( $this->_help_tabs ) ) {
+		if ( empty( $old_help ) && ! $this->get_help_tabs() ) {
 			$default_help = apply_filters( 'default_contextual_help', '' );
 			if ( $default_help )
 				$old_help = '<p>' . $default_help . '</p>';
@@ -671,10 +708,10 @@ final class WP_Screen {
 			) );
 		}
 
-		$has_sidebar = ! empty( $this->_help_sidebar );
+		$help_sidebar = $this->get_help_sidebar();
 
 		$help_class = 'hidden';
-		if ( ! $has_sidebar )
+		if ( ! $help_sidebar )
 			$help_class .= ' no-sidebar';
 
 		// Time to render!
@@ -686,35 +723,39 @@ final class WP_Screen {
 				<div id="contextual-help-columns">
 					<div class="contextual-help-tabs">
 						<ul>
-						<?php foreach ( $this->_help_tabs as $i => $tab ):
+						<?php
+						$class = ' class="active"';
+						foreach ( $this->get_help_tabs() as $tab ) :
 							$link_id  = "tab-link-{$tab['id']}";
 							$panel_id = "tab-panel-{$tab['id']}";
-							$classes  = ( $i == 0 ) ? 'active' : '';
 							?>
 
-							<li id="<?php echo esc_attr( $link_id ); ?>" class="<?php echo esc_attr( $classes ); ?>">
+							<li id="<?php echo esc_attr( $link_id ); ?>"<?php echo $class; ?>>
 								<a href="<?php echo esc_url( "#$panel_id" ); ?>">
 									<?php echo esc_html( $tab['title'] ); ?>
 								</a>
 							</li>
-						<?php endforeach; ?>
+						<?php
+							$class = '';
+						endforeach;
+						?>
 						</ul>
 					</div>
 
-					<?php if ( $has_sidebar ) : ?>
+					<?php if ( $help_sidebar ) : ?>
 					<div class="contextual-help-sidebar">
-						<?php echo self::$this->_help_sidebar; ?>
+						<?php echo $help_sidebar; ?>
 					</div>
 					<?php endif; ?>
 
 					<div class="contextual-help-tabs-wrap">
-						<?php foreach ( $this->_help_tabs as $i => $tab ):
+						<?php
+						$classes = 'help-tab-content active';
+						foreach ( $this->get_help_tabs() as $tab ):
 							$panel_id = "tab-panel-{$tab['id']}";
-							$classes  = ( $i == 0 ) ? 'active' : '';
-							$classes .= ' help-tab-content';
 							?>
 
-							<div id="<?php echo esc_attr( $panel_id ); ?>" class="<?php echo esc_attr( $classes ); ?>">
+							<div id="<?php echo esc_attr( $panel_id ); ?>" class="<?php echo $classes; ?>">
 								<?php
 								// Print tab content.
 								echo $tab['content'];
@@ -724,7 +765,10 @@ final class WP_Screen {
 									call_user_func_array( $tab['callback'], array( $this, $tab ) );
 								?>
 							</div>
-						<?php endforeach; ?>
+						<?php
+							$classes = 'help-tab-content';
+						endforeach;
+						?>
 					</div>
 				</div>
 			</div>
@@ -735,11 +779,11 @@ final class WP_Screen {
 		?>
 		</div>
 		<?php
-		if ( ! $this->_help_tabs && ! $this->show_screen_options() )
+		if ( ! $this->get_help_tabs() && ! $this->show_screen_options() )
 			return;
 		?>
 		<div id="screen-meta-links">
-		<?php if ( $this->_help_tabs ) : ?>
+		<?php if ( $this->get_help_tabs() ) : ?>
 			<div id="contextual-help-link-wrap" class="hide-if-no-js screen-meta-toggle">
 			<a href="#contextual-help-wrap" id="contextual-help-link" class="show-settings"><?php _e( 'Help' ); ?></a>
 			</div>
@@ -792,9 +836,12 @@ final class WP_Screen {
 		?>
 		<div id="screen-options-wrap" class="hidden">
 		<form id="adv-settings" action="" method="post">
+		<?php if ( isset( $wp_meta_boxes[ $this->id ] ) || $this->get_option( 'per_page' ) || ( $columns && empty( $columns['_title'] ) ) ) : ?>
+			<h5><?php _e( 'Show on screen' ); ?></h5>
 		<?php
+		endif;
+
 		if ( isset( $wp_meta_boxes[ $this->id ] ) ) : ?>
-			<h5><?php _ex('Show on screen', 'Metaboxes') ?></h5>
 			<div class="metabox-prefs">
 				<?php
 					meta_box_prefs( $this );
@@ -809,15 +856,17 @@ final class WP_Screen {
 								$welcome_checked = false;
 						}
 						echo '<label for="wp_welcome_panel-hide">';
-						echo '<input type="checkbox" id="wp_welcome_panel-hide"' . checked( (bool) $welcome_checked, true, false )  . ' />';
-						echo __( 'Welcome' ) . "</label>\n";
+						echo '<input type="checkbox" id="wp_welcome_panel-hide"' . checked( (bool) $welcome_checked, true, false ) . ' />';
+						echo _x( 'Welcome', 'Welcome panel' ) . "</label>\n";
 					}
 				?>
 				<br class="clear" />
 			</div>
 			<?php endif;
-			if ( ! empty( $columns ) ) : ?>
-			<h5><?php echo ( isset( $columns['_title'] ) ?  $columns['_title'] :  _x('Show on screen', 'Columns') ) ?></h5>
+			if ( $columns ) :
+				if ( ! empty( $columns['_title'] ) ) : ?>
+			<h5><?php echo $columns['_title']; ?></h5>
+			<?php endif; ?>
 			<div class="metabox-prefs">
 				<?php
 				$special = array('_title', 'cb', 'comment', 'media', 'name', 'title', 'username', 'blogname');
@@ -880,12 +929,12 @@ final class WP_Screen {
 		}
 
 		?>
-		<h5><?php _e('Screen Layout'); ?></h5>
+		<h5 class="screen-layout"><?php _e('Screen Layout'); ?></h5>
 		<div class='columns-prefs'><?php
 			_e('Number of Columns:');
 			for ( $i = 1; $i <= $num; ++$i ):
 				?>
-				<label>
+				<label class="columns-prefs-<?php echo $i; ?>">
 					<input type='radio' name='screen_columns' value='<?php echo esc_attr( $i ); ?>'
 						<?php checked( $screen_layout_columns, $i ); ?> />
 					<?php echo esc_html( $i ); ?>
@@ -932,10 +981,9 @@ final class WP_Screen {
 			$per_page = apply_filters( 'edit_posts_per_page', $per_page, $this->post_type );
 
 		?>
-		<h5><?php _ex('Show on screen', 'Screen Options') ?></h5>
 		<div class='screen-options'>
 			<?php if ( !empty($per_page_label) ): ?>
-				<input type='text' class='screen-per-page' name='wp_screen_options[value]'
+				<input type='number' step='1' min='1' class='screen-per-page' name='wp_screen_options[value]'
 					id='<?php echo esc_attr( $option ); ?>' maxlength='3'
 					value='<?php echo esc_attr( $per_page ); ?>' />
 				<label for='<?php echo esc_attr( $option ); ?>'>

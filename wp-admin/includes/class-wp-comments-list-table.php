@@ -130,13 +130,13 @@ class WP_Comments_List_Table extends WP_List_Table {
 		global $comment_status;
 
 		if ( 'moderated' == $comment_status )
-			_e( 'No comments awaiting moderation&hellip; yet.' );
+			_e( 'No comments awaiting moderation.' );
 		else
 			_e( 'No comments found.' );
 	}
 
 	function get_views() {
-		global $post_id, $comment_status;
+		global $post_id, $comment_status, $comment_type;
 
 		$status_links = array();
 		$num_comments = ( $post_id ) ? wp_count_comments( $post_id ) : wp_count_comments();
@@ -556,5 +556,3 @@ class WP_Post_Comments_List_Table extends WP_Comments_List_Table {
 		return 10;
 	}
 }
-
-?>

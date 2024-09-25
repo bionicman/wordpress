@@ -117,7 +117,6 @@ if ( $action ) {
 			screen_icon();
 			echo '<h2>' . esc_html( $title ) . '</h2>';
 
-
 			$url = self_admin_url('update.php?action=update-selected&amp;plugins=' . urlencode( join(',', $plugins) ));
 			$url = wp_nonce_url($url, 'bulk-update-plugins');
 
@@ -154,10 +153,6 @@ if ( $action ) {
 				wp_die(__('You do not have sufficient permissions to deactivate plugins for this site.'));
 
 			check_admin_referer('deactivate-plugin_' . $plugin);
-			if ( ! is_network_admin() && is_plugin_active_for_network( $plugin ) ) {
-				wp_redirect( self_admin_url("plugins.php?plugin_status=$status&paged=$page&s=$s") );
-				exit;
-			}
 			deactivate_plugins($plugin);
 			update_option('recently_activated', array($plugin => time()) + (array)get_option('recently_activated'));
 			if ( headers_sent() )
@@ -173,13 +168,7 @@ if ( $action ) {
 			check_admin_referer('bulk-plugins');
 
 			$plugins = isset( $_POST['checked'] ) ? (array) $_POST['checked'] : array();
-			// Do not deactivate plugins which are already deactivated.
-			if ( is_network_admin() ) {
-				$plugins = array_filter( $plugins, 'is_plugin_active_for_network' );
-			} else {
-				$plugins = array_filter( $plugins, 'is_plugin_active' );
-				$plugins = array_diff( $plugins, array_filter( $plugins, 'is_plugin_active_for_network' ) );
-			}
+			$plugins = array_filter($plugins, 'is_plugin_active'); //Do not deactivate plugins which are already deactivated.
 			if ( empty($plugins) ) {
 				wp_redirect( self_admin_url("plugins.php?plugin_status=$status&paged=$page&s=$s") );
 				exit;
@@ -365,7 +354,7 @@ if ( !empty($invalid) )
 	if ( isset( $_GET['main'] ) )
 		$errmsg = __( 'You cannot delete a plugin while it is active on the main site.' );
 	elseif ( isset($_GET['charsout']) )
-		$errmsg = sprintf(__('The plugin generated %d characters of <strong>unexpected output</strong> during activation.  If you notice &#8220;headers already sent&#8221; messages, problems with syndication feeds or other issues, try deactivating or removing this plugin.'), $_GET['charsout']);
+		$errmsg = sprintf(__('The plugin generated %d characters of <strong>unexpected output</strong> during activation. If you notice &#8220;headers already sent&#8221; messages, problems with syndication feeds or other issues, try deactivating or removing this plugin.'), $_GET['charsout']);
 	else
 		$errmsg = __('Plugin could not be activated because it triggered a <strong>fatal error</strong>.');
 	?>
@@ -402,7 +391,7 @@ if ( !empty($invalid) )
 <?php screen_icon(); ?>
 <h2><?php echo esc_html( $title );
 if ( ( ! is_multisite() || is_network_admin() ) && current_user_can('install_plugins') ) { ?>
- <a href="<?php echo self_admin_url( 'plugin-install.php' ); ?>" class="add-new-h2"><?php echo esc_html_x('Add New', 'plugin'); ?></a>
+<a href="<?php echo self_admin_url( 'plugin-install.php' ); ?>" class="add-new-h2"><?php echo esc_html_x('Add New', 'plugin'); ?></a>
 <?php }
 if ( $s )
 	printf( '<span class="subtitle">' . __('Search results for &#8220;%s&#8221;') . '</span>', esc_html( $s ) ); ?>

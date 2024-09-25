@@ -44,13 +44,11 @@ function fileUploading(up, file) {
 
 	if ( max > hundredmb && file.size > hundredmb ) {
 		setTimeout(function(){
-			var done;
-
-			if ( file.status < 3 && file.loaded == 0 ) { // not uploading
+			if ( file.status == 2 && file.loaded == 0 ) { // not uploading
 				wpFileError(file, pluploadL10n.big_upload_failed.replace('%1$s', '<a class="uploader-html" href="#">').replace('%2$s', '</a>'));
-				up.stop(); // stops the whole queue
-				up.removeFile(file);
-				up.start(); // restart the queue
+
+				if ( up.current && up.current.file.id == file.id && up.current.xhr.abort )
+					up.current.xhr.abort();
 			}
 		}, 10000); // wait for 10 sec. for the file to start uploading
 	}
@@ -138,7 +136,7 @@ function prepareMediaItemInit(fileObj) {
 	jQuery('a.delete', item).click(function(){
 		// Tell the server to delete it. TODO: handle exceptions
 		jQuery.ajax({
-			url: 'admin-ajax.php',
+			url: ajaxurl,
 			type: 'post',
 			success: deleteSuccess,
 			error: deleteError,
@@ -156,7 +154,7 @@ function prepareMediaItemInit(fileObj) {
 	jQuery('a.undo', item).click(function(){
 		// Tell the server to untrash it. TODO: handle exceptions
 		jQuery.ajax({
-			url: 'admin-ajax.php',
+			url: ajaxurl,
 			type: 'post',
 			id: fileObj.id,
 			data: {
@@ -346,9 +344,9 @@ jQuery(document).ready(function($){
 		if ( target.is('input[type="radio"]') ) { // remember the last used image size and alignment
 			tr = target.closest('tr');
 
-			if ( $(tr).hasClass('align') )
+			if ( tr.hasClass('align') )
 				setUserSetting('align', target.val());
-			else if ( $(tr).hasClass('image-size') )
+			else if ( tr.hasClass('image-size') )
 				setUserSetting('imgsize', target.val());
 
 		} else if ( target.is('button.button') ) { // remember the last used image link url
@@ -357,7 +355,7 @@ jQuery(document).ready(function($){
 
 			if ( c && c[1] ) {
 				setUserSetting('urlbutton', c[1]);
-				target.siblings('.urlfield').val( target.attr('title') );
+				target.siblings('.urlfield').val( target.data('link-url') );
 			}
 		} else if ( target.is('a.dismiss') ) {
 			target.parents('.media-item').fadeOut(200, function(){
@@ -366,11 +364,11 @@ jQuery(document).ready(function($){
 		} else if ( target.is('.upload-flash-bypass a') || target.is('a.uploader-html') ) { // switch uploader to html4
 			$('#media-items, p.submit, span.big-file-warning').css('display', 'none');
 			switchUploader(0);
-			return false;
+			e.preventDefault();
 		} else if ( target.is('.upload-html-bypass a') ) { // switch uploader to multi-file
 			$('#media-items, p.submit, span.big-file-warning').css('display', '');
 			switchUploader(1);
-			return false;
+			e.preventDefault();
 		} else if ( target.is('a.describe-toggle-on') ) { // Show
 			target.parent().addClass('open');
 			target.siblings('.slidetoggle').fadeIn(250, function(){
@@ -388,12 +386,12 @@ jQuery(document).ready(function($){
 					}
 				}
 			});
-			return false;
+			e.preventDefault();
 		} else if ( target.is('a.describe-toggle-off') ) { // Hide
 			target.siblings('.slidetoggle').fadeOut(250, function(){
 				target.parent().removeClass('open');
 			});
-			return false;
+			e.preventDefault();
 		}
 	});
 

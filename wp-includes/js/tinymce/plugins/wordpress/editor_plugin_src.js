@@ -9,7 +9,7 @@
 		mceTout : 0,
 
 		init : function(ed, url) {
-			var t = this, tbId = ed.getParam('wordpress_adv_toolbar', 'toolbar2'), last = 0, moreHTML, nextpageHTML;
+			var t = this, tbId = ed.getParam('wordpress_adv_toolbar', 'toolbar2'), last = 0, moreHTML, nextpageHTML, closeOnClick;
 			moreHTML = '<img src="' + url + '/img/trans.gif" class="mceWPmore mceItemNoResize" title="'+ed.getLang('wordpress.wp_more_alt')+'" />';
 			nextpageHTML = '<img src="' + url + '/img/trans.gif" class="mceWPnextpage mceItemNoResize" title="'+ed.getLang('wordpress.wp_page_alt')+'" />';
 
@@ -63,7 +63,7 @@
 					setUserSetting('hidetb', '0');
 				}
 			});
-			
+
 			ed.addCommand('WP_Medialib', function() {
 				var id = ed.getParam('wp_fullscreen_editor_id') || ed.getParam('fullscreen_editor_id') || ed.id,
 					link = tinymce.DOM.select('#wp-' + id + '-media-buttons a.thickbox');
@@ -144,8 +144,36 @@
 					}
 				}
 			});
-			
+
 			ed.onInit.add(function(ed) {
+				var bodyClass = ed.getParam('body_class', ''), body = ed.getBody();
+
+				// add body classes
+				if ( bodyClass )
+					bodyClass = bodyClass.split(' ');
+				else
+					bodyClass = [];
+
+				if ( ed.getParam('directionality', '') == 'rtl' )
+					bodyClass.push('rtl');
+
+				if ( tinymce.isIE9 )
+					bodyClass.push('ie9');
+				else if ( tinymce.isIE8 )
+					bodyClass.push('ie8');
+				else if ( tinymce.isIE7 )
+					bodyClass.push('ie7');
+
+				if ( ed.id != 'wp_mce_fullscreen' && ed.id != 'mce_fullscreen' )
+					bodyClass.push('wp-editor');
+				else if ( ed.id == 'mce_fullscreen' )
+					bodyClass.push('mce-fullscreen');
+
+				tinymce.each( bodyClass, function(cls){
+					if ( cls )
+						ed.dom.addClass(body, cls);
+				});
+
 				// make sure these run last
 				ed.onNodeChange.add( function(ed, cm, e) {
 					var DL;
@@ -168,11 +196,6 @@
 							cm.setActive('justifycenter', 1);
 					}
 				});
-
-				if ( ed.id != 'wp_mce_fullscreen' && ed.id != 'mce_fullscreen' )
-					ed.dom.addClass(ed.getBody(), 'wp-editor');
-				else if ( ed.id == 'mce_fullscreen' )
-					ed.dom.addClass(ed.getBody(), 'mce-fullscreen');
 
 				// remove invalid parent paragraphs when pasting HTML and/or switching to the HTML editor and back
 				ed.onBeforeSetContent.add(function(ed, o) {
@@ -272,6 +295,20 @@
 				if ( e.target.nodeName != 'IMG' )
 					ed.plugins.wordpress._hideButtons();
 			});
+
+			closeOnClick = function(e){
+				var id;
+
+				if ( e.target.id == 'mceModalBlocker' || e.target.className == 'ui-widget-overlay' ) {
+					for ( id in ed.windowManager.windows ) {
+						ed.windowManager.close(null, id);
+					}
+				}
+			}
+
+			// close popups when clicking on the background
+			tinymce.dom.Event.remove(document.body, 'click', closeOnClick);
+			tinymce.dom.Event.add(document.body, 'click', closeOnClick);
 		},
 
 		getInfo : function() {
@@ -352,11 +389,6 @@
 			moreHTML = '<img src="' + url + '/img/trans.gif" alt="$1" class="mceWPmore mceItemNoResize" title="'+ed.getLang('wordpress.wp_more_alt')+'" />';
 			nextpageHTML = '<img src="' + url + '/img/trans.gif" class="mceWPnextpage mceItemNoResize" title="'+ed.getLang('wordpress.wp_page_alt')+'" />';
 
-			// Load plugin specific CSS into editor
-			ed.onInit.add(function() {
-				ed.dom.loadCSS(url + '/css/content.css');
-			});
-
 			// Display morebreak instead if img in element path
 			ed.onPostRender.add(function() {
 				if (ed.theme.onResolveName) {
@@ -406,4 +438,3 @@
 	// Register plugin
 	tinymce.PluginManager.add('wordpress', tinymce.plugins.WordPress);
 })();
-

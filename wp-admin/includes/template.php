@@ -8,31 +8,33 @@
  * @subpackage Administration
  */
 
-
 //
 // Category Checklists
 //
 
 /**
- * {@internal Missing Short Description}}
+ * Walker to output an unordered list of category checkbox <input> elements.
  *
+ * @see Walker
+ * @see wp_category_checklist()
+ * @see wp_terms_checklist()
  * @since 2.5.1
  */
 class Walker_Category_Checklist extends Walker {
 	var $tree_type = 'category';
 	var $db_fields = array ('parent' => 'parent', 'id' => 'term_id'); //TODO: decouple this
 
-	function start_lvl(&$output, $depth, $args) {
+	function start_lvl( &$output, $depth = 0, $args = array() ) {
 		$indent = str_repeat("\t", $depth);
 		$output .= "$indent<ul class='children'>\n";
 	}
 
-	function end_lvl(&$output, $depth, $args) {
+	function end_lvl( &$output, $depth = 0, $args = array() ) {
 		$indent = str_repeat("\t", $depth);
 		$output .= "$indent</ul>\n";
 	}
 
-	function start_el(&$output, $category, $depth, $args) {
+	function start_el( &$output, $category, $depth, $args, $id = 0 ) {
 		extract($args);
 		if ( empty($taxonomy) )
 			$taxonomy = 'category';
@@ -46,35 +48,39 @@ class Walker_Category_Checklist extends Walker {
 		$output .= "\n<li id='{$taxonomy}-{$category->term_id}'$class>" . '<label class="selectit"><input value="' . $category->term_id . '" type="checkbox" name="'.$name.'[]" id="in-'.$taxonomy.'-' . $category->term_id . '"' . checked( in_array( $category->term_id, $selected_cats ), true, false ) . disabled( empty( $args['disabled'] ), false, false ) . ' /> ' . esc_html( apply_filters('the_category', $category->name )) . '</label>';
 	}
 
-	function end_el(&$output, $category, $depth, $args) {
+	function end_el( &$output, $category, $depth = 0, $args = array() ) {
 		$output .= "</li>\n";
 	}
 }
 
 /**
- * {@internal Missing Short Description}}
+ * Output an unordered list of checkbox <input> elements labelled
+ * with category names.
  *
+ * @see wp_terms_checklist()
  * @since 2.5.1
  *
- * @param unknown_type $post_id
- * @param unknown_type $descendants_and_self
- * @param unknown_type $selected_cats
- * @param unknown_type $popular_cats
+ * @param int $post_id Mark categories associated with this post as checked. $selected_cats must not be an array.
+ * @param int $descendants_and_self ID of the category to output along with its descendents.
+ * @param bool|array $selected_cats List of categories to mark as checked.
+ * @param bool|array $popular_cats Override the list of categories that receive the "popular-category" class.
+ * @param object $walker Walker object to use to build the output.
+ * @param bool $checked_ontop Move checked items out of the hierarchy and to the top of the list.
  */
 function wp_category_checklist( $post_id = 0, $descendants_and_self = 0, $selected_cats = false, $popular_cats = false, $walker = null, $checked_ontop = true ) {
-	wp_terms_checklist($post_id,
-	 	array(
-			'taxonomy' => 'category',
-			'descendants_and_self' => $descendants_and_self,
-			'selected_cats' => $selected_cats,
-			'popular_cats' => $popular_cats,
-			'walker' => $walker,
-			'checked_ontop' => $checked_ontop
-  ));
+	wp_terms_checklist( $post_id, array(
+		'taxonomy' => 'category',
+		'descendants_and_self' => $descendants_and_self,
+		'selected_cats' => $selected_cats,
+		'popular_cats' => $popular_cats,
+		'walker' => $walker,
+		'checked_ontop' => $checked_ontop
+	) );
 }
 
 /**
- * Taxonomy independent version of wp_category_checklist
+ * Output an unordered list of checkbox <input> elements labelled
+ * with term names. Taxonomy independent version of wp_category_checklist().
  *
  * @since 3.0.0
  *
@@ -142,15 +148,20 @@ function wp_terms_checklist($post_id = 0, $args = array()) {
 }
 
 /**
- * {@internal Missing Short Description}}
+ * Retrieve a list of the most popular terms from the specified taxonomy.
+ *
+ * If the $echo argument is true then the elements for a list of checkbox
+ * <input> elements labelled with the names of the selected terms is output.
+ * If the $post_ID global isn't empty then the terms associated with that
+ * post will be marked as checked.
  *
  * @since 2.5.0
  *
- * @param unknown_type $taxonomy
- * @param unknown_type $default
- * @param unknown_type $number
- * @param unknown_type $echo
- * @return unknown
+ * @param string $taxonomy Taxonomy to retrieve terms from.
+ * @param int $default Unused.
+ * @param int $number Number of terms to retrieve. Defaults to 10.
+ * @param bool $echo Optionally output the list as well. Defaults to true.
+ * @return array List of popular term IDs.
  */
 function wp_popular_terms_checklist( $taxonomy, $default = 0, $number = 10, $echo = true ) {
 	global $post_ID;
@@ -258,17 +269,20 @@ function get_inline_data($post) {
 	if ( $post->post_type == 'page' )
 		echo '<div class="page_template">' . esc_html( get_post_meta( $post->ID, '_wp_page_template', true ) ) . '</div>';
 
-	if ( $post_type_object->hierarchical )
+	if ( post_type_supports( $post->post_type, 'page-attributes' ) )
 		echo '<div class="menu_order">' . $post->menu_order . '</div>';
 
 	$taxonomy_names = get_object_taxonomies( $post->post_type );
 	foreach ( $taxonomy_names as $taxonomy_name) {
 		$taxonomy = get_taxonomy( $taxonomy_name );
 
-		if ( $taxonomy->hierarchical && $taxonomy->show_ui )
-				echo '<div class="post_category" id="'.$taxonomy_name.'_'.$post->ID.'">' . implode( ',', wp_get_object_terms( $post->ID, $taxonomy_name, array('fields'=>'ids')) ) . '</div>';
-		elseif ( $taxonomy->show_ui )
-			echo '<div class="tags_input" id="'.$taxonomy_name.'_'.$post->ID.'">' . esc_html( str_replace( ',', ', ', get_terms_to_edit($post->ID, $taxonomy_name) ) ) . '</div>';
+		if ( $taxonomy->hierarchical && $taxonomy->show_ui ) {
+				echo '<div class="post_category" id="' . $taxonomy_name . '_' . $post->ID . '">'
+					. implode( ',', wp_get_object_terms( $post->ID, $taxonomy_name, array( 'fields' => 'ids' ) ) ) . '</div>';
+		} elseif ( $taxonomy->show_ui ) {
+			echo '<div class="tags_input" id="'.$taxonomy_name.'_'.$post->ID.'">'
+				. esc_html( str_replace( ',', ', ', get_terms_to_edit( $post->ID, $taxonomy_name ) ) ) . '</div>';
+		}
 	}
 
 	if ( !$post_type_object->hierarchical )
@@ -312,7 +326,7 @@ function wp_comment_reply($position = '1', $checkbox = false, $mode = 'single', 
 <div id="com-reply" style="display:none;"><div id="replyrow" style="display:none;">
 <?php endif; ?>
 	<div id="replyhead" style="display:none;"><h5><?php _e( 'Reply to Comment' ); ?></h5></div>
-
+	<div id="addhead" style="display:none;"><h5><?php _e('Add new Comment'); ?></h5></div>
 	<div id="edithead" style="display:none;">
 		<div class="inside">
 		<label for="author"><?php _e('Name') ?></label>
@@ -341,6 +355,7 @@ function wp_comment_reply($position = '1', $checkbox = false, $mode = 'single', 
 	<p id="replysubmit" class="submit">
 	<a href="#comments-form" class="cancel button-secondary alignleft" tabindex="106"><?php _e('Cancel'); ?></a>
 	<a href="#comments-form" class="save button-primary alignright" tabindex="104">
+	<span id="addbtn" style="display:none;"><?php _e('Add Comment'); ?></span>
 	<span id="savebtn" style="display:none;"><?php _e('Update Comment'); ?></span>
 	<span id="replybtn" style="display:none;"><?php _e('Submit Reply'); ?></span></a>
 	<img class="waiting" style="display:none;" src="<?php echo esc_url( admin_url( 'images/wpspin_light.gif' ) ); ?>" alt="" />
@@ -590,7 +605,8 @@ function touch_time( $edit = 1, $for_post = 1, $tab_index = 0, $multi = 0 ) {
 		$month .= "\t\t\t" . '<option value="' . $monthnum . '"';
 		if ( $i == $mm )
 			$month .= ' selected="selected"';
-		$month .= '>' . $monthnum . '-' . $wp_locale->get_month_abbrev( $wp_locale->get_month( $i ) ) . "</option>\n";
+		/* translators: 1: month number (01, 02, etc.), 2: month abbreviation */
+		$month .= '>' . sprintf( __( '%1$s-%2$s' ), $monthnum, $wp_locale->get_month_abbrev( $wp_locale->get_month( $i ) ) ) . "</option>\n";
 	}
 	$month .= '</select>';
 
@@ -727,7 +743,6 @@ function the_attachment_links( $id = false ) {
 </form>
 <?php
 }
-
 
 /**
  * Print out <option> html elements for role selectors
@@ -1200,7 +1215,7 @@ function add_settings_error( $setting, $code, $message, $type = 'error' ) {
  * @param boolean $sanitize Whether to re-sanitize the setting value before returning errors.
  * @return array Array of settings errors
  */
-function get_settings_errors( $setting = '', $sanitize = FALSE ) {
+function get_settings_errors( $setting = '', $sanitize = false ) {
 	global $wp_settings_errors;
 
 	// If $sanitize is true, manually re-run the sanitizisation for this option
@@ -1252,13 +1267,15 @@ function get_settings_errors( $setting = '', $sanitize = FALSE ) {
  * @param boolean $sanitize Whether to re-sanitize the setting value before returning errors.
  * @param boolean $hide_on_update If set to true errors will not be shown if the settings page has already been submitted.
  */
-function settings_errors( $setting = '', $sanitize = FALSE, $hide_on_update = FALSE ) {
+function settings_errors( $setting = '', $sanitize = false, $hide_on_update = false ) {
 
-	if ($hide_on_update AND $_GET['settings-updated']) return;
+	if ( $hide_on_update && ! empty( $_GET['settings-updated'] ) )
+		return;
 
 	$settings_errors = get_settings_errors( $setting, $sanitize );
 
-	if ( !is_array($settings_errors) ) return;
+	if ( ! is_array( $settings_errors ) )
+		return;
 
 	$output = '';
 	foreach ( $settings_errors as $key => $details ) {
@@ -1300,7 +1317,7 @@ function find_posts_div($found_action = '') {
 					if ( 'attachment' == $post->name )
 						continue;
 				?>
-				<input type="radio" name="find-posts-what" id="find-posts-<?php echo esc_attr($post->name); ?>" value="<?php echo esc_attr($post->name); ?>" <?php checked($post->name,  'post'); ?> />
+				<input type="radio" name="find-posts-what" id="find-posts-<?php echo esc_attr($post->name); ?>" value="<?php echo esc_attr($post->name); ?>" <?php checked($post->name, 'post'); ?> />
 				<label for="find-posts-<?php echo esc_attr($post->name); ?>"><?php echo $post->label; ?></label>
 				<?php
 				} ?>
@@ -1390,7 +1407,7 @@ var userSettings = {
 		'uid': '<?php if ( ! isset($current_user) ) $current_user = wp_get_current_user(); echo $current_user->ID; ?>',
 		'time':'<?php echo time() ?>'
 	},
-	ajaxurl = '<?php echo admin_url('admin-ajax.php'); ?>',
+	ajaxurl = '<?php echo admin_url( 'admin-ajax.php', 'relative' ); ?>',
 	pagenow = '<?php echo $current_screen->id; ?>',
 	typenow = '<?php echo $current_screen->post_type; ?>',
 	adminpage = '<?php echo $admin_body_class; ?>',
@@ -1407,9 +1424,11 @@ do_action("admin_print_scripts-$hook_suffix");
 do_action('admin_print_scripts');
 do_action("admin_head-$hook_suffix");
 do_action('admin_head');
+
+$admin_body_class .= ' locale-' . sanitize_html_class( strtolower( str_replace( '_', '-', get_locale() ) ) );
 ?>
 </head>
-<body<?php if ( isset($GLOBALS['body_id']) ) echo ' id="' . $GLOBALS['body_id'] . '"'; ?>  class="wp-admin no-js iframe <?php echo apply_filters( 'admin_body_class', '' ) . ' ' . $admin_body_class; ?>">
+<body<?php if ( isset($GLOBALS['body_id']) ) echo ' id="' . $GLOBALS['body_id'] . '"'; ?> class="wp-admin no-js iframe <?php echo apply_filters( 'admin_body_class', '' ) . ' ' . $admin_body_class; ?>">
 <script type="text/javascript">
 //<![CDATA[
 (function(){
@@ -1589,7 +1608,7 @@ function compression_test() {
  *                     Defaults to no other attributes. Other attributes can also be provided as a
  *                     string such as 'tabindex="1"', though the array format is typically cleaner.
  */
-function submit_button( $text = NULL, $type = 'primary', $name = 'submit', $wrap = true, $other_attributes = NULL ) {
+function submit_button( $text = null, $type = 'primary', $name = 'submit', $wrap = true, $other_attributes = null ) {
 	echo get_submit_button( $text, $type, $name, $wrap, $other_attributes );
 }
 
@@ -1610,7 +1629,7 @@ function submit_button( $text = NULL, $type = 'primary', $name = 'submit', $wrap
  *                     Defaults to no other attributes. Other attributes can also be provided as a
  *                     string such as 'tabindex="1"', though the array format is typically cleaner.
  */
-function get_submit_button( $text = NULL, $type = 'primary', $name = 'submit', $wrap = true, $other_attributes = NULL ) {
+function get_submit_button( $text = null, $type = 'primary', $name = 'submit', $wrap = true, $other_attributes = null ) {
 	switch ( $type ) :
 		case 'primary' :
 		case 'secondary' :
@@ -1622,7 +1641,7 @@ function get_submit_button( $text = NULL, $type = 'primary', $name = 'submit', $
 		default :
 			$class = $type; // Custom cases can just pass in the classes they want to be used
 	endswitch;
-	$text = ( NULL == $text ) ? __( 'Save Changes' ) : $text;
+	$text = ( null == $text ) ? __( 'Save Changes' ) : $text;
 
 	// Default the id attribute to $name unless an id was specifically provided in $other_attributes
 	$id = $name;
@@ -1795,7 +1814,7 @@ final class WP_Internal_Pointers {
 	 */
 	public static function pointer_wp330_saving_widgets() {
 		$content  = '<h3>' . __( 'New Feature: Saving Widgets' ) . '</h3>';
-		$content .= '<p>' . __( 'If you change your mind and revert to your previous theme, we&#8217;ll put the widgets back the way you had them.' ). '</p>';
+		$content .= '<p>' . __( 'If you change your mind and revert to your previous theme, we&#8217;ll put the widgets back the way you had them.' ) . '</p>';
 
 		WP_Internal_Pointers::print_js( 'wp330_saving_widgets', '#message2', array(
 			'content'  => $content,

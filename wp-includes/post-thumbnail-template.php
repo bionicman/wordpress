@@ -39,7 +39,7 @@ function get_post_thumbnail_id( $post_id = null ) {
  *
  * @since 2.9.0
  *
- * @param int $size Optional. Image size.  Defaults to 'post-thumbnail', which theme sets using set_post_thumbnail_size( $width, $height, $crop_flag );.
+ * @param int $size Optional. Image size. Defaults to 'post-thumbnail', which theme sets using set_post_thumbnail_size( $width, $height, $crop_flag );.
  * @param string|array $attr Optional. Query string or array of attributes.
  */
 function the_post_thumbnail( $size = 'post-thumbnail', $attr = '' ) {
@@ -64,13 +64,7 @@ function update_post_thumbnail_cache() {
 	}
 
 	if ( ! empty ( $thumb_ids ) ) {
-		get_posts( array(
-				'update_post_term_cache' => false,
-				'include' => $thumb_ids,
-				'post_type' => 'attachment',
-				'post_status' => 'inherit',
-				'nopaging' => true
-		) );
+		_prime_post_caches( $thumb_ids, false, true );
 	}
 
 	$wp_query->thumbnails_cached = true;
@@ -82,7 +76,7 @@ function update_post_thumbnail_cache() {
  * @since 2.9.0
  *
  * @param int $post_id Optional. Post ID.
- * @param string $size Optional. Image size.  Defaults to 'thumbnail'.
+ * @param string $size Optional. Image size. Defaults to 'post-thumbnail'.
  * @param string|array $attr Optional. Query string or array of attributes.
  */
 function get_the_post_thumbnail( $post_id = null, $size = 'post-thumbnail', $attr = '' ) {
@@ -100,5 +94,3 @@ function get_the_post_thumbnail( $post_id = null, $size = 'post-thumbnail', $att
 	}
 	return apply_filters( 'post_thumbnail_html', $html, $post_id, $post_thumbnail_id, $size, $attr );
 }
-
-?>

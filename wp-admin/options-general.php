@@ -98,7 +98,7 @@ include('./admin-header.php');
 </tr>
 <tr valign="top">
 <th scope="row"><label for="blogdescription"><?php _e('Tagline') ?></label></th>
-<td><input name="blogdescription" type="text" id="blogdescription"  value="<?php form_option('blogdescription'); ?>" class="regular-text" />
+<td><input name="blogdescription" type="text" id="blogdescription" value="<?php form_option('blogdescription'); ?>" class="regular-text" />
 <span class="description"><?php _e('In a few words, explain what this site is about.') ?></span></td>
 </tr>
 <?php if ( !is_multisite() ) { ?>
@@ -113,7 +113,7 @@ include('./admin-header.php');
 </tr>
 <tr valign="top">
 <th scope="row"><label for="admin_email"><?php _e('E-mail Address') ?> </label></th>
-<td><input name="admin_email" type="text" id="admin_email" value="<?php form_option('admin_email'); ?>" class="regular-text" />
+<td><input name="admin_email" type="text" id="admin_email" value="<?php form_option('admin_email'); ?>" class="regular-text ltr" />
 <span class="description"><?php _e('This address is used for admin purposes, like new user notification.') ?></span></td>
 </tr>
 <tr valign="top">
@@ -132,7 +132,7 @@ include('./admin-header.php');
 <?php } else { ?>
 <tr valign="top">
 <th scope="row"><label for="new_admin_email"><?php _e('E-mail Address') ?> </label></th>
-<td><input name="new_admin_email" type="text" id="new_admin_email" value="<?php form_option('admin_email'); ?>" class="regular-text code" />
+<td><input name="new_admin_email" type="text" id="new_admin_email" value="<?php form_option('admin_email'); ?>" class="regular-text ltr" />
 <span class="description"><?php _e('This address is used for admin purposes. If you change this we will send you an e-mail at your new address to confirm it. <strong>The new address will not become active until confirmed.</strong>') ?></span>
 <?php
 $new_admin_email = get_option( 'new_admin_email' );
@@ -151,7 +151,7 @@ $tzstring = get_option('timezone_string');
 
 $check_zone_info = true;
 
-// Remove old Etc mappings.  Fallback to gmt_offset.
+// Remove old Etc mappings. Fallback to gmt_offset.
 if ( false !== strpos($tzstring,'Etc/GMT') )
 	$tzstring = '';
 
@@ -211,7 +211,7 @@ if ( empty($tzstring) ) { // Create a UTC+- zone if no timezone string exists
 			echo ' ';
 			$message = $tr['isdst'] ?
 				__('Daylight saving time begins on: <code>%s</code>.') :
-				__('Standard time begins  on: <code>%s</code>.');
+				__('Standard time begins on: <code>%s</code>.');
 			// Add the difference between the current offset and the new offset to ts to get the correct transition time from date_i18n().
 			printf( $message, date_i18n(get_option('date_format') . ' ' . get_option('time_format'), $tr['ts'] + ($tz_offset - $tr['offset']) ) );
 		} else {

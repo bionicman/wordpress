@@ -55,10 +55,9 @@ jQuery(document).ready(function($) {
 	} );
 
 	// Theme details
-	$('.theme-detail').click(function () {
+	$('#availablethemes').on('click', 'a.theme-detail', function (event) {
 		$(this).siblings('.themedetaildiv').toggle();
 		return false;
 	});
 
 });
-

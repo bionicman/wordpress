@@ -48,7 +48,6 @@
 	background-image: linear-gradient(bottom, #373737, #464646 5px); /* proposed W3C Markup */
 }
 
-
 #wpadminbar .ab-sub-wrapper,
 #wpadminbar ul,
 #wpadminbar ul li {
@@ -127,6 +126,10 @@
 #wpadminbar.ie7 .shortlink-input {
 	top: 28px;
 	left: 0;
+}
+
+#wpadminbar .ab-top-menu > .menupop > .ab-sub-wrapper {
+	min-width: 100%;
 }
 
 #wpadminbar .ab-top-secondary .menupop .ab-sub-wrapper {
@@ -210,6 +213,8 @@
 	background: #fff;
 	color: #333;
 	text-shadow: none;
+	border-right-color: transparent;
+	border-left-color: transparent;
 }
 
 #wpadminbar .hover .ab-label,
@@ -365,6 +370,7 @@
 	text-shadow: none;
 	display: block;
 }
+
 #wpadminbar #wp-admin-bar-user-info .display-name {
 	color: #333;
 }
@@ -427,6 +433,7 @@
 	background-position: 3px 2px;
 	background-repeat: no-repeat;
 	outline: none;
+	cursor: pointer;
 
 	-webkit-border-radius: 3px;
 	border-radius: 3px;
@@ -461,6 +468,7 @@
 	text-shadow: 0 1px 0 #fff;
 	width: 200px;
 	background-color: rgba( 255, 255, 255, 0.9 );
+	cursor: text;
 }
 
 #wpadminbar.ie8 #adminbarsearch .adminbar-input {

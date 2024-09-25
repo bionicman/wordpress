@@ -93,7 +93,7 @@ function redirect_canonical( $requested_url = null, $do_redirect = true ) {
 		}
 
 		if ( ! $redirect_url )
-			$redirect_url = redirect_guess_404_permalink();
+			$redirect_url = redirect_guess_404_permalink( $requested_url );
 
 	} elseif ( is_object($wp_rewrite) && $wp_rewrite->using_permalinks() ) {
 		// rewriting of old ?p=X, ?m=2004, ?m=200401, ?m=20040101
@@ -191,8 +191,8 @@ function redirect_canonical( $requested_url = null, $do_redirect = true ) {
 				}
 
 			}
-		} elseif ( is_single() && strpos($wp_rewrite->permalink_structure, '%category%') !== false ) {
-			$category = get_category_by_path(get_query_var('category_name'));
+		} elseif ( is_single() && strpos($wp_rewrite->permalink_structure, '%category%') !== false && $cat = get_query_var( 'category_name' ) ) {
+			$category = get_category_by_path( $cat );
 			$post_terms = wp_get_object_terms($wp_query->get_queried_object_id(), 'category', array('fields' => 'tt_ids'));
 			if ( (!$category || is_wp_error($category)) || ( !is_wp_error($post_terms) && !empty($post_terms) && !in_array($category->term_taxonomy_id, $post_terms) ) )
 				$redirect_url = get_permalink($wp_query->get_queried_object_id());
@@ -395,7 +395,7 @@ function redirect_canonical( $requested_url = null, $do_redirect = true ) {
 		$requested_url = preg_replace_callback('|%[a-fA-F0-9][a-fA-F0-9]|', 'lowercase_octets', $requested_url);
 	}
 
-	// Note that you can use the "redirect_canonical" filter to cancel a canonical redirect for whatever reason by returning FALSE
+	// Note that you can use the "redirect_canonical" filter to cancel a canonical redirect for whatever reason by returning false
 	$redirect_url = apply_filters('redirect_canonical', $redirect_url, $requested_url);
 
 	if ( !$redirect_url || $redirect_url == $requested_url ) // yes, again -- in case the filter aborted the request
@@ -417,38 +417,81 @@ function redirect_canonical( $requested_url = null, $do_redirect = true ) {
 }
 
 /**
- * Attempts to guess correct post based on query vars.
+ * Attempts to guess the correct URL from the current URL (that produced a 404) or
+ * the current query variables.
  *
  * @since 2.3.0
  * @uses $wpdb
  *
- * @return bool|string Returns False, if it can't find post, returns correct
- *		location on success.
+ * @param string $current_url Optional. The URL that has 404'd.
+ * @return bool|string The correct URL if one is found. False on failure.
  */
-function redirect_guess_404_permalink() {
-	global $wpdb;
+function redirect_guess_404_permalink( $current_url = '' ) {
+	global $wpdb, $wp_rewrite;
 
-	if ( !get_query_var('name') )
-		return false;
+	if ( ! empty( $current_url ) )
+		$parsed_url = @parse_url( $current_url );
 
-	$where = $wpdb->prepare("post_name LIKE %s", like_escape( get_query_var('name') ) . '%');
+	// Attempt to redirect bare category slugs if the permalink structure starts
+	// with the %category% tag.
+	if ( isset( $parsed_url['path'] )
+		&& preg_match( '#^[^%]+%category%#', $wp_rewrite->permalink_structure )
+		&& $cat = get_category_by_path( $parsed_url['path'] )
+	) {
+		if ( ! is_wp_error( $cat ) )
+			return get_term_link( $cat );
+	}
 
-	// if any of post_type, year, monthnum, or day are set, use them to refine the query
-	if ( get_query_var('post_type') )
-		$where .= $wpdb->prepare(" AND post_type = %s", get_query_var('post_type'));
-	if ( get_query_var('year') )
-		$where .= $wpdb->prepare(" AND YEAR(post_date) = %d", get_query_var('year'));
-	if ( get_query_var('monthnum') )
-		$where .= $wpdb->prepare(" AND MONTH(post_date) = %d", get_query_var('monthnum'));
-	if ( get_query_var('day') )
-		$where .= $wpdb->prepare(" AND DAYOFMONTH(post_date) = %d", get_query_var('day'));
+	if ( get_query_var('name') ) {
+		$where = $wpdb->prepare("post_name LIKE %s", like_escape( get_query_var('name') ) . '%');
 
-	$post_id = $wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE $where AND post_status = 'publish'");
-	if ( !$post_id )
-		return false;
-	return get_permalink($post_id);
+		// if any of post_type, year, monthnum, or day are set, use them to refine the query
+		if ( get_query_var('post_type') )
+			$where .= $wpdb->prepare(" AND post_type = %s", get_query_var('post_type'));
+		if ( get_query_var('year') )
+			$where .= $wpdb->prepare(" AND YEAR(post_date) = %d", get_query_var('year'));
+		if ( get_query_var('monthnum') )
+			$where .= $wpdb->prepare(" AND MONTH(post_date) = %d", get_query_var('monthnum'));
+		if ( get_query_var('day') )
+			$where .= $wpdb->prepare(" AND DAYOFMONTH(post_date) = %d", get_query_var('day'));
+
+		$post_id = $wpdb->get_var("SELECT ID FROM $wpdb->posts WHERE $where AND post_status = 'publish'");
+		if ( ! $post_id )
+			return false;
+		return get_permalink( $post_id );
+	}
+
+	return false;
 }
 
 add_action('template_redirect', 'redirect_canonical');
 
-?>
+function wp_redirect_admin_locations() {
+	global $wp_rewrite;
+	if ( ! ( is_404() && $wp_rewrite->using_permalinks() ) )
+		return;
+
+	$admins = array(
+		home_url( 'wp-admin', 'relative' ),
+		home_url( 'dashboard', 'relative' ),
+		home_url( 'admin', 'relative' ),
+		site_url( 'dashboard', 'relative' ),
+		site_url( 'admin', 'relative' ),
+	);
+	if ( in_array( untrailingslashit( $_SERVER['REQUEST_URI'] ), $admins ) ) {
+		wp_redirect( admin_url() );
+		exit;
+	}
+
+	$logins = array(
+		home_url( 'wp-login.php', 'relative' ),
+		home_url( 'login', 'relative' ),
+		site_url( 'login', 'relative' ),
+	);
+	if ( in_array( untrailingslashit( $_SERVER['REQUEST_URI'] ), $logins ) ) {
+		wp_redirect( site_url( 'wp-login.php', 'login' ) );
+		exit;
+	}
+}
+
+add_action( 'template_redirect', 'wp_redirect_admin_locations', 1000 );

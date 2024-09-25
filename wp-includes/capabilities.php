@@ -1065,8 +1065,7 @@ function map_meta_cap( $cap, $user_id ) {
 			break;
 		}
 
-		$status_obj = get_post_status_object( $post->post_status );
-		if ( $status_obj->public ) {
+		if ( 'private' != $post->post_status ) {
 			$caps[] = $post_type->cap->read;
 			break;
 		}
@@ -1080,10 +1079,8 @@ function map_meta_cap( $cap, $user_id ) {
 
 		if ( is_object( $post_author_data ) && $user_id == $post_author_data->ID )
 			$caps[] = $post_type->cap->read;
-		elseif ( $status_obj->private )
-			$caps[] = $post_type->cap->read_private_posts;
 		else
-			$caps = map_meta_cap( 'edit_post', $user_id, $post->ID );
+			$caps[] = $post_type->cap->read_private_posts;
 		break;
 	case 'edit_post_meta':
 	case 'delete_post_meta':
@@ -1216,7 +1213,7 @@ function current_user_can_for_blog( $blog_id, $capability ) {
 	// Create new object to avoid stomping the global current_user.
 	$user = new WP_User( $current_user->ID) ;
 
-	// Set the blog id.  @todo add blog id arg to WP_User constructor?
+	// Set the blog id. @todo add blog id arg to WP_User constructor?
 	$user->for_blog( $blog_id );
 
 	$args = array_slice( func_get_args(), 2 );
@@ -1373,5 +1370,3 @@ function is_super_admin( $user_id = false ) {
 
 	return false;
 }
-
-?>

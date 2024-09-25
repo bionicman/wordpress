@@ -76,14 +76,25 @@ function login_header($title = 'Log In', $message = '', $wp_error = '') {
 	}
 
 	do_action( 'login_enqueue_scripts' );
-	do_action( 'login_head' ); ?>
+	do_action( 'login_head' );
+
+	if ( is_multisite() ) {
+		$login_header_url   = network_home_url();
+		$login_header_title = $current_site->site_name;
+	} else {
+		$login_header_url   = __( 'http://wordpress.org/' );
+		$login_header_title = __( 'Powered by WordPress' );
+	}
+
+	$login_header_url   = apply_filters( 'login_headerurl',   $login_header_url   );
+	$login_header_title = apply_filters( 'login_headertitle', $login_header_title );
+?>
 </head>
 <body class="login">
-<?php   if ( !is_multisite() ) { ?>
-<div id="login"><h1><a href="<?php echo esc_url( apply_filters('login_headerurl', 'http://wordpress.org/') ); ?>" title="<?php echo esc_attr( apply_filters('login_headertitle', __( 'Powered by WordPress' ) ) ); ?>"><?php bloginfo('name'); ?></a></h1>
-<?php   } else { ?>
-<div id="login"><h1><a href="<?php echo esc_url( apply_filters('login_headerurl', network_home_url() ) ); ?>" title="<?php echo esc_attr( apply_filters('login_headertitle', $current_site->site_name ) ); ?>"><span class="hide"><?php bloginfo('name'); ?></span></a></h1>
-<?php   }
+	<div id="login">
+		<h1><a href="<?php echo esc_url( $login_header_url ); ?>" title="<?php echo esc_attr( $login_header_title ); ?>"><?php bloginfo( 'name' ); ?></a></h1>
+<?php
+	unset( $login_header_url, $login_header_title );
 
 	$message = apply_filters('login_message', $message);
 	if ( !empty( $message ) ) echo $message . "\n";
@@ -208,7 +219,7 @@ function retrieve_password() {
 		$wpdb->update($wpdb->users, array('user_activation_key' => $key), array('user_login' => $user_login));
 	}
 	$message = __('Someone requested that the password be reset for the following account:') . "\r\n\r\n";
-	$message .= network_site_url() . "\r\n\r\n";
+	$message .= network_home_url( '/' ) . "\r\n\r\n";
 	$message .= sprintf(__('Username: %s'), $user_login) . "\r\n\r\n";
 	$message .= __('If this was a mistake, just ignore this email and nothing will happen.') . "\r\n\r\n";
 	$message .= __('To reset your password, visit the following address:') . "\r\n\r\n";
@@ -239,8 +250,7 @@ function retrieve_password() {
  *
  * @param string $key Hash to validate sending user's password
  * @param string $login The user login
- *
- * @return object|WP_Error
+ * @return object|WP_Error User's database row on success, error object for invalid keys
  */
 function check_password_reset_key($key, $login) {
 	global $wpdb;
@@ -264,9 +274,8 @@ function check_password_reset_key($key, $login) {
 /**
  * Handles resetting the user's password.
  *
- * @uses $wpdb WordPress Database object
- *
- * @param string $key Hash to validate sending user's password
+ * @param object $user The user
+ * @param string $new_pass New password for the user in plaintext
  */
 function reset_password($user, $new_pass) {
 	do_action('password_reset', $user, $new_pass);
@@ -341,7 +350,7 @@ if ( isset($_GET['key']) )
 	$action = 'resetpass';
 
 // validate action so as to default to the login screen
-if ( !in_array($action, array('logout', 'lostpassword', 'retrievepassword', 'resetpass', 'rp', 'register', 'login'), true) && false === has_filter('login_form_' . $action) )
+if ( !in_array( $action, array( 'postpass', 'logout', 'lostpassword', 'retrievepassword', 'resetpass', 'rp', 'register', 'login' ), true ) && false === has_filter( 'login_form_' . $action ) )
 	$action = 'login';
 
 nocache_headers();
@@ -368,6 +377,21 @@ do_action( 'login_form_' . $action );
 
 $http_post = ('POST' == $_SERVER['REQUEST_METHOD']);
 switch ($action) {
+
+case 'postpass' :
+	if ( empty( $wp_hasher ) ) {
+		require_once( ABSPATH . 'wp-includes/class-phpass.php' );
+		// By default, use the portable hash from phpass
+		$wp_hasher = new PasswordHash(8, true);
+	}
+
+	// 10 days
+	setcookie( 'wp-postpass_' . COOKIEHASH, $wp_hasher->HashPassword( stripslashes( $_POST['post_password'] ) ), time() + 864000, COOKIEPATH );
+
+	wp_safe_redirect( wp_get_referer() );
+	exit();
+
+break;
 
 case 'logout' :
 	check_admin_referer('log-out');
@@ -560,7 +584,7 @@ default:
 	$reauth = empty($_REQUEST['reauth']) ? false : true;
 
 	// If the user was redirected to a secure login form from a non-secure admin page, and secure login is required but secure admin is not, then don't use a secure
-	// cookie and redirect back to the referring non-secure admin page.  This allows logins to always be POSTed over SSL while allowing the user to choose visiting
+	// cookie and redirect back to the referring non-secure admin page. This allows logins to always be POSTed over SSL while allowing the user to choose visiting
 	// the admin via http or https.
 	if ( !$secure_cookie && is_ssl() && force_ssl_login() && !force_ssl_admin() && ( 0 !== strpos($redirect_to, 'https') ) && ( 0 === strpos($redirect_to, 'http') ) )
 		$secure_cookie = false;
@@ -603,7 +627,7 @@ default:
 		$errors->add('test_cookie', __("<strong>ERROR</strong>: Cookies are blocked or not supported by your browser. You must <a href='http://www.google.com/cookies.html'>enable cookies</a> to use WordPress."));
 
 	// Some parts of this script use the main login form to display a message
-	if		( isset($_GET['loggedout']) && TRUE == $_GET['loggedout'] )
+	if		( isset($_GET['loggedout']) && true == $_GET['loggedout'] )
 		$errors->add('loggedout', __('You are now logged out.'), 'message');
 	elseif	( isset($_GET['registration']) && 'disabled' == $_GET['registration'] )
 		$errors->add('registerdisabled', __('User registration is currently not allowed.'));
@@ -691,4 +715,3 @@ if(typeof wpOnload=='function')wpOnload();
 login_footer();
 break;
 } // end action switch
-?>

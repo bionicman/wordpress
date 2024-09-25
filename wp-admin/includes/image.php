@@ -104,7 +104,7 @@ function wp_generate_attachment_metadata( $attachment_id, $file ) {
 		global $_wp_additional_image_sizes;
 
 		foreach ( get_intermediate_image_sizes() as $s ) {
-			$sizes[$s] = array( 'width' => '', 'height' => '', 'crop' => FALSE );
+			$sizes[$s] = array( 'width' => '', 'height' => '', 'crop' => false );
 			if ( isset( $_wp_additional_image_sizes[$s]['width'] ) )
 				$sizes[$s]['width'] = intval( $_wp_additional_image_sizes[$s]['width'] ); // For theme-added sizes
 			else
@@ -205,7 +205,7 @@ function wp_read_image_metadata( $file ) {
 
 	// exif contains a bunch of data we'll probably never need formatted in ways
 	// that are difficult to use. We'll normalize it and just extract the fields
-	// that are likely to be useful.  Fractions and numbers are converted to
+	// that are likely to be useful. Fractions and numbers are converted to
 	// floats, dates to unix timestamps, and everything else to strings.
 	$meta = array(
 		'aperture' => 0,

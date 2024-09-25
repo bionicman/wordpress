@@ -144,6 +144,3 @@ default:
 	exit;
 
 endswitch;
-
-
-?>
