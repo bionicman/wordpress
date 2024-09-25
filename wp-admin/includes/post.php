@@ -610,8 +610,10 @@ function bulk_edit_posts( $post_data = null ) {
 
 		if ( isset( $shared_post_data['post_format'] ) ) {
 			set_post_format( $post_ID, $shared_post_data['post_format'] );
-			unset( $post_data['tax_input']['post_format'] );
 		}
+
+		// Prevent wp_insert_post() from overwriting post format with the old data.
+		unset( $post_data['tax_input']['post_format'] );
 
 		$updated[] = wp_update_post( $post_data );
 
@@ -1732,16 +1734,16 @@ function _admin_notice_post_locked() {
 		<?php if ( $preview_link ) { ?>
 		<a class="button<?php echo $tab_last; ?>" href="<?php echo esc_url( $preview_link ); ?>"><?php _e( 'Preview' ); ?></a>
 			<?php
-}
+		}
 
 		// Allow plugins to prevent some users overriding the post lock
-if ( $override ) {
-	?>
+		if ( $override ) {
+			?>
 	<a class="button button-primary wp-tab-last" href="<?php echo esc_url( add_query_arg( 'get-post-lock', '1', wp_nonce_url( get_edit_post_link( $post->ID, 'url' ), 'lock-post_' . $post->ID ) ) ); ?>"><?php _e( 'Take over' ); ?></a>
 			<?php
-}
+		}
 
-?>
+		?>
 		</p>
 		</div>
 		<?php
