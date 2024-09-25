@@ -2166,12 +2166,20 @@ body:not(.twentyseventeen-front-page) .entry-header {
 
 .nav-title {
 	color: #333;
-	font-size: 16px;
-	font-size: 1rem;
+	font-size: 15px;
+	font-size: 0.9375rem;
 }
 
 .post-navigation .nav-next {
 	margin-top: 1.5em;
+}
+
+.nav-links .nav-previous .nav-title .nav-title-icon-wrapper {
+	margin-right: 0.5em;
+}
+
+.nav-links .nav-next .nav-title .nav-title-icon-wrapper {
+	margin-left: 0.5em;
 }
 
 /*--------------------------------------------------------------
@@ -3901,13 +3909,6 @@ object {
 	}
 }
 
-@media screen and ( min-width: 55em ) {
-
-	.panel-image {
-		background-attachment: fixed;
-	}
-}
-
 @media screen and ( min-width: 67em ) {
 
 	/* Layout */
@@ -3969,6 +3970,13 @@ object {
 	.page-two-column .entry-content blockquote.alignright,
 	.twentyseventeen-front-page .entry-content blockquote.alignright {
 		margin-right: -20%;
+	}
+}
+
+@media screen and ( min-width: 85.45em ) {
+
+	.panel-image {
+		background-attachment: fixed;
 	}
 }
 

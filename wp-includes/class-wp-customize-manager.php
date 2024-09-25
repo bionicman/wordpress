@@ -1827,6 +1827,7 @@ final class WP_Customize_Manager {
 	 *     @type string $status   Post status. Optional. If supplied, the save will be transactional and a post revision will be allowed.
 	 *     @type string $title    Post title. Optional.
 	 *     @type string $date_gmt Date in GMT. Optional.
+	 *     @type int    $user_id  ID for user who is saving the changeset. Optional, defaults to the current user ID.
 	 * }
 	 *
 	 * @return array|WP_Error Returns array on success and WP_Error with array data on error.
@@ -1839,11 +1840,16 @@ final class WP_Customize_Manager {
 				'title' => null,
 				'data' => array(),
 				'date_gmt' => null,
+				'user_id' => get_current_user_id(),
 			),
 			$args
 		);
 
 		$changeset_post_id = $this->changeset_post_id();
+		$existing_changeset_data = array();
+		if ( $changeset_post_id ) {
+			$existing_changeset_data = $this->get_changeset_post_data( $changeset_post_id );
+		}
 
 		// The request was made via wp.customize.previewer.save().
 		$update_transactionally = (bool) $args['status'];
@@ -1862,6 +1868,37 @@ final class WP_Customize_Manager {
 			'exclude_post_data' => false,
 		) );
 		$this->add_dynamic_settings( array_keys( $post_values ) ); // Ensure settings get created even if they lack an input value.
+
+		/*
+		 * Get list of IDs for settings that have values different from what is currently
+		 * saved in the changeset. By skipping any values that are already the same, the
+		 * subset of changed settings can be passed into validate_setting_values to prevent
+		 * an underprivileged modifying a single setting for which they have the capability
+		 * from being blocked from saving. This also prevents a user from touching of the
+		 * previous saved settings and overriding the associated user_id if they made no change.
+		 */
+		$changed_setting_ids = array();
+		foreach ( $post_values as $setting_id => $setting_value ) {
+			$setting = $this->get_setting( $setting_id );
+
+			if ( $setting && 'theme_mod' === $setting->type ) {
+				$prefixed_setting_id = $this->get_stylesheet() . '::' . $setting->id;
+			} else {
+				$prefixed_setting_id = $setting_id;
+			}
+
+			$is_value_changed = (
+				! isset( $existing_changeset_data[ $prefixed_setting_id ] )
+				||
+				! array_key_exists( 'value', $existing_changeset_data[ $prefixed_setting_id ] )
+				||
+				$existing_changeset_data[ $prefixed_setting_id ]['value'] !== $setting_value
+			);
+			if ( $is_value_changed ) {
+				$changed_setting_ids[] = $setting_id;
+			}
+		}
+		$post_values = wp_array_slice_assoc( $post_values, $changed_setting_ids );
 
 		/**
 		 * Fires before save validation happens.
@@ -1943,7 +1980,10 @@ final class WP_Customize_Manager {
 				$data[ $changeset_setting_id ] = array_merge(
 					$data[ $changeset_setting_id ],
 					$setting_params,
-					array( 'type' => $setting->type )
+					array(
+						'type' => $setting->type,
+						'user_id' => $args['user_id'],
+					)
 				);
 			}
 		}
@@ -2121,29 +2161,38 @@ final class WP_Customize_Manager {
 		$previous_changeset_data    = $this->_changeset_data;
 		$this->_changeset_data      = $publishing_changeset_data;
 
-		// Ensure that other theme mods are stashed.
-		$other_theme_mod_settings = array();
-		if ( did_action( 'switch_theme' ) ) {
-			$namespace_pattern = '/^(?P<stylesheet>.+?)::(?P<setting_id>.+)$/';
-			$matches = array();
-			foreach ( $this->_changeset_data as $raw_setting_id => $setting_params ) {
-				$is_other_theme_mod = (
-					isset( $setting_params['value'] )
-					&&
-					isset( $setting_params['type'] )
-					&&
-					'theme_mod' === $setting_params['type']
-					&&
-					preg_match( $namespace_pattern, $raw_setting_id, $matches )
-					&&
-					$this->get_stylesheet() !== $matches['stylesheet']
-				);
-				if ( $is_other_theme_mod ) {
-					if ( ! isset( $other_theme_mod_settings[ $matches['stylesheet'] ] ) ) {
-						$other_theme_mod_settings[ $matches['stylesheet'] ] = array();
-					}
-					$other_theme_mod_settings[ $matches['stylesheet'] ][ $matches['setting_id'] ] = $setting_params;
+		// Parse changeset data to identify theme mod settings and user IDs associated with settings to be saved.
+		$setting_user_ids = array();
+		$theme_mod_settings = array();
+		$namespace_pattern = '/^(?P<stylesheet>.+?)::(?P<setting_id>.+)$/';
+		$matches = array();
+		foreach ( $this->_changeset_data as $raw_setting_id => $setting_params ) {
+			$actual_setting_id = null;
+			$is_theme_mod_setting = (
+				isset( $setting_params['value'] )
+				&&
+				isset( $setting_params['type'] )
+				&&
+				'theme_mod' === $setting_params['type']
+				&&
+				preg_match( $namespace_pattern, $raw_setting_id, $matches )
+			);
+			if ( $is_theme_mod_setting ) {
+				if ( ! isset( $theme_mod_settings[ $matches['stylesheet'] ] ) ) {
+					$theme_mod_settings[ $matches['stylesheet'] ] = array();
 				}
+				$theme_mod_settings[ $matches['stylesheet'] ][ $matches['setting_id'] ] = $setting_params;
+
+				if ( $this->get_stylesheet() === $matches['stylesheet'] ) {
+					$actual_setting_id = $matches['setting_id'];
+				}
+			} else {
+				$actual_setting_id = $raw_setting_id;
+			}
+
+			// Keep track of the user IDs for settings actually for this theme.
+			if ( $actual_setting_id && isset( $setting_params['user_id'] ) ) {
+				$setting_user_ids[ $actual_setting_id ] = $setting_params['user_id'];
 			}
 		}
 
@@ -2173,21 +2222,38 @@ final class WP_Customize_Manager {
 		$original_setting_capabilities = array();
 		foreach ( $changeset_setting_ids as $setting_id ) {
 			$setting = $this->get_setting( $setting_id );
-			if ( $setting ) {
+			if ( $setting && ! isset( $setting_user_ids[ $setting_id ] ) ) {
 				$original_setting_capabilities[ $setting->id ] = $setting->capability;
 				$setting->capability = 'exist';
 			}
 		}
 
+		$original_user_id = get_current_user_id();
 		foreach ( $changeset_setting_ids as $setting_id ) {
 			$setting = $this->get_setting( $setting_id );
 			if ( $setting ) {
+				/*
+				 * Set the current user to match the user who saved the value into
+				 * the changeset so that any filters that apply during the save
+				 * process will respect the original user's capabilities. This
+				 * will ensure, for example, that KSES won't strip unsafe HTML
+				 * when a scheduled changeset publishes via WP Cron.
+				 */
+				if ( isset( $setting_user_ids[ $setting_id ] ) ) {
+					wp_set_current_user( $setting_user_ids[ $setting_id ] );
+				} else {
+					wp_set_current_user( $original_user_id );
+				}
+
 				$setting->save();
 			}
 		}
+		wp_set_current_user( $original_user_id );
 
 		// Update the stashed theme mod settings, removing the active theme's stashed settings, if activated.
 		if ( did_action( 'switch_theme' ) ) {
+			$other_theme_mod_settings = $theme_mod_settings;
+			unset( $other_theme_mod_settings[ $this->get_stylesheet() ] );
 			$this->update_stashed_theme_mod_settings( $other_theme_mod_settings );
 		}
 
@@ -3590,7 +3656,7 @@ final class WP_Customize_Manager {
 			'priority'           => 200,
 			'description_hidden' => true,
 			'description'        => sprintf( '%s<br /><a href="%s" class="external-link" target="_blank">%s<span class="screen-reader-text">%s</span></a>',
-				__( 'CSS allows you to customize the appearance and layout of your site with code. Separate CSS is saved for each of your themes.' ),
+				__( 'CSS allows you to customize the appearance and layout of your site with code. Separate CSS is saved for each of your themes. In the editing area the Tab key enters a tab character. To move below this area by pressing Tab, press the Esc key followed by the Tab key.' ),
 				'https://codex.wordpress.org/Know_Your_Sources#CSS',
 				__( 'Learn more about CSS' ),
 				__( '(link opens in a new window)' )
@@ -3598,7 +3664,8 @@ final class WP_Customize_Manager {
 		) );
 
 		$custom_css_setting = new WP_Customize_Custom_CSS_Setting( $this, sprintf( 'custom_css[%s]', get_stylesheet() ), array(
-			'capability' => 'unfiltered_css',
+			'capability' => 'edit_css',
+			'default' => sprintf( "/*\n%s\n*/", __( "You can add your own CSS here.\n\nClick the help icon above to learn more." ) ),
 		) );
 		$this->add_setting( $custom_css_setting );
 
@@ -3606,9 +3673,6 @@ final class WP_Customize_Manager {
 			'type'     => 'textarea',
 			'section'  => 'custom_css',
 			'settings' => array( 'default' => $custom_css_setting->id ),
-			'input_attrs' => array(
-				'placeholder' => __( "/*\nYou can add your own CSS here.\n\nClick the help icon above to learn more.\n*/" ),
-			)
 		) );
 	}
 
@@ -3759,7 +3823,7 @@ final class WP_Customize_Manager {
 	/**
 	 * Callback for validating the external_header_video value.
 	 *
-	 * Ensures that the provided URL is for YouTube or Vimeo.
+	 * Ensures that the provided URL is supported.
 	 *
 	 * @since 4.7.0
 	 *
@@ -3768,11 +3832,10 @@ final class WP_Customize_Manager {
 	 * @return mixed
 	 */
 	public function _validate_external_header_video( $validity, $value ) {
-		$video = esc_url( $value );
+		$video = esc_url_raw( $value );
 		if ( $video ) {
-			if ( ! preg_match( '#^https?://(?:www\.)?(?:youtube\.com/watch|youtu\.be/)#', $video )
-			     && ! preg_match( '#^https?://(.+\.)?vimeo\.com/.*#', $video ) ) {
-				$validity->add( 'invalid_url', __( 'Please enter a valid YouTube or Vimeo video URL.' ) );
+			if ( ! preg_match( '#^https?://(?:www\.)?(?:youtube\.com/watch|youtu\.be/)#', $video ) ) {
+				$validity->add( 'invalid_url', __( 'Please enter a valid YouTube URL.' ) );
 			}
 		}
 		return $validity;

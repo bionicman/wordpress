@@ -1385,8 +1385,6 @@ function get_header_video_settings() {
 
 	if ( preg_match( '#^https?://(?:www\.)?(?:youtube\.com/watch|youtu\.be/)#', $video_url ) ) {
 		$settings['mimeType'] = 'video/x-youtube';
-	} elseif ( preg_match( '#^https?://(.+\.)?vimeo\.com/.*#', $video_url ) ) {
-		$settings['mimeType'] = 'video/x-vimeo';
 	} elseif ( ! empty( $video_type['type'] ) ) {
 		$settings['mimeType'] = $video_type['type'];
 	}
@@ -1576,32 +1574,26 @@ function wp_custom_css_cb() {
 }
 
 /**
- * Fetch the saved Custom CSS content.
- *
- * Gets the content of a Custom CSS post that matches the
- * current theme.
+ * Fetch the `custom_css` post for a given theme.
  *
  * @since 4.7.0
  * @access public
  *
  * @param string $stylesheet Optional. A theme object stylesheet name. Defaults to the current theme.
- *
- * @return string The Custom CSS Post content.
+ * @return WP_Post|null The custom_css post or null if none exists.
  */
-function wp_get_custom_css( $stylesheet = '' ) {
-	$css = '';
-
+function wp_get_custom_css_post( $stylesheet = '' ) {
 	if ( empty( $stylesheet ) ) {
 		$stylesheet = get_stylesheet();
 	}
 
 	$custom_css_query_vars = array(
-		'post_type' => 'custom_css',
-		'post_status' => get_post_stati(),
-		'name' => sanitize_title( $stylesheet ),
-		'number' => 1,
-		'no_found_rows' => true,
-		'cache_results' => true,
+		'post_type'              => 'custom_css',
+		'post_status'            => get_post_stati(),
+		'name'                   => sanitize_title( $stylesheet ),
+		'number'                 => 1,
+		'no_found_rows'          => true,
+		'cache_results'          => true,
 		'update_post_meta_cache' => false,
 		'update_term_meta_cache' => false,
 	);
@@ -1609,10 +1601,9 @@ function wp_get_custom_css( $stylesheet = '' ) {
 	$post = null;
 	if ( get_stylesheet() === $stylesheet ) {
 		$post_id = get_theme_mod( 'custom_css_post_id' );
-		if ( ! $post_id ) {
+		if ( ! $post_id || ! get_post( $post_id ) ) {
 			$query = new WP_Query( $custom_css_query_vars );
 			$post = $query->post;
-
 			/*
 			 * Cache the lookup. See WP_Customize_Custom_CSS_Setting::update().
 			 * @todo This should get cleared if a custom_css post is added/removed.
@@ -1626,6 +1617,26 @@ function wp_get_custom_css( $stylesheet = '' ) {
 		$post = $query->post;
 	}
 
+	return $post;
+}
+
+/**
+ * Fetch the saved Custom CSS content.
+ *
+ * @since 4.7.0
+ * @access public
+ *
+ * @param string $stylesheet Optional. A theme object stylesheet name. Defaults to the current theme.
+ * @return string The Custom CSS Post content.
+ */
+function wp_get_custom_css( $stylesheet = '' ) {
+	$css = '';
+
+	if ( empty( $stylesheet ) ) {
+		$stylesheet = get_stylesheet();
+	}
+
+	$post = wp_get_custom_css_post( $stylesheet );
 	if ( $post ) {
 		$css = $post->post_content;
 	}
@@ -2551,7 +2562,7 @@ function _wp_customize_include() {
  * @param WP_Post $changeset_post Changeset post object.
  */
 function _wp_customize_publish_changeset( $new_status, $old_status, $changeset_post ) {
-	global $wp_customize;
+	global $wp_customize, $wpdb;
 
 	$is_publishing_changeset = (
 		'customize_changeset' === $changeset_post->post_type
@@ -2566,7 +2577,7 @@ function _wp_customize_publish_changeset( $new_status, $old_status, $changeset_p
 
 	if ( empty( $wp_customize ) ) {
 		require_once ABSPATH . WPINC . '/class-wp-customize-manager.php';
-		$wp_customize = new WP_Customize_Manager( $changeset_post->post_name );
+		$wp_customize = new WP_Customize_Manager( array( 'changeset_uuid' => $changeset_post->post_name ) );
 	}
 
 	if ( ! did_action( 'customize_register' ) ) {
@@ -2602,7 +2613,47 @@ function _wp_customize_publish_changeset( $new_status, $old_status, $changeset_p
 	 * and thus garbage collected.
 	 */
 	if ( ! wp_revisions_enabled( $changeset_post ) ) {
-		wp_trash_post( $changeset_post->ID );
+		$post = $changeset_post;
+		$post_id = $changeset_post->ID;
+
+		/*
+		 * The following re-formulates the logic from wp_trash_post() as done in
+		 * wp_publish_post(). The reason for bypassing wp_trash_post() is that it
+		 * will mutate the the post_content and the post_name when they should be
+		 * untouched.
+		 */
+		if ( ! EMPTY_TRASH_DAYS ) {
+			wp_delete_post( $post_id, true );
+		} else {
+			/** This action is documented in wp-includes/post.php */
+			do_action( 'wp_trash_post', $post_id );
+
+			add_post_meta( $post_id, '_wp_trash_meta_status', $post->post_status );
+			add_post_meta( $post_id, '_wp_trash_meta_time', time() );
+
+			$old_status = $post->post_status;
+			$new_status = 'trash';
+			$wpdb->update( $wpdb->posts, array( 'post_status' => $new_status ), array( 'ID' => $post->ID ) );
+			clean_post_cache( $post->ID );
+
+			$post->post_status = $new_status;
+			wp_transition_post_status( $new_status, $old_status, $post );
+
+			/** This action is documented in wp-includes/post.php */
+			do_action( 'edit_post', $post->ID, $post );
+
+			/** This action is documented in wp-includes/post.php */
+			do_action( "save_post_{$post->post_type}", $post->ID, $post, true );
+
+			/** This action is documented in wp-includes/post.php */
+			do_action( 'save_post', $post->ID, $post, true );
+
+			/** This action is documented in wp-includes/post.php */
+			do_action( 'wp_insert_post', $post->ID, $post, true );
+
+			/** This action is documented in wp-includes/post.php */
+			do_action( 'trashed_post', $post_id );
+		}
 	}
 }
 
