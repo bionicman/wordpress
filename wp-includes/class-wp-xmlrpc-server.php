@@ -349,11 +349,6 @@ class wp_xmlrpc_server extends IXR_Server {
 				'readonly'      => true,
 				'value'         => current_theme_supports( 'post-thumbnails' )
 			),
-			'featured_image'    => array(
-				'desc'          => __('Featured Image'),
-				'readonly'      => true,
-				'value'         => current_theme_supports( 'post-thumbnails' )
-			),
 
 			// Updatable options
 			'time_zone'         => array(
@@ -4501,6 +4496,8 @@ class wp_xmlrpc_server extends IXR_Server {
 			$this->error = new IXR_Error(500, __('Either there are no posts, or something went wrong.'));
 			return $this->error;
 		}
+
+		$struct = array();
 
 		foreach ($posts_list as $entry) {
 			if ( !current_user_can( 'edit_post', $entry['ID'] ) )

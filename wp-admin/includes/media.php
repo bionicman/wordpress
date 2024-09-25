@@ -62,15 +62,9 @@ add_filter('media_upload_tabs', 'update_gallery_tab');
  * @since 2.5.0
  */
 function the_media_upload_tabs() {
-	global $redir_tab, $is_iphone;
+	global $redir_tab;
 	$tabs = media_upload_tabs();
-
-	if ( $is_iphone ) {
-		unset($tabs['type']);
-		$default = 'type_url';
-	} else {
-		$default = 'type';
-	}
+	$default = 'type';
 
 	if ( !empty($tabs) ) {
 		echo "<ul id='sidemenu'>\n";
@@ -164,22 +158,28 @@ function image_add_caption( $html, $id, $caption, $title, $align, $url, $size, $
 }
 add_filter( 'image_send_to_editor', 'image_add_caption', 20, 8 );
 
-// Private, preg_replace callback used in image_add_caption()
-function _cleanup_image_add_caption($str) {
-	if ( isset($str[0]) ) {
-		// remove any line breaks from inside the tags
-		$s = preg_replace( '/[\r\n\t]+/', ' ', $str[0]);
-		// look for single quotes inside html attributes (for example in title)
-		$s = preg_replace_callback( '/="[^"]+"/', '_cleanup_image_add_caption2', $s );
-		return str_replace(	'"', "'", $s );
-	}
-
-	return '';
+/**
+ * Private preg_replace callback used in image_add_caption()
+ *
+ * @access private
+ * @since 3.4.0
+ */
+function _cleanup_image_add_caption( $matches ) {
+	// remove any line breaks from inside the tags
+	$s = preg_replace( '/[\r\n\t]+/', ' ', $matches[0] );
+	// look for single quotes inside html attributes (for example in title)
+	$s = preg_replace_callback( '/="[^"]+"/', '_cleanup_image_add_caption_callback', $s );
+	return str_replace( '"', "'", $s );
 }
 
-// Private, preg_replace callback used in image_add_caption()
-function _cleanup_image_add_caption2($str) {
-	return str_replace(	"'", '&#39;', $str );
+/**
+ * Private preg_replace callback used in _cleanup_image_add_caption()
+ *
+ * @access private
+ * @since 3.4.0
+ */
+function _cleanup_image_add_caption_callback( $matches ) {
+	return str_replace( "'", '&#39;', $matches[0] );
 }
 
 /**
@@ -522,8 +522,6 @@ function media_upload_form_handler() {
  * @return unknown
  */
 function wp_media_upload_handler() {
-	global $is_iphone;
-
 	$errors = array();
 	$id = 0;
 
@@ -594,10 +592,7 @@ function wp_media_upload_handler() {
 		return wp_iframe( 'media_upload_type_url_form', $type, $errors, $id );
 	}
 
-	if ( $is_iphone )
-		return wp_iframe( 'media_upload_type_url_form', 'image', $errors, $id );
-	else
-		return wp_iframe( 'media_upload_type_form', 'image', $errors, $id );
+	return wp_iframe( 'media_upload_type_form', 'image', $errors, $id );
 }
 
 /**
@@ -1300,10 +1295,12 @@ function media_upload_header() {
  * @param unknown_type $errors
  */
 function media_upload_form( $errors = null ) {
-	global $type, $tab, $pagenow, $is_IE, $is_opera, $is_iphone;
+	global $type, $tab, $pagenow, $is_IE, $is_opera;
 
-	if ( $is_iphone )
+	if ( ! _device_can_upload() ) {
+		echo '<p>' . __('The web browser on your device cannot be used to upload files. You may be able to use the <a href=" http://wordpress.org/extend/mobile/">native app for your device</a> instead.') . '</p>';
 		return;
+	}
 
 	$upload_action_url = admin_url('async-upload.php');
 	$post_id = isset($_REQUEST['post_id']) ? intval($_REQUEST['post_id']) : 0;
@@ -1434,10 +1431,6 @@ if ( ($is_IE || $is_opera) && $max_upload_size > 100 * 1024 * 1024 ) { ?>
  * @param unknown_type $id
  */
 function media_upload_type_form($type = 'file', $errors = null, $id = null) {
-	global $is_iphone;
-
-	if ( $is_iphone )
-		return;
 
 	media_upload_header();
 

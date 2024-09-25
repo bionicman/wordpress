@@ -1746,14 +1746,14 @@ function rich_edit_exists() {
  * @return bool
  */
 function user_can_richedit() {
-	global $wp_rich_edit, $is_gecko, $is_opera, $is_safari, $is_chrome, $is_iphone, $is_IE;
+	global $wp_rich_edit, $is_gecko, $is_opera, $is_safari, $is_chrome, $is_IE;
 
 	if ( !isset($wp_rich_edit) ) {
 		$wp_rich_edit = false;
 
 		if ( get_user_option( 'rich_editing' ) == 'true' || ! is_user_logged_in() ) { // default to 'true' for logged out users
 			if ( $is_safari ) {
-				if ( $is_iphone || false !== strpos( $_SERVER['HTTP_USER_AGENT'], '; Silk/' ) )
+				if ( wp_is_mobile() || false !== strpos( $_SERVER['HTTP_USER_AGENT'], '; Silk/' ) )
 					$wp_rich_edit = ( preg_match( '!AppleWebKit/(\d+)!', $_SERVER['HTTP_USER_AGENT'], $match ) && intval( $match[1] ) >= 534 );
 				else
 					$wp_rich_edit = true;
@@ -2108,7 +2108,7 @@ function wp_admin_css( $file = 'wp-admin', $force_echo = false ) {
  * Enqueues the default ThickBox js and css.
  *
  * If any of the settings need to be changed, this can be done with another js
- * file similar to media-upload.js and theme-preview.js. That file should
+ * file similar to media-upload.js. That file should
  * require array('thickbox') to ensure it is loaded after.
  *
  * @since 2.5.0

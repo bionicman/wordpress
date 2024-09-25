@@ -197,10 +197,8 @@ class WP_Theme_Install_List_Table extends WP_Themes_List_Table {
 			<img src='<?php echo esc_url( $theme->screenshot_url ); ?>' width='150' />
 		</a>
 
-		<h3><?php
-			/* translators: 1: theme name, 2: author name */
-			printf( __( '%1$s <span>by %2$s</span>' ), $name, $author );
-		?></h3>
+		<h3><?php echo $name; ?></h3>
+		<div class="theme-author"><?php printf( __( 'By %s' ), $author ); ?></div>
 
 		<?php
 		$this->install_theme_info( $theme );
@@ -213,10 +211,14 @@ class WP_Theme_Install_List_Table extends WP_Themes_List_Table {
 		?>
 		<div id="theme-installer" class="wp-full-overlay">
 			<a href="#" class="close-full-overlay"><?php printf( __( '&larr; Return to %s' ), get_admin_page_title() ); ?></a>
-			<a href="#" class="collapse-sidebar button-secondary" title="<?php esc_attr_e('Collapse Sidebar'); ?>"><span></span></a>
+			<a href="#" class="collapse-sidebar button-secondary" title="<?php esc_attr_e('Collapse Sidebar'); ?>">
+				<span class="collapse-sidebar-label"><?php _e('Collapse'); ?></span>
+				<span class="collapse-sidebar-arrow"></span>
+			</a>
 			<div class="wp-full-overlay-sidebar">
 				<div class="wp-full-overlay-header"></div>
 				<div class="install-theme-info"></div>
+				<div class="wp-full-overlay-footer"></div>
 			</div>
 			<div class="wp-full-overlay-main"></div>
 		</div>

@@ -1110,11 +1110,11 @@ class WP_Http_Curl {
 			$theBody = $theResponse;
 
 		// If no response
-		if ( 0 == strlen($theResponse) && empty( $theHeaders ) ) {
-			if ( $curl_error = curl_error($handle) )
-				return new WP_Error('http_request_failed', $curl_error);
-			if ( in_array( curl_getinfo( $handle, CURLINFO_HTTP_CODE ), array(301, 302) ) )
-				return new WP_Error('http_request_failed', __('Too many redirects.'));
+		if ( 0 == strlen( $theResponse ) && empty( $theHeaders['headers'] ) ) {
+			if ( $curl_error = curl_error( $handle ) )
+				return new WP_Error( 'http_request_failed', $curl_error );
+			if ( in_array( curl_getinfo( $handle, CURLINFO_HTTP_CODE ), array( 301, 302 ) ) )
+				return new WP_Error( 'http_request_failed', __( 'Too many redirects.' ) );
 		}
 
 		$this->headers = '';
@@ -1540,7 +1540,7 @@ class WP_Http_Cookie {
 		if ( empty( $this->name ) || empty( $this->value ) )
 			return '';
 
-		return $this->name . '=' . urlencode( $this->value );
+		return $this->name . '=' . apply_filters( 'wp_http_cookie_value', $this->value, $this->name );
 	}
 
 	/**

@@ -54,11 +54,8 @@ do_action( 'customize_controls_print_scripts' );
 
 		<div id="customize-info" class="customize-section">
 			<div class="customize-section-title">
-				<?php if ( $screenshot ) : ?>
-					<img class="theme-screenshot" src="<?php echo esc_url( $screenshot ); ?>" />
-				<?php endif; ?>
+				<span class="preview-notice"><?php _e('You are previewing'); ?></span>
 				<strong class="theme-name"><?php echo $theme['Name']; ?></strong>
-				<span class="theme-by"><?php printf( __( 'By %s' ), $theme['Author'] ); ?></span>
 			</div>
 			<div class="customize-section-content">
 				<?php if ( $screenshot ) : ?>
