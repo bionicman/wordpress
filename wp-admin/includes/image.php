@@ -164,7 +164,7 @@ function wp_update_image_subsizes( $attachment_id ) {
  * @since 5.3.0
  * @access private
  *
- * @param array  $saved_data    The data retirned from WP_Image_Editor after successfully saving an image.
+ * @param array  $saved_data    The data returned from WP_Image_Editor after successfully saving an image.
  * @param string $original_file Path to the original file.
  * @param array  $image_meta    The image meta data.
  * @param int    $attachment_id The attachment post ID.
@@ -235,6 +235,7 @@ function wp_create_image_subsizes( $file, $attachment_id ) {
 	 *
 	 * @since 5.3.0
 	 *
+	 * @param int    $threshold     The threshold value in pixels. Default 2560.
 	 * @param array  $imagesize     Indexed array of the image width and height (in that order).
 	 * @param string $file          Full path to the uploaded image file.
 	 * @param int    $attachment_id Attachment post ID.
@@ -273,6 +274,8 @@ function wp_create_image_subsizes( $file, $attachment_id ) {
 				if ( true === $rotated && ! empty( $image_meta['image_meta']['orientation'] ) ) {
 					$image_meta['image_meta']['orientation'] = 1;
 				}
+
+				wp_update_attachment_metadata( $attachment_id, $image_meta );
 			} else {
 				// TODO: handle errors.
 			}
@@ -303,6 +306,8 @@ function wp_create_image_subsizes( $file, $attachment_id ) {
 				if ( ! empty( $image_meta['image_meta']['orientation'] ) ) {
 					$image_meta['image_meta']['orientation'] = 1;
 				}
+
+				wp_update_attachment_metadata( $attachment_id, $image_meta );
 			} else {
 				// TODO: handle errors.
 			}

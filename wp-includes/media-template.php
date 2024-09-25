@@ -178,6 +178,7 @@ function wp_print_media_templates() {
 	<?php // Template for the media frame: used both in the media grid and in the media modal. ?>
 	<script type="text/html" id="tmpl-media-frame">
 		<div class="media-frame-title" id="media-frame-title"></div>
+		<h2 class="media-frame-menu-heading"><?php _e( 'Media Types' ); ?></h2>
 		<button type="button" class="button button-link media-frame-menu-toggle" aria-expanded="false">
 			<?php _e( 'Media Types' ); ?>
 			<span class="dashicons dashicons-arrow-down" aria-hidden="true"></span>
@@ -187,6 +188,7 @@ function wp_print_media_templates() {
 			<div class="media-frame-router"></div>
 			<div class="media-frame-content"></div>
 		</div>
+		<h2 class="media-frame-actions-heading screen-reader-text"><?php _e( 'Available actions' ); ?></h2>
 		<div class="media-frame-toolbar"></div>
 		<div class="media-frame-uploader"></div>
 	</script>
@@ -1355,11 +1357,22 @@ function wp_print_media_templates() {
 					var content = '';
 					if ( ! _.isEmpty( data.model.content ) ) {
 						var tracks = jQuery( data.model.content ).filter( 'track' );
-						_.each( tracks.toArray(), function (track) {
+						_.each( tracks.toArray(), function( track, index ) {
 							content += track.outerHTML; #>
-						<label for="video-details-track" class="name"><?php _e( 'Tracks (subtitles, captions, descriptions, chapters, or metadata)' ); ?></label>
-						<input class="content-track" type="text" id="video-details-track" readonly value="{{ track.outerHTML }}" />
-						<button type="button" class="button-link remove-setting remove-track"><?php _ex( 'Remove video track', 'media' ); ?></button>
+						<label for="video-details-track-{{ index }}" class="name"><?php _e( 'Tracks (subtitles, captions, descriptions, chapters, or metadata)' ); ?></label>
+						<input class="content-track" type="text" id="video-details-track-{{ index }}" aria-describedby="video-details-track-desc-{{ index }}" value="{{ track.outerHTML }}" />
+						<span class="description" id="video-details-track-desc-{{ index }}">
+						<?php
+							printf(
+								/* translators: 1: "srclang" HTML attribute, 2: "label" HTML attribute, 3: "kind" HTML attribute. */
+								__( 'The %1$s, %2$s, and %3$s values can be edited to set the video track language and kind.' ),
+								'srclang',
+								'label',
+								'kind'
+							);
+						?>
+						</span>
+						<button type="button" class="button-link remove-setting remove-track"><?php _ex( 'Remove video track', 'media' ); ?></button><br/>
 						<# } ); #>
 					<# } else { #>
 					<span class="name"><?php _e( 'Tracks (subtitles, captions, descriptions, chapters, or metadata)' ); ?></span><br />
@@ -1418,7 +1431,7 @@ function wp_print_media_templates() {
 			<div class="favicon">
 				<img id="preview-favicon" src="{{ data.url }}" alt="<?php esc_attr_e( 'Preview as a browser icon' ); ?>"/>
 			</div>
-			<span class="browser-title" aria-hidden="true"><?php bloginfo( 'name' ); ?></span>
+			<span class="browser-title" aria-hidden="true"><# print( '<?php bloginfo( 'name' ); ?>' ) #></span>
 		</div>
 
 		<strong aria-hidden="true"><?php _e( 'As an app icon' ); ?></strong>
