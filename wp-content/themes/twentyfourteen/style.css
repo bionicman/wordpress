@@ -3,11 +3,11 @@ Theme Name: Twenty Fourteen
 Theme URI: http://wordpress.org/themes/
 Author: the WordPress team
 Author URI: http://wordpress.org/
-Description: The default theme for 2014 is a magazine theme with a sleek, modern, and beautifully crafted responsive design. The home page features your choice of up to 6 posts prominently displayed in a grid or slider, controlled by the "featured" post tag; you can change the tag and layout in Appearance > Customize. Three widget-ready areas to customize your sidebars and footer area, including a special Ephemera widget to highlight your latest videos, music, links, and more. Tailor content pages to your needs with two extra page templates: full-width (no sidebar) and a Contributor page to show off multiple authors.
+Description: In 2014, our default theme lets you create a responsive magazine website with a sleek, modern design. Feature your favorite homepage content in either a grid or a slider. Use the three widget areas to customize your website, and change your content's layout with a full width page template and a contributor page to show of your authors. Creating a magazine website with WordPress has never been easier.
 Version: 0.1
 License: GNU General Public License v2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
-Tags: black, green, white, light, dark, two-columns, three-columns, left-sidebar, right-sidebar, fixed-width, responsive-width, custom-background, custom-colors, custom-header, custom-menu, editor-style, featured-images, flexible-header, full-width-template, microformats, post-formats, rtl-language-support, sticky-post, theme-options, translation-ready
+Tags: black, green, white, light, dark, two-columns, three-columns, left-sidebar, right-sidebar, fixed-width, flexible-width, custom-background, custom-header, custom-menu, editor-style, featured-images, flexible-header, full-width-template, microformats, post-formats, rtl-language-support, sticky-post, theme-options, translation-ready
 
 This theme, like WordPress, is licensed under the GPL.
 Use it to make something cool, have fun, and share what you've learned with others.
@@ -188,6 +188,7 @@ strong {
 	font-weight: 700;
 }
 
+cite,
 dfn,
 em,
 i {
@@ -815,6 +816,12 @@ span + .edit-link:before,
  * -----------------------------------------------------------------------------
  */
 
+/* Ensure that there is no gap between the header and
+   the admin bar for WordPress versions before 3.8. */
+#wpadminbar {
+	min-height: 32px;
+}
+
 #site-header {
 	position: relative;
 	z-index: 3;
@@ -883,7 +890,7 @@ span + .edit-link:before,
 
 .search-box {
 	background-color: #41a62a;
-	padding: 12px 10px;
+	padding: 12px;
 }
 
 .search-box .search-field {
@@ -939,7 +946,6 @@ span + .edit-link:before,
 /* Primary Navigation */
 
 .primary-navigation {
-	background-color: #000;
 	-webkit-box-sizing: border-box;
 	-moz-box-sizing:    border-box;
 	box-sizing:         border-box;
@@ -978,20 +984,23 @@ span + .edit-link:before,
 
 .menu-toggle {
 	cursor: pointer;
-	font-size: 0;
 	height: 48px;
 	margin: 0;
+	overflow: hidden;
 	position: absolute;
 	top: 0;
 	right: 0;
 	text-align: center;
+	visibility: hidden;
 	width: 48px;
 }
 
 .menu-toggle:before {
 	color: #fff;
 	content: "\f419";
-	margin-top: 16px;
+	position: relative;
+	top: -1px;
+	visibility: visible;
 }
 
 
@@ -1143,7 +1152,7 @@ a.post-thumbnail:hover {
 
 /* Tag links style */
 
-.tag-links a {
+.entry-meta .tag-links a {
 	background-color: #767676;
 	border-radius: 0 2px 2px 0;
 	color: #fff;
@@ -1162,7 +1171,7 @@ a.post-thumbnail:hover {
 	color: #fff;
 }
 
-.tag-links a:before {
+.entry-meta .tag-links a:before {
 	border-top: 10px solid transparent;
 	border-right: 8px solid #767676;
 	border-bottom: 10px solid transparent;
@@ -1174,11 +1183,11 @@ a.post-thumbnail:hover {
 	width: 0;
 }
 
-.tag-links a:hover:before {
+.entry-meta .tag-links a:hover:before {
 	border-right-color: #41a62a;
 }
 
-.tag-links a:after {
+.entry-meta .tag-links a:after {
 	background-color: #fff;
 	border-radius: 50%;
 	content: "";
@@ -1272,6 +1281,7 @@ a.post-thumbnail:hover {
 
 .entry-content .edit-link {
 	clear: both;
+	display: block;
 	font-size: 12px;
 	font-weight: 400;
 	line-height: 1.3333333333;
@@ -1309,7 +1319,7 @@ a.post-thumbnail:hover {
 
 .hentry .mejs-controls .mejs-time-rail .mejs-time-total,
 .hentry .mejs-controls .mejs-horizontal-volume-slider .mejs-horizontal-volume-total {
-	background: #595959;
+	background: rgba(255,255,255,.33);
 }
 
 .hentry .mejs-container .mejs-controls .mejs-time {
@@ -1516,7 +1526,12 @@ a.post-thumbnail:hover {
  */
 
 .nav-links {
+	-webkit-hyphens: auto;
+	-moz-hyphens:    auto;
+	-ms-hyphens:     auto;
 	border-top: 1px solid rgba(0, 0, 0, 0.1);
+	hyphens:         auto;
+	word-wrap: break-word;
 }
 
 .post-navigation,
@@ -2708,6 +2723,7 @@ a.post-thumbnail:hover {
 	display: block;
 	position: relative;
 	padding-top: 55.357142857%;
+	overflow: hidden;
 }
 
 .featured-content .post-thumbnail img {
@@ -3275,7 +3291,6 @@ a.post-thumbnail:hover {
 	/* Fixed Header */
 
 	.masthead-fixed .site-header {
-		box-shadow: 0 1px 8px rgba(0, 0, 0, 0.2);
 		position: fixed;
 		top: 0;
 	}
@@ -3302,7 +3317,7 @@ a.post-thumbnail:hover {
 	.primary-navigation {
 		float: right;
 		font-size: 11px;
-		margin: 0 1px 0 -10px;
+		margin: 0 1px 0 -12px;
 		padding: 0;
 		text-transform: uppercase;
 	}
@@ -3333,7 +3348,7 @@ a.post-thumbnail:hover {
 
 	.primary-navigation a {
 		display: inline-block;
-		padding: 0 10px;
+		padding: 0 12px;
 		white-space: nowrap;
 	}
 
@@ -3385,6 +3400,36 @@ a.post-thumbnail:hover {
 	.primary-navigation ul ul li.focus > ul {
 		left: 100%;
 	}
+
+	.primary-navigation .menu-item-has-children > a,
+	.primary-navigation .page_item_has_children > a {
+		padding-right: 26px;
+	}
+
+	.primary-navigation .menu-item-has-children > a:after,
+	.primary-navigation .page_item_has_children > a:after {
+		border: 4px solid transparent;
+		border-top-color: #fff;
+		content: "";
+		margin-top: -2px;
+		position: absolute;
+		top: 50%;
+		right: 12px;
+	}
+
+	.primary-navigation li .menu-item-has-children > a,
+	.primary-navigation li .page_item_has_children > a {
+		padding-right: 20px;
+		width: 168px;
+	}
+
+	.primary-navigation .menu-item-has-children li > a:after,
+	.primary-navigation .page_item_has_children li > a:after {
+		border-top-color: transparent;
+		border-left-color: #fff;
+		margin-top: -4px;
+		right: 8px;
+	}
 }
 
 @media screen and (min-width: 810px) {
@@ -3421,12 +3466,20 @@ a.post-thumbnail:hover {
 		margin-left: -168px;
 	}
 
+	.full-width .site-content .alignleft {
+		clear: left;
+	}
+
 	.full-width .site-content blockquote.alignright,
 	.full-width .site-content img.size-full.alignright,
 	.full-width .site-content img.size-large.alignright,
 	.full-width .site-content img.size-medium.alignright,
 	.full-width .site-content .wp-caption.alignright {
 		margin-right: -168px;
+	}
+
+	.full-width .site-content .alignright {
+		clear: right;
 	}
 }
 
@@ -3533,6 +3586,10 @@ a.post-thumbnail:hover {
 		margin: -3px 0 21px;
 	}
 
+	.site-description:empty {
+		margin: 0;
+	}
+
 	.secondary-navigation {
 		margin: 0 -30px 48px;
 		width: 182px;
@@ -3574,6 +3631,20 @@ a.post-thumbnail:hover {
 	.secondary-navigation ul li:hover > ul,
 	.secondary-navigation ul li.focus > ul {
 		left: 162px;
+	}
+
+	.secondary-navigation .menu-item-has-children > a {
+		padding-right: 38px;
+	}
+
+	.secondary-navigation .menu-item-has-children > a:after {
+		border: 4px solid transparent;
+		border-left-color: #fff;
+		content: "";
+		margin-top: -4px;
+		position: absolute;
+		top: 50%;
+		right: 26px;
 	}
 
 	.footer-sidebar .widget,
@@ -3711,12 +3782,26 @@ a.post-thumbnail:hover {
 	.primary-sidebar .widget_recent_comments li,
 	.primary-sidebar .widget_recent_entries li {
 		border-top: 0;
-		padding: 0;
+		padding: 0 0 6px;
 	}
 
-	.footer-sidebar .widget_recent_entries li,
-	.primary-sidebar .widget_recent_entries li {
-		margin-bottom: 18px;
+	.footer-sidebar .widget_archive li:last-child,
+	.footer-sidebar .widget_categories li:last-child,
+	.footer-sidebar .widget_links li:last-child,
+	.footer-sidebar .widget_meta li:last-child,
+	.footer-sidebar .widget_nav_menu li:last-child,
+	.footer-sidebar .widget_pages li:last-child,
+	.footer-sidebar .widget_recent_comments li:last-child,
+	.footer-sidebar .widget_recent_entries li:last-child,
+	.primary-sidebar .widget_archive li:last-child,
+	.primary-sidebar .widget_categories li:last-child,
+	.primary-sidebar .widget_links li:last-child,
+	.primary-sidebar .widget_meta li:last-child,
+	.primary-sidebar .widget_nav_menu li:last-child,
+	.primary-sidebar .widget_pages li:last-child,
+	.primary-sidebar .widget_recent_comments li:last-child,
+	.primary-sidebar .widget_recent_entries li:last-child {
+		padding: 0;
 	}
 
 	#supplementary {
@@ -4008,7 +4093,7 @@ a.post-thumbnail:hover {
 		margin: 24px auto;
 	}
 
-	.tag-links a {
+	.entry-meta .tag-links a {
 		color: #fff;
 	}
 

@@ -34,8 +34,11 @@
 	var Heartbeat = function() {
 		var $document = $(document),
 			settings = {
-				// Used to stop the "beat"
-				isRunning: true,
+				// Suspend/resume
+				suspend: false,
+
+				// Whether suspending is enabled
+				suspendEnabled: true,
 
 				// Current screen id, defaults to the JS global 'pagenow' when present (in the admin) or 'front'
 				screenId: '',
@@ -128,6 +131,10 @@
 				if ( ! settings.screenId ) {
 					settings.screenId = options.screenId || 'front';
 				}
+
+				if ( options.suspension === 'disable' ) {
+					settings.suspendEnabled = false;
+				}
 			}
 
 			// Convert to milliseconds
@@ -145,7 +152,12 @@
 				focused();
 			}).on( 'unload.wp-heartbeat', function() {
 				// Don't connect any more
-				settings.isRunning = false;
+				settings.suspend = true;
+
+				// Abort the last request if not completed
+				if ( settings.xhr && settings.xhr.readyState !== 4 ) {
+					settings.xhr.abort();
+				}
 			});
 
 			// Check for user activity every 30 seconds.
@@ -274,7 +286,7 @@
 
 			// If the connection to the server is slower than the interval,
 			// heartbeat connects as soon as the previous connection's response is received.
-			if ( settings.connecting ) {
+			if ( settings.connecting || settings.suspend ) {
 				return;
 			}
 
@@ -330,7 +342,7 @@
 
 				// Do this last, can trigger the next XHR if connection time > 5 sec. and newInterval == 'fast'
 				if ( newInterval ) {
-					setInterval( newInterval );
+					interval( newInterval );
 				}
 			}).fail( function( jqXHR, textStatus, error ) {
 				setErrorState( textStatus || 'unknown', jqXHR.status );
@@ -351,7 +363,7 @@
 			var delta = time() - settings.lastTick,
 				interval = settings.mainInterval;
 
-			if ( ! settings.isRunning ) {
+			if ( settings.suspend ) {
 				return;
 			}
 
@@ -402,6 +414,9 @@
 		function focused() {
 			clearFocusTimers();
 			settings.userActivity = time();
+
+			// Resume if suspended
+			settings.suspend = false;
 
 			if ( ! settings.hasFocus ) {
 				settings.hasFocus = true;
@@ -513,6 +528,11 @@
 				blurred();
 			}
 
+			if ( settings.suspendEnabled && lastActive > 1200000 ) {
+				// Suspend after 20 min. of inactivity
+				settings.suspend = true;
+			}
+
 			if ( ! settings.userActivityEvents ) {
 				$document.on( 'mouseover.wp-heartbeat-active keyup.wp-heartbeat-active', function(){ userIsActive(); } );
 
@@ -562,6 +582,19 @@
 		}
 
 		/**
+		 * Disable suspending
+		 *
+		 * Should be used only when Heartbeat is performing critical tasks like autosave, post-locking, etc.
+		 * Using this on many screens may overload the user's hosting account if several
+		 * browser windows/tabs are left open for a long time.
+		 *
+		 * @return void
+		 */
+		function disableSuspend() {
+			settings.suspendEnabled = false;
+		}
+
+		/**
 		 * Get/Set the interval
 		 *
 		 * When setting to 'fast' or 5, by default interval is 5 sec. for the next 30 ticks (for 2 min and 30 sec).
@@ -572,7 +605,7 @@
 		 * @param string ticks Used with speed = 'fast' or 5, how many ticks before the interval reverts back
 		 * @return int Current interval in seconds
 		 */
-		function setInterval( speed, ticks ) {
+		function interval( speed, ticks ) {
 			var interval, oldInerval = settings.tempInterval ? settings.tempInterval : settings.mainInterval;
 
 			if ( speed ) {
@@ -691,7 +724,8 @@
 		return {
 			hasFocus: hasFocus,
 			connectNow: connectNow,
-			setInterval: setInterval,
+			disableSuspend: disableSuspend,
+			interval: interval,
 			hasConnectionError: hasConnectionError,
 			enqueue: enqueue,
 			dequeue: dequeue,

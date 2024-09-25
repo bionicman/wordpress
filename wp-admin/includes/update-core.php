@@ -562,6 +562,11 @@ $_old_files = array(
 'wp-admin/js/cat.js',
 'wp-admin/js/cat.min.js',
 'wp-includes/js/tinymce/plugins/wpeditimage/js/editimage.min.js',
+// 3.8
+'wp-includes/js/tinymce/themes/advanced/skins/wp_theme/img/more_bug.gif',
+'wp-includes/js/tinymce/themes/advanced/skins/wp_theme/img/page_bug.gif',
+'wp-includes/js/thickbox/tb-close.png',
+'wp-includes/js/thickbox/tb-close-2x.png',
 );
 
 /**
@@ -886,6 +891,9 @@ function update_core($from, $to) {
 	apply_filters('update_feedback', __('Upgrading database&#8230;'));
 	$db_upgrade_url = admin_url('upgrade.php?step=upgrade_db');
 	wp_remote_post($db_upgrade_url, array('timeout' => 60));
+
+	// Clear the cache to prevent an update_option() from saving a stale db_version to the cache
+	wp_cache_flush();
 
 	// Remove working directory
 	$wp_filesystem->delete($from, true);

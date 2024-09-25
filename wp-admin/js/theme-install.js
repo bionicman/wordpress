@@ -23,33 +23,6 @@ jQuery( function($) {
 });
 
 /**
- * Theme Browser Thickbox
- *
- * Aligns theme browser thickbox.
- */
-var tb_position;
-jQuery(document).ready( function($) {
-	tb_position = function() {
-		var tbWindow = $('#TB_window'), width = $(window).width(), H = $(window).height(), W = ( 1040 < width ) ? 1040 : width, adminbar_height = 0;
-
-		if ( $('body.admin-bar').length ) {
-			adminbar_height = 28;
-		}
-
-		if ( tbWindow.size() ) {
-			tbWindow.width( W - 50 ).height( H - 45 - adminbar_height );
-			$('#TB_iframeContent').width( W - 50 ).height( H - 75 - adminbar_height );
-			tbWindow.css({'margin-left': '-' + parseInt( ( ( W - 50 ) / 2 ), 10 ) + 'px'});
-			if ( typeof document.body.style.maxWidth !== 'undefined' ) {
-				tbWindow.css({'top': 20 + adminbar_height + 'px','margin-top':'0'});
-			}
-		}
-	};
-
-	$(window).resize(function(){ tb_position(); });
-});
-
-/**
  * Theme Install
  *
  * Displays theme previews on theme install pages.
@@ -60,6 +33,7 @@ jQuery( function($) {
 	}
 
 	var preview = $('#theme-installer'),
+		header  = preview.find('.wp-full-overlay-header'),
 		info    = preview.find('.install-theme-info'),
 		panel   = preview.find('.wp-full-overlay-main'),
 		body    = $( document.body );
@@ -81,6 +55,9 @@ jQuery( function($) {
 		var src;
 
 		info.html( $(this).closest('.installable-theme').find('.install-theme-info').html() );
+
+		header.find( '.theme-install' ).replaceWith( info.find( '.theme-install' ) );
+
 		src = info.find( '.theme-preview-url' ).val();
 		panel.html( '<iframe src="' + src + '" />');
 		preview.fadeIn( 200, function() {

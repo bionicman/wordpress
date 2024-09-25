@@ -1652,7 +1652,7 @@ function set_post_type( $post_id = 0, $post_type = 'post' ) {
  *     'numberposts' - Default is 5. Total number of posts to retrieve.
  *     'offset' - Default is 0. See {@link WP_Query::query()} for more.
  *     'category' - What category to pull the posts from.
- *     'orderby' - Default is 'post_date'. How to order the posts.
+ *     'orderby' - Default is 'date', which orders based on post_date. How to order the posts.
  *     'order' - Default is 'DESC'. The order to retrieve the posts.
  *     'include' - See {@link WP_Query::query()} for more.
  *     'exclude' - See {@link WP_Query::query()} for more.
@@ -1672,7 +1672,7 @@ function set_post_type( $post_id = 0, $post_type = 'post' ) {
 function get_posts($args = null) {
 	$defaults = array(
 		'numberposts' => 5, 'offset' => 0,
-		'category' => 0, 'orderby' => 'post_date',
+		'category' => 0, 'orderby' => 'date',
 		'order' => 'DESC', 'include' => array(),
 		'exclude' => array(), 'meta_key' => '',
 		'meta_value' =>'', 'post_type' => 'post',
@@ -2335,7 +2335,10 @@ function wp_delete_post( $postid = 0, $force_delete = false ) {
 		delete_metadata_by_mid( 'post', $mid );
 
 	do_action( 'delete_post', $postid );
-	$wpdb->delete( $wpdb->posts, array( 'ID' => $postid ) );
+	$result = $wpdb->delete( $wpdb->posts, array( 'ID' => $postid ) );
+	if ( ! $result ) {
+		return false;
+	}
 	do_action( 'deleted_post', $postid );
 
 	clean_post_cache( $post );
@@ -4181,7 +4184,10 @@ function wp_delete_attachment( $post_id, $force_delete = false ) {
 		delete_metadata_by_mid( 'post', $mid );
 
 	do_action( 'delete_post', $post_id );
-	$wpdb->delete( $wpdb->posts, array( 'ID' => $post_id ) );
+	$result = $wpdb->delete( $wpdb->posts, array( 'ID' => $post_id ) );
+	if ( ! $result ) {
+		return false;
+	}
 	do_action( 'deleted_post', $post_id );
 
 	$uploadpath = wp_upload_dir();

@@ -98,6 +98,10 @@
 	z-index: 160000;
 }
 
+.wp-customizer .media-modal {
+	z-index: 560000;
+}
+
 .media-modal-backdrop {
 	position: fixed;
 	top: 0;
@@ -108,6 +112,10 @@
 	background: #000;
 	opacity: 0.7;
 	z-index: 159900;
+}
+
+.wp-customizer .media-modal-backdrop {
+	z-index: 559900;
 }
 
 .media-modal-close {
@@ -245,7 +253,7 @@
 	font-weight: bold;
 	text-transform: uppercase;
 	font-size: 12px;
-	color: #777;
+	color: #666;
 	margin: 24px 0 8px;
 }
 
@@ -290,7 +298,7 @@
 	line-height: 16px;
 	text-align: left;
 	font-weight: normal;
-	color: #999;
+	color: #666;
 }
 
 .media-sidebar .setting input,
@@ -768,12 +776,9 @@
 	height: 24px;
 	width: 24px;
 	position: absolute;
-	top: -7px;
-	left: -7px;
+	top: -6px;
+	left: -6px;
 	outline: none;
-
-	border: 1px solid #fff;
-	box-shadow: 0 0 0 1px rgba( 0, 0, 0, 0.4 );
 }
 
 .attachment .check div {
@@ -789,17 +794,6 @@
 
 .attachment.selected .check {
 	display: block;
-}
-
-.attachment.details .check {
-	box-shadow: 0 0 0 1px #1e8cbe;
-
-	background: #1e8cbe;
-	background-image: -webkit-gradient(linear, right top, right bottom, from(#1e8cbe), to(#0074a2));
-	background-image: -webkit-linear-gradient(top, #1e8cbe, #0074a2);
-	background-image:    -moz-linear-gradient(top, #1e8cbe, #0074a2);
-	background-image:      -o-linear-gradient(top, #1e8cbe, #0074a2);
-	background-image:   linear-gradient(to bottom, #1e8cbe, #0074a2);
 }
 
 .attachment.details .check div {
@@ -857,7 +851,7 @@
 	margin-top: 16px;
 	line-height: 18px;
 	font-size: 13px;
-	color: #999;
+	color: #666;
 }
 
 /**
@@ -877,8 +871,7 @@
 	height: 10px;
 	min-width: 20px;
 	width: 0;
-	background: #aaa;
-	background: rgba( 0, 0, 0, 0.2 );
+	background: #1e8cbe;
 	border-radius: 10px;
 	-webkit-transition: width 300ms;
 	-moz-transition:    width 300ms;
@@ -1281,7 +1274,7 @@
 	min-height: 60px;
 	margin-bottom: 16px;
 	line-height: 18px;
-	color: #999;
+	color: #666;
 	border-bottom: 1px solid #e5e5e5;
 	box-shadow: 0 1px 0 #fff;
 	padding-bottom: 11px;
@@ -1460,7 +1453,7 @@
 	width: 200px;
 	font-size: 13px;
 	line-height: 24px;
-	color: #999;
+	color: #666;
 }
 
 .media-embed .setting .button-group {

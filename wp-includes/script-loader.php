@@ -204,7 +204,6 @@ function wp_default_scripts( &$scripts ) {
 			'close' => __('Close'),
 			'noiframes' => __('This feature requires inline frames. You have iframes disabled or your browser does not support them.'),
 			'loadingAnimation' => includes_url('js/thickbox/loadingAnimation.gif'),
-			'closeImage' => includes_url('js/thickbox/tb-close.png')
 	) );
 
 	$scripts->add( 'jcrop', "/wp-includes/js/jcrop/jquery.Jcrop.min.js", array('jquery'), '0.9.12');
@@ -393,8 +392,6 @@ function wp_default_scripts( &$scripts ) {
 	$scripts->add( 'media-editor', "/wp-includes/js/media-editor$suffix.js", array( 'shortcode', 'media-views' ), false, 1 );
 	$scripts->add( 'mce-view', "/wp-includes/js/mce-view$suffix.js", array( 'shortcode', 'media-models' ), false, 1 );
 
-	$scripts->add( 'svg-painter', '/wp-includes/js/svg-painter.js' );
-
 	if ( is_admin() ) {
 		$scripts->add( 'admin-tags', "/wp-admin/js/tags$suffix.js", array('jquery', 'wp-ajax-response'), false, 1 );
 		did_action( 'init' ) && $scripts->localize( 'admin-tags', 'tagsl10n', array(
@@ -517,6 +514,8 @@ function wp_default_scripts( &$scripts ) {
 		$scripts->add( 'custom-header', "/wp-admin/js/custom-header.js", array( 'jquery-masonry' ), false, 1 );
 		$scripts->add( 'custom-background', "/wp-admin/js/custom-background$suffix.js", array( 'wp-color-picker', 'media-views' ), false, 1 );
 		$scripts->add( 'media-gallery', "/wp-admin/js/media-gallery$suffix.js", array('jquery'), false, 1 );
+
+		$scripts->add( 'svg-painter', '/wp-includes/js/svg-painter.js', array( 'jquery' ), false, 1 );
 	}
 }
 
@@ -559,46 +558,55 @@ function wp_default_styles( &$styles ) {
 	$styles->add( 'ie', "/wp-admin/css/ie$suffix.css" );
 	$styles->add_data( 'ie', 'conditional', 'lte IE 7' );
 
-	$subsets = 'latin,latin-ext';
+	$open_sans_font_url = '';
 
-	/* translators: To add an additional Open Sans character subset specific to your language,
-	 * translate this to 'greek', 'cyrillic' or 'vietnamese'. Do not translate into your own language.
+	/* translators: If there are characters in your language that are not supported
+	 * by Open Sans, translate this to 'off'. Do not translate into your own language.
 	 */
-	$subset = _x( 'no-subset', 'Open Sans font: add new subset (greek, cyrillic, vietnamese)' );
+	if ( 'off' !== _x( 'on', 'Open Sans font: on or off' ) ) {
+		$subsets = 'latin,latin-ext';
 
-	if ( 'cyrillic' == $subset )
-		$subsets .= ',cyrillic,cyrillic-ext';
-	elseif ( 'greek' == $subset )
-		$subsets .= ',greek,greek-ext';
-	elseif ( 'vietnamese' == $subset )
-		$subsets .= ',vietnamese';
+		/* translators: To add an additional Open Sans character subset specific to your language,
+		 * translate this to 'greek', 'cyrillic' or 'vietnamese'. Do not translate into your own language.
+		 */
+		$subset = _x( 'no-subset', 'Open Sans font: add new subset (greek, cyrillic, vietnamese)' );
 
-	// Hotlink Open Sans, for now
-	$styles->add( 'open-sans', "//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,300,400,600&subset=$subsets" );
+		if ( 'cyrillic' == $subset ) {
+			$subsets .= ',cyrillic,cyrillic-ext';
+		} elseif ( 'greek' == $subset ) {
+			$subsets .= ',greek,greek-ext';
+		} elseif ( 'vietnamese' == $subset ) {
+			$subsets .= ',vietnamese';
+		}
+
+		// Hotlink Open Sans, for now
+		$open_sans_font_url = "//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,600italic,300,400,600&subset=$subsets";
+	}
+
+	$styles->add( 'open-sans', $open_sans_font_url );
 
 	// Dashicons
-	$styles->add( 'dashicons', '/wp-includes/css/dashicons.css' );
+	$styles->add( 'dashicons', "/wp-includes/css/dashicons$suffix.css" );
 
 	// Register "meta" stylesheet for admin colors. All colors-* style sheets should have the same version string.
 	$styles->add( 'colors', true, array( 'wp-admin', 'buttons', 'open-sans', 'dashicons' ) );
 
-	// do not refer to these directly, the right one is queued by the above "meta" colors handle
-	$styles->add( 'colors-fresh', "/wp-admin/css/colors-fresh$suffix.css", array( 'wp-admin', 'buttons' ) );
+	// do not refer to this directly, the right one is queued by the above "meta" colors handle
+	$styles->add( 'colors-fresh', "/wp-admin/css/colors$suffix.css", array( 'wp-admin', 'buttons' ) );
 
-	$styles->add( 'theme', "/wp-admin/css/theme.css" );
 	$styles->add( 'media', "/wp-admin/css/media$suffix.css" );
 	$styles->add( 'install', "/wp-admin/css/install$suffix.css", array('buttons') );
-	$styles->add( 'thickbox', '/wp-includes/js/thickbox/thickbox.css', array(), '20121105' );
+	$styles->add( 'thickbox', '/wp-includes/js/thickbox/thickbox.css', array( 'dashicons' ), '20121105' );
 	$styles->add( 'farbtastic', '/wp-admin/css/farbtastic.css', array(), '1.3u1' );
 	$styles->add( 'wp-color-picker', "/wp-admin/css/color-picker$suffix.css" );
 	$styles->add( 'jcrop', "/wp-includes/js/jcrop/jquery.Jcrop.min.css", array(), '0.9.12' );
 	$styles->add( 'imgareaselect', '/wp-includes/js/imgareaselect/imgareaselect.css', array(), '0.9.8' );
 	$styles->add( 'admin-bar', "/wp-includes/css/admin-bar$suffix.css", array( 'open-sans', 'dashicons' ) );
 	$styles->add( 'wp-jquery-ui-dialog', "/wp-includes/css/jquery-ui-dialog$suffix.css" );
-	$styles->add( 'editor-buttons', "/wp-includes/css/editor$suffix.css" );
-	$styles->add( 'wp-pointer', "/wp-includes/css/wp-pointer$suffix.css" );
+	$styles->add( 'editor-buttons', "/wp-includes/css/editor$suffix.css", array( 'dashicons' ) );
+	$styles->add( 'wp-pointer', "/wp-includes/css/wp-pointer$suffix.css", array( 'dashicons' ) );
 	$styles->add( 'customize-controls', "/wp-admin/css/customize-controls$suffix.css", array( 'wp-admin', 'colors', 'ie' ) );
-	$styles->add( 'media-views', "/wp-includes/css/media-views$suffix.css", array( 'buttons' ) );
+	$styles->add( 'media-views', "/wp-includes/css/media-views$suffix.css", array( 'buttons', 'dashicons' ) );
 	$styles->add( 'buttons', "/wp-includes/css/buttons$suffix.css" );
 	$styles->add( 'wp-auth-check', "/wp-includes/css/wp-auth-check$suffix.css" );
 

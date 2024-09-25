@@ -1,3 +1,10 @@
+/**
+ * Theme functions file
+ *
+ * Contains handlers for navigation, accessibility, header sizing
+ * footer widgets and Featured Content slider
+ *
+ */
 ( function( $ ) {
 	var body    = $( 'body' ),
 		_window = $( window );
@@ -41,6 +48,9 @@
 			}
 
 			element.focus();
+
+			// Repositions the window on jump-to-anchor to account for header height.
+			window.scrollBy( 0, -80 );
 		}
 	} );
 

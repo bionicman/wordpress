@@ -29,21 +29,12 @@ themes.view.Appearance = wp.Backbone.View.extend({
 
 	// Sets up a throttler for binding to 'scroll'
 	initialize: function() {
-		var self = this;
+		// Scroller checks how far the scroll position is
+		_.bindAll( this, 'scroller' );
 
-		// Keep a boolean check so that we don't run
-		// too much code on every event trigger
-		this.window.bind( 'scroll.themes', function() {
-			this.throttle = true;
-		});
-
-		setInterval( function() {
-			if ( this.throttle ) {
-				// Once the case is the case, the action occurs and the fact is no more
-				this.throttle = false;
-				self.scroller();
-			}
-		}, 300 );
+		// Bind to the scroll event and throttle
+		// the results from this.scroller
+		this.window.bind( 'scroll', _.throttle( this.scroller, 300 ) );
 	},
 
 	// Main render control
@@ -61,6 +52,7 @@ themes.view.Appearance = wp.Backbone.View.extend({
 		// Render and append
 		this.view.render();
 		this.$el.append( this.view.el );
+		this.$el.append( '<br class="clear"/>' );
 	},
 
 	// Search input and view
@@ -73,7 +65,7 @@ themes.view.Appearance = wp.Backbone.View.extend({
 
 		// Render and append after screen title
 		view.render();
-		self.$el.append( view.el );
+		$('#wpbody h2:first').append( view.el );
 	},
 
 	// Checks when the user gets close to the bottom
@@ -105,6 +97,12 @@ themes.Collection = Backbone.Collection.extend({
 	// and triggers an update event
 	doSearch: function( value ) {
 
+		// Don't do anything if we've already done this search
+		// Useful because the Search handler fires multiple times per keystroke
+		if ( this.terms === value ) {
+			return;
+		}
+
 		// Updates terms with the value passed
 		this.terms = value;
 
@@ -122,6 +120,7 @@ themes.Collection = Backbone.Collection.extend({
 		// Trigger an 'update' event
 		this.trigger( 'update' );
 	},
+
 	// Performs a search within the collection
 	// @uses RegExp
 	search: function( term ) {
@@ -141,7 +140,7 @@ themes.Collection = Backbone.Collection.extend({
 		// Find results
 		// _.filter and .test
 		results = self.filter( function( data ) {
-			haystack = _.union( data.get( 'name' ), data.get( 'author' ), data.get( 'tags' ) );
+			haystack = _.union( data.get( 'name' ), data.get( 'description' ), data.get( 'author' ), data.get( 'tags' ) );
 
 			if ( match.test( data.get( 'author' ) ) ) {
 				data.set( 'displayAuthor', true );
@@ -202,7 +201,6 @@ themes.view.Theme = wp.Backbone.View.extend({
 	activeTheme: function() {
 		if ( this.model.get( 'active' ) ) {
 			this.$el.addClass( 'active' );
-			this.$el.find( '.theme-name' ).addClass( 'mp6-primary' );
 			$( '.theme-overlay' ).addClass( 'active' );
 		}
 	},
@@ -216,7 +214,7 @@ themes.view.Theme = wp.Backbone.View.extend({
 
 		// Prevent the modal from showing when the user clicks
 		// one of the direct action buttons
-		if ( $( event.target ).is( '.theme-actions a, .delete-theme' ) ) {
+		if ( $( event.target ).is( '.theme-actions a' ) ) {
 			return;
 		}
 
@@ -268,7 +266,7 @@ themes.view.Details = wp.Backbone.View.extend({
 		// Detect if the click is inside the overlay
 		// and don't close it unless the target was
 		// the div.back button
-		if ( $( event.target ).is( '.theme-backdrop' ) || $( event.target ).is( 'div.back' ) || event.keyCode === 27 ) {
+		if ( $( event.target ).is( '.theme-backdrop' ) || $( event.target ).is( 'div.close' ) || event.keyCode === 27 ) {
 
 			// Add a temporary closing class while overlay fades out
 			$( 'body' ).addClass( 'closing-overlay' );
@@ -314,6 +312,14 @@ themes.view.Details = wp.Backbone.View.extend({
 				self.collapse();
 			}
 		});
+
+		// Disable Left/Right when at the start or end of the collection
+		if ( this.model.cid === this.model.collection.at(0).cid ) {
+			this.$el.find( '.left' ).addClass( 'disabled' );
+		}
+		if ( this.model.cid === this.model.collection.at( this.model.collection.length - 1 ).cid ) {
+			this.$el.find( '.right' ).addClass( 'disabled' );
+		}
 	},
 
 	// Performs the actions to effectively close
@@ -445,7 +451,7 @@ themes.view.Themes = wp.Backbone.View.extend({
 
 		// 'Add new theme' element shown at the end of the grid
 		if ( themes.data.settings.canInstall ) {
-			this.$el.append( '<div class="theme add-new-theme"><a href="' + themes.data.settings.install_uri + '"><div class="theme-screenshot"><span></span></div><h3 class="theme-name">' + l10n.addNew + '</h3></a></div>' );
+			this.$el.append( '<div class="theme add-new-theme"><a href="' + themes.data.settings.installURI + '"><div class="theme-screenshot"><span></span></div><h3 class="theme-name">' + l10n.addNew + '</h3></a></div>' );
 		}
 
 		this.parent.page++;
@@ -570,7 +576,8 @@ themes.view.Search = wp.Backbone.View.extend({
 	className: 'theme-search',
 
 	attributes: {
-		placeholder: l10n.search
+		placeholder: l10n.search,
+		type: 'search'
 	},
 
 	events: {
@@ -586,7 +593,15 @@ themes.view.Search = wp.Backbone.View.extend({
 		if ( event.type === 'keyup' && event.which === 27 ) {
 			event.target.value = '';
 		}
+
 		this.collection.doSearch( event.target.value );
+
+		// Update the URL hash
+		if ( event.target.value ) {
+			themes.router.navigate( 'search/' + event.target.value, { replace: true } );
+		} else {
+			themes.router.navigate( '' );
+		}
 	}
 });
 
@@ -595,8 +610,8 @@ themes.view.Search = wp.Backbone.View.extend({
 themes.routes = Backbone.Router.extend({
 
 	routes: {
-		'search/:query': 'search',
-		'theme/:slug': 'theme'
+		'search/*query': 'search',
+		'theme/*slug': 'theme'
 	},
 
 	// Set the search input value based on url
@@ -661,3 +676,30 @@ jQuery( document ).ready(
 );
 
 })( jQuery );
+
+// Align theme browser thickbox
+var tb_position;
+jQuery(document).ready( function($) {
+	tb_position = function() {
+		var tbWindow = $('#TB_window'),
+			width = $(window).width(),
+			H = $(window).height(),
+			W = ( 1040 < width ) ? 1040 : width,
+			adminbar_height = 0;
+
+		if ( $('body.admin-bar').length ) {
+			adminbar_height = parseInt( jQuery('#wpadminbar').css('height'), 10 );
+		}
+
+		if ( tbWindow.size() ) {
+			tbWindow.width( W - 50 ).height( H - 45 - adminbar_height );
+			$('#TB_iframeContent').width( W - 50 ).height( H - 75 - adminbar_height );
+			tbWindow.css({'margin-left': '-' + parseInt( ( ( W - 50 ) / 2 ), 10 ) + 'px'});
+			if ( typeof document.body.style.maxWidth !== 'undefined' ) {
+				tbWindow.css({'top': 20 + adminbar_height + 'px', 'margin-top': '0'});
+			}
+		}
+	};
+
+	$(window).resize(function(){ tb_position(); });
+});

@@ -2,16 +2,17 @@
 var ajaxWidgets, ajaxPopulateWidgets, quickPressLoad;
 
 jQuery(document).ready( function($) {
-	/* Dashboard Welcome Panel */
-	var welcomePanel = $('#welcome-panel'),
+	var welcomePanel = $( '#welcome-panel' ),
 		welcomePanelHide = $('#wp_welcome_panel-hide'),
-		updateWelcomePanel = function( visible ) {
-			$.post( ajaxurl, {
-				action: 'update-welcome-panel',
-				visible: visible,
-				welcomepanelnonce: $('#welcomepanelnonce').val()
-			});
-		};
+		updateWelcomePanel;
+
+	updateWelcomePanel = function( visible ) {
+		$.post( ajaxurl, {
+			action: 'update-welcome-panel',
+			visible: visible,
+			welcomepanelnonce: $( '#welcomepanelnonce' ).val()
+		});
+	};
 
 	if ( welcomePanel.hasClass('hidden') && welcomePanelHide.prop('checked') ) {
 		welcomePanel.removeClass('hidden');
@@ -117,8 +118,12 @@ jQuery(document).ready( function($) {
 			$('#description-wrap, p.submit').slideDown(200);
 			wpActiveEditor = 'content';
 		});
+
+		autoResizeTextarea();
 	};
 	quickPressLoad();
+
+	$( '.meta-box-sortables' ).sortable( 'option', 'containment', 'document' );
 
 	// Activity Widget
 	$( '.show-more a' ).on( 'click', function(e) {
@@ -126,32 +131,61 @@ jQuery(document).ready( function($) {
 		e.preventDefault();
 	});
 
-	// Dashboard columns
-	jQuery(document).ready(function () {
-		// Update main column count on load
-		updateColumnCount();
-	});
+	function autoResizeTextarea() {
+		// Add a hidden div. We'll copy over the text from the textarea to measure its height.
+		$('body').append( '<div class="quick-draft-textarea-clone" style="display: none;"></div>' );
 
-	jQuery(window).resize( _.debounce( function(){
-		updateColumnCount();
-	}, 30) );
+		var clone = $('.quick-draft-textarea-clone'),
+			editor = $('#content'),
+			editorHeight = editor.height(),
+			// 100px roughly accounts for browser chrome and allows the
+			// save draft button to show on-screen at the same time.
+			editorMaxHeight = $(window).height() - 100;
 
-	function updateColumnCount() {
-		var cols = 1,
-			windowWidth = parseInt(jQuery(window).width(), 10);
+		// Match up textarea and clone div as much as possible.
+		// Padding cannot be reliably retrieved using shorthand in all browsers.
+		clone.css({
+			'font-family': editor.css('font-family'),
+			'font-size':   editor.css('font-size'),
+			'line-height': editor.css('line-height'),
+			'padding-bottom': editor.css('paddingBottom'),
+			'padding-left': editor.css('paddingLeft'),
+			'padding-right': editor.css('paddingRight'),
+			'padding-top': editor.css('paddingTop'),
+			'white-space': 'pre-wrap',
+			'word-wrap': 'break-word',
+			'display': 'none'
+		});
 
-		if (799 < windowWidth && 1299 > windowWidth) {
-			cols = 2;
-		}
+		// propertychange is for IE < 9
+		editor.on('focus input propertychange', function() {
+			var $this = $(this),
+				// &nbsp; is to ensure that the height of a final trailing newline is included.
+				textareaContent = $this.val().replace(/\n/g, '<br>') + '&nbsp;',
+				// 2px is for border-top & border-bottom
+				cloneHeight = clone.css('width', $this.css('width')).html(textareaContent).outerHeight() + 2;
 
-		if (1300 < windowWidth && 1799 > windowWidth) {
-			cols = 3;
-		}
+			// Default to having scrollbars
+			editor.css('overflow-y', 'auto');
 
-		if (1800 < windowWidth) {
-			cols = 4;
-		}
-		jQuery('.metabox-holder').attr('class', jQuery('.metabox-holder').attr('class').replace(/columns-\d+/, 'columns-' + cols));
+			// Only change the height if it has indeed changed and both heights are below the max.
+			if ( cloneHeight === editorHeight || ( cloneHeight >= editorMaxHeight && editorHeight >= editorMaxHeight ) ) {
+				return;
+			}
+
+			// Don't allow editor to exceed height of window.
+			// This is also bound in CSS to a max-height of 1300px to be extra safe.
+			if ( cloneHeight > editorMaxHeight ) {
+				editorHeight = editorMaxHeight;
+			} else {
+				editorHeight = cloneHeight;
+			}
+
+			// No scrollbars as we change height
+			editor.css('overflow-y', 'hidden');
+
+			$this.css('height', editorHeight + 'px');
+		});
 	}
 
 } );

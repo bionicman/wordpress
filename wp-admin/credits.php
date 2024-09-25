@@ -18,7 +18,7 @@ $title = __( 'Credits' );
  *
  * @since 3.2.0
  *
- * @return array A list of all of the contributors.
+ * @return array|bool A list of all of the contributors, or false on error.
 */
 function wp_credits() {
 	global $wp_version;
@@ -159,8 +159,8 @@ foreach ( $credits['groups'] as $group_slug => $group_data ) {
 
 ?>
 <p class="clear"><?php printf( __( 'Want to see your name in lights on this page? <a href="%s">Get involved in WordPress</a>.' ),
-	/* translators: Url to the codex documentation on contributing to WordPress used on the credits page */
-	__( 'http://codex.wordpress.org/Contributing_to_WordPress' ) ); ?></p>
+	/* translators: URL to the Make WordPress 'Get Involved' landing page used on the credits page */
+	__( 'http://make.wordpress.org/' ) ); ?></p>
 
 </div>
 <?php

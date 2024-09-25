@@ -18,20 +18,15 @@ if ( empty($tag_ID) ) { ?>
 
 // Back compat hooks
 if ( 'category' == $taxonomy ) {
-	/** This action is documented in wp-admin/edit-tags.php */
 	do_action( 'edit_category_form_pre', $tag );
 } elseif ( 'link_category' == $taxonomy ) {
-	/** This action is documented in wp-admin/edit-tags.php */
 	do_action( 'edit_link_category_form_pre', $tag );
 } else {
-	/** This action is documented in wp-admin/edit-tags.php */
 	do_action( 'edit_tag_form_pre', $tag );
 }
-/** This action is documented in wp-admin/edit-tags.php */
 do_action( "{$taxonomy}_pre_edit_form", $tag, $taxonomy ); ?>
 
 <div class="wrap">
-<?php screen_icon(); ?>
 <h2><?php echo $tax->labels->edit_item; ?></h2>
 <div id="ajax-response"></div>
 <form name="edittag" id="edittag" method="post" action="edit-tags.php" class="validate"<?php do_action( $taxonomy . '_term_edit_form_tag' ); ?>>

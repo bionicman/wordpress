@@ -1134,3 +1134,18 @@ function wp_update_theme($theme, $feedback = '') {
 function the_attachment_links( $id = false ) {
 	_deprecated_function( __FUNCTION__, '3.7' );
 }
+
+/**#@+
+ * Displays a screen icon.
+ *
+ * @since 2.7.0
+ * @since 3.8.0 Screen icons are no longer used in WordPress. This function no longer produces output.
+ * @deprecated 3.8.0
+ */
+function screen_icon() {
+	echo get_screen_icon();
+}
+function get_screen_icon() {
+	return '<!-- Screen icons are no longer used as of WordPress 3.8. -->';
+}
+/**#@-*/
