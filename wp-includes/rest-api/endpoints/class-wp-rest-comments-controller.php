@@ -446,7 +446,7 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 		}
 
 		if ( ! comments_open( $post->ID ) ) {
-			return new WP_Error( 'rest_comment_closed', __( 'Sorry, comments are closed on this post.' ), array( 'status' => 403 ) );
+			return new WP_Error( 'rest_comment_closed', __( 'Sorry, comments are closed for this item.' ), array( 'status' => 403 ) );
 		}
 
 		return true;
@@ -1202,13 +1202,13 @@ class WP_REST_Comments_Controller extends WP_REST_Controller {
 					),
 				),
 				'date'             => array(
-					'description'  => __( 'The date the object was published.' ),
+					'description'  => __( "The date the object was published, in the site's timezone." ),
 					'type'         => 'string',
 					'format'       => 'date-time',
 					'context'      => array( 'view', 'edit', 'embed' ),
 				),
 				'date_gmt'         => array(
-					'description'  => __( 'The date the object was published as GMT.' ),
+					'description'  => __( 'The date the object was published, as GMT.' ),
 					'type'         => 'string',
 					'format'       => 'date-time',
 					'context'      => array( 'view', 'edit' ),
