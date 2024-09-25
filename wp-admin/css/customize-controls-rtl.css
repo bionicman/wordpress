@@ -227,6 +227,18 @@ body {
 	background: #fff;
 }
 
+div.customize-section-description {
+	margin-top: 22px;
+}
+
+div.customize-section-description p:first-child {
+	margin-top: 0;
+}
+
+div.customize-section-description p:last-child {
+	margin-bottom: 0;
+}
+
 #customize-theme-controls .customize-themes-panel h3.customize-section-title:first-child {
 	border-bottom: 1px solid #ddd;
 	padding: 12px 12px 12px 12px;
@@ -648,26 +660,6 @@ p.customize-section-description {
 	border-left: 1px solid #ddd;
 }
 
-.collapse-sidebar {
-	background-color: transparent !important;
-	border: none !important;
-	-webkit-box-shadow: none !important;
-	box-shadow: none !important;
-	-webkit-border-radius: 0 !important;
-	border-radius: 0 !important;
-}
-
-
-.collapse-sidebar:active,
-.collapse-sidebar:active .collapse-sidebar-label,
-.collapse-sidebar:active .collapse-sidebar-arrow:before {
-	text-shadow: none;
-}
-
-.collapsed .collapse-sidebar-arrow:before {
-	color: #82878c;
-}
-
 /* Style for custom settings */
 
 /*
@@ -771,6 +763,8 @@ p.customize-section-description {
 .customize-control-upload .current,
 .customize-control-image .current,
 .customize-control-background .current,
+.customize-control-cropped_image .current,
+.customize-control-site_icon .current,
 .customize-control-header .current {
 	margin-bottom: 8px;
 }
@@ -806,6 +800,12 @@ p.customize-section-description {
 .customize-control-background .remove-button,
 .customize-control-background .default-button,
 .customize-control-background .upload-button,
+.customize-control-cropped_image .remove-button,
+.customize-control-cropped_image .default-button,
+.customize-control-cropped_image .upload-button,
+.customize-control-site_icon .remove-button,
+.customize-control-site_icon .default-button,
+.customize-control-site_icon .upload-button,
 .customize-control-header button.new,
 .customize-control-header button.remove {
 	white-space: normal;
@@ -817,6 +817,8 @@ p.customize-section-description {
 .customize-control-upload .current .container,
 .customize-control-image .current .container,
 .customize-control-background .current .container,
+.customize-control-cropped_image .current .container,
+.customize-control-site_icon .current .container,
 .customize-control-header .current .container {
 	overflow: hidden;
 	-webkit-border-radius: 2px;
@@ -828,6 +830,8 @@ p.customize-section-description {
 .customize-control-media .current .container,
 .customize-control-upload .current .container,
 .customize-control-background .current .container,
+.customize-control-cropped_image .current .container,
+.customize-control-site_icon .current .container,
 .customize-control-image .current .container {
 	min-height: 40px;
 }
@@ -836,6 +840,8 @@ p.customize-section-description {
 .customize-control-upload .placeholder,
 .customize-control-image .placeholder,
 .customize-control-background .placeholder,
+.customize-control-cropped_image .placeholder,
+.customize-control-site_icon .placeholder,
 .customize-control-header .placeholder {
 	width: 100%;
 	position: relative;
@@ -847,6 +853,8 @@ p.customize-section-description {
 .customize-control-upload .inner,
 .customize-control-image .inner,
 .customize-control-background .inner,
+.customize-control-cropped_image .inner,
+.customize-control-site_icon .inner,
 .customize-control-header .inner {
 	display: none;
 	position: absolute;
@@ -860,6 +868,8 @@ p.customize-section-description {
 .customize-control-media .inner,
 .customize-control-upload .inner,
 .customize-control-background .inner,
+.customize-control-cropped_image .inner,
+.customize-control-site_icon .inner,
 .customize-control-image .inner {
 	display: block;
 	min-height: 40px;
@@ -869,6 +879,8 @@ p.customize-section-description {
 .customize-control-upload .inner,
 .customize-control-image .inner,
 .customize-control-background .inner,
+.customize-control-cropped_image .inner,
+.customize-control-site_icon .inner,
 .customize-control-header .inner,
 .customize-control-header .inner .dashicons {
 	line-height: 20px;
@@ -972,6 +984,8 @@ p.customize-section-description {
 .customize-control-upload .actions,
 .customize-control-image .actions,
 .customize-control-background .actions,
+.customize-control-cropped_image .actions,
+.customize-control-site_icon .actions,
 .customize-control-header .actions {
 	margin-bottom: 32px;
 }
@@ -990,6 +1004,8 @@ p.customize-section-description {
 .customize-control-upload img,
 .customize-control-image img,
 .customize-control-background img,
+.customize-control-cropped_image img,
+.customize-control-site_icon img,
 .customize-control-header img {
 	width: 100%;
 	-webkit-border-radius: 2px;
@@ -1004,6 +1020,10 @@ p.customize-section-description {
 .customize-control-image .default-button,
 .customize-control-background .remove-button,
 .customize-control-background .default-button,
+.customize-control-cropped_image .remove-button,
+.customize-control-cropped_image .default-button,
+.customize-control-site_icon .remove-button,
+.customize-control-site_icon .default-button,
 .customize-control-header .remove {
 	float: right;
 	margin-left: 3px;
@@ -1013,6 +1033,8 @@ p.customize-section-description {
 .customize-control-upload .upload-button,
 .customize-control-image .upload-button,
 .customize-control-background .upload-button,
+.customize-control-cropped_image .upload-button,
+.customize-control-site_icon .upload-button,
 .customize-control-header .new {
 	float: left;
 }
@@ -1308,7 +1330,7 @@ body.cheatin p {
 	}
 
 	.customize-controls-preview-toggle .controls:before {
-		content: "\f100";
+		content: "\f540";
 	}
 
 	.preview-only #customize-controls {
