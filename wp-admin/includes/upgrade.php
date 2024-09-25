@@ -411,6 +411,9 @@ function upgrade_all() {
 	if ( $wp_current_db_version < 26149 )
 		upgrade_373();
 
+	if ( $wp_current_db_version < 26151 )
+		upgrade_379();
+
 	maybe_disable_link_manager();
 
 	maybe_disable_automattic_widgets();
@@ -1265,6 +1268,62 @@ function upgrade_373() {
 
 			$wpdb->update( $wpdb->posts, array( 'post_status' => 'draft' ), array( 'ID' => $post->ID ) );
 			clean_post_cache( $post->ID );
+		}
+	}
+}
+
+/**
+ * Execute changes made in WordPress 3.7.8.
+ *
+ * @since 3.7.8
+ */
+function upgrade_378() {
+}
+
+/**
+ * Execute changes made in WordPress 3.7.9.
+ *
+ * @since 3.7.9
+ */
+function upgrade_379() {
+	global $wp_current_db_version, $wpdb;
+
+	if ( $wp_current_db_version < 26151 ) {
+		$content_length = $wpdb->get_col_length( $wpdb->comments, 'comment_content' );
+
+		if ( is_wp_error( $content_length ) ) {
+			return;
+		}
+
+		if ( false === $content_length ) {
+			$content_length = array(
+				'type'   => 'byte',
+				'length' => 65535,
+			);
+		} elseif ( ! is_array( $content_length ) ) {
+			$length = (int) $content_length > 0 ? (int) $content_length : 65535;
+			$content_length = array(
+				'type'	 => 'byte',
+				'length' => $length
+			);
+		}
+
+		if ( 'byte' !== $content_length['type'] || 0 === $content_length['length'] ) {
+			// Sites with malformed DB schemas are on their own.
+			return;
+		}
+
+		$allowed_length = intval( $content_length['length'] ) - 10;
+
+		$comments = $wpdb->get_results(
+			"SELECT `comment_ID` FROM `{$wpdb->comments}`
+				WHERE `comment_date_gmt` > '2015-04-26'
+				AND LENGTH( `comment_content` ) >= {$allowed_length}
+				AND ( `comment_content` LIKE '%<%' OR `comment_content` LIKE '%>%' )"
+		);
+
+		foreach ( $comments as $comment ) {
+			wp_delete_comment( $comment->comment_ID, true );
 		}
 	}
 }
