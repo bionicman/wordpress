@@ -1,9 +1,10 @@
 <?php
 /**
- * The template for displaying posts in the Gallery post format.
+ * The template for displaying posts in the Gallery post format
  *
  * @package WordPress
  * @subpackage Twenty_Fourteen
+ * @since Twenty Fourteen 1.0
  */
 
 if ( has_post_thumbnail() ) :
@@ -24,12 +25,12 @@ endif;
 ?>
 
 <article id="post-<?php the_ID(); ?>" <?php post_class(); ?>>
-	<?php if( is_single() && $image ) : ?>
-	<div class="attachment-featured-thumbnail">
+	<?php if ( is_single() && $image ) : ?>
+	<div class="featured-thumbnail">
 		<?php echo wp_get_attachment_image( $image, 'featured-thumbnail-large' ); ?>
 	</div>
 	<?php elseif ( $image ) : ?>
-	<a class="attachment-featured-thumbnail" href="<?php the_permalink(); ?>" rel="<?php the_ID(); ?>">
+	<a class="featured-thumbnail" href="<?php the_permalink(); ?>" rel="<?php the_ID(); ?>">
 		<?php echo wp_get_attachment_image( $image, 'featured-thumbnail-large' ); ?>
 	</a>
 	<?php endif; ?>

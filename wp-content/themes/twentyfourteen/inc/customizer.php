@@ -1,20 +1,25 @@
 <?php
 /**
- * Twenty Fourteen Theme Customizer
+ * Twenty Fourteen Theme Customizer support
  *
  * @package WordPress
  * @subpackage Twenty_Fourteen
+ * @since Twenty Fourteen 1.0
  */
 
 /**
- * Add postMessage support for site title and description for the Theme Customizer.
+ * Implement Theme Customizer additions and adjustments.
+ *
+ * @since Twenty Fourteen 1.0
  *
  * @param WP_Customize_Manager $wp_customize Theme Customizer object.
  */
 function twentyfourteen_customize_register( $wp_customize ) {
+	// Add postMessage support for site title and description.
 	$wp_customize->get_setting( 'blogname' )->transport        = 'postMessage';
 	$wp_customize->get_setting( 'blogdescription' )->transport = 'postMessage';
 
+	// Add the custom accent color setting and control.
 	$wp_customize->add_setting( 'accent_color', array(
 		'default'           => '#24890d',
 		'sanitize_callback' => 'twentyfourteen_generate_accent_colors',
@@ -29,7 +34,9 @@ function twentyfourteen_customize_register( $wp_customize ) {
 add_action( 'customize_register', 'twentyfourteen_customize_register' );
 
 /**
- * Binds JS handlers to make Theme Customizer preview reload changes asynchronously.
+ * Bind JS handlers to make Theme Customizer preview reload changes asynchronously.
+ *
+ * @since Twenty Fourteen 1.0
  */
 function twentyfourteen_customize_preview_js() {
 	wp_enqueue_script( 'twentyfourteen_customizer', get_template_directory_uri() . '/js/customizer.js', array( 'customize-preview' ), '20120827', true );
@@ -37,7 +44,10 @@ function twentyfourteen_customize_preview_js() {
 add_action( 'customize_preview_init', 'twentyfourteen_customize_preview_js' );
 
 /**
- * Generates two variants of the accent color, returns the original, and saves the others as theme mods.
+ * Generate two variants of the accent color, return the original, and
+ * save the others as theme mods.
+ *
+ * @since Twenty Fourteen 1.0
  *
  * @param string $color The original color.
  * @return string $color The original color, sanitized.
@@ -52,14 +62,16 @@ function twentyfourteen_generate_accent_colors( $color ) {
 }
 
 /**
- * Tweaks the brightness of a color by adjusting the RGB values by the given interval.
+ * Tweak the brightness of a color by adjusting the RGB values by the given interval.
  *
  * Use positive values of $steps to brighten the color and negative values to darken the color.
  * All three RGB values are modified by the specified steps, within the range of 0-255. The hue
  * is generally maintained unless the number of steps causes one value to be capped at 0 or 255.
  *
+ * @since Twenty Fourteen 1.0
+ *
  * @param string $color The original color, in 3- or 6-digit hexadecimal form.
- * @param int $steps The number of steps to adjust the color by, in rgb units.
+ * @param int $steps The number of steps to adjust the color by, in RGB units.
  * @return string $color The new color, in 6-digit hexadecimal form.
  */
 function twentyfourteen_adjust_color( $color, $steps ) {
@@ -86,7 +98,11 @@ function twentyfourteen_adjust_color( $color, $steps ) {
 }
 
 /**
- * Outputs the css for the Theme Customizer options.
+ * Output the CSS for the Theme Customizer options.
+ *
+ * @since Twenty Fourteen 1.0
+ *
+ * @return void
  */
 function twentyfourteen_customizer_styles() {
 	$accent_color = get_theme_mod( 'accent_color' );
@@ -98,8 +114,7 @@ function twentyfourteen_customizer_styles() {
 	$accent_lighter = get_theme_mod( 'accent_lighter' );
 	$accent_much_lighter = get_theme_mod( 'accent_much_lighter' );
 
-	$css = '<style type="text/css" id="twentyfourteen-accent-color">
-		/* Custom accent color. */
+	$css = '/* Custom accent color. */
 		h1 a:hover,
 		h2 a:hover,
 		h3 a:hover,
@@ -115,38 +130,23 @@ function twentyfourteen_customizer_styles() {
 		.comment-metadata a:hover,
 		.comment-list .trackback a:hover,
 		.comment-list .pingback a:hover,
-		.content-sidebar a:hover,
-		.paging-navigation .page-numbers.current {
+		.paging-navigation .page-numbers.current,
+		.content-sidebar.widget-area a:hover,
+		.content-sidebar .widget_twentyfourteen_ephemera .post-format-archive-link {
 			color: ' . $accent_color . ';
 		}
 
-		button:hover,
-		html input[type="button"]:hover,
-		input[type="reset"]:hover,
-		input[type="submit"]:hover,
-		button:focus,
-		html input[type="button"]:focus,
-		input[type="reset"]:focus,
-		input[type="submit"]:focus,
+		button,
+		html input[type="button"],
+		input[type="reset"],
+		input[type="submit"],
 		.hentry .mejs-controls .mejs-time-rail .mejs-time-current,
 		.header-extra,
 		.search-toggle,
 		.primary-navigation ul ul,
 		.primary-navigation li:hover > a,
-		.widget-area button,
-		.widget-area html input[type="button"],
-		.widget-area input[type="reset"],
-		.widget-area input[type="submit"],
-		.widget_calendar a,
-		.content-sidebar button:hover,
-		.content-sidebar html input[type="button"]:hover,
-		.content-sidebar input[type="reset"]:hover,
-		.content-sidebar input[type="submit"]:hover,
-		.content-sidebar button:focus,
-		.content-sidebar html input[type="button"]:focus,
-		.content-sidebar input[type="reset"]:focus,
-		.content-sidebar input[type="submit"]:focus,
-		.page-links a:hover {
+		.page-links a:hover,
+		.widget_calendar tbody a {
 			background-color: ' . $accent_color . ';
 		}
 
@@ -167,19 +167,15 @@ function twentyfourteen_customizer_styles() {
 		.search-toggle:hover,
 		.search-toggle.active,
 		.search-box,
-		.widget-area button:hover,
-		.widget-area html input[type="button"]:hover,
-		.widget-area input[type="reset"]:hover,
-		.widget-area input[type="submit"]:hover,
-		.widget-area button:focus,
-		.widget-area html input[type="button"]:focus,
-		.widget-area input[type="reset"]:focus,
-		.widget-area input[type="submit"]:focus,
-		.widget-area button:active,
-		.widget-area html input[type="button"]:active,
-		.widget-area input[type="reset"]:active,
-		.widget-area input[type="submit"]:active,
-		.widget_calendar a:hover {
+		button:hover,
+		html input[type="button"]:hover,
+		input[type="reset"]:hover,
+		input[type="submit"]:hover,
+		button:focus,
+		html input[type="button"]:focus,
+		input[type="reset"]:focus,
+		input[type="submit"]:focus,
+		.widget_calendar tbody a:hover {
 			background-color: ' . $accent_lighter . ';
 		}
 
@@ -187,11 +183,7 @@ function twentyfourteen_customizer_styles() {
 		button:active,
 		html input[type="button"]:active,
 		input[type="reset"]:active,
-		input[type="submit"]:active,
-		.content-sidebar button:active,
-		.content-sidebar html input[type="button"]:active,
-		.content-sidebar input[type="reset"]:active,
-		.content-sidebar input[type="submit"]:active {
+		input[type="submit"]:active {
 			background-color: ' . $accent_much_lighter . ';
 		}
 
@@ -207,8 +199,7 @@ function twentyfourteen_customizer_styles() {
 		.featured-content .more-link,
 		.widget-area a:hover {
 			color: ' . $accent_much_lighter . ';
-		}
-		</style>';
+		}';
 
 	wp_add_inline_style( 'twentyfourteen-style', $css );
 }

@@ -1,14 +1,17 @@
 <?php
 /**
- * Custom template tags for this theme.
+ * Custom template tags for Twenty Fourteen
  *
  * @package WordPress
  * @subpackage Twenty_Fourteen
+ * @since Twenty Fourteen 1.0
  */
 
 if ( ! function_exists( 'twentyfourteen_paging_nav' ) ) :
 /**
- * Displays navigation to next/previous set of posts when applicable.
+ * Display navigation to next/previous set of posts when applicable.
+ *
+ * @since Twenty Fourteen 1.0
  *
  * @return void
  */
@@ -58,10 +61,12 @@ endif;
 
 if ( ! function_exists( 'twentyfourteen_post_nav' ) ) :
 /**
- * Displays navigation to next/previous post when applicable.
-*
-* @return void
-*/
+ * Display navigation to next/previous post when applicable.
+ *
+ * @since Twenty Fourteen 1.0
+ *
+ * @return void
+ */
 function twentyfourteen_post_nav() {
 	// Don't print empty markup if there's nowhere to navigate.
 	$previous = ( is_attachment() ) ? get_post( get_post()->post_parent ) : get_adjacent_post( false, '', true );
@@ -86,7 +91,9 @@ endif;
 
 if ( ! function_exists( 'twentyfourteen_posted_on' ) ) :
 /**
- * Prints HTML with meta information for the current post-date/time and author.
+ * Print HTML with meta information for the current post-date/time and author.
+ *
+ * @since Twenty Fourteen 1.0
  *
  * @return void
  */
@@ -105,9 +112,11 @@ function twentyfourteen_posted_on() {
 endif;
 
 /**
- * Returns true if a blog has more than 1 category
+ * Find out if blog has more than one category.
  *
- * @return boolean
+ * @since Twenty Fourteen 1.0
+ *
+ * @return boolean true if blog has more than 1 category
  */
 function twentyfourteen_categorized_blog() {
 	if ( false === ( $all_the_cool_cats = get_transient( 'all_the_cool_cats' ) ) ) {
@@ -134,6 +143,9 @@ function twentyfourteen_categorized_blog() {
 /**
  * Flush out the transients used in twentyfourteen_categorized_blog
  *
+ * @since Twenty Fourteen 1.0
+ *
+ * @return void
  */
 function twentyfourteen_category_transient_flusher() {
 	// Like, beat it. Dig?
@@ -143,24 +155,31 @@ add_action( 'edit_category', 'twentyfourteen_category_transient_flusher' );
 add_action( 'save_post',     'twentyfourteen_category_transient_flusher' );
 
 /**
- * Displays featured image with appropriate html tag.
+ * Displays an optional featured image, with an anchor element
+ * when on index views, and a div element when on a single view.
  *
  * @return void
- */
-function twentyfourteen_featured_thumbnail() {
-	if ( ! post_password_required() ) :
-		if ( has_post_thumbnail() && is_singular() ) :
-		?>
-			<div class="attachment-featured-thumbnail">
-				<?php the_post_thumbnail( 'featured-thumbnail-large' ); ?>
-			</div>
-		<?php
-		else :
-		?>
-			<a href="<?php the_permalink(); ?>" rel="<?php the_ID(); ?>" class="attachment-featured-thumbnail">
-				<?php the_post_thumbnail( 'featured-thumbnail-large' ); ?>
-			</a>
-		<?php
-		endif;
-	endif;
+*/
+function twentyfourteen_post_thumbnail() {
+	if ( post_password_required() )
+		return;
+
+	if ( is_singular() ) :
+	?>
+
+	<div class="featured-thumbnail">
+		<?php the_post_thumbnail( 'featured-thumbnail-large' ); ?>
+	</div>
+
+	<?php else : ?>
+
+	<a class="featured-thumbnail" href="<?php the_permalink(); ?>" rel="<?php the_ID(); ?>">
+	<?php if ( has_post_thumbnail() ) :
+		the_post_thumbnail( 'featured-thumbnail-large' );
+	else : ?>
+		<p class="screen-reader-text"><?php _e( 'No featured image.', 'twentyfourteen' ); ?></p>
+	<?php endif; ?>
+	</a>
+
+	<?php endif; // End is_singular()
 }
