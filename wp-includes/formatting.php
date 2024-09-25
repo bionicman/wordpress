@@ -4868,6 +4868,9 @@ function wp_pre_kses_less_than_callback( $matches ) {
  * WordPress implementation of PHP sprintf() with filters.
  *
  * @since 2.5.0
+ * @since 5.3.0 Formalized the existing and already documented `...$args` parameter
+ *              by adding it to the function signature.
+ *
  * @link https://secure.php.net/sprintf
  *
  * @param string $pattern The string which formatted args are inserted.
@@ -5404,6 +5407,33 @@ function wp_unslash( $value ) {
 }
 
 /**
+ * Adds slashes to only string values in an array of values.
+ *
+ * This should be used when preparing data for core APIs that expect slashed data.
+ * This should not be used to escape data going directly into an SQL query.
+ *
+ * @since 5.3.0
+ *
+ * @param mixed $value Scalar or array of scalars.
+ * @return mixed Slashes $value
+ */
+function wp_slash_strings_only( $value ) {
+	return map_deep( $value, 'addslashes_strings_only' );
+}
+
+/**
+ * Adds slashes only if the provided value is a string.
+ *
+ * @since 5.3.0
+ *
+ * @param mixed $value
+ * @return mixed
+ */
+function addslashes_strings_only( $value ) {
+	return is_string( $value ) ? addslashes( $value ) : $value;
+}
+
+/**
  * Extract and return the first URL from passed content.
  *
  * @since 3.6.0
@@ -5512,7 +5542,7 @@ function print_emoji_detection_script() {
 }
 
 /**
- * Prints inline Emoji dection script
+ * Prints inline Emoji detection script.
  *
  * @ignore
  * @since 4.6.0
