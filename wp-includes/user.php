@@ -1331,7 +1331,7 @@ function wp_insert_user( $userdata ) {
 	$illegal_logins = (array) apply_filters( 'illegal_user_logins', array() );
 
 	if ( in_array( strtolower( $user_login ), array_map( 'strtolower', $illegal_logins ) ) ) {
-		return new WP_Error( 'illegal_user_login', __( 'Sorry, that username is not allowed.' ) );
+		return new WP_Error( 'invalid_username', __( 'Sorry, that username is not allowed.' ) );
 	}
 
 	/*
@@ -1971,7 +1971,7 @@ function get_password_reset_key( $user ) {
 	$hashed = time() . ':' . $wp_hasher->HashPassword( $key );
 	$key_saved = $wpdb->update( $wpdb->users, array( 'user_activation_key' => $hashed ), array( 'user_login' => $user->user_login ) );
 	if ( false === $key_saved ) {
-		return WP_Error( 'no_password_key_update', __( 'Could not save password reset key to database.' ) );
+		return new WP_Error( 'no_password_key_update', __( 'Could not save password reset key to database.' ) );
 	}
 
 	return $key;
@@ -2124,6 +2124,13 @@ function register_new_user( $user_login, $user_email ) {
 		$sanitized_user_login = '';
 	} elseif ( username_exists( $sanitized_user_login ) ) {
 		$errors->add( 'username_exists', __( '<strong>ERROR</strong>: This username is already registered. Please choose another one.' ) );
+
+	} else {
+		/** This filter is documented in wp-includes/user.php */
+		$illegal_user_logins = array_map( 'strtolower', (array) apply_filters( 'illegal_user_logins', array() ) );
+		if ( in_array( strtolower( $sanitized_user_login ), $illegal_user_logins ) ) {
+			$errors->add( 'invalid_username', __( '<strong>ERROR</strong>: Sorry, that username is not allowed.' ) );
+		}
 	}
 
 	// Check the email address
