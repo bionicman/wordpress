@@ -323,7 +323,7 @@ function wp_default_scripts( &$scripts ) {
 	did_action( 'init' ) && $scripts->localize( 'media-models', '_wpMediaModelsL10n', array(
 		'settings' => array(
 			'ajaxurl' => admin_url( 'admin-ajax.php', 'relative' ),
-			'postId'  => 0,
+			'post' => array( 'id' => 0 ),
 		),
 	) );
 
@@ -494,7 +494,7 @@ function wp_default_styles( &$styles ) {
 
 	$suffix = defined('SCRIPT_DEBUG') && SCRIPT_DEBUG ? '' : '.min';
 
-	$rtl_styles = array( 'wp-admin', 'ie', 'media', 'admin-bar', 'customize-controls', 'media-views' );
+	$rtl_styles = array( 'wp-admin', 'ie', 'media', 'admin-bar', 'customize-controls', 'media-views', 'wp-color-picker' );
 	// Any rtl stylesheets that don't have a .min version
 	$no_suffix = array( 'farbtastic' );
 

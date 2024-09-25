@@ -1602,9 +1602,11 @@ function wp_ajax_upload_attachment() {
 		$wp_filetype = wp_check_filetype_and_ext( $_FILES['async-upload']['tmp_name'], $_FILES['async-upload']['name'], false );
 		if ( ! wp_match_mime_types( 'image', $wp_filetype['type'] ) ) {
 			echo json_encode( array(
-				'success'  => false,
-				'message' => __( 'The uploaded file is not a valid image. Please try again.' ),
-				'filename' => $_FILES['async-upload']['name'],
+				'success' => false,
+				'data'    => array(
+					'message'  => __( 'The uploaded file is not a valid image. Please try again.' ),
+					'filename' => $_FILES['async-upload']['name'],
+				)
 			) );
 
 			wp_die();
@@ -1615,9 +1617,11 @@ function wp_ajax_upload_attachment() {
 
 	if ( is_wp_error( $attachment_id ) ) {
 		echo json_encode( array(
-			'success'  => false,
-			'message'  => $attachment_id->get_error_message(),
-			'filename' => $_FILES['async-upload']['name'],
+			'success' => false,
+			'data'    => array(
+				'message'  => $attachment_id->get_error_message(),
+				'filename' => $_FILES['async-upload']['name'],
+			)
 		) );
 
 		wp_die();
@@ -1670,23 +1674,34 @@ function wp_ajax_image_editor() {
 }
 
 function wp_ajax_set_post_thumbnail() {
+	$json = ! empty( $_REQUEST['json'] ); // New-style request
+
 	$post_ID = intval( $_POST['post_id'] );
-	if ( !current_user_can( 'edit_post', $post_ID ) )
-		wp_die( -1 );
+	if ( !current_user_can( 'edit_post', $post_ID ) ) {
+		$json ? wp_send_json_error() : wp_die( -1 );
+	}
 	$thumbnail_id = intval( $_POST['thumbnail_id'] );
 
-	check_ajax_referer( "set_post_thumbnail-$post_ID" );
+	if ( $json )
+		check_ajax_referer( "update-post_$post_ID" );
+	else
+		check_ajax_referer( "set_post_thumbnail-$post_ID" );
 
 	if ( $thumbnail_id == '-1' ) {
-		if ( delete_post_thumbnail( $post_ID ) )
-			wp_die( _wp_post_thumbnail_html( null, $post_ID ) );
-		else
-			wp_die( 0 );
+		if ( delete_post_thumbnail( $post_ID ) ) {
+			$return = _wp_post_thumbnail_html( null, $post_ID );
+			$json ? wp_send_json_success( $return ) : wp_die( $return );
+		} else {
+			$json ? wp_send_json_error() : wp_die( 0 );
+		}
 	}
 
-	if ( set_post_thumbnail( $post_ID, $thumbnail_id ) )
-		wp_die( _wp_post_thumbnail_html( $thumbnail_id, $post_ID ) );
-	wp_die( 0 );
+	if ( set_post_thumbnail( $post_ID, $thumbnail_id ) ) {
+		$return = _wp_post_thumbnail_html( $thumbnail_id, $post_ID );
+		$json ? wp_send_json_success( $return ) : wp_die( $return );
+	}
+
+	$json ? wp_send_json_error() : wp_die( 0 );
 }
 
 function wp_ajax_date_format() {
@@ -1899,6 +1914,10 @@ function wp_ajax_save_attachment_compat() {
 	if ( 'attachment' != $post['post_type'] )
 		wp_send_json_error();
 
+	// Handle the description field automatically, if a plugin adds it back.
+	if ( isset( $attachment_data['post_content'] ) )
+		$post['post_content'] = $attachment_data['post_content'];
+
 	$post = apply_filters( 'attachment_fields_to_save', $post, $attachment_data );
 
 	if ( isset( $post['errors'] ) ) {
@@ -1917,6 +1936,39 @@ function wp_ajax_save_attachment_compat() {
 		wp_send_json_error();
 
 	wp_send_json_success( $attachment );
+}
+
+function wp_ajax_save_attachment_order() {
+	if ( ! isset( $_REQUEST['post_id'] ) )
+		wp_send_json_error();
+
+	if ( ! $post_id = absint( $_REQUEST['post_id'] ) )
+		wp_send_json_error();
+
+	if ( empty( $_REQUEST['attachments'] ) )
+		wp_send_json_error();
+
+	check_ajax_referer( 'update-post_' . $post_id, 'nonce' );
+
+	$attachments = $_REQUEST['attachments'];
+
+	if ( ! current_user_can( 'edit_post', $post_id ) )
+		wp_send_json_error();
+
+	$post = get_post( $post_id, ARRAY_A );
+
+	foreach ( $attachments as $attachment_id => $menu_order ) {
+		if ( ! current_user_can( 'edit_post', $attachment_id ) )
+			continue;
+		if ( ! $attachment = get_post( $attachment_id ) )
+			continue;
+		if ( 'attachment' != $attachment->post_type )
+			continue;
+
+		wp_update_post( array( 'ID' => $attachment_id, 'menu_order' => $menu_order ) );
+	}
+
+	wp_send_json_success();
 }
 
 /**
