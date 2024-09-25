@@ -487,13 +487,6 @@ class WP_Query {
 	private $compat_methods = array( 'init_query_flags', 'parse_tax_query' );
 
 	/**
-	 * Controls whether an attachment query should include filenames or not.
-	 *
-	 * @since 6.0.3
-	 * @var bool
-	 */
-	protected $allow_query_attachment_by_filename = false;
-	/**
 	 * Resets query flags to false.
 	 *
 	 * The query flags are what page info WordPress was able to figure out.
@@ -589,6 +582,7 @@ class WP_Query {
 			, 'attachment'
 			, 'attachment_id'
 			, 'name'
+			, 'static'
 			, 'pagename'
 			, 'page_id'
 			, 'second'
@@ -696,12 +690,14 @@ class WP_Query {
 	 *                                                 passed. To use 'meta_value', or 'meta_value_num',
 	 *                                                 'meta_key=keyname' must be also be defined. To sort by a
 	 *                                                 specific `$meta_query` clause, use that clause's array key.
-	 *                                                 Default 'date'. Accepts 'none', 'name', 'author', 'date',
-	 *                                                 'title', 'modified', 'menu_order', 'parent', 'ID', 'rand',
-	 *                                                 'RAND(x)' (where 'x' is an integer seed value),
+	 *                                                 Accepts 'none', 'name', 'author', 'date', 'title',
+	 *                                                 'modified', 'menu_order', 'parent', 'ID', 'rand',
+	 *                                                 'relevance', 'RAND(x)' (where 'x' is an integer seed value),
 	 *                                                 'comment_count', 'meta_value', 'meta_value_num', 'post__in',
 	 *                                                 'post_name__in', 'post_parent__in', and the array keys
-	 *                                                 of `$meta_query`.
+	 *                                                 of `$meta_query`. Default is 'date', except when a search
+	 *                                                 is being performed, when the default is 'relevance'.
+	 *
 	 *     @type int          $p                       Post ID.
 	 *     @type int          $page                    Show the number of posts that would show up on page X of a
 	 *                                                 static front page.
@@ -813,7 +809,11 @@ class WP_Query {
 			$this->is_single = true;
 		} elseif ( $qv['p'] ) {
 			$this->is_single = true;
-		} elseif ( '' != $qv['pagename'] || !empty($qv['page_id']) ) {
+		} elseif ( ('' !== $qv['hour']) && ('' !== $qv['minute']) &&('' !== $qv['second']) && ('' != $qv['year']) && ('' != $qv['monthnum']) && ('' != $qv['day']) ) {
+			// If year, month, day, hour, minute, and second are set, a single
+			// post is being queried.
+			$this->is_single = true;
+		} elseif ( '' != $qv['static'] || '' != $qv['pagename'] || !empty($qv['page_id']) ) {
 			$this->is_page = true;
 			$this->is_single = false;
 		} else {
@@ -1351,12 +1351,7 @@ class WP_Query {
 			}
 
 			$like = $n . $wpdb->esc_like( $term ) . $n;
-
-			if ( ! empty( $this->allow_query_attachment_by_filename ) ) {
-				$search .= $wpdb->prepare( "{$searchand}(({$wpdb->posts}.post_title $like_op %s) $andor_op ({$wpdb->posts}.post_excerpt $like_op %s) $andor_op ({$wpdb->posts}.post_content $like_op %s) $andor_op (sq1.meta_value $like_op %s))", $like, $like, $like, $like );
-			} else {
-				$search .= $wpdb->prepare( "{$searchand}(({$wpdb->posts}.post_title $like_op %s) $andor_op ({$wpdb->posts}.post_excerpt $like_op %s) $andor_op ({$wpdb->posts}.post_content $like_op %s))", $like, $like, $like );
-			}
+			$search .= $wpdb->prepare( "{$searchand}(({$wpdb->posts}.post_title $like_op %s) $andor_op ({$wpdb->posts}.post_excerpt $like_op %s) $andor_op ({$wpdb->posts}.post_content $like_op %s))", $like, $like, $like );
 			$searchand = ' AND ';
 		}
 
@@ -1693,16 +1688,6 @@ class WP_Query {
 		// Fill again in case pre_get_posts unset some vars.
 		$q = $this->fill_query_vars($q);
 
-		/**
-		 * Filters whether an attachment query should include filenames or not.
-		 *
-		 * @since 6.0.3
-		 *
-		 * @param bool $allow_query_attachment_by_filename Whether or not to include filenames.
-		 */
-		$this->allow_query_attachment_by_filename = apply_filters( 'wp_allow_query_attachment_by_filename', false );
-		remove_all_filters( 'wp_allow_query_attachment_by_filename' );
-
 		// Parse meta query
 		$this->meta_query = new WP_Meta_Query();
 		$this->meta_query->parse_query_vars( $q );
@@ -1728,9 +1713,17 @@ class WP_Query {
 		$page = 1;
 
 		if ( isset( $q['caller_get_posts'] ) ) {
-			_deprecated_argument( 'WP_Query', '3.1.0', __( '"caller_get_posts" is deprecated. Use "ignore_sticky_posts" instead.' ) );
-			if ( !isset( $q['ignore_sticky_posts'] ) )
+			_deprecated_argument( 'WP_Query', '3.1.0',
+				/* translators: 1: caller_get_posts, 2: ignore_sticky_posts */
+				sprintf( __( '%1$s is deprecated. Use %2$s instead.' ),
+					'<code>caller_get_posts</code>',
+					'<code>ignore_sticky_posts</code>'
+				)
+			);
+
+			if ( ! isset( $q['ignore_sticky_posts'] ) ) {
 				$q['ignore_sticky_posts'] = $q['caller_get_posts'];
+			}
 		}
 
 		if ( !isset( $q['ignore_sticky_posts'] ) )
@@ -2099,7 +2092,7 @@ class WP_Query {
 			}
 		}
 
-		if ( ! empty( $this->tax_query->queries ) || ! empty( $this->meta_query->queries ) || ! empty( $this->allow_query_attachment_by_filename ) ) {
+		if ( !empty( $this->tax_query->queries ) || !empty( $this->meta_query->queries ) ) {
 			$groupby = "{$wpdb->posts}.ID";
 		}
 
@@ -2147,10 +2140,6 @@ class WP_Query {
 			$whichmimetype = wp_post_mime_type_where( $q['post_mime_type'], $wpdb->posts );
 		}
 		$where .= $search . $whichauthor . $whichmimetype;
-
-		if ( ! empty( $this->allow_query_attachment_by_filename ) ) {
-			$join .= " LEFT JOIN {$wpdb->postmeta} AS sq1 ON ( {$wpdb->posts}.ID = sq1.post_id AND sq1.meta_key = '_wp_attached_file' )";
-		}
 
 		if ( ! empty( $this->meta_query->queries ) ) {
 			$clauses = $this->meta_query->get_sql( 'post', $wpdb->posts, 'ID', $this );
@@ -3069,15 +3058,7 @@ class WP_Query {
 			 */
 			$this->found_posts = $wpdb->get_var( apply_filters_ref_array( 'found_posts_query', array( 'SELECT FOUND_ROWS()', &$this ) ) );
 		} else {
-			if ( is_array( $this->posts ) ) {
-				$this->found_posts = count( $this->posts );
-			} else {
-				if ( null === $this->posts ) {
-					$this->found_posts = 0;
-				} else {
-					$this->found_posts = 1;
-				}
-			}
+			$this->found_posts = count( $this->posts );
 		}
 
 		/**
@@ -3258,7 +3239,7 @@ class WP_Query {
 	 * @since 1.5.0
 	 * @access public
 	 *
-	 * @param string $query URL query string.
+	 * @param string|array $query URL query string or array of query arguments.
 	 * @return array List of posts.
 	 */
 	public function query( $query ) {
@@ -3891,7 +3872,8 @@ class WP_Query {
 	}
 
 	/**
-	 * Is the query for an existing single post of any post type (post, attachment, page, ... )?
+	 * Is the query for an existing single post of any post type (post, attachment, page,
+	 * custom post types)?
 	 *
 	 * If the $post_types parameter is specified, this function will additionally
 	 * check if the query is for one of the Posts Types specified.

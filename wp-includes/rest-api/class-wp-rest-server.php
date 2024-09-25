@@ -243,6 +243,20 @@ class WP_REST_Server {
 		$this->send_header( 'Access-Control-Allow-Headers', 'Authorization, Content-Type' );
 
 		/**
+		 * Send nocache headers on authenticated requests.
+		 *
+		 * @since 4.4.0
+		 *
+		 * @param bool $rest_send_nocache_headers Whether to send no-cache headers.
+		 */
+		$send_no_cache_headers = apply_filters( 'rest_send_nocache_headers', is_user_logged_in() );
+		if ( $send_no_cache_headers ) {
+			foreach ( wp_get_nocache_headers() as $header => $header_value ) {
+				$this->send_header( $header, $header_value );
+			}
+		}
+
+		/**
 		 * Filters whether the REST API is enabled.
 		 *
 		 * @since 4.4.0
@@ -250,7 +264,9 @@ class WP_REST_Server {
 		 *
 		 * @param bool $rest_enabled Whether the REST API is enabled. Default true.
 		 */
-		apply_filters_deprecated( 'rest_enabled', array( true ), '4.7.0', 'rest_authentication_errors', __( 'The REST API can no longer be completely disabled, the rest_authentication_errors can be used to restrict access to the API, instead.' ) );
+		apply_filters_deprecated( 'rest_enabled', array( true ), '4.7.0', 'rest_authentication_errors',
+			__( 'The REST API can no longer be completely disabled, the rest_authentication_errors filter can be used to restrict access to the API, instead.' )
+		);
 
 		/**
 		 * Filters whether jsonp is enabled.
@@ -297,12 +313,10 @@ class WP_REST_Server {
 		 * $_GET['_method']. If that is not set, we check for the HTTP_X_HTTP_METHOD_OVERRIDE
 		 * header.
 		 */
-		$method_overridden = false;
 		if ( isset( $_GET['_method'] ) ) {
 			$request->set_method( $_GET['_method'] );
 		} elseif ( isset( $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'] ) ) {
 			$request->set_method( $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'] );
-			$method_overridden = true;
 		}
 
 		$result = $this->check_authentication();
@@ -360,24 +374,6 @@ class WP_REST_Server {
 		 * @param WP_REST_Server   $this    Server instance.
 		 */
 		$served = apply_filters( 'rest_pre_serve_request', false, $result, $request, $this );
-
-		/**
-		 * Filters whether to send nocache headers on a REST API request.
-		 *
-		 * @since 4.4.0
-		 * @since 6.x.x Moved the block to catch the filter added on rest_cookie_check_errors() from rest-api.php
-		 *
-		 * @param bool $rest_send_nocache_headers Whether to send no-cache headers.
-		 */
-		$send_no_cache_headers = apply_filters( 'rest_send_nocache_headers', is_user_logged_in() );
-
-		// send no cache headers if the $send_no_cache_headers is true
-		// OR if the HTTP_X_HTTP_METHOD_OVERRIDE is used but resulted a 4xx response code.
-		if ( $send_no_cache_headers || ( true === $method_overridden && strpos( $code, '4' ) === 0 ) ) {
-			foreach ( wp_get_nocache_headers() as $header => $header_value ) {
-				$this->send_header( $header, $header_value );
-			}
-		}
 
 		if ( ! $served ) {
 			if ( 'HEAD' === $request->get_method() ) {

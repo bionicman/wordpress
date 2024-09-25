@@ -543,7 +543,7 @@ class WP_Tax_Query {
 
 			// The sibling must both have compatible operator to share its alias.
 			if ( in_array( strtoupper( $sibling['operator'] ), $compatible_operators ) ) {
-				$alias = preg_replace( '/\W/', '_', $sibling['alias'] );
+				$alias = $sibling['alias'];
 				break;
 			}
 		}
@@ -573,11 +573,7 @@ class WP_Tax_Query {
 			return;
 		}
 
-		if ( 'slug' === $query['field'] || 'name' === $query['field'] ) {
-			$query['terms'] = array_unique( (array) $query['terms'] );
-		} else {
-			$query['terms'] = wp_parse_id_list( $query['terms'] );
-		}
+		$query['terms'] = array_unique( (array) $query['terms'] );
 
 		if ( is_taxonomy_hierarchical( $query['taxonomy'] ) && $query['include_children'] ) {
 			$this->transform_query( $query, 'term_id' );
@@ -627,7 +623,12 @@ class WP_Tax_Query {
 					 * matter because `sanitize_term_field()` ignores the $term_id param when the
 					 * context is 'db'.
 					 */
-					$term = "'" . esc_sql( sanitize_term_field( $query['field'], $term, 0, $query['taxonomy'], 'db' ) ) . "'";
+					$clean_term = sanitize_term_field( $query['field'], $term, 0, $query['taxonomy'], 'db' );
+
+					// Match sanitization in wp_insert_term().
+					$clean_term = wp_unslash( $clean_term );
+
+					$term = "'" . esc_sql( $clean_term ) . "'";
 				}
 
 				$terms = implode( ",", $query['terms'] );

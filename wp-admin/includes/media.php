@@ -472,7 +472,7 @@ wp_enqueue_style( 'ie' );
 ?>
 <script type="text/javascript">
 addLoadEvent = function(func){if(typeof jQuery!="undefined")jQuery(document).ready(func);else if(typeof wpOnload!='function'){wpOnload=func;}else{var oldonload=wpOnload;wpOnload=function(){oldonload();func();}}};
-var ajaxurl = '<?php echo esc_js( admin_url( 'admin-ajax.php', 'relative' ) ); ?>', pagenow = 'media-upload-popup', adminpage = 'media-upload-popup',
+var ajaxurl = '<?php echo admin_url( 'admin-ajax.php', 'relative' ); ?>', pagenow = 'media-upload-popup', adminpage = 'media-upload-popup',
 isRtl = <?php echo (int) is_rtl(); ?>;
 </script>
 <?php
@@ -852,11 +852,12 @@ function wp_media_upload_handler() {
  *
  * @since 2.6.0
  * @since 4.2.0 Introduced the `$return` parameter.
+ * @since 4.8.0 Introduced the 'id' option within the `$return` parameter.
  *
  * @param string $file    The URL of the image to download.
  * @param int    $post_id The post ID the media is to be associated with.
  * @param string $desc    Optional. Description of the image.
- * @param string $return  Optional. Accepts 'html' (image tag html) or 'src' (URL). Default 'html'.
+ * @param string $return  Optional. Accepts 'html' (image tag html) or 'src' (URL), or 'id' (attachment ID). Default 'html'.
  * @return string|WP_Error Populated HTML img tag on success, WP_Error object otherwise.
  */
 function media_sideload_image( $file, $post_id, $desc = null, $return = 'html' ) {
@@ -885,6 +886,9 @@ function media_sideload_image( $file, $post_id, $desc = null, $return = 'html' )
 		// If error storing permanently, unlink.
 		if ( is_wp_error( $id ) ) {
 			@unlink( $file_array['tmp_name'] );
+			return $id;
+		// If attachment id was requested, return it early.
+		} elseif ( $return === 'id' ) {
 			return $id;
 		}
 
@@ -2825,11 +2829,8 @@ function edit_form_image_editor( $post ) {
 	<label for="attachment_content"><strong><?php _e( 'Description' ); ?></strong><?php
 	if ( preg_match( '#^(audio|video)/#', $post->post_mime_type ) ) {
 		echo ': ' . __( 'Displayed on attachment pages.' );
-	}
-
-	?>
-	</label>
-	<?php wp_editor( format_to_edit( $post->post_content ), 'attachment_content', $editor_args ); ?>
+	} ?></label>
+	<?php wp_editor( $post->post_content, 'attachment_content', $editor_args ); ?>
 
 	</div>
 	<?php

@@ -265,7 +265,7 @@ final class WP_Customize_Manager {
 		}
 
 		$this->original_stylesheet = get_stylesheet();
-		$this->theme = wp_get_theme( 0 === validate_file( $args['theme'] ) ? $args['theme'] : null );
+		$this->theme = wp_get_theme( $args['theme'] );
 		$this->messenger_channel = $args['messenger_channel'];
 		$this->_changeset_uuid = $args['changeset_uuid'];
 
@@ -462,6 +462,8 @@ final class WP_Customize_Manager {
 	 * Check if customize query variable exist. Init filters to filter the current theme.
 	 *
 	 * @since 3.4.0
+	 *
+	 * @global string $pagenow
 	 */
 	public function setup_theme() {
 		global $pagenow;
@@ -482,24 +484,6 @@ final class WP_Customize_Manager {
 
 		if ( ! preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $this->_changeset_uuid ) ) {
 			$this->wp_die( -1, __( 'Invalid changeset UUID' ) );
-		}
-
-		/*
-		 * Clear incoming post data if the user lacks a CSRF token (nonce). Note that the customizer
-		 * application will inject the customize_preview_nonce query parameter into all Ajax requests.
-		 * For similar behavior elsewhere in WordPress, see rest_cookie_check_errors() which logs out
-		 * a user when a valid nonce isn't present.
-		 */
-		$has_post_data_nonce = (
-			check_ajax_referer( 'preview-customize_' . $this->get_stylesheet(), 'nonce', false )
-			||
-			check_ajax_referer( 'save-customize_' . $this->get_stylesheet(), 'nonce', false )
-			||
-			check_ajax_referer( 'preview-customize_' . $this->get_stylesheet(), 'customize_preview_nonce', false )
-		);
-		if ( ! current_user_can( 'customize' ) || ! $has_post_data_nonce ) {
-			unset( $_POST['customized'] );
-			unset( $_REQUEST['customized'] );
 		}
 
 		/*
@@ -2525,12 +2509,13 @@ final class WP_Customize_Manager {
 		$this->store_changeset_revision = $allow_revision;
 		add_filter( 'wp_save_post_revision_post_has_changed', array( $this, '_filter_revision_post_has_changed' ), 5, 3 );
 
-		/*
-		 * Update the changeset post. The publish_customize_changeset action will cause the settings in the
-		 * changeset to be saved via WP_Customize_Setting::save(). Updating a post with publish status will
-		 * trigger WP_Customize_Manager::publish_changeset_values().
-		 */
-		add_filter( 'wp_insert_post_data', array( $this, 'preserve_insert_changeset_post_content' ), 5, 3 );
+		// Update the changeset post. The publish_customize_changeset action will cause the settings in the changeset to be saved via WP_Customize_Setting::save().
+		$has_kses = ( false !== has_filter( 'content_save_pre', 'wp_filter_post_kses' ) );
+		if ( $has_kses ) {
+			kses_remove_filters(); // Prevent KSES from corrupting JSON in post_content.
+		}
+
+		// Note that updating a post with publish status will trigger WP_Customize_Manager::publish_changeset_values().
 		if ( $changeset_post_id ) {
 			$post_array['edit_date'] = true; // Prevent date clearing.
 			$r = wp_update_post( wp_slash( $post_array ), true );
@@ -2540,9 +2525,9 @@ final class WP_Customize_Manager {
 				$this->_changeset_post_id = $r; // Update cached post ID for the loaded changeset.
 			}
 		}
-
-		remove_filter( 'wp_insert_post_data', array( $this, 'preserve_insert_changeset_post_content' ), 5 );
-
+		if ( $has_kses ) {
+			kses_init_filters();
+		}
 		$this->_changeset_data = null; // Reset so WP_Customize_Manager::changeset_data() will re-populate with updated contents.
 
 		remove_filter( 'wp_save_post_revision_post_has_changed', array( $this, '_filter_revision_post_has_changed' ) );
@@ -2557,51 +2542,6 @@ final class WP_Customize_Manager {
 		}
 
 		return $response;
-	}
-
-	/**
-	 * Preserve the initial JSON post_content passed to save into the post.
-	 *
-	 * This is needed to prevent KSES and other {@see 'content_save_pre'} filters
-	 * from corrupting JSON data.
-	 *
-	 * Note that WP_Customize_Manager::validate_setting_values() have already
-	 * run on the setting values being serialized as JSON into the post content
-	 * so it is pre-sanitized.
-	 *
-	 * Also, the sanitization logic is re-run through the respective
-	 * WP_Customize_Setting::sanitize() method when being read out of the
-	 * changeset, via WP_Customize_Manager::post_value(), and this sanitized
-	 * value will also be sent into WP_Customize_Setting::update() for
-	 * persisting to the DB.
-	 *
-	 * Multiple users can collaborate on a single changeset, where one user may
-	 * have the unfiltered_html capability but another may not. A user with
-	 * unfiltered_html may add a script tag to some field which needs to be kept
-	 * intact even when another user updates the changeset to modify another field
-	 * when they do not have unfiltered_html.
-	 *
-	 * @since 5.4.1
-	 *
-	 * @param array $data                An array of slashed and processed post data.
-	 * @param array $postarr             An array of sanitized (and slashed) but otherwise unmodified post data.
-	 * @param array $unsanitized_postarr An array of slashed yet *unsanitized* and unprocessed post data as originally passed to wp_insert_post().
-	 * @return array Filtered post data.
-	 */
-	public function preserve_insert_changeset_post_content( $data, $postarr, $unsanitized_postarr ) {
-		if (
-			isset( $data['post_type'] ) &&
-			isset( $unsanitized_postarr['post_content'] ) &&
-			'customize_changeset' === $data['post_type'] ||
-			(
-				'revision' === $data['post_type'] &&
-				! empty( $data['post_parent'] ) &&
-				'customize_changeset' === get_post_type( $data['post_parent'] )
-			)
-		) {
-			$data['post_content'] = $unsanitized_postarr['post_content'];
-		}
-		return $data;
 	}
 
 	/**
@@ -4204,7 +4144,8 @@ final class WP_Customize_Manager {
 				__( 'CSS allows you to customize the appearance and layout of your site with code. Separate CSS is saved for each of your themes. In the editing area the Tab key enters a tab character. To move below this area by pressing Tab, press the Esc key followed by the Tab key.' ),
 				esc_url( __( 'https://codex.wordpress.org/CSS' ) ),
 				__( 'Learn more about CSS' ),
-				__( '(link opens in a new window)' )
+				/* translators: accessibility text */
+				__( '(opens in a new window)' )
 			),
 		) );
 

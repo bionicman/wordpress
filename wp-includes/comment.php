@@ -2146,15 +2146,6 @@ function wp_update_comment($commentarr) {
 		return 0;
 	}
 
-	$filter_comment = false;
-	if ( ! has_filter( 'pre_comment_content', 'wp_filter_kses' ) ) {
-		$filter_comment = ! user_can( isset( $comment['user_id'] ) ? $comment['user_id'] : 0, 'unfiltered_html' );
-	}
-
-	if ( $filter_comment ) {
-		add_filter( 'pre_comment_content', 'wp_filter_kses' );
-	}
-
 	// Escape data pulled from DB.
 	$comment = wp_slash($comment);
 
@@ -2164,10 +2155,6 @@ function wp_update_comment($commentarr) {
 	$commentarr = array_merge($comment, $commentarr);
 
 	$commentarr = wp_filter_comment( $commentarr );
-
-	if ( $filter_comment ) {
-		remove_filter( 'pre_comment_content', 'wp_filter_kses' );
-	}
 
 	// Now extract the merged array.
 	$data = wp_unslash( $commentarr );
@@ -3018,8 +3005,12 @@ function wp_handle_comment_submission( $comment_data ) {
 		 * @param int $comment_post_ID Post ID.
 		 */
 		do_action( 'comment_on_draft', $comment_post_ID );
-
-		return new WP_Error( 'comment_on_draft' );
+		
+		if ( current_user_can( 'read_post', $comment_post_ID ) ) {
+			return new WP_Error( 'comment_on_draft', __( 'Sorry, comments are not allowed for this item.' ), 403 );
+		} else {
+			return new WP_Error( 'comment_on_draft' );
+		}
 
 	} elseif ( post_password_required( $comment_post_ID ) ) {
 
@@ -3063,8 +3054,6 @@ function wp_handle_comment_submission( $comment_data ) {
 			) {
 				kses_remove_filters(); // start with a clean slate
 				kses_init_filters(); // set up the filters
-				remove_filter( 'pre_comment_content', 'wp_filter_post_kses' );
-				add_filter( 'pre_comment_content', 'wp_filter_kses' );
 			}
 		}
 	} else {

@@ -148,7 +148,7 @@ final class WP_Theme implements ArrayAccess {
 	 * URL to the theme root, usually an absolute URL to wp-content/themes
 	 *
 	 * @access private
-	 * var string
+	 * @var string
 	 */
 	private $theme_root_uri;
 
@@ -192,6 +192,8 @@ final class WP_Theme implements ArrayAccess {
 
 	/**
 	 * Constructor for WP_Theme.
+	 *
+	 * @since  3.4.0
 	 *
 	 * @global array $wp_theme_directories
 	 *
@@ -333,6 +335,8 @@ final class WP_Theme implements ArrayAccess {
 	/**
 	 * When converting the object to a string, the theme name is returned.
 	 *
+	 * @since  3.4.0
+	 *
 	 * @return string Theme name, ready for display (translated)
 	 */
 	public function __toString() {
@@ -343,6 +347,8 @@ final class WP_Theme implements ArrayAccess {
 	 * __isset() magic method for properties formerly returned by current_theme_info()
 	 *
 	 * @staticvar array $properties
+	 *
+	 * @since  3.4.0
 	 *
 	 * @param string $offset Property to check if set.
 	 * @return bool Whether the given property is set.
@@ -358,6 +364,8 @@ final class WP_Theme implements ArrayAccess {
 
 	/**
 	 * __get() magic method for properties formerly returned by current_theme_info()
+	 *
+	 * @since  3.4.0
 	 *
 	 * @param string $offset Property to get.
 	 * @return mixed Property value.
@@ -401,6 +409,8 @@ final class WP_Theme implements ArrayAccess {
 	/**
 	 * Method to implement ArrayAccess for keys formerly returned by get_themes()
 	 *
+	 * @since  3.4.0
+	 *
 	 * @param mixed $offset
 	 * @param mixed $value
 	 */
@@ -408,6 +418,8 @@ final class WP_Theme implements ArrayAccess {
 
 	/**
 	 * Method to implement ArrayAccess for keys formerly returned by get_themes()
+	 *
+	 * @since  3.4.0
 	 *
 	 * @param mixed $offset
 	 */
@@ -417,6 +429,8 @@ final class WP_Theme implements ArrayAccess {
 	 * Method to implement ArrayAccess for keys formerly returned by get_themes()
 	 *
 	 * @staticvar array $keys
+	 *
+	 * @since  3.4.0
 	 *
 	 * @param mixed $offset
 	 * @return bool
@@ -440,6 +454,8 @@ final class WP_Theme implements ArrayAccess {
 	 * untranslated for back compatibility. This means that ['Name'] is not ideal,
 	 * and care should be taken to use `$theme::display( 'Name' )` to get a properly
 	 * translated header.
+	 *
+	 * @since  3.4.0
 	 *
 	 * @param mixed $offset
 	 * @return mixed
@@ -528,28 +544,6 @@ final class WP_Theme implements ArrayAccess {
 	 */
 	public function parent() {
 		return isset( $this->parent ) ? $this->parent : false;
-	}
-
-	/**
-	 * Perform reinitialization tasks.
-	 *
-	 * Prevents a callback from being injected during unserialization of an object.
-	 *
-	 * @return void
-	 */
-	public function __wakeup() {
-		if ( $this->parent && ! $this->parent instanceof self ) {
-			throw new UnexpectedValueException();
-		}
-		if ( $this->headers && ! is_array( $this->headers ) ) {
-			throw new UnexpectedValueException();
-		}
-		foreach ( $this->headers as $value ) {
-			if ( ! is_string( $value ) ) {
-				throw new UnexpectedValueException();
-			}
-		}
-		$this->headers_sanitized = array();
 	}
 
 	/**
@@ -1259,6 +1253,8 @@ final class WP_Theme implements ArrayAccess {
 	 *
 	 * This hits the filesystem.
 	 *
+	 * @since  4.4.0
+	 *
 	 * @return WP_Theme|false Object, or false if no theme is installed, which would be bad.
 	 */
 	public static function get_core_default_theme() {
@@ -1517,17 +1513,5 @@ final class WP_Theme implements ArrayAccess {
 	private static function _name_sort_i18n( $a, $b ) {
 		// Don't mark up; Do translate.
 		return strnatcasecmp( $a->display( 'Name', false, true ), $b->display( 'Name', false, true ) );
-	}
-
-	private static function _check_headers_property_has_correct_type( $headers ) {
-		if ( ! is_array( $headers ) ) {
-			return false;
-		}
-		foreach ( $headers as $key => $value ) {
-			if ( ! is_string( $key ) || ! is_string( $value ) ) {
-				return false;
-			}
-		}
-		return true;
 	}
 }

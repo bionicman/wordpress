@@ -715,7 +715,7 @@ function get_bloginfo( $show = '', $filter = 'raw' ) {
 			 */
 			$output = __( 'html_lang_attribute' );
 			if ( 'html_lang_attribute' === $output || preg_match( '/[^a-zA-Z0-9-]/', $output ) ) {
-				$output = is_admin() ? get_user_locale() : get_locale();
+				$output = get_locale();
 				$output = str_replace( '_', '-', $output );
 			}
 			break;
@@ -808,7 +808,7 @@ function get_site_icon_url( $size = 512, $url = '', $blog_id = 0 ) {
 	/**
 	 * Filters the site icon URL.
 	 *
-	 * @site 4.4.0
+	 * @since 4.4.0
 	 *
 	 * @param string $url     Site icon URL.
 	 * @param int    $size    Size of the site icon.
@@ -1860,7 +1860,7 @@ function wp_get_archives( $args = '' ) {
  * @since 1.5.0
  *
  * @param int $num Number of day.
- * @return int Days since the start of the week.
+ * @return float Days since the start of the week.
  */
 function calendar_week_mod($num) {
 	$base = 7;
@@ -2773,24 +2773,6 @@ function wp_no_robots() {
 }
 
 /**
- * Display a noindex,noarchive meta tag and referrer origin-when-cross-origin meta tag.
- *
- * Outputs a noindex,noarchive meta tag that tells web robots not to index or cache the page content.
- * Outputs a referrer origin-when-cross-origin meta tag that tells the browser not to send the full
- * url as a referrer to other sites when cross-origin assets are loaded.
- *
- * Typical usage is as a wp_head callback. add_action( 'wp_head', 'wp_sensitive_page_meta' );
- *
- * @since 5.0.0
- */
-function wp_sensitive_page_meta() {
-	?>
-	<meta name='robots' content='noindex,noarchive' />
-	<meta name='referrer' content='strict-origin-when-cross-origin' />
-	<?php
-}
-
-/**
  * Display site icon meta tags.
  *
  * @since 4.3.0
@@ -2863,7 +2845,7 @@ function wp_resource_hints() {
 	 * The path is removed in the foreach loop below.
 	 */
 	/** This filter is documented in wp-includes/formatting.php */
-	$hints['dns-prefetch'][] = apply_filters( 'emoji_svg_url', 'https://s.w.org/images/core/emoji/2.2.1/svg/' );
+	$hints['dns-prefetch'][] = apply_filters( 'emoji_svg_url', 'https://s.w.org/images/core/emoji/2.2.5/svg/' );
 
 	foreach ( $hints as $relation_type => $urls ) {
 		$unique_urls = array();
@@ -3006,7 +2988,9 @@ function user_can_richedit() {
 		if ( get_user_option( 'rich_editing' ) == 'true' || ! is_user_logged_in() ) { // default to 'true' for logged out users
 			if ( $is_safari ) {
 				$wp_rich_edit = ! wp_is_mobile() || ( preg_match( '!AppleWebKit/(\d+)!', $_SERVER['HTTP_USER_AGENT'], $match ) && intval( $match[1] ) >= 534 );
-			} elseif ( $is_gecko || $is_chrome || $is_IE || $is_edge || ( $is_opera && !wp_is_mobile() ) ) {
+			} elseif ( $is_IE ) {
+				$wp_rich_edit = ( strpos( $_SERVER['HTTP_USER_AGENT'], 'MSIE ' ) === false );
+			} elseif ( $is_gecko || $is_chrome || $is_edge || ( $is_opera && !wp_is_mobile() ) ) {
 				$wp_rich_edit = true;
 			}
 		}
@@ -3075,6 +3059,23 @@ function wp_editor( $content, $editor_id, $settings = array() ) {
 }
 
 /**
+ * Outputs the editor scripts, stylesheets, and default settings.
+ *
+ * The editor can be initialized when needed after page load.
+ * See wp.editor.initialize() in wp-admin/js/editor.js for initialization options.
+ *
+ * @uses _WP_Editors
+ * @since 4.8.0
+ */
+function wp_enqueue_editor() {
+	if ( ! class_exists( '_WP_Editors', false ) ) {
+		require( ABSPATH . WPINC . '/class-wp-editor.php' );
+	}
+
+	_WP_Editors::enqueue_default_editor();
+}
+
+/**
  * Retrieves the contents of the search WordPress query variable.
  *
  * The search query string is passed through esc_attr() to ensure that it is safe
@@ -3136,14 +3137,12 @@ function get_language_attributes( $doctype = 'html' ) {
 	if ( function_exists( 'is_rtl' ) && is_rtl() )
 		$attributes[] = 'dir="rtl"';
 
-	if ( $lang = get_bloginfo( 'language' ) ) {
-		if ( get_option( 'html_type' ) == 'text/html' || $doctype == 'html' ) {
-			$attributes[] = 'lang="' . esc_attr( $lang ) . '"';
-		}
+	if ( $lang = get_bloginfo('language') ) {
+		if ( get_option('html_type') == 'text/html' || $doctype == 'html' )
+			$attributes[] = "lang=\"$lang\"";
 
-		if ( get_option( 'html_type' ) != 'text/html' || $doctype == 'xhtml' ) {
-			$attributes[] = 'xml:lang="' . esc_attr( $lang ) . '"';
-		}
+		if ( get_option('html_type') != 'text/html' || $doctype == 'xhtml' )
+			$attributes[] = "xml:lang=\"$lang\"";
 	}
 
 	$output = implode(' ', $attributes);
@@ -3565,9 +3564,9 @@ function wp_admin_css( $file = 'wp-admin', $force_echo = false ) {
 	 * will be used instead.
 	 *
 	 * @since 2.3.0
-	 *
-	 * @param string $file Style handle name or filename (without ".css" extension)
-	 *                     relative to wp-admin/. Defaults to 'wp-admin'.
+	 * @param string $stylesheet_link HTML link element for the stylesheet.
+	 * @param string $file            Style handle name or filename (without ".css" extension)
+	 *                                relative to wp-admin/. Defaults to 'wp-admin'.
 	 */
 	echo apply_filters( 'wp_admin_css', "<link rel='stylesheet' href='" . esc_url( wp_admin_css_uri( $file ) ) . "' type='text/css' />\n", $file );
 
@@ -3676,25 +3675,25 @@ function get_the_generator( $type = '' ) {
 
 	switch ( $type ) {
 		case 'html':
-			$gen = '<meta name="generator" content="WordPress ' . esc_attr( get_bloginfo( 'version' ) ) . '">';
+			$gen = '<meta name="generator" content="WordPress ' . get_bloginfo( 'version' ) . '">';
 			break;
 		case 'xhtml':
-			$gen = '<meta name="generator" content="WordPress ' . esc_attr( get_bloginfo( 'version' ) ) . '" />';
+			$gen = '<meta name="generator" content="WordPress ' . get_bloginfo( 'version' ) . '" />';
 			break;
 		case 'atom':
-			$gen = '<generator uri="https://wordpress.org/" version="' . esc_attr( get_bloginfo_rss( 'version' ) ) . '">WordPress</generator>';
+			$gen = '<generator uri="https://wordpress.org/" version="' . get_bloginfo_rss( 'version' ) . '">WordPress</generator>';
 			break;
 		case 'rss2':
-			$gen = '<generator>' . esc_url_raw( 'https://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) ) . '</generator>';
+			$gen = '<generator>https://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) . '</generator>';
 			break;
 		case 'rdf':
-			$gen = '<admin:generatorAgent rdf:resource="' . esc_url_raw( 'https://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) ) . '" />';
+			$gen = '<admin:generatorAgent rdf:resource="https://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) . '" />';
 			break;
 		case 'comment':
-			$gen = '<!-- generator="WordPress/' . esc_attr( get_bloginfo( 'version' ) ) . '" -->';
+			$gen = '<!-- generator="WordPress/' . get_bloginfo( 'version' ) . '" -->';
 			break;
 		case 'export':
-			$gen = '<!-- generator="WordPress/' . esc_attr( get_bloginfo_rss( 'version' ) ) . '" created="' . date( 'Y-m-d H:i' ) . '" -->';
+			$gen = '<!-- generator="WordPress/' . get_bloginfo_rss('version') . '" created="'. date('Y-m-d H:i') . '" -->';
 			break;
 	}
 

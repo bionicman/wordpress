@@ -354,7 +354,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 			submit_button( __( 'Filter' ), '', 'filter_action', false, array( 'id' => 'post-query-submit' ) );
 		}
 
-		if ( ( 'spam' === $comment_status || 'trash' === $comment_status ) && current_user_can( 'moderate_comments' ) ) {
+		if ( ( 'spam' === $comment_status || 'trash' === $comment_status ) && current_user_can( 'moderate_comments' ) && $this->has_items() ) {
 			wp_nonce_field( 'bulk-destroy', '_destroy_nonce' );
 			$title = ( 'spam' === $comment_status ) ? esc_attr__( 'Empty Spam' ) : esc_attr__( 'Empty Trash' );
 			submit_button( $title, 'apply', 'delete_all', false );
@@ -493,19 +493,6 @@ class WP_Comments_List_Table extends WP_List_Table {
 			$post = get_post( $comment->comment_post_ID );
 		}
 		$this->user_can = current_user_can( 'edit_comment', $comment->comment_ID );
-
-		$edit_post_cap = $post ? 'edit_post' : 'edit_posts';
-		if (
-			current_user_can( $edit_post_cap, $comment->comment_post_ID ) ||
-			(
-				empty( $post->post_password ) &&
-				current_user_can( 'read_post', $comment->comment_post_ID )
-			)
-		) {
-			// The user has access to the post
-		} else {
-			return false;
-		}
 
 		echo "<tr id='comment-$comment->comment_ID' class='$the_comment_class'>";
 		$this->single_row_columns( $comment );
@@ -703,7 +690,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 
 		if ( $this->user_can ) {
 			if ( ! empty( $comment->comment_author_email ) ) {
-				/* This filter is documented in wp-includes/comment-template.php */
+				/** This filter is documented in wp-includes/comment-template.php */
 				$email = apply_filters( 'comment_email', $comment->comment_author_email, $comment );
 
 				if ( ! empty( $email ) && '@' !== $email ) {

@@ -35,14 +35,6 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 	protected $meta;
 
 	/**
-	 * Passwordless post access permitted.
-	 *
-	 * @since 5.7.1
-	 * @var int[]
-	 */
-	protected $password_check_passed = array();
-
-	/**
 	 * Constructor.
 	 *
 	 * @since 4.7.0
@@ -151,38 +143,6 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 	}
 
 	/**
-	 * Override the result of the post password check for REST requested posts.
-	 *
-	 * Allow users to read the content of password protected posts if they have
-	 * previously passed a permission check or if they have the `edit_post` capability
-	 * for the post being checked.
-	 *
-	 * @since 5.7.1
-	 *
-	 * @param bool    $required Whether the post requires a password check.
-	 * @param WP_Post $post     The post been password checked.
-	 * @return bool Result of password check taking in to account REST API considerations.
-	 */
-	public function check_password_required( $required, $post ) {
-		if ( ! $required ) {
-			return $required;
-		}
-
-		$post = get_post( $post );
-
-		if ( ! $post ) {
-			return $required;
-		}
-
-		if ( ! empty( $this->password_check_passed[ $post->ID ] ) ) {
-			// Password previously checked and approved.
-			return false;
-		}
-
-		return ! current_user_can( 'edit_post', $post->ID );
-	}
-
-	/**
 	 * Retrieves a collection of posts.
 	 *
 	 * @since 4.7.0
@@ -200,7 +160,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 
 		// Ensure an include parameter is set in case the orderby is set to 'include'.
 		if ( ! empty( $request['orderby'] ) && 'include' === $request['orderby'] && empty( $request['include'] ) ) {
-			return new WP_Error( 'rest_orderby_include_missing_include', sprintf( __( 'Missing parameter(s): %s' ), 'include' ), array( 'status' => 400 ) );
+			return new WP_Error( 'rest_orderby_include_missing_include', __( 'You need to define an include parameter to order by include.' ), array( 'status' => 400 ) );
 		}
 
 		// Retrieve the list of registered collection query parameters.
@@ -338,7 +298,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 
 		// Allow access to all password protected posts if the context is edit.
 		if ( 'edit' === $request['context'] ) {
-			add_filter( 'post_password_required', array( $this, 'check_password_required' ), 10, 2 );
+			add_filter( 'post_password_required', '__return_false' );
 		}
 
 		$posts = array();
@@ -354,7 +314,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 
 		// Reset filter.
 		if ( 'edit' === $request['context'] ) {
-			remove_filter( 'post_password_required', array( $this, 'check_password_required' ) );
+			remove_filter( 'post_password_required', '__return_false' );
 		}
 
 		$page = (int) $query_args['paged'];
@@ -370,6 +330,11 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 		}
 
 		$max_pages = ceil( $total_posts / (int) $posts_query->query_vars['posts_per_page'] );
+
+		if ( $page > $max_pages && $total_posts > 0 ) {
+			return new WP_Error( 'rest_post_invalid_page_number', __( 'The page number requested is larger than the number of pages available.' ), array( 'status' => 400 ) );
+		}
+
 		$response  = rest_ensure_response( $posts );
 
 		$response->header( 'X-WP-Total', (int) $total_posts );
@@ -448,7 +413,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 
 		// Allow access to all password protected posts if the context is edit.
 		if ( 'edit' === $request['context'] ) {
-			add_filter( 'post_password_required', array( $this, 'check_password_required' ), 10, 2 );
+			add_filter( 'post_password_required', '__return_false' );
 		}
 
 		if ( $post ) {
@@ -477,14 +442,8 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 			return false;
 		}
 
-		/*
-		 * Users always gets access to password protected content in the edit
-		 * context if they have the `edit_post` meta capability.
-		 */
-		if (
-			'edit' === $request['context'] &&
-			current_user_can( 'edit_post', $post->ID )
-		) {
+		// Edit context always gets access to password-protected posts.
+		if ( 'edit' === $request['context'] ) {
 			return true;
 		}
 
@@ -542,7 +501,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 			return new WP_Error( 'rest_cannot_edit_others', __( 'Sorry, you are not allowed to create posts as this user.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
-		if ( ! empty( $request['sticky'] ) && ! current_user_can( $post_type->cap->edit_others_posts ) && ! current_user_can( $post_type->cap->publish_posts ) ) {
+		if ( ! empty( $request['sticky'] ) && ! current_user_can( $post_type->cap->edit_others_posts ) ) {
 			return new WP_Error( 'rest_cannot_assign_sticky', __( 'Sorry, you are not allowed to make posts sticky.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
@@ -686,7 +645,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 			return new WP_Error( 'rest_cannot_edit_others', __( 'Sorry, you are not allowed to update posts as this user.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
-		if ( ! empty( $request['sticky'] ) && ! current_user_can( $post_type->cap->edit_others_posts ) && ! current_user_can( $post_type->cap->publish_posts ) ) {
+		if ( ! empty( $request['sticky'] ) && ! current_user_can( $post_type->cap->edit_others_posts ) ) {
 			return new WP_Error( 'rest_cannot_assign_sticky', __( 'Sorry, you are not allowed to make posts sticky.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
@@ -732,7 +691,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 
 		$post = get_post( $post_id );
 
-		/* This action is documented in lib/endpoints/class-wp-rest-controller.php */
+		/** This action is documented in wp-includes/rest-api/endpoints/class-wp-rest-posts-controller.php */
 		do_action( "rest_insert_{$this->post_type}", $post, $request, false );
 
 		$schema = $this->get_item_schema();
@@ -979,7 +938,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 	 * @return stdClass|WP_Error Post object or WP_Error.
 	 */
 	protected function prepare_item_for_database( $request ) {
-		$prepared_post = new stdClass();
+		$prepared_post = new stdClass;
 
 		// Post ID.
 		if ( isset( $request['id'] ) ) {
@@ -1255,6 +1214,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 	 * Checks whether current user can assign all terms sent with the current request.
 	 *
 	 * @since 4.7.0
+	 * @access protected
 	 *
 	 * @param WP_REST_Request $request The request object with post and terms data.
 	 * @return bool Whether the current user can assign the provided terms.
@@ -1507,9 +1467,8 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 		$has_password_filter = false;
 
 		if ( $this->can_access_password_content( $post, $request ) ) {
-			$this->password_check_passed[ $post->ID ] = true;
 			// Allow access to the post, permissions already checked before.
-			add_filter( 'post_password_required', array( $this, 'check_password_required' ), 10, 2 );
+			add_filter( 'post_password_required', '__return_false' );
 
 			$has_password_filter = true;
 		}
@@ -1535,7 +1494,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 
 		if ( $has_password_filter ) {
 			// Reset filter.
-			remove_filter( 'post_password_required', array( $this, 'check_password_required' ) );
+			remove_filter( 'post_password_required', '__return_false' );
 		}
 
 		if ( ! empty( $schema['properties']['author'] ) ) {
@@ -1627,6 +1586,9 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 	 * By default, WordPress will show password protected posts with a title of
 	 * "Protected: %s", as the REST API communicates the protected status of a post
 	 * in a machine readable format, we remove the "Protected: " prefix.
+	 *
+	 * @since 4.7.0
+	 * @access public
 	 *
 	 * @return string Protected title format.
 	 */
@@ -2004,7 +1966,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 					$schema['properties']['featured_media'] = array(
 						'description' => __( 'The ID of the featured media for the object.' ),
 						'type'        => 'integer',
-						'context'     => array( 'view', 'edit' ),
+						'context'     => array( 'view', 'edit', 'embed' ),
 					);
 					break;
 
@@ -2168,12 +2130,15 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 			'type'               => 'string',
 			'default'            => 'date',
 			'enum'               => array(
+				'author',
 				'date',
-				'relevance',
 				'id',
 				'include',
-				'title',
+				'modified',
+				'parent',
+				'relevance',
 				'slug',
+				'title',
 			),
 		);
 
@@ -2185,7 +2150,7 @@ class WP_REST_Posts_Controller extends WP_REST_Controller {
 
 		if ( $post_type->hierarchical || 'attachment' === $this->post_type ) {
 			$query_params['parent'] = array(
-				'description'       => __( 'Limit result set to those of particular parent IDs.' ),
+				'description'       => __( 'Limit result set to items with particular parent IDs.' ),
 				'type'              => 'array',
 				'items'             => array(
 					'type'          => 'integer',

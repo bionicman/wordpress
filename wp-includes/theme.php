@@ -950,18 +950,18 @@ function remove_theme_mods() {
 }
 
 /**
- * Retrieves the custom header text color in HEX format.
+ * Retrieves the custom header text color in 3- or 6-digit hexadecimal form.
  *
  * @since 2.1.0
  *
- * @return string Header text color in HEX format (minus the hash symbol).
+ * @return string Header text color in 3- or 6-digit hexadecimal form (minus the hash symbol).
  */
 function get_header_textcolor() {
 	return get_theme_mod('header_textcolor', get_theme_support( 'custom-header', 'default-text-color' ) );
 }
 
 /**
- * Displays the custom header text color in HEX format (minus the hash symbol).
+ * Displays the custom header text color in 3- or 6-digit hexadecimal form (minus the hash symbol).
  *
  * @since 2.1.0
  */
@@ -1325,13 +1325,14 @@ function has_header_video() {
 	return (bool) get_header_video_url();
 }
 
-/* Retrieve header video URL for custom header.
+/**
+ * Retrieve header video URL for custom header.
  *
- * Uses a local video if present, or falls back to an external video. Returns false if there is no video.
+ * Uses a local video if present, or falls back to an external video.
  *
  * @since 4.7.0
  *
- * @return string|false
+ * @return string|false Header video URL or false if there is no video.
  */
 function get_header_video_url() {
 	$id = absint( get_theme_mod( 'header_video' ) );
@@ -1704,7 +1705,7 @@ function wp_get_custom_css( $stylesheet = '' ) {
 	}
 
 	/**
-	 * Modify the Custom CSS Output into the <head>.
+	 * Filters the Custom CSS Output into the <head>.
 	 *
 	 * @since 4.7.0
 	 *
@@ -1985,7 +1986,7 @@ function get_theme_starter_content() {
 				'title' => _x( 'Home', 'Theme starter content' ),
 				'url' => home_url( '/' ),
 			),
-			'page_home' => array( // Deprecated in favor of home_link.
+			'page_home' => array( // Deprecated in favor of link_home.
 				'type' => 'post_type',
 				'object' => 'page',
 				'object_id' => '{{home}}',

@@ -1070,17 +1070,15 @@ function wp_check_invalid_utf8( $string, $strip = false ) {
  * Encode the Unicode values to be used in the URI.
  *
  * @since 1.5.0
- * @since 5.8.3 Added the `encode_ascii_characters` parameter.
  *
- * @param string $utf8_string             String to encode.
- * @param int    $length                  Max length of the string
- * @param bool   $encode_ascii_characters Whether to encode ascii characters such as < " '
+ * @param string $utf8_string
+ * @param int    $length Max  length of the string
  * @return string String with Unicode encoded for URI.
  */
-function utf8_uri_encode( $utf8_string, $length = 0, $encode_ascii_characters = false ) {
-	$unicode        = '';
-	$values         = array();
-	$num_octets     = 1;
+function utf8_uri_encode( $utf8_string, $length = 0 ) {
+	$unicode = '';
+	$values = array();
+	$num_octets = 1;
 	$unicode_length = 0;
 
 	mbstring_binary_safe_encoding();
@@ -1092,14 +1090,10 @@ function utf8_uri_encode( $utf8_string, $length = 0, $encode_ascii_characters = 
 		$value = ord( $utf8_string[ $i ] );
 
 		if ( $value < 128 ) {
-			$char                = chr( $value );
-			$encoded_char        = $encode_ascii_characters ? rawurlencode( $char ) : $char;
-			$encoded_char_length = strlen( $encoded_char );
-			if ( $length && ( $unicode_length + $encoded_char_length ) > $length ) {
+			if ( $length && ( $unicode_length >= $length ) )
 				break;
-			}
-			$unicode        .= $encoded_char;
-			$unicode_length += $encoded_char_length;
+			$unicode .= chr($value);
+			$unicode_length++;
 		} else {
 			if ( count( $values ) == 0 ) {
 				if ( $value < 224 ) {
@@ -1502,7 +1496,7 @@ function utf8_uri_encode( $utf8_string, $length = 0, $encode_ascii_characters = 
  * | -------- | ----- | ----------- | --------------------------------------- |
  * | U+00B7   | l·l   | ll          | Flown dot (between two Ls)              |
  *
- * Serbian (`sr_RS`) locale:
+ * Serbian (`sr_RS`) and Bosnian (`bs_BA`) locales:
  *
  * |   Code   | Glyph | Replacement |               Description               |
  * | -------- | ----- | ----------- | --------------------------------------- |
@@ -1512,6 +1506,7 @@ function utf8_uri_encode( $utf8_string, $length = 0, $encode_ascii_characters = 
  * @since 1.2.1
  * @since 4.6.0 Added locale support for `de_CH`, `de_CH_informal`, and `ca`.
  * @since 4.7.0 Added locale support for `sr_RS`.
+ * @since 4.8.0 Added locale support for `bs_BA`.
  *
  * @param string $string Text that might have accent characters
  * @return string Filtered string with replaced "nice" characters.
@@ -1717,7 +1712,7 @@ function remove_accents( $string ) {
 			$chars[ 'å' ] = 'aa';
 		} elseif ( 'ca' === $locale ) {
 			$chars[ 'l·l' ] = 'll';
-		} elseif ( 'sr_RS' === $locale ) {
+		} elseif ( 'sr_RS' === $locale || 'bs_BA' === $locale ) {
 			$chars[ 'Đ' ] = 'DJ';
 			$chars[ 'đ' ] = 'dj';
 		}
@@ -1767,24 +1762,6 @@ function remove_accents( $string ) {
 function sanitize_file_name( $filename ) {
 	$filename_raw = $filename;
 	$special_chars = array("?", "[", "]", "/", "\\", "=", "<", ">", ":", ";", ",", "'", "\"", "&", "$", "#", "*", "(", ")", "|", "~", "`", "!", "{", "}", "%", "+", chr(0));
-
-	// Check for support for utf8 in the installed PCRE library once and store the result in a static.
-	static $utf8_pcre = null;
-	if ( ! isset( $utf8_pcre ) ) {
-		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-		$utf8_pcre = @preg_match( '/^./u', 'a' );
-	}
-
-	if ( ! seems_utf8( $filename ) ) {
-		$_ext     = pathinfo( $filename, PATHINFO_EXTENSION );
-		$_name    = pathinfo( $filename, PATHINFO_FILENAME );
-		$filename = sanitize_title_with_dashes( $_name ) . '.' . $_ext;
-	}
-
-	if ( $utf8_pcre ) {
-		$filename = preg_replace( "#\x{00a0}#siu", ' ', $filename );
-	}
-
 	/**
 	 * Filters the list of characters to remove from a filename.
 	 *
@@ -1794,6 +1771,7 @@ function sanitize_file_name( $filename ) {
 	 * @param string $filename_raw  Filename as it was passed into sanitize_file_name().
 	 */
 	$special_chars = apply_filters( 'sanitize_file_name_chars', $special_chars, $filename_raw );
+	$filename = preg_replace( "#\x{00a0}#siu", ' ', $filename );
 	$filename = str_replace( $special_chars, '', $filename );
 	$filename = str_replace( array( '%20', '+' ), '-', $filename );
 	$filename = preg_replace( '/[\r\n\t -]+/', '-', $filename );
@@ -1998,7 +1976,7 @@ function sanitize_title_with_dashes( $title, $raw_title = '', $context = 'displa
 		if (function_exists('mb_strtolower')) {
 			$title = mb_strtolower($title, 'UTF-8');
 		}
-		$title = utf8_uri_encode( $title, 200 );
+		$title = utf8_uri_encode($title, 200);
 	}
 
 	$title = strtolower($title);
@@ -2753,19 +2731,17 @@ function wp_rel_nofollow( $text ) {
  */
 function wp_rel_nofollow_callback( $matches ) {
 	$text = $matches[1];
-	$atts = wp_kses_hair( $matches[1], wp_allowed_protocols() );
+	$atts = shortcode_parse_atts( $matches[1] );
 	$rel  = 'nofollow';
 
-	if ( ! empty( $atts['href'] ) ) {
-		if ( in_array( strtolower( wp_parse_url( $atts['href']['value'], PHP_URL_SCHEME ) ), array( 'http', 'https' ), true ) ) {
-			if ( strtolower( wp_parse_url( $atts['href']['value'], PHP_URL_HOST ) ) === strtolower( wp_parse_url( home_url(), PHP_URL_HOST ) ) ) {
-				return "<a $text>";
-			}
-		}
+	if ( preg_match( '%href=["\'](' . preg_quote( set_url_scheme( home_url(), 'http' ) ) . ')%i', $text ) ||
+	     preg_match( '%href=["\'](' . preg_quote( set_url_scheme( home_url(), 'https' ) ) . ')%i', $text )
+	) {
+		return "<a $text>";
 	}
 
 	if ( ! empty( $atts['rel'] ) ) {
-		$parts = array_map( 'trim', explode( ' ', $atts['rel']['value'] ) );
+		$parts = array_map( 'trim', explode( ' ', $atts['rel'] ) );
 		if ( false === array_search( 'nofollow', $parts ) ) {
 			$parts[] = 'nofollow';
 		}
@@ -2774,15 +2750,11 @@ function wp_rel_nofollow_callback( $matches ) {
 
 		$html = '';
 		foreach ( $atts as $name => $value ) {
-			if ( isset( $value['vless'] ) && 'y' === $value['vless'] ) {
-				$html .= $name . ' ';
-			} else {
-				$html .= "{$name}=\"" . esc_attr( $value['value'] ) . '" ';
-			}
+			$html .= "{$name}=\"$value\" ";
 		}
 		$text = trim( $html );
 	}
-	return "<a $text rel=\"" . esc_attr( $rel ) . "\">";
+	return "<a $text rel=\"$rel\">";
 }
 
 /**
@@ -3405,7 +3377,7 @@ function wp_trim_words( $text, $num_words = 55, $more = null ) {
 	 * @since 3.3.0
 	 *
 	 * @param string $text          The trimmed text.
-	 * @param int    $num_words     The number of words to trim the text to. Default 5.
+	 * @param int    $num_words     The number of words to trim the text to. Default 55.
 	 * @param string $more          An optional string to append to the end of the trimmed text, e.g. &hellip;.
 	 * @param string $original_text The text before it was trimmed.
 	 */
@@ -5040,7 +5012,7 @@ function _print_emoji_detection_script() {
 		 *
 		 * @param string The emoji base URL for png images.
 		 */
-		'baseUrl' => apply_filters( 'emoji_url', 'https://s.w.org/images/core/emoji/2.2.1/72x72/' ),
+		'baseUrl' => apply_filters( 'emoji_url', 'https://s.w.org/images/core/emoji/2.2.5/72x72/' ),
 
 		/**
 		 * Filters the extension of the emoji png files.
@@ -5058,7 +5030,7 @@ function _print_emoji_detection_script() {
 		 *
 		 * @param string The emoji base URL for svg images.
 		 */
-		'svgUrl' => apply_filters( 'emoji_svg_url', 'https://s.w.org/images/core/emoji/2.2.1/svg/' ),
+		'svgUrl' => apply_filters( 'emoji_svg_url', 'https://s.w.org/images/core/emoji/2.2.5/svg/' ),
 
 		/**
 		 * Filters the extension of the emoji SVG files.
@@ -5105,7 +5077,7 @@ function _print_emoji_detection_script() {
 		?>
 		<script type="text/javascript">
 			window._wpemojiSettings = <?php echo wp_json_encode( $settings ); ?>;
-			!function(t,a,e){var r,n,i,o=a.createElement("canvas"),l=o.getContext&&o.getContext("2d");function c(t){var e=a.createElement("script");e.src=t,e.defer=e.type="text/javascript",a.getElementsByTagName("head")[0].appendChild(e)}for(i=Array("flag","emoji4"),e.supports={everything:!0,everythingExceptFlag:!0},n=0;n<i.length;n++)e.supports[i[n]]=function(t){var e,a=String.fromCharCode;if(!l||!l.fillText)return!1;switch(l.clearRect(0,0,o.width,o.height),l.textBaseline="top",l.font="600 32px Arial",t){case"flag":return(l.fillText(a(55356,56826,55356,56819),0,0),o.toDataURL().length<3e3)?!1:(l.clearRect(0,0,o.width,o.height),l.fillText(a(55356,57331,65039,8205,55356,57096),0,0),e=o.toDataURL(),l.clearRect(0,0,o.width,o.height),l.fillText(a(55356,57331,55356,57096),0,0),e!==o.toDataURL());case"emoji4":return l.fillText(a(55357,56425,55356,57341,8205,55357,56507),0,0),e=o.toDataURL(),l.clearRect(0,0,o.width,o.height),l.fillText(a(55357,56425,55356,57341,55357,56507),0,0),e!==o.toDataURL()}return!1}(i[n]),e.supports.everything=e.supports.everything&&e.supports[i[n]],"flag"!==i[n]&&(e.supports.everythingExceptFlag=e.supports.everythingExceptFlag&&e.supports[i[n]]);e.supports.everythingExceptFlag=e.supports.everythingExceptFlag&&!e.supports.flag,e.DOMReady=!1,e.readyCallback=function(){e.DOMReady=!0},e.supports.everything||(r=function(){e.readyCallback()},a.addEventListener?(a.addEventListener("DOMContentLoaded",r,!1),t.addEventListener("load",r,!1)):(t.attachEvent("onload",r),a.attachEvent("onreadystatechange",function(){"complete"===a.readyState&&e.readyCallback()})),(r=e.source||{}).concatemoji?c(r.concatemoji):r.wpemoji&&r.twemoji&&(c(r.twemoji),c(r.wpemoji)))}(window,document,window._wpemojiSettings);
+			!function(a,b,c){function d(a){var b,c,d,e,f=String.fromCharCode;if(!k||!k.fillText)return!1;switch(k.clearRect(0,0,j.width,j.height),k.textBaseline="top",k.font="600 32px Arial",a){case"flag":return k.fillText(f(55356,56826,55356,56819),0,0),b=j.toDataURL(),k.clearRect(0,0,j.width,j.height),k.fillText(f(55356,57331,8203,55356,57096),0,0),c=j.toDataURL(),b===c&&(k.clearRect(0,0,j.width,j.height),k.fillText(f(55356,57331,65039,8205,55356,57096),0,0),b=j.toDataURL(),k.clearRect(0,0,j.width,j.height),k.fillText(f(55356,57331,55356,57096),0,0),c=j.toDataURL(),b!==c);case"emoji4":return k.fillText(f(55358,56631,55356,57339,8205,9794,65039),0,0),d=j.toDataURL(),k.clearRect(0,0,j.width,j.height),k.fillText(f(55358,56631,55356,57339,9794,65039),0,0),e=j.toDataURL(),d===e&&(k.clearRect(0,0,j.width,j.height),k.fillText(f(55357,56425,55356,57341,8205,55357,56507),0,0),d=j.toDataURL(),k.clearRect(0,0,j.width,j.height),k.fillText(f(55357,56425,55356,57341,55357,56507),0,0),e=j.toDataURL(),d!==e)}return!1}function e(a){var c=b.createElement("script");c.src=a,c.defer=c.type="text/javascript",b.getElementsByTagName("head")[0].appendChild(c)}var f,g,h,i,j=b.createElement("canvas"),k=j.getContext&&j.getContext("2d");for(i=Array("flag","emoji4"),c.supports={everything:!0,everythingExceptFlag:!0},h=0;h<i.length;h++)c.supports[i[h]]=d(i[h]),c.supports.everything=c.supports.everything&&c.supports[i[h]],"flag"!==i[h]&&(c.supports.everythingExceptFlag=c.supports.everythingExceptFlag&&c.supports[i[h]]);c.supports.everythingExceptFlag=c.supports.everythingExceptFlag&&!c.supports.flag,c.DOMReady=!1,c.readyCallback=function(){c.DOMReady=!0},c.supports.everything||(g=function(){c.readyCallback()},b.addEventListener?(b.addEventListener("DOMContentLoaded",g,!1),a.addEventListener("load",g,!1)):(a.attachEvent("onload",g),b.attachEvent("onreadystatechange",function(){"complete"===b.readyState&&c.readyCallback()})),f=c.source||{},f.concatemoji?e(f.concatemoji):f.wpemoji&&f.twemoji&&(e(f.twemoji),e(f.wpemoji)))}(window,document,window._wpemojiSettings);
 		</script>
 		<?php
 	}
@@ -5170,7 +5142,7 @@ function wp_staticize_emoji( $text ) {
 	$text = wp_encode_emoji( $text );
 
 	/** This filter is documented in wp-includes/formatting.php */
-	$cdn_url = apply_filters( 'emoji_url', 'https://s.w.org/images/core/emoji/2.2.1/72x72/' );
+	$cdn_url = apply_filters( 'emoji_url', 'https://s.w.org/images/core/emoji/2.2.5/72x72/' );
 
 	/** This filter is documented in wp-includes/formatting.php */
 	$ext = apply_filters( 'emoji_ext', '.png' );

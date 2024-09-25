@@ -164,7 +164,11 @@ add_filter( 'list_cats',         'wptexturize' );
 
 add_filter( 'wp_sprintf', 'wp_sprintf_l', 10, 2 );
 
-add_filter( 'widget_text', 'balanceTags' );
+add_filter( 'widget_text',         'balanceTags'          );
+add_filter( 'widget_text_content', 'capital_P_dangit', 11 );
+add_filter( 'widget_text_content', 'wptexturize'          );
+add_filter( 'widget_text_content', 'convert_smilies',  20 );
+add_filter( 'widget_text_content', 'wpautop'              );
 
 add_filter( 'date_i18n', 'wp_maybe_decline_date' );
 
@@ -190,7 +194,7 @@ add_filter( 'wp_mail', 'wp_staticize_emoji_for_email' );
 
 // Mark site as no longer fresh
 foreach ( array( 'publish_post', 'publish_page', 'wp_ajax_save-widget', 'wp_ajax_widgets-order', 'customize_save_after' ) as $action ) {
-	add_action( $action, '_delete_option_fresh_site' );
+	add_action( $action, '_delete_option_fresh_site', 0 );
 }
 
 // Misc filters
@@ -348,7 +352,7 @@ add_action( 'admin_color_scheme_picker', 'admin_color_scheme_picker' );
 add_filter( 'default_option_link_manager_enabled', '__return_true' );
 
 // This option no longer exists; tell plugins we always support auto-embedding.
-add_filter( 'default_option_embed_autourls', '__return_true' );
+add_filter( 'pre_option_embed_autourls', '__return_true' );
 
 // Default settings for heartbeat
 add_filter( 'heartbeat_settings', 'wp_heartbeat_settings' );
