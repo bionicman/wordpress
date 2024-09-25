@@ -113,14 +113,14 @@ function theme_update_available( $theme ) {
 }
 
 /**
- * Retrieve the update link if there is an update for a theme available.
+ * Retrieve the update link if there is a theme update available.
  *
- * Will return a link, if there is an update available.
+ * Will return a link if there is an update available.
  *
  * @since 3.8.0
  *
- * @param object $theme Theme data object.
- * @return string|bool HTML for the update link, or False if no valid info was passed.
+ * @param WP_Theme $theme WP_Theme object.
+ * @return string|bool HTML for the update link, or false if invalid info was passed.
  */
 function get_theme_update_available( $theme ) {
 	static $themes_update;
@@ -197,12 +197,14 @@ function get_theme_feature_list( $api = true ) {
 			'right-sidebar' => __( 'Right Sidebar' ),
 		),
 
-		__( 'Width' ) => array(
-			'fixed-width'    => __( 'Fixed Width' ),
-			'flexible-width' => __( 'Flexible Width' ),
+		__( 'Layout' ) => array(
+			'fixed-layout'      => __( 'Fixed Layout' ),
+			'fluid-layout'      => __( 'Fluid Layout' ),
+			'responsive-layout' => __( 'Responsive Layout' ),
 		),
 
 		__( 'Features' ) => array(
+			'accessibility-ready'   => __( 'Accessibility Ready' ),
 			'blavatar'              => __( 'Blavatar' ),
 			'buddypress'            => __( 'BuddyPress' ),
 			'custom-background'     => __( 'Custom Background' ),
@@ -301,9 +303,9 @@ function themes_api( $action, $args = null ) {
 	 * Filter arguments used to query for installer pages from the WordPress.org Themes API.
 	 *
 	 * Important: An object MUST be returned to this filter.
-	 * 
+	 *
 	 * @since 2.8.0
-	 * 
+	 *
 	 * @param object $args   Arguments used to query for installer pages from the WordPress.org Themes API.
 	 * @param string $action Requested action. Likely values are 'theme_information',
 	 *                       'feature_list', or 'query_themes'.
@@ -315,7 +317,7 @@ function themes_api( $action, $args = null ) {
 	 *
 	 * Returning a value of true to this filter allows a theme to completely
 	 * override the built-in WordPress.org API.
-	 * 
+	 *
 	 * @since 2.8.0
 	 *
 	 * @param bool   $bool   Whether to override the WordPress.org Themes API. Default false.
@@ -376,8 +378,10 @@ function themes_api( $action, $args = null ) {
  * @return array An associative array of theme data, sorted by name.
  */
 function wp_prepare_themes_for_js( $themes = null ) {
-	$prepared_themes = array();
 	$current_theme = get_stylesheet();
+
+	// Make sure the current theme is listed first.
+	$prepared_themes = array( $current_theme => array() );
 
 	if ( null === $themes ) {
 		$themes = wp_get_themes( array( 'allowed' => true ) );
@@ -404,12 +408,13 @@ function wp_prepare_themes_for_js( $themes = null ) {
 		$slug = $theme->get_stylesheet();
 		$encoded_slug = urlencode( $slug );
 
-		$prepared_themes[] = array(
+		$prepared_themes[ $slug ] = array(
 			'id'           => $slug,
 			'name'         => $theme->display( 'Name' ),
 			'screenshot'   => array( $theme->get_screenshot() ), // @todo multiple
 			'description'  => $theme->display( 'Description' ),
-			'author'       => $theme->display( 'Author' ),
+			'author'       => $theme->display( 'Author', false, true ),
+			'authorAndUri' => $theme->display( 'Author' ),
 			'version'      => $theme->display( 'Version' ),
 			'tags'         => $theme->display( 'Tags' ),
 			'parent'       => $parent,
@@ -419,10 +424,27 @@ function wp_prepare_themes_for_js( $themes = null ) {
 			'actions'      => array(
 				'activate' => current_user_can( 'switch_themes' ) ? wp_nonce_url( admin_url( 'themes.php?action=activate&amp;stylesheet=' . $encoded_slug ), 'switch-theme_' . $slug ) : null,
 				'customize'=> current_user_can( 'edit_theme_options' ) ? wp_customize_url( $slug ) : null,
+				'preview'   => add_query_arg( array(
+					'preview'        => 1,
+					'template'       => urlencode( $theme->get_template() ),
+					'stylesheet'     => urlencode( $slug ),
+					'preview_iframe' => true,
+					'TB_iframe'      => true,
+				), home_url( '/' ) ),
 				'delete'   => current_user_can( 'delete_themes' ) ? wp_nonce_url( admin_url( 'themes.php?action=delete&amp;stylesheet=' . $encoded_slug ), 'delete-theme_' . $slug ) : null,
 			),
 		);
 	}
 
-	return $prepared_themes;
+	/**
+	 * Filter the themes prepared for JavaScript, for themes.php.
+	 *
+	 * Could be useful for changing the order, which is by name by default.
+	 *
+	 * @since 3.8.0
+	 *
+	 * @param array $prepared_themes Array of themes.
+	 */
+	$prepared_themes = apply_filters( 'wp_prepare_themes_for_js', $prepared_themes );
+	return array_values( $prepared_themes );
 }
