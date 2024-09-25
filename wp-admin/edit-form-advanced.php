@@ -107,7 +107,7 @@ if ( $autosave && mysql2date( 'U', $autosave->post_modified_gmt, false ) > mysql
 $post_type_object = get_post_type_object($post_type);
 
 // All meta boxes should be defined and added before the first do_meta_boxes() call (or potentially during the do_meta_boxes action).
-require_once('./includes/meta-boxes.php');
+require_once( ABSPATH . 'wp-admin/includes/meta-boxes.php' );
 
 
 $publish_callback_args = null;
@@ -140,16 +140,18 @@ if ( current_theme_supports( 'post-formats' ) && post_type_supports( $post_type,
 
 // all taxonomies
 foreach ( get_object_taxonomies( $post ) as $tax_name ) {
-	$taxonomy = get_taxonomy($tax_name);
+	$taxonomy = get_taxonomy( $tax_name );
 	if ( ! $taxonomy->show_ui )
 		continue;
 
 	$label = $taxonomy->labels->name;
 
-	if ( !is_taxonomy_hierarchical($tax_name) )
-		add_meta_box('tagsdiv-' . $tax_name, $label, 'post_tags_meta_box', null, 'side', 'core', array( 'taxonomy' => $tax_name ));
+	if ( ! is_taxonomy_hierarchical( $tax_name ) )
+		$tax_meta_box_id = 'tagsdiv-' . $tax_name;
 	else
-		add_meta_box($tax_name . 'div', $label, 'post_categories_meta_box', null, 'side', 'core', array( 'taxonomy' => $tax_name ));
+		$tax_meta_box_id = $tax_name . 'div';
+
+	add_meta_box( $tax_meta_box_id, $label, $taxonomy->meta_box_cb, null, 'side', 'core', array( 'taxonomy' => $tax_name ) );
 }
 
 if ( post_type_supports($post_type, 'page-attributes') )
@@ -307,7 +309,7 @@ if ( 'post' == $post_type ) {
 	) );
 }
 
-require_once('./admin-header.php');
+require_once( ABSPATH . 'wp-admin/admin-header.php' );
 ?>
 
 <div class="wrap">
@@ -315,7 +317,7 @@ require_once('./admin-header.php');
 <h2><?php
 echo esc_html( $title );
 if ( isset( $post_new_file ) && current_user_can( $post_type_object->cap->create_posts ) )
-	echo ' <a href="' . esc_url( $post_new_file ) . '" class="add-new-h2">' . esc_html( $post_type_object->labels->add_new ) . '</a>';
+	echo ' <a href="' . esc_url( admin_url( $post_new_file ) ) . '" class="add-new-h2">' . esc_html( $post_type_object->labels->add_new ) . '</a>';
 ?></h2>
 <?php if ( $notice ) : ?>
 <div id="notice" class="error"><p id="has-newer-autosave"><?php echo $notice ?></p></div>
@@ -352,6 +354,8 @@ wp_nonce_field( 'meta-box-order', 'meta-box-order-nonce', false );
 wp_nonce_field( 'closedpostboxes', 'closedpostboxesnonce', false );
 ?>
 
+<?php do_action( 'edit_form_top', $post ); ?>
+
 <div id="poststuff">
 <div id="post-body" class="metabox-holder columns-<?php echo 1 == get_current_screen()->get_columns() ? '1' : '2'; ?>">
 <div id="post-body-content">
@@ -366,7 +370,8 @@ wp_nonce_field( 'closedpostboxes', 'closedpostboxesnonce', false );
 <?php
 $sample_permalink_html = $post_type_object->public ? get_sample_permalink_html($post->ID) : '';
 $shortlink = wp_get_shortlink($post->ID, 'post');
-if ( !empty($shortlink) )
+$permalink = get_permalink( $post->ID );
+if ( !empty( $shortlink ) && $shortlink !== $permalink && $permalink !== home_url('?page_id=' . $post->ID) )
     $sample_permalink_html .= '<input id="shortlink" type="hidden" value="' . esc_attr($shortlink) . '" /><a href="#" class="button button-small" onclick="prompt(&#39;URL:&#39;, jQuery(\'#shortlink\').val()); return false;">' . __('Get Shortlink') . '</a>';
 
 if ( $post_type_object->public && ! ( 'pending' == get_post_status( $post ) && !current_user_can( $post_type_object->cap->publish_posts ) ) ) {
@@ -407,8 +412,7 @@ if ( post_type_supports($post_type, 'editor') ) {
 <?php
 	if ( 'auto-draft' != $post->post_status ) {
 		echo '<span id="last-edit">';
-		if ( $last_id = get_post_meta($post_ID, '_edit_last', true) ) {
-			$last_user = get_userdata($last_id);
+		if ( $last_user = get_userdata( get_post_meta( $post_ID, '_edit_last', true ) ) ) {
 			printf(__('Last edited by %1$s on %2$s at %3$s'), esc_html( $last_user->display_name ), mysql2date(get_option('date_format'), $post->post_modified), mysql2date(get_option('time_format'), $post->post_modified));
 		} else {
 			printf(__('Last edited on %1$s at %2$s'), mysql2date(get_option('date_format'), $post->post_modified), mysql2date(get_option('time_format'), $post->post_modified));
@@ -467,7 +471,7 @@ if ( post_type_supports( $post_type, 'comments' ) )
 	wp_comment_reply();
 ?>
 
-<?php if ( (isset($post->post_title) && '' == $post->post_title) || (isset($_GET['message']) && 2 > $_GET['message']) ) : ?>
+<?php if ( post_type_supports( $post_type, 'title' ) && '' === $post->post_title ) : ?>
 <script type="text/javascript">
 try{document.post.title.focus();}catch(e){}
 </script>

@@ -5,7 +5,7 @@ require( dirname(__FILE__) . '/wp-load.php' );
 
 add_action( 'wp_head', 'wp_no_robots' );
 
-require( './wp-blog-header.php' );
+require( dirname( __FILE__ ) . '/wp-blog-header.php' );
 
 if ( is_array( get_site_option( 'illegal_names' )) && isset( $_GET[ 'new' ] ) && in_array( $_GET[ 'new' ], get_site_option( 'illegal_names' ) ) == true ) {
 	wp_redirect( network_home_url() );
@@ -239,7 +239,17 @@ function signup_another_blog($blogname = '', $blog_title = '', $errors = '') {
 	<p><?php _e( 'If you&#8217;re not going to use a great site domain, leave it for a new user. Now have at it!' ) ?></p>
 	<form id="setupform" method="post" action="wp-signup.php">
 		<input type="hidden" name="stage" value="gimmeanotherblog" />
-		<?php do_action( 'signup_hidden_fields' ); ?>
+		<?php
+		/**
+		 * Hidden signup form fields output for creating another site.
+		 *
+		 * @since MU
+		 *
+		 * @param string $context A string describing the step of the signup process. the value can be
+		 *                        'create-another-site', 'validate-user', or 'validate-site'.
+		 */
+		do_action( 'signup_hidden_fields', 'create-another-site' );
+		?>
 		<?php show_blog_form($blogname, $blog_title, $errors); ?>
 		<p class="submit"><input type="submit" name="submit" class="submit" value="<?php esc_attr_e( 'Create Site' ) ?>" /></p>
 	</form>
@@ -330,7 +340,10 @@ function signup_user($user_name = '', $user_email = '', $errors = '') {
 	<h2><?php printf( __( 'Get your own %s account in seconds' ), $current_site->site_name ) ?></h2>
 	<form id="setupform" method="post" action="wp-signup.php">
 		<input type="hidden" name="stage" value="validate-user-signup" />
-		<?php do_action( 'signup_hidden_fields' ); ?>
+		<?php
+		//duplicate_hook
+		do_action( 'signup_hidden_fields', 'validate-user' );
+		?>
 		<?php show_user_form($user_name, $user_email, $errors); ?>
 
 		<p>
@@ -432,7 +445,10 @@ function signup_blog($user_name = '', $user_email = '', $blogname = '', $blog_ti
 		<input type="hidden" name="stage" value="validate-blog-signup" />
 		<input type="hidden" name="user_name" value="<?php echo esc_attr($user_name) ?>" />
 		<input type="hidden" name="user_email" value="<?php echo esc_attr($user_email) ?>" />
-		<?php do_action( 'signup_hidden_fields' ); ?>
+		<?php
+		//duplicate_hook
+		do_action( 'signup_hidden_fields', 'validate-site' );
+		?>
 		<?php show_blog_form($blogname, $blog_title, $errors); ?>
 		<p class="submit"><input type="submit" name="submit" class="submit" value="<?php esc_attr_e('Signup') ?>" /></p>
 	</form>
@@ -511,10 +527,7 @@ function confirm_blog_signup( $domain, $path, $blog_title, $user_name = '', $use
 }
 
 // Main
-$active_signup = get_site_option( 'registration' );
-if ( !$active_signup )
-	$active_signup = 'all';
-
+$active_signup = get_site_option( 'registration', 'none' );
 $active_signup = apply_filters( 'wpmu_active_signup', $active_signup ); // return "all", "none", "blog" or "user"
 
 // Make the signup type translatable.

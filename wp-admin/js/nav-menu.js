@@ -178,6 +178,11 @@ var wpNavMenu;
 							var t = $(this),
 								listItemDBIDMatch = re.exec( t.attr('name') ),
 								listItemDBID = 'undefined' == typeof listItemDBIDMatch[1] ? 0 : parseInt(listItemDBIDMatch[1], 10);
+							
+							// Only show top level items
+							if (0 !== t.closest('ul.children').length)
+								return;
+							
 							if ( this.className && -1 != this.className.indexOf('add-to-top') )
 								processMethod = api.addMenuItemToTop;
 							menuItems[listItemDBID] = t.closest('li').getItemData( 'add-menu-item', listItemDBID );
@@ -902,12 +907,16 @@ var wpNavMenu;
 
 			$.post( ajaxurl, params, function(menuMarkup) {
 				var ins = $('#menu-instructions');
+
+				menuMarkup = $.trim( menuMarkup ); // Trim leading whitespaces
 				processMethod(menuMarkup, params);
+
 				// Make it stand out a bit more visually, by adding a fadeIn
 				$( 'li.pending' ).hide().fadeIn('slow');
 				$( '.drag-instructions' ).show();
 				if( ! ins.hasClass( 'menu-instructions-inactive' ) && ins.siblings().length )
 					ins.addClass( 'menu-instructions-inactive' );
+
 				callback();
 			});
 		},
