@@ -326,6 +326,10 @@ function install_plugin_install_status($api, $loop = false) {
 function install_plugin_information() {
 	global $tab;
 
+	if ( empty( $_REQUEST['plugin'] ) ) {
+		return;
+	}
+
 	$api = plugins_api( 'plugin_information', array(
 		'slug' => wp_unslash( $_REQUEST['plugin'] ),
 		'is_ssl' => is_ssl(),
@@ -459,7 +463,8 @@ function install_plugin_information() {
 				$_rating = $api->num_ratings ? ( $ratecount / $api->num_ratings ) : 0;
 				?>
 				<div class="counter-container">
-					<a href="<?php echo esc_url( self_admin_url( 'plugin-install.php?tab=plugin-information&amp;plugin=' . $api->slug . '&amp;section=reviews' ) ); ?>"
+					<a href="https://wordpress.org/support/view/plugin-reviews/<?php echo $api->slug; ?>?filter=<?php echo $key; ?>"
+					   target="_blank"
 					   title="<?php echo esc_attr( sprintf( _n( 'Click to see reviews that provided a rating of %d star', 'Click to see reviews that provided a rating of %d stars', $key ), $key ) ); ?>">
 						<span class="counter-label"><?php printf( _n( '%d star', '%d stars', $key ), $key ); ?></span>
 						<span class="counter-back">

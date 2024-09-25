@@ -1266,26 +1266,6 @@ th.action-links {
 	box-shadow: 0 1px 1px 0 rgba(0,0,0,0.1);
 }
 
-.update-nag-core-insecure {
-	color: #fff;
-	background-color: #ac1b1b;
-	border-right-color: #cd5a5a;
-	font-weight: bold;
-}
-
-.update-nag-core-insecure > p:first-child {
-	margin-top: 0;
-}
-
-.update-nag-core-insecure > p:last-child {
-	margin-bottom: 0;
-}
-
-.update-nag-core-insecure a {
-	color: #fff;
-	text-decoration: underline;
-}
-
 .update-message {
 	color: #000;
 }
@@ -1987,6 +1967,8 @@ td.media-icon {
 td.media-icon img {
 	max-width: 80px;
 	max-height: 60px;
+	width: auto;
+	height: auto;
 }
 
 td.image-icon img {
@@ -2770,7 +2752,7 @@ img {
 	margin: 4px 0;
 }
 
-#templateside a,
+#templateside li a,
 .theme-editor-php .highlight {
 	display: block;
 	padding: 3px 12px 3px 3px;
@@ -2846,7 +2828,12 @@ img {
 }
 
 .widget-top a.widget-action:after {
-	padding: 12px 12px 0;
+	padding: 12px 12px 11px;
+}
+
+.widget-top a.widget-action:focus:after {
+	-webkit-box-shadow: 0 0 0 1px #5b9dd9,0 0 2px 1px rgba(30,140,190,.8);
+	box-shadow: 0 0 0 1px #5b9dd9,0 0 2px 1px rgba(30,140,190,.8);
 }
 
 .nav-menus-php .item-edit:before {
@@ -2867,29 +2854,21 @@ img {
 	content: '\f142';
 }
 
-/* Enable draggable on IE10 touch events until it's rolled into jQuery UI core */
-.ui-sortable,
-.ui-draggable {
-	-ms-touch-action: none;
-	touch-action:     none;
-}
-
-.meta-box-sortables.ui-sortable,
-.widgets-holder-wrap .ui-draggable,
-.widgets-holder-wrap .ui-sortable,
-.menu.ui-sortable {
-	-ms-touch-action: auto;
-	touch-action:     auto;
-}
-
-.meta-box-sortables.ui-sortable .hndle,
-.menu.ui-sortable .menu-item-handle {
+/*!
+ * jQuery UI Draggable/Sortable 1.11.2
+ * http://jqueryui.com
+ *
+ * Copyright 2014 jQuery Foundation and other contributors
+ * Released under the MIT license.
+ * http://jquery.org/license
+ */
+.ui-draggable-handle,
+.ui-sortable-handle {
 	-ms-touch-action: none;
 	touch-action:     none;
 }
 
 /* Accordion */
-
 .accordion-section {
 	border-bottom: 1px solid #dfdfdf;
 	margin: 0;

@@ -43,9 +43,6 @@ class WP_Embed {
 	 * calls {@link do_shortcode()}, and then re-registers the old shortcodes.
 	 *
 	 * @uses $shortcode_tags
-	 * @uses remove_all_shortcodes()
-	 * @uses add_shortcode()
-	 * @uses do_shortcode()
 	 *
 	 * @param string $content Content to parse
 	 * @return string Content with shortcode parsed
@@ -60,7 +57,7 @@ class WP_Embed {
 		add_shortcode( 'embed', array( $this, 'shortcode' ) );
 
 		// Do the shortcode (only the [embed] one is registered)
-		$content = do_shortcode( $content, true );
+		$content = do_shortcode( $content );
 
 		// Put the original shortcodes back
 		$shortcode_tags = $orig_shortcode_tags;
@@ -122,17 +119,6 @@ class WP_Embed {
 	 * Attempts to convert a URL into embed HTML. Starts by checking the URL against the regex of the registered embed handlers.
 	 * If none of the regex matches and it's enabled, then the URL will be given to the {@link WP_oEmbed} class.
 	 *
-	 * @uses wp_oembed_get()
-	 * @uses wp_parse_args()
-	 * @uses wp_embed_defaults()
-	 * @uses WP_Embed::maybe_make_link()
-	 * @uses get_option()
-	 * @uses author_can()
-	 * @uses wp_cache_get()
-	 * @uses wp_cache_set()
-	 * @uses get_post_meta()
-	 * @uses update_post_meta()
-	 *
 	 * @param array $attr {
 	 *     Shortcode attributes. Optional.
 	 *
@@ -156,7 +142,7 @@ class WP_Embed {
 		$attr = wp_parse_args( $attr, wp_embed_defaults( $url ) );
 
 		// kses converts & into &amp; and we need to undo this
-		// See http://core.trac.wordpress.org/ticket/11311
+		// See https://core.trac.wordpress.org/ticket/11311
 		$url = str_replace( '&amp;', '&', $url );
 
 		// Look for known internal handlers
@@ -326,20 +312,11 @@ class WP_Embed {
 	 * @return string Potentially modified $content.
 	 */
 	public function autoembed( $content ) {
-		// Replace line breaks from all HTML elements with placeholders.
-		$content = wp_replace_in_html_tags( $content, array( "\n" => '<!-- wp-line-break -->' ) );
-
-		// Find URLs that are on their own line.
-		$content = preg_replace_callback( '|^\s*(https?://[^\s"]+)\s*$|im', array( $this, 'autoembed_callback' ), $content );
-
-		// Put the line breaks back.
-		return str_replace( '<!-- wp-line-break -->', "\n", $content );
+		return preg_replace_callback( '|^\s*(https?://[^\s"]+)\s*$|im', array( $this, 'autoembed_callback' ), $content );
 	}
 
 	/**
 	 * Callback function for {@link WP_Embed::autoembed()}.
-	 *
-	 * @uses WP_Embed::shortcode()
 	 *
 	 * @param array $match A regex match array.
 	 * @return string The embed HTML on success, otherwise the original URL.
@@ -357,7 +334,7 @@ class WP_Embed {
 	 * Conditionally makes a hyperlink based on an internal class variable.
 	 *
 	 * @param string $url URL to potentially be linked.
-	 * @return string Linked URL or the original URL.
+	 * @return string|bool Linked URL or the original URL. False if 'return_false_on_fail' is true.
 	 */
 	public function maybe_make_link( $url ) {
 		if ( $this->return_false_on_fail ) {

@@ -287,7 +287,7 @@ class WP_Widget_Archives extends WP_Widget {
 		if ( $d ) {
 ?>
 		<select name="archive-dropdown" onchange='document.location.href=this.options[this.selectedIndex].value;'>
-			<option value=""><?php echo esc_attr( __( 'Select Month' ) ); ?></option>
+			<option value=""><?php esc_attr_e( 'Select Month' ); ?></option>
 
 			<?php
 			/**
@@ -849,7 +849,7 @@ class WP_Widget_Recent_Comments extends WP_Widget {
 		 *
 		 * @since 3.4.0
 		 *
-		 * @see get_comments()
+		 * @see WP_Comment_Query::query() for information on accepted arguments.
 		 *
 		 * @param array $comment_args An array of arguments used to retrieve the recent comments.
 		 */
@@ -1018,7 +1018,7 @@ function wp_widget_rss_output( $rss, $args = array() ) {
 
 	if ( is_wp_error($rss) ) {
 		if ( is_admin() || current_user_can('manage_options') )
-			echo '<p>' . sprintf( __('<strong>RSS Error</strong>: %s'), esc_html( $rss->get_error_message() ) ) . '</p>';
+			echo '<p>' . sprintf( __('<strong>RSS Error</strong>: %s'), $rss->get_error_message() ) . '</p>';
 		return;
 	}
 
@@ -1128,7 +1128,7 @@ function wp_widget_rss_form( $args, $inputs = null ) {
 	$args['show_date']      = isset( $args['show_date'] ) ? (int) $args['show_date'] : (int) $inputs['show_date'];
 
 	if ( ! empty( $args['error'] ) ) {
-		echo '<p class="widget-error"><strong>' . sprintf( __( 'RSS Error: %s' ), esc_html( $args['error'] ) ) . '</strong></p>';
+		echo '<p class="widget-error"><strong>' . sprintf( __( 'RSS Error: %s' ), $args['error'] ) . '</strong></p>';
 	}
 
 	if ( $inputs['url'] ) :
@@ -1344,7 +1344,7 @@ class WP_Widget_Tag_Cloud extends WP_Widget {
 		$nav_menu = isset( $instance['nav_menu'] ) ? $instance['nav_menu'] : '';
 
 		// Get menus
-		$menus = wp_get_nav_menus( array( 'orderby' => 'name' ) );
+		$menus = wp_get_nav_menus();
 
 		// If no menus exists, direct the user to go and create some.
 		if ( !$menus ) {
@@ -1354,7 +1354,7 @@ class WP_Widget_Tag_Cloud extends WP_Widget {
 		?>
 		<p>
 			<label for="<?php echo $this->get_field_id('title'); ?>"><?php _e('Title:') ?></label>
-			<input type="text" class="widefat" id="<?php echo $this->get_field_id('title'); ?>" name="<?php echo $this->get_field_name('title'); ?>" value="<?php echo esc_attr( $title ); ?>" />
+			<input type="text" class="widefat" id="<?php echo $this->get_field_id('title'); ?>" name="<?php echo $this->get_field_name('title'); ?>" value="<?php echo $title; ?>" />
 		</p>
 		<p>
 			<label for="<?php echo $this->get_field_id('nav_menu'); ?>"><?php _e('Select Menu:'); ?></label>

@@ -17,8 +17,6 @@
  *
  * @since 1.5.0
  *
- * @uses locate_template()
- *
  * @param string $name The name of the specialised header.
  */
 function get_header( $name = null ) {
@@ -59,8 +57,6 @@ function get_header( $name = null ) {
  *
  * @since 1.5.0
  *
- * @uses locate_template()
- *
  * @param string $name The name of the specialised footer.
  */
 function get_footer( $name = null ) {
@@ -100,8 +96,6 @@ function get_footer( $name = null ) {
  * "special".
  *
  * @since 1.5.0
- *
- * @uses locate_template()
  *
  * @param string $name The name of the specialised sidebar.
  */
@@ -149,8 +143,6 @@ function get_sidebar( $name = null ) {
  * "special".
  *
  * @since 3.0.0
- *
- * @uses locate_template()
  *
  * @param string $slug The slug name for the generic template.
  * @param string $name The name of the specialised template.
@@ -307,9 +299,6 @@ function wp_loginout($redirect = '', $echo = true) {
  *
  * @since 2.7.0
  *
- * @uses wp_nonce_url() To protect against CSRF.
- * @uses site_url() To generate the log out URL.
- *
  * @param string $redirect Path to redirect to on logout.
  * @return string A log out URL.
  */
@@ -339,8 +328,6 @@ function wp_logout_url($redirect = '') {
  * Returns the URL that allows the user to log in to the site.
  *
  * @since 2.7.0
- *
- * @uses site_url() To generate the log in URL.
  *
  * @param string $redirect Path to redirect to on login.
  * @param bool $force_reauth Whether to force reauthorization, even if a cookie is present. Default is false.
@@ -372,8 +359,6 @@ function wp_login_url($redirect = '', $force_reauth = false) {
  * Returns the URL that allows the user to register on the site.
  *
  * @since 3.6.0
- *
- * @uses site_url() To generate the registration URL.
  *
  * @return string User registration URL.
  */
@@ -496,8 +481,6 @@ function wp_login_form( $args = array() ) {
  *
  * @since 2.8.0
  *
- * @uses site_url() To generate the lost password URL
- *
  * @param string $redirect Path to redirect to on login.
  * @return string Lost password URL.
  */
@@ -571,7 +554,7 @@ function wp_register( $before = '<li>', $after = '</li>', $echo = true ) {
  *
  * @since 1.5.0
  *
- * @link http://trac.wordpress.org/ticket/1458 Explanation of 'wp_meta' action.
+ * @link https://core.trac.wordpress.org/ticket/1458 Explanation of 'wp_meta' action.
  */
 function wp_meta() {
 	/**
@@ -731,6 +714,25 @@ function get_bloginfo( $show = '', $filter = 'raw' ) {
 }
 
 /**
+ * Display <title> tag with contents.
+ *
+ * @since 4.1.0
+ * @access private
+ */
+function _wp_render_title_tag() {
+	if ( ! current_theme_supports( 'title-tag' ) ) {
+		return;
+	}
+
+	// This can only work internally on wp_head.
+	if ( ! did_action( 'wp_head' ) && ! doing_action( 'wp_head' ) ) {
+		return;
+	}
+
+	echo '<title>' . wp_title( '|', false, 'right' ) . "</title>\n";
+}
+
+/**
  * Display or retrieve page title for all areas of blog.
  *
  * By default, the page title will display the separator before the page title,
@@ -753,7 +755,7 @@ function get_bloginfo( $show = '', $filter = 'raw' ) {
  * @return string|null String on retrieve, null when displaying.
  */
 function wp_title($sep = '&raquo;', $display = true, $seplocation = '') {
-	global $wp_locale;
+	global $wp_locale, $page, $paged;
 
 	$m = get_query_var('m');
 	$year = get_query_var('year');
@@ -851,6 +853,19 @@ function wp_title($sep = '&raquo;', $display = true, $seplocation = '') {
 		$title = implode( " $sep ", $title_array ) . $prefix;
 	} else {
 		$title = $prefix . implode( " $sep ", $title_array );
+	}
+
+	if ( current_theme_supports( 'title-tag' ) && ! is_feed() ) {
+		$title .= get_bloginfo( 'name', 'display' );
+
+		$site_description = get_bloginfo( 'description', 'display' );
+		if ( $site_description && ( is_home() || is_front_page() ) ) {
+			$title .= " $sep $site_description";
+		}
+
+		if ( ( $paged >= 2 || $page >= 2 ) && ! is_404() ) {
+			$title .= " $sep " . sprintf( __( 'Page %s' ), max( $paged, $page ) );
+		}
 	}
 
 	/**
@@ -1093,6 +1108,121 @@ function single_month_title($prefix = '', $display = true ) {
 	if ( !$display )
 		return $result;
 	echo $result;
+}
+
+/**
+ * Display the archive title based on the queried object.
+ *
+ * @since 4.1.0
+ *
+ * @see get_the_archive_title()
+ *
+ * @param string $before Optional. Content to prepend to the title. Default empty.
+ * @param string $after  Optional. Content to append to the title. Default empty.
+ */
+function the_archive_title( $before = '', $after = '' ) {
+	$title = get_the_archive_title();
+
+	if ( ! empty( $title ) ) {
+		echo $before . $title . $after;
+	}
+}
+
+/**
+ * Retrieve the archive title based on the queried object.
+ *
+ * @since 4.1.0
+ *
+ * @return string Archive title.
+ */
+function get_the_archive_title() {
+	if ( is_category() ) {
+		$title = sprintf( __( 'Category: %s' ), single_cat_title( '', false ) );
+	} elseif ( is_tag() ) {
+		$title = sprintf( __( 'Tag: %s' ), single_tag_title( '', false ) );
+	} elseif ( is_author() ) {
+		$title = sprintf( __( 'Author: %s' ), '<span class="vcard">' . get_the_author() . '</span>' );
+	} elseif ( is_year() ) {
+		$title = sprintf( __( 'Year: %s' ), get_the_date( _x( 'Y', 'yearly archives date format' ) ) );
+	} elseif ( is_month() ) {
+		$title = sprintf( __( 'Month: %s' ), get_the_date( _x( 'F Y', 'monthly archives date format' ) ) );
+	} elseif ( is_day() ) {
+		$title = sprintf( __( 'Day: %s' ), get_the_date( _x( 'F j, Y', 'daily archives date format' ) ) );
+	} elseif ( is_tax( 'post_format', 'post-format-aside' ) ) {
+		$title = _x( 'Asides', 'post format archive title' );
+	} elseif ( is_tax( 'post_format', 'post-format-gallery' ) ) {
+		$title = _x( 'Galleries', 'post format archive title' );
+	} elseif ( is_tax( 'post_format', 'post-format-image' ) ) {
+		$title = _x( 'Images', 'post format archive title' );
+	} elseif ( is_tax( 'post_format', 'post-format-video' ) ) {
+		$title = _x( 'Videos', 'post format archive title' );
+	} elseif ( is_tax( 'post_format', 'post-format-quote' ) ) {
+		$title = _x( 'Quotes', 'post format archive title' );
+	} elseif ( is_tax( 'post_format', 'post-format-link' ) ) {
+		$title = _x( 'Links', 'post format archive title' );
+	} elseif ( is_tax( 'post_format', 'post-format-status' ) ) {
+		$title = _x( 'Statuses', 'post format archive title' );
+	} elseif ( is_tax( 'post_format', 'post-format-audio' ) ) {
+		$title = _x( 'Audio', 'post format archive title' );
+	} elseif ( is_tax( 'post_format', 'post-format-chat' ) ) {
+		$title = _x( 'Chats', 'post format archive title' );
+	} elseif ( is_post_type_archive() ) {
+		$title = sprintf( __( 'Archives: %s' ), post_type_archive_title( '', false ) );
+	} elseif ( is_tax() ) {
+		$tax = get_taxonomy( get_queried_object()->taxonomy );
+		/* translators: 1: Taxonomy singular name, 2: Current taxonomy term */
+		$title = sprintf( __( '%1$s: %2$s' ), $tax->labels->singular_name, single_term_title( '', false ) );
+	} else {
+		$title = __( 'Archives' );
+	}
+
+	/**
+	 * Filter the archive title.
+	 *
+	 * @since 4.1.0
+	 *
+	 * @param string $title Archive title to be displayed.
+	 */
+	return apply_filters( 'get_the_archive_title', $title );
+}
+
+/**
+ * Display category, tag, or term description.
+ *
+ * @since 4.1.0
+ *
+ * @see get_the_archive_description()
+ *
+ * @param string $before Optional. Content to prepend to the description. Default empty.
+ * @param string $after  Optional. Content to append to the description. Default empty.
+ */
+function the_archive_description( $before = '', $after = '' ) {
+	$description = get_the_archive_description();
+
+	if ( ! empty( $description ) ) {
+		echo $before . $description . $after;
+	}
+}
+
+/**
+ * Retrieve category, tag, or term description.
+ *
+ * @since 4.1.0
+ *
+ * @return string Archive description.
+ */
+function get_the_archive_description() {
+
+	/**
+	 * Filter the archive description.
+	 *
+	 * @since 4.1.0
+	 *
+	 * @see term_description()
+	 *
+	 * @param string $description Archive description to be displayed.
+	 */
+	return apply_filters( 'get_the_archive_description', term_description() );
 }
 
 /**
@@ -1397,7 +1527,6 @@ function calendar_week_mod($num) {
  * no posts for the month, then it will not be displayed.
  *
  * @since 1.0.0
- * @uses calendar_week_mod()
  *
  * @param bool $initial Optional, default is true. Use initial calendar names.
  * @param bool $echo Optional, default is true. Set to false for return.
@@ -1679,7 +1808,6 @@ function the_date_xml() {
  *
  * @since 0.71
  *
- * @uses get_the_date()
  * @param string $d Optional. PHP date format defaults to the date_format option if not specified.
  * @param string $before Optional. Output before the date.
  * @param string $after Optional. Output after the date.
@@ -2000,7 +2128,6 @@ function get_post_modified_time( $d = 'U', $gmt = false, $post = null, $translat
  *
  * @since 0.71
  * @uses $wp_locale
- * @uses $post
  */
 function the_weekday() {
 	global $wp_locale;
@@ -2232,24 +2359,6 @@ function wp_no_robots() {
 }
 
 /**
- * Display a noindex,noarchive meta tag and referrer origin-when-cross-origin meta tag.
- *
- * Outputs a noindex,noarchive meta tag that tells web robots not to index or cache the page content.
- * Outputs a referrer origin-when-cross-origin meta tag that tells the browser not to send the full
- * url as a referrer to other sites when cross-origin assets are loaded.
- *
- * Typical usage is as a wp_head callback. add_action( 'wp_head', 'wp_sensitive_page_meta' );
- *
- * @since 5.0.0
- */
-function wp_sensitive_page_meta() {
-	?>
-	<meta name='robots' content='noindex,noarchive' />
-	<meta name='referrer' content='strict-origin-when-cross-origin' />
-	<?php
-}
-
-/**
  * Whether the user should have a WYSIWIG editor.
  *
  * Checks that the user requires a WYSIWIG editor and that the editor is
@@ -2315,13 +2424,13 @@ function wp_default_editor() {
  * Renders an editor.
  *
  * Using this function is the proper way to output all needed components for both TinyMCE and Quicktags.
- * _WP_Editors should not be used directly. See http://core.trac.wordpress.org/ticket/17144.
+ * _WP_Editors should not be used directly. See https://core.trac.wordpress.org/ticket/17144.
  *
  * NOTE: Once initialized the TinyMCE editor cannot be safely moved in the DOM. For that reason
  * running wp_editor() inside of a metabox is not a good idea unless only Quicktags is used.
  * On the post edit screen several actions can be used to include additional editors
  * containing TinyMCE: 'edit_page_form', 'edit_form_advanced' and 'dbx_post_sidebar'.
- * See http://core.trac.wordpress.org/ticket/19173 for more information.
+ * See https://core.trac.wordpress.org/ticket/19173 for more information.
  *
  * @see wp-includes/class-wp-editor.php
  * @since 3.3.0
@@ -2344,7 +2453,6 @@ function wp_editor( $content, $editor_id, $settings = array() ) {
  * to ensure that it is safe for placing in an html attribute.
  *
  * @since 2.3.0
- * @uses esc_attr()
  *
  * @param bool $escaped Whether the result is escaped. Default true.
  * 	Only use when you are later escaping it. Do not use unescaped.
@@ -2371,7 +2479,6 @@ function get_search_query( $escaped = true ) {
  * The search query string is passed through {@link esc_attr()}
  * to ensure that it is safe for placing in an html attribute.
  *
- * @uses esc_attr()
  * @since 2.1.0
  */
 function the_search_query() {
@@ -2401,14 +2508,12 @@ function language_attributes($doctype = 'html') {
 	if ( function_exists( 'is_rtl' ) && is_rtl() )
 		$attributes[] = 'dir="rtl"';
 
-	if ( $lang = get_bloginfo( 'language' ) ) {
-		if ( get_option( 'html_type' ) == 'text/html' || $doctype == 'html' ) {
-			$attributes[] = 'lang="' . esc_attr( $lang ) . '"';
-		}
+	if ( $lang = get_bloginfo('language') ) {
+		if ( get_option('html_type') == 'text/html' || $doctype == 'html' )
+			$attributes[] = "lang=\"$lang\"";
 
-		if ( get_option( 'html_type' ) != 'text/html' || $doctype == 'xhtml' ) {
-			$attributes[] = 'xml:lang="' . esc_attr( $lang ) . '"';
-		}
+		if ( get_option('html_type') != 'text/html' || $doctype == 'xhtml' )
+			$attributes[] = "xml:lang=\"$lang\"";
 	}
 
 	$output = implode(' ', $attributes);
@@ -2485,6 +2590,7 @@ function paginate_links( $args = '' ) {
 
 	if ( isset( $url_parts[1] ) ) {
 		wp_parse_str( $url_parts[1], $query_args );
+		$query_args = urlencode_deep( $query_args );
 	}
 
 	$pagenum_link = remove_query_arg( array_keys( $query_args ), $pagenum_link );
@@ -2505,7 +2611,7 @@ function paginate_links( $args = '' ) {
 		'end_size' => 1,
 		'mid_size' => 2,
 		'type' => 'plain',
-		'add_args' => false, // array of query args to add
+		'add_args' => $query_args, // array of query args to add
 		'add_fragment' => '',
 		'before_page_number' => '',
 		'after_page_number' => ''
@@ -2871,25 +2977,25 @@ function get_the_generator( $type = '' ) {
 
 	switch ( $type ) {
 		case 'html':
-			$gen = '<meta name="generator" content="WordPress ' . esc_attr( get_bloginfo( 'version' ) ) . '">';
+			$gen = '<meta name="generator" content="WordPress ' . get_bloginfo( 'version' ) . '">';
 			break;
 		case 'xhtml':
-			$gen = '<meta name="generator" content="WordPress ' . esc_attr( get_bloginfo( 'version' ) ) . '" />';
+			$gen = '<meta name="generator" content="WordPress ' . get_bloginfo( 'version' ) . '" />';
 			break;
 		case 'atom':
-			$gen = '<generator uri="https://wordpress.org/" version="' . esc_attr( get_bloginfo_rss( 'version' ) ) . '">WordPress</generator>';
+			$gen = '<generator uri="http://wordpress.org/" version="' . get_bloginfo_rss( 'version' ) . '">WordPress</generator>';
 			break;
 		case 'rss2':
-			$gen = '<generator>' . esc_url_raw( 'https://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) ) . '</generator>';
+			$gen = '<generator>http://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) . '</generator>';
 			break;
 		case 'rdf':
-			$gen = '<admin:generatorAgent rdf:resource="' . esc_url_raw( 'https://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) ) . '" />';
+			$gen = '<admin:generatorAgent rdf:resource="http://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) . '" />';
 			break;
 		case 'comment':
-			$gen = '<!-- generator="WordPress/' . esc_attr( get_bloginfo( 'version' ) ) . '" -->';
+			$gen = '<!-- generator="WordPress/' . get_bloginfo( 'version' ) . '" -->';
 			break;
 		case 'export':
-			$gen = '<!-- generator="WordPress/' . esc_attr( get_bloginfo_rss( 'version' ) ) . '" created="' . date( 'Y-m-d H:i' ) . '" -->';
+			$gen = '<!-- generator="WordPress/' . get_bloginfo_rss('version') . '" created="'. date('Y-m-d H:i') . '" -->';
 			break;
 	}
 

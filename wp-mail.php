@@ -14,12 +14,6 @@ require(dirname(__FILE__) . '/wp-load.php');
 if ( ! apply_filters( 'enable_post_by_email_configuration', true ) )
 	wp_die( __( 'This action has been disabled by the administrator.' ) );
 
-$mailserver_url = get_option( 'mailserver_url' );
-
-if ( 'mail.example.com' === $mailserver_url || empty( $mailserver_url ) ) {
-	wp_die( __( 'This action has been disabled by the administrator.' ), 403 );
-}
-
 /**
  * Fires to allow a plugin to do a complete takeover of Post by Email.
  *
@@ -59,9 +53,6 @@ if( 0 === $count ) {
 	$pop3->quit();
 	wp_die( __('There doesn&#8217;t seem to be any new mail.') );
 }
-
-// Always run as an unauthenticated user.
-wp_set_current_user( 0 );
 
 for ( $i = 1; $i <= $count; $i++ ) {
 
@@ -128,6 +119,7 @@ for ( $i = 1; $i <= $count; $i++ ) {
 					$author = trim($line);
 				$author = sanitize_email($author);
 				if ( is_email($author) ) {
+					echo '<p>' . sprintf(__('Author is %s'), $author) . '</p>';
 					$userdata = get_user_by('email', $author);
 					if ( ! empty( $userdata ) ) {
 						$post_author = $userdata->ID;

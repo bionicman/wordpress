@@ -50,7 +50,6 @@ $wp_file_descriptions = array(
  *
  * @since 1.5.0
  *
- * @uses _cleanup_header_comment
  * @uses $wp_file_descriptions
  * @param string $file Filesystem path or filename
  * @return string Description of file from $wp_file_descriptions or basename of $file if description doesn't exist
@@ -75,7 +74,6 @@ function get_file_description( $file ) {
  *
  * @since 1.5.0
  *
- * @uses get_option
  * @return string Full filesystem path to the root of the WordPress installation
  */
 function get_home_path() {
@@ -163,11 +161,9 @@ function wp_tempnam($filename = '', $dir = '') {
  *
  * @since 1.5.0
  *
- * @uses wp_die
- * @uses validate_file
  * @param string $file file the users is attempting to edit
  * @param array $allowed_files Array of allowed files to edit, $file must match an entry exactly
- * @return null
+ * @return string|null
  */
 function validate_file_to_edit( $file, $allowed_files = '' ) {
 	$code = validate_file( $file, $allowed_files );
@@ -269,8 +265,6 @@ function _wp_handle_upload( &$file, $overrides, $time, $action ) {
 	$test_type = isset( $overrides['test_type'] ) ? $overrides['test_type'] : true;
 	$mimes = isset( $overrides['mimes'] ) ? $overrides['mimes'] : false;
 
-	$test_upload = isset( $overrides['test_upload'] ) ? $overrides['test_upload'] : true;
-
 	// A correct form post will pass this test.
 	if ( $test_form && ( ! isset( $_POST['action'] ) || ( $_POST['action'] != $action ) ) ) {
 		return call_user_func( $upload_error_handler, $file, __( 'Invalid form submission.' ) );
@@ -293,7 +287,7 @@ function _wp_handle_upload( &$file, $overrides, $time, $action ) {
 
 	// A properly uploaded file will pass this test. There should be no reason to override this one.
 	$test_uploaded_file = 'wp_handle_upload' === $action ? @ is_uploaded_file( $file['tmp_name'] ) : @ is_file( $file['tmp_name'] );
-	if ( $test_upload && ! $test_uploaded_file ) {
+	if ( ! $test_uploaded_file ) {
 		return call_user_func( $upload_error_handler, $file, __( 'Specified file failed upload test.' ) );
 	}
 
@@ -595,10 +589,6 @@ function _unzip_file_ziparchive($file, $to, $needed_dirs = array() ) {
 		if ( '__MACOSX/' === substr($info['name'], 0, 9) ) // Skip the OS X-created __MACOSX directory
 			continue;
 
-		if ( 0 !== validate_file( $info['name'] ) ) {
-			return new WP_Error( 'invalid_file_ziparchive', __( 'Could not extract file from archive.' ), $info['name'] );
-		}
-
 		$uncompressed_size += $info['size'];
 
 		if ( '/' == substr($info['name'], -1) ) // directory
@@ -752,10 +742,6 @@ function _unzip_file_pclzip($file, $to, $needed_dirs = array()) {
 		if ( '__MACOSX/' === substr($file['filename'], 0, 9) ) // Don't extract the OS X-created __MACOSX directory files
 			continue;
 
-		if ( 0 !== validate_file( $file['filename'] ) ) {
-			return new WP_Error( 'invalid_file_pclzip', __( 'Could not extract file from archive.' ), $file['filename'] );
-		}
-
 		if ( ! $wp_filesystem->put_contents( $to . $file['filename'], $file['content'], FS_CHMOD_FILE) )
 			return new WP_Error( 'copy_failed_pclzip', __( 'Could not copy file.' ), $file['filename'] );
 	}
@@ -823,7 +809,7 @@ function copy_dir($from, $to, $skip_list = array() ) {
  *
  * @param array $args (optional) Connection args, These are passed directly to the WP_Filesystem_*() classes.
  * @param string $context (optional) Context for get_filesystem_method(), See function declaration for more information.
- * @return boolean false on failure, true on success
+ * @return null|boolean false on failure, true on success
  */
 function WP_Filesystem( $args = false, $context = false ) {
 	global $wp_filesystem;
@@ -983,28 +969,14 @@ function request_filesystem_credentials($form_post, $type = '', $error = false, 
 
 	$credentials = get_option('ftp_credentials', array( 'hostname' => '', 'username' => ''));
 
-	$submitted_form = wp_unslash( $_POST );
-
-	// Verify nonce, or unset submitted form field values on failure
-	if ( ! isset( $_POST['_fs_nonce'] ) || ! wp_verify_nonce( $_POST['_fs_nonce'], 'filesystem-credentials' ) ) {
-		unset(
-			$submitted_form['hostname'],
-			$submitted_form['username'],
-			$submitted_form['password'],
-			$submitted_form['public_key'],
-			$submitted_form['private_key'],
-			$submitted_form['connection_type']
-		);
-	}
-
 	// If defined, set it to that, Else, If POST'd, set it to that, If not, Set it to whatever it previously was(saved details in option)
-	$credentials['hostname'] = defined('FTP_HOST') ? FTP_HOST : (!empty($submitted_form['hostname']) ? $submitted_form['hostname'] : $credentials['hostname']);
-	$credentials['username'] = defined('FTP_USER') ? FTP_USER : (!empty($submitted_form['username']) ? $submitted_form['username'] : $credentials['username']);
-	$credentials['password'] = defined('FTP_PASS') ? FTP_PASS : (!empty($submitted_form['password']) ? $submitted_form['password'] : '');
+	$credentials['hostname'] = defined('FTP_HOST') ? FTP_HOST : (!empty($_POST['hostname']) ? wp_unslash( $_POST['hostname'] ) : $credentials['hostname']);
+	$credentials['username'] = defined('FTP_USER') ? FTP_USER : (!empty($_POST['username']) ? wp_unslash( $_POST['username'] ) : $credentials['username']);
+	$credentials['password'] = defined('FTP_PASS') ? FTP_PASS : (!empty($_POST['password']) ? wp_unslash( $_POST['password'] ) : '');
 
 	// Check to see if we are setting the public/private keys for ssh
-	$credentials['public_key'] = defined('FTP_PUBKEY') ? FTP_PUBKEY : (!empty($submitted_form['public_key']) ? $submitted_form['public_key'] : '');
-	$credentials['private_key'] = defined('FTP_PRIKEY') ? FTP_PRIKEY : (!empty($submitted_form['private_key']) ? $submitted_form['private_key'] : '');
+	$credentials['public_key'] = defined('FTP_PUBKEY') ? FTP_PUBKEY : (!empty($_POST['public_key']) ? wp_unslash( $_POST['public_key'] ) : '');
+	$credentials['private_key'] = defined('FTP_PRIKEY') ? FTP_PRIKEY : (!empty($_POST['private_key']) ? wp_unslash( $_POST['private_key'] ) : '');
 
 	// Sanitize the hostname, Some people might pass in odd-data:
 	$credentials['hostname'] = preg_replace('|\w+://|', '', $credentials['hostname']); //Strip any schemes off
@@ -1021,8 +993,8 @@ function request_filesystem_credentials($form_post, $type = '', $error = false, 
 		$credentials['connection_type'] = 'ssh';
 	else if ( (defined('FTP_SSL') && FTP_SSL) && 'ftpext' == $type ) //Only the FTP Extension understands SSL
 		$credentials['connection_type'] = 'ftps';
-	else if ( !empty($submitted_form['connection_type']) )
-		$credentials['connection_type'] = $submitted_form['connection_type'];
+	else if ( !empty($_POST['connection_type']) )
+		$credentials['connection_type'] = wp_unslash( $_POST['connection_type'] );
 	else if ( !isset($credentials['connection_type']) ) //All else fails (And it's not defaulted to something else saved), Default to FTP
 		$credentials['connection_type'] = 'ftp';
 
@@ -1036,7 +1008,9 @@ function request_filesystem_credentials($form_post, $type = '', $error = false, 
 			$stored_credentials['hostname'] .= ':' . $stored_credentials['port'];
 
 		unset($stored_credentials['password'], $stored_credentials['port'], $stored_credentials['private_key'], $stored_credentials['public_key']);
-		update_option('ftp_credentials', $stored_credentials);
+		if ( ! defined( 'WP_INSTALLING' ) ) {
+			update_option( 'ftp_credentials', $stored_credentials );
+		}
 		return $credentials;
 	}
 	$hostname = isset( $credentials['hostname'] ) ? $credentials['hostname'] : '';
@@ -1160,14 +1134,11 @@ jQuery(function($){
 
 <?php
 foreach ( (array) $extra_fields as $field ) {
-	if ( isset( $submitted_form[ $field ] ) )
-		echo '<input type="hidden" name="' . esc_attr( $field ) . '" value="' . esc_attr( $submitted_form[ $field ] ) . '" />';
+	if ( isset( $_POST[ $field ] ) )
+		echo '<input type="hidden" name="' . esc_attr( $field ) . '" value="' . esc_attr( wp_unslash( $_POST[ $field ] ) ) . '" />';
 }
+submit_button( __( 'Proceed' ), 'button', 'upgrade' );
 ?>
-	<p class="request-filesystem-credentials-action-buttons">
-		<?php wp_nonce_field( 'filesystem-credentials', '_fs_nonce', false, true ); ?>
-		<?php submit_button( __( 'Proceed' ), 'button', 'upgrade', false ); ?>
-	</p>
 </div>
 </form>
 <?php

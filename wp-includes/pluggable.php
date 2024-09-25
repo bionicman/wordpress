@@ -72,7 +72,6 @@ if ( !function_exists('get_currentuserinfo') ) :
  * @since 0.71
  *
  * @uses $current_user Checks if the current user is set
- * @uses wp_validate_auth_cookie() Retrieves current logged in user.
  *
  * @return bool|null False on XML-RPC Request and invalid auth cookie. Null when current user set.
  */
@@ -350,8 +349,6 @@ function wp_mail( $to, $subject, $message, $headers = '', $attachments = array()
 	$phpmailer->ClearAttachments();
 	$phpmailer->ClearCustomHeaders();
 	$phpmailer->ClearReplyTos();
-	$phpmailer->Body    = '';
-	$phpmailer->AltBody = '';
 
 	// From email and name
 	// If we don't have a name from the input headers
@@ -362,7 +359,7 @@ function wp_mail( $to, $subject, $message, $headers = '', $attachments = array()
 	 * Some hosts will block outgoing mail from this address if it doesn't exist but
 	 * there's no easy alternative. Defaulting to admin_email might appear to be another
 	 * option but some hosts may refuse to relay mail from an unknown domain. See
-	 * http://trac.wordpress.org/ticket/5007.
+	 * https://core.trac.wordpress.org/ticket/5007.
 	 */
 
 	if ( !isset( $from_email ) ) {
@@ -1010,14 +1007,18 @@ function auth_redirect() {
 		}
 	}
 
-	/**
-	 * Filters the authentication redirect scheme.
-	 *
-	 * @since 2.9.0
-	 *
-	 * @param string $scheme Authentication redirect scheme. Default empty.
-	 */
-	$scheme = apply_filters( 'auth_redirect_scheme', '' );
+	if ( is_user_admin() ) {
+		$scheme = 'logged_in';
+	} else {
+		/**
+		 * Filter the authentication redirect scheme.
+		 *
+		 * @since 2.9.0
+		 *
+		 * @param string $scheme Authentication redirect scheme. Default empty.
+		 */
+		$scheme = apply_filters( 'auth_redirect_scheme', '' );
+	}
 
 	if ( $user_id = wp_validate_auth_cookie( '',  $scheme) ) {
 		/**
@@ -1066,9 +1067,9 @@ if ( !function_exists('check_admin_referer') ) :
  * @param string $action Action nonce
  * @param string $query_arg where to look for nonce in $_REQUEST (since 2.5)
  */
-function check_admin_referer( $action = -1, $query_arg = '_wpnonce' ) {
-	if ( -1 === $action )
-		_doing_it_wrong( __FUNCTION__, __( 'You should specify a nonce action to be verified by using the first parameter.' ), '3.2.0' );
+function check_admin_referer($action = -1, $query_arg = '_wpnonce') {
+	if ( -1 == $action )
+		_doing_it_wrong( __FUNCTION__, __( 'You should specify a nonce action to be verified by using the first parameter.' ), '3.2' );
 
 	$adminurl = strtolower(admin_url());
 	$referer = strtolower(wp_get_referer());
@@ -1087,12 +1088,6 @@ function check_admin_referer( $action = -1, $query_arg = '_wpnonce' ) {
 	 * @param bool   $result Whether the admin request nonce was validated.
 	 */
 	do_action( 'check_admin_referer', $action, $result );
-
-	if ( ! $result && ! ( -1 === $action && strpos( $referer, $adminurl ) === 0 ) ) {
-		wp_nonce_ays( $action );
-		die();
-	}
-
 	return $result;
 }
 endif;
@@ -1107,9 +1102,6 @@ if ( !function_exists('check_ajax_referer') ) :
  * @param string $query_arg where to look for nonce in $_REQUEST (since 2.5)
  */
 function check_ajax_referer( $action = -1, $query_arg = false, $die = true ) {
-	if ( -1 === $action )
-		_doing_it_wrong( __FUNCTION__, __( 'You should specify a nonce action to be verified by using the first parameter.' ), '3.2.0' );
-
 	$nonce = '';
 
 	if ( $query_arg && isset( $_REQUEST[ $query_arg ] ) )
@@ -1198,7 +1190,7 @@ if ( !function_exists('wp_sanitize_redirect') ) :
  * @return string redirect-sanitized URL
  **/
 function wp_sanitize_redirect($location) {
-	$location = preg_replace('|[^a-z0-9-~+_.?#=&;,/:%!*@]|i', '', $location);
+	$location = preg_replace('|[^a-z0-9-~+_.?#=&;,/:%!*]|i', '', $location);
 	$location = wp_kses_no_null($location);
 
 	// remove %0d and %0a from location
@@ -1221,8 +1213,6 @@ if ( !function_exists('wp_safe_redirect') ) :
  * but only used in a few places.
  *
  * @since 2.3.0
- *
- * @uses wp_validate_redirect() To validate the redirect is to an allowed host.
  *
  * @return void Does not return anything
  **/
@@ -1254,7 +1244,7 @@ if ( !function_exists('wp_validate_redirect') ) :
  * @return string redirect-sanitized URL
  **/
 function wp_validate_redirect($location, $default = '') {
-	$location = wp_sanitize_redirect( trim( $location, " \t\n\r\0\x08\x0B" ) );
+	$location = trim( $location );
 	// browsers will assume 'http' is your protocol, and will obey a redirect to a URL starting with '//'
 	if ( substr($location, 0, 2) == '//' )
 		$location = 'http:' . $location;
@@ -1262,8 +1252,7 @@ function wp_validate_redirect($location, $default = '') {
 	// In php 5 parse_url may fail if the URL query part contains http://, bug #38143
 	$test = ( $cut = strpos($location, '?') ) ? substr( $location, 0, $cut ) : $location;
 
-	// @-operator is used to prevent possible warnings in PHP < 5.3.3.
-	$lp = @parse_url($test);
+	$lp  = parse_url($test);
 
 	// Give up if malformed URL
 	if ( false === $lp )
@@ -1273,25 +1262,9 @@ function wp_validate_redirect($location, $default = '') {
 	if ( isset($lp['scheme']) && !('http' == $lp['scheme'] || 'https' == $lp['scheme']) )
 		return $default;
 
-	if ( ! isset( $lp['host'] ) && ! empty( $lp['path'] ) && '/' !== $lp['path'][0] ) {
-		$path = '';
-		if ( ! empty( $_SERVER['REQUEST_URI'] ) ) {
-			$path = dirname( parse_url( 'http://placeholder' . $_SERVER['REQUEST_URI'], PHP_URL_PATH ) . '?' );
-		}
-		$location = '/' . ltrim( $path . '/', '/' ) . $location;
-	}
-
-	// Reject if certain components are set but host is not. This catches urls like https:host.com for which parse_url does not set the host field.
-	if ( ! isset( $lp['host'] ) && ( isset( $lp['scheme'] ) || isset( $lp['user'] ) || isset( $lp['pass'] ) || isset( $lp['port'] ) ) ) {
+	// Reject if scheme is set but host is not. This catches urls like https:host.com for which parse_url does not set the host field.
+	if ( isset($lp['scheme'])  && !isset($lp['host']) )
 		return $default;
-	}
-
-	// Reject malformed components parse_url() can return on odd inputs.
-	foreach ( array( 'user', 'pass', 'host' ) as $component ) {
-		if ( isset( $lp[ $component ] ) && strpbrk( $lp[ $component ], ':/?#@' ) ) {
-			return $default;
-		}
-	}
 
 	$wpp = parse_url(home_url());
 
@@ -1409,9 +1382,9 @@ function wp_notify_postauthor( $comment_id, $deprecated = null ) {
 			$notify_message  = sprintf( __( 'New trackback on your post "%s"' ), $post->post_title ) . "\r\n";
 			/* translators: 1: website name, 2: author IP, 3: author domain */
 			$notify_message .= sprintf( __('Website: %1$s (IP: %2$s , %3$s)'), $comment->comment_author, $comment->comment_author_IP, $comment_author_domain ) . "\r\n";
-			$notify_message .= sprintf( __('URL    : %s'), $comment->comment_author_url ) . "\r\n";
-			$notify_message .= __('Excerpt: ') . "\r\n" . $comment->comment_content . "\r\n\r\n";
-			$notify_message .= __('You can see all trackbacks on this post here: ') . "\r\n";
+			$notify_message .= sprintf( __( 'URL: %s' ), $comment->comment_author_url ) . "\r\n";
+			$notify_message .= sprintf( __( 'Comment: %s' ), $comment->comment_content ) . "\r\n\r\n";
+			$notify_message .= __( 'You can see all trackbacks on this post here:' ) . "\r\n";
 			/* translators: 1: blog name, 2: post title */
 			$subject = sprintf( __('[%1$s] Trackback: "%2$s"'), $blogname, $post->post_title );
 			break;
@@ -1419,21 +1392,21 @@ function wp_notify_postauthor( $comment_id, $deprecated = null ) {
 			$notify_message  = sprintf( __( 'New pingback on your post "%s"' ), $post->post_title ) . "\r\n";
 			/* translators: 1: comment author, 2: author IP, 3: author domain */
 			$notify_message .= sprintf( __('Website: %1$s (IP: %2$s , %3$s)'), $comment->comment_author, $comment->comment_author_IP, $comment_author_domain ) . "\r\n";
-			$notify_message .= sprintf( __('URL    : %s'), $comment->comment_author_url ) . "\r\n";
-			$notify_message .= __('Excerpt: ') . "\r\n" . sprintf('[...] %s [...]', $comment->comment_content ) . "\r\n\r\n";
-			$notify_message .= __('You can see all pingbacks on this post here: ') . "\r\n";
+			$notify_message .= sprintf( __( 'URL: %s' ), $comment->comment_author_url ) . "\r\n";
+			$notify_message .= sprintf( __( 'Comment: %s' ), $comment->comment_content ) . "\r\n\r\n";
+			$notify_message .= __( 'You can see all pingbacks on this post here:' ) . "\r\n";
 			/* translators: 1: blog name, 2: post title */
 			$subject = sprintf( __('[%1$s] Pingback: "%2$s"'), $blogname, $post->post_title );
 			break;
 		default: // Comments
 			$notify_message  = sprintf( __( 'New comment on your post "%s"' ), $post->post_title ) . "\r\n";
 			/* translators: 1: comment author, 2: author IP, 3: author domain */
-			$notify_message .= sprintf( __('Author : %1$s (IP: %2$s , %3$s)'), $comment->comment_author, $comment->comment_author_IP, $comment_author_domain ) . "\r\n";
-			$notify_message .= sprintf( __('E-mail : %s'), $comment->comment_author_email ) . "\r\n";
-			$notify_message .= sprintf( __('URL    : %s'), $comment->comment_author_url ) . "\r\n";
-			$notify_message .= sprintf( __('Whois  : http://whois.arin.net/rest/ip/%s'), $comment->comment_author_IP ) . "\r\n";
-			$notify_message .= __('Comment: ') . "\r\n" . $comment->comment_content . "\r\n\r\n";
-			$notify_message .= __('You can see all comments on this post here: ') . "\r\n";
+			$notify_message .= sprintf( __( 'Author: %1$s (IP: %2$s , %3$s)' ), $comment->comment_author, $comment->comment_author_IP, $comment_author_domain ) . "\r\n";
+			$notify_message .= sprintf( __( 'E-mail: %s' ), $comment->comment_author_email ) . "\r\n";
+			$notify_message .= sprintf( __( 'URL: %s' ), $comment->comment_author_url ) . "\r\n";
+			$notify_message .= sprintf( __( 'Whois: %s' ), "http://whois.arin.net/rest/ip/{$comment->comment_author_IP}" ) . "\r\n";
+			$notify_message .= sprintf( __('Comment: %s' ), $comment->comment_content ) . "\r\n\r\n";
+			$notify_message .= __( 'You can see all comments on this post here:' ) . "\r\n";
 			/* translators: 1: blog name, 2: post title */
 			$subject = sprintf( __('[%1$s] Comment: "%2$s"'), $blogname, $post->post_title );
 			break;
@@ -1511,7 +1484,7 @@ if ( !function_exists('wp_notify_moderator') ) :
  *
  * @since 1.0.0
  *
- * @uses $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  *
  * @param int $comment_id Comment ID
  * @return bool Always returns true
@@ -1896,7 +1869,6 @@ if ( !function_exists('wp_hash') ) :
  * Get hash of given string.
  *
  * @since 2.0.3
- * @uses wp_salt() Get WordPress salt
  *
  * @param string $data Plain text to hash
  * @return string Hash of $data
@@ -1963,7 +1935,7 @@ function wp_check_password($password, $hash, $user_id = '') {
 
 	// If the hash is still md5...
 	if ( strlen($hash) <= 32 ) {
-		$check = hash_equals( $hash, md5( $password ) );
+		$check = ( $hash == md5($password) );
 		if ( $check && $user_id ) {
 			// Rehash using new hash.
 			wp_set_password($password, $user_id);
@@ -2092,8 +2064,7 @@ if ( !function_exists('wp_set_password') ) :
  *
  * @since 2.5.0
  *
- * @uses $wpdb WordPress database object for queries
- * @uses wp_hash_password() Used to encrypt the user's password before passing to the database
+ * @global wpdb $wpdb WordPress database abstraction object.
  *
  * @param string $password The plaintext new user password
  * @param int $user_id User ID
@@ -2304,3 +2275,4 @@ function wp_text_diff( $left_string, $right_string, $args = null ) {
 	return $r;
 }
 endif;
+

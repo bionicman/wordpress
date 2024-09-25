@@ -61,6 +61,11 @@ class Custom_Image_Header {
 	private $page = '';
 
 	/**
+	 * @var bool
+	 */
+	private $updated;
+
+	/**
 	 * Constructor - Register administration header callback.
 	 *
 	 * @since 2.1.0
@@ -300,9 +305,6 @@ class Custom_Image_Header {
 	public function process_default_headers() {
 		global $_wp_default_headers;
 
-		if ( !empty($this->headers) )
-			return;
-
 		if ( !isset($_wp_default_headers) )
 			return;
 
@@ -390,7 +392,7 @@ class Custom_Image_Header {
 <script type="text/javascript">
 /* <![CDATA[ */
 (function($){
-	var default_color = '<?php echo esc_js( $default_color ); ?>',
+	var default_color = '<?php echo $default_color; ?>',
 		header_text_fields;
 
 	function pickColor(color) {
@@ -555,7 +557,7 @@ class Custom_Image_Header {
 		else
 			$style = ' style="display:none;"';
 		?>
-		<h1><a id="name" class="displaying-header-text" <?php echo $style; ?> onclick="return false;" href="<?php bloginfo('url'); ?>"><?php bloginfo( 'name' ); ?></a></h1>
+		<h1><a id="name" class="displaying-header-text" <?php echo $style; ?> onclick="return false;" href="<?php bloginfo('url'); ?>" tabindex="-1"><?php bloginfo( 'name' ); ?></a></h1>
 		<div id="desc" class="displaying-header-text" <?php echo $style; ?>><?php bloginfo( 'description' ); ?></div>
 	</div>
 	<?php } ?>
@@ -602,10 +604,10 @@ class Custom_Image_Header {
 	?>
 	<p>
 		<label for="choose-from-library-link"><?php _e( 'Or choose an image from your media library:' ); ?></label><br />
-		<a id="choose-from-library-link" class="button"
+		<button id="choose-from-library-link" class="button"
 			data-update-link="<?php echo esc_attr( $modal_update_href ); ?>"
 			data-choose="<?php esc_attr_e( 'Choose a Custom Header' ); ?>"
-			data-update="<?php esc_attr_e( 'Set as header' ); ?>"><?php _e( 'Choose Image' ); ?></a>
+			data-update="<?php esc_attr_e( 'Set as header' ); ?>"><?php _e( 'Choose Image' ); ?></button>
 	</p>
 	</form>
 </td>
@@ -615,6 +617,7 @@ class Custom_Image_Header {
 </table>
 
 <form method="post" action="<?php echo esc_url( add_query_arg( 'step', 1 ) ) ?>">
+<?php submit_button( null, 'screen-reader-text', 'save-header-options', false ); ?>
 <table class="form-table">
 <tbody>
 	<?php if ( get_uploaded_header_images() ) : ?>
@@ -748,7 +751,6 @@ wp_nonce_field( 'custom-header-options', '_wpnonce-custom-header-options' ); ?>
 			$attachment_id = $data['attachment_id'];
 			$file = $data['file'];
 			$url = $data['url'];
-			$type = $data['type'];
 		}
 
 		if ( file_exists( $file ) ) {
@@ -1107,7 +1109,7 @@ wp_nonce_field( 'custom-header-options', '_wpnonce-custom-header-options' ); ?>
 		$has_flex_width = current_theme_supports( 'custom-header', 'flex-width' );
 		$has_flex_height = current_theme_supports( 'custom-header', 'flex-height' );
 		$has_max_width = current_theme_supports( 'custom-header', 'max-width' ) ;
-		$dst = array( 'dst_height' => null, 'dst_height' => null );
+		$dst = array( 'dst_height' => null, 'dst_width' => null );
 
 		// For flex, limit size of image displayed to 1500px unless theme says otherwise
 		if ( $has_flex_width ) {

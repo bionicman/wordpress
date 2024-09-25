@@ -104,21 +104,18 @@
 	display: none;
 }
 
-/* Enable draggable on IE10 touch events until it's rolled into jQuery UI core */
-.ui-sortable,
-.ui-draggable {
+/*!
+ * jQuery UI Draggable/Sortable 1.11.2
+ * http://jqueryui.com
+ *
+ * Copyright 2014 jQuery Foundation and other contributors
+ * Released under the MIT license.
+ * http://jquery.org/license
+ */
+.ui-draggable-handle,
+.ui-sortable-handle {
 	-ms-touch-action: none;
-	touch-action: none;
-}
-
-.meta-box-sortables.ui-sortable {
-	-ms-touch-action: auto;
-	touch-action: auto;
-}
-
-.meta-box-sortables.ui-sortable .hndle {
-	-ms-touch-action: none;
-	touch-action: none;
+	touch-action:     none;
 }
 
 /**
@@ -883,15 +880,15 @@
 }
 
 .attachment .thumbnail .centered img {
-	-webkit-transform: translate( 50%, -50% );
-	-ms-transform: translate(50%,-50%);
-	transform: translate( 50%, -50% );
+	-webkit-transform: translate( -50%, -50% );
+	-ms-transform: translate(-50%,-50%);
+	transform: translate( -50%, -50% );
 }
 
 .attachment .thumbnail .centered img.icon {
-	-webkit-transform: translate( 50%, -70% );
-	-ms-transform: translate(50%,-70%);
-	transform: translate( 50%, -70% );
+	-webkit-transform: translate( -50%, -70% );
+	-ms-transform: translate(-50%,-70%);
+	transform: translate( -50%, -70% );
 }
 
 .ie8 .attachment img.icon {
@@ -1426,18 +1423,18 @@
 }
 
 .media-selection .attachment {
-	width: 48px;
+	width: 40px;
 	padding: 0;
-	margin: 0;
+	margin: 4px;
 	-webkit-box-shadow: none;
 	box-shadow: none;
 }
 
 .media-selection .attachment .thumbnail {
-	top: 4px;
-	left: 4px;
-	bottom: 4px;
-	right: 4px;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
 }
 
 .media-selection .attachment .icon {
@@ -1750,8 +1747,8 @@
 	padding: 12px 14px;
 	width: 100%;
 	min-width: 200px;
-	-webkit-box-shadow: inset -2px 2px 4px -2px rgba( 0, 0, 0, 0.1 );
-	box-shadow: inset -2px 2px 4px -2px rgba( 0, 0, 0, 0.1 );
+	-webkit-box-shadow: inset 2px 2px 4px -2px rgba( 0, 0, 0, 0.1 );
+	box-shadow: inset 2px 2px 4px -2px rgba( 0, 0, 0, 0.1 );
 }
 
 .media-frame .embed-url .spinner {

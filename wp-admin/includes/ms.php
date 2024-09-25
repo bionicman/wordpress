@@ -35,8 +35,9 @@ function check_upload_size( $file ) {
 	if ( upload_is_user_over_quota( false ) ) {
 		$file['error'] = __( 'You have used your space quota. Please delete files before uploading.' );
 	}
-	if ( $file['error'] != '0' && !isset($_POST['html-upload']) )
+	if ( $file['error'] != '0' && ! isset( $_POST['html-upload'] ) && ( ! defined( 'DOING_AJAX' ) || ! DOING_AJAX ) ) {
 		wp_die( $file['error'] . ' <a href="javascript:history.go(-1)">' . __( 'Back' ) . '</a>' );
+	}
 
 	return $file;
 }
@@ -395,9 +396,6 @@ function display_space_usage() {
  * Get the remaining upload space for this blog.
  *
  * @since MU
- * @uses upload_is_user_over_quota()
- * @uses get_space_allowed()
- * @uses get_upload_space_available()
  *
  * @param int $size Current max size in bytes
  * @return int Max size in bytes
@@ -807,7 +805,7 @@ function _thickbox_path_admin_subfolder() {
 ?>
 <script type="text/javascript">
 //<![CDATA[
-var tb_pathToImage = "../../wp-includes/js/thickbox/loadingAnimation.gif";
+var tb_pathToImage = "<?php echo includes_url( 'js/thickbox/loadingAnimation.gif', 'relative' ); ?>";
 //]]>
 </script>
 <?php

@@ -21,7 +21,6 @@ function the_ID() {
  * Retrieve the ID of the current item in the WordPress Loop.
  *
  * @since 2.1.0
- * @uses $post
  *
  * @return int|bool The ID of the current item in the WordPress Loop. False if $post is not set.
  */
@@ -291,7 +290,22 @@ function get_the_content( $more_link_text = null, $strip_teaser = false ) {
 		}
 	}
 
+	if ( $preview ) // preview fix for javascript bug with foreign languages
+		$output =	preg_replace_callback( '/\%u([0-9A-F]{4})/', '_convert_urlencoded_to_entities', $output );
+
 	return $output;
+}
+
+/**
+ * Preview fix for javascript bug with foreign languages
+ *
+ * @since 3.1.0
+ * @access private
+ * @param array $match Match array from preg_replace_callback
+ * @return string
+ */
+function _convert_urlencoded_to_entities( $match ) {
+	return '&#' . base_convert( $match[1], 16, 10 ) . ';';
 }
 
 /**
@@ -422,7 +436,7 @@ function get_post_class( $class = '', $post_id = null ) {
 
 	// sticky for Sticky Posts
 	if ( is_sticky( $post->ID ) ) {
-		if ( is_home() && ! is_paged() ) {
+		if ( is_home() && ! is_paged() && ! get_query_var( 'ignore_sticky_posts' ) ) {
 			$classes[] = 'sticky';
 		} elseif ( is_admin() ) {
 			$classes[] = 'status-sticky';
@@ -600,7 +614,14 @@ function get_body_class( $class = '' ) {
 		}
 		if ( is_page_template() ) {
 			$classes[] = 'page-template';
-			$classes[] = 'page-template-' . sanitize_html_class( str_replace( '.', '-', get_page_template_slug( $page_id ) ) );
+
+			$template_slug  = get_page_template_slug( $page_id );
+			$template_parts = explode( '/', $template_slug );
+
+			foreach ( $template_parts as $part ) {
+				$classes[] = 'page-template-' . sanitize_html_class( str_replace( array( '.', '/' ), '-', basename( $part, '.php' ) ) );
+			}
+			$classes[] = 'page-template-' . sanitize_html_class( str_replace( '.', '-', $template_slug ) );
 		} else {
 			$classes[] = 'page-template-default';
 		}
@@ -772,7 +793,10 @@ function wp_link_pages( $args = '' ) {
 				 * @param int    $i    Page number for paginated posts' page links.
 				 */
 				$link = apply_filters( 'wp_link_pages_link', $link, $i );
-				$output .= $r['separator'] . $link;
+
+				// Use the custom links separator beginning with the second link.
+				$output .= ( 1 === $i ) ? ' ' : $r['separator'];
+				$output .= $link;
 			}
 			$output .= $r['after'];
 		} elseif ( $more ) {
@@ -782,16 +806,17 @@ function wp_link_pages( $args = '' ) {
 				$link = _wp_link_page( $prev ) . $r['link_before'] . $r['previouspagelink'] . $r['link_after'] . '</a>';
 
 				/** This filter is documented in wp-includes/post-template.php */
-				$link = apply_filters( 'wp_link_pages_link', $link, $prev );
-				$output .= $r['separator'] . $link;
+				$output .= apply_filters( 'wp_link_pages_link', $link, $prev );
 			}
 			$next = $page + 1;
 			if ( $next <= $numpages ) {
+				if ( $prev ) {
+					$output .= $r['separator'];
+				}
 				$link = _wp_link_page( $next ) . $r['link_before'] . $r['nextpagelink'] . $r['link_after'] . '</a>';
 
 				/** This filter is documented in wp-includes/post-template.php */
-				$link = apply_filters( 'wp_link_pages_link', $link, $next );
-				$output .= $r['separator'] . $link;
+				$output .= apply_filters( 'wp_link_pages_link', $link, $next );
 			}
 			$output .= $r['after'];
 		}
@@ -879,12 +904,10 @@ function post_custom( $key = '' ) {
 /**
  * Display list of post custom fields.
  *
+ * @internal This will probably change at some point...
  * @since 1.2.0
- *
- * @deprecated 6.0.2 Use get_post_meta() to retrieve post meta and render manually.
  */
 function the_meta() {
-	_deprecated_function( __FUNCTION__, '6.0.2', 'get_post_meta()' );
 	if ( $keys = get_post_custom_keys() ) {
 		echo "<ul class='post-meta'>\n";
 		foreach ( (array) $keys as $key ) {
@@ -903,7 +926,7 @@ function the_meta() {
 			 * @param string $key   Meta key.
 			 * @param string $value Meta value.
 			 */
-			echo apply_filters( 'the_meta_key', "<li><span class='post-meta-key'>" . esc_html( $key ) . ":</span>" . esc_html( $value ) . "</li>\n", $key, $value );
+			echo apply_filters( 'the_meta_key', "<li><span class='post-meta-key'>$key:</span> $value</li>\n", $key, $value );
 		}
 		echo "</ul>\n";
 	}
@@ -1282,7 +1305,7 @@ class Walker_Page extends Walker {
 
 		if ( ! empty( $current_page ) ) {
 			$_current_page = get_post( $current_page );
-			if ( in_array( $page->ID, $_current_page->ancestors ) ) {
+			if ( $_current_page && in_array( $page->ID, $_current_page->ancestors ) ) {
 				$css_class[] = 'current_page_ancestor';
 			}
 			if ( $page->ID == $current_page ) {
@@ -1441,16 +1464,16 @@ function the_attachment_link( $id = 0, $fullsize = false, $deprecated = false, $
  * Retrieve an attachment page link using an image or icon, if possible.
  *
  * @since 2.5.0
- * @uses apply_filters() Calls 'wp_get_attachment_link' filter on HTML content with same parameters as function.
  *
  * @param int|WP_Post $id Optional. Post ID or post object.
  * @param string $size Optional, default is 'thumbnail'. Size of image, either array or string.
  * @param bool $permalink Optional, default is false. Whether to add permalink to image.
  * @param bool $icon Optional, default is false. Whether to include icon.
  * @param string|bool $text Optional, default is false. If string, then will be link text.
+ * @param array|string $attr Optional. Array or string of attributes.
  * @return string HTML content.
  */
-function wp_get_attachment_link( $id = 0, $size = 'thumbnail', $permalink = false, $icon = false, $text = false ) {
+function wp_get_attachment_link( $id = 0, $size = 'thumbnail', $permalink = false, $icon = false, $text = false, $attr = '' ) {
 	$id = intval( $id );
 	$_post = get_post( $id );
 
@@ -1460,12 +1483,13 @@ function wp_get_attachment_link( $id = 0, $size = 'thumbnail', $permalink = fals
 	if ( $permalink )
 		$url = get_attachment_link( $_post->ID );
 
-	if ( $text )
+	if ( $text ) {
 		$link_text = $text;
-	elseif ( $size && 'none' != $size )
-		$link_text = wp_get_attachment_image( $id, $size, $icon );
-	else
+	} elseif ( $size && 'none' != $size ) {
+		$link_text = wp_get_attachment_image( $id, $size, $icon, $attr );
+	} else {
 		$link_text = '';
+	}
 
 	if ( trim( $link_text ) == '' )
 		$link_text = $_post->post_title;
@@ -1482,7 +1506,7 @@ function wp_get_attachment_link( $id = 0, $size = 'thumbnail', $permalink = fals
 	 * @param bool        $icon      Whether to include an icon. Default false.
 	 * @param string|bool $text      If string, will be link text. Default false.
 	 */
-	return apply_filters( 'wp_get_attachment_link', "<a href='" . esc_url( $url ) . "'>$link_text</a>", $id, $size, $permalink, $icon, $text );
+	return apply_filters( 'wp_get_attachment_link', "<a href='$url'>$link_text</a>", $id, $size, $permalink, $icon, $text );
 }
 
 /**
@@ -1575,7 +1599,6 @@ function get_the_password_form( $post = 0 ) {
  * specific to that template.
  *
  * @since 2.5.0
- * @uses $wp_query
  *
  * @param string $template The specific template name if specific matching is required.
  * @return bool True on success, false on failure.
@@ -1622,8 +1645,6 @@ function get_page_template_slug( $post_id = null ) {
  *
  * @since 2.6.0
  *
- * @uses date_i18n()
- *
  * @param int|object $revision Revision ID or revision object.
  * @param bool $link Optional, default is true. Link to revisions's page?
  * @return string i18n formatted datetimestamp or localized 'Current Revision'.
@@ -1658,8 +1679,6 @@ function wp_post_revision_title( $revision, $link = true ) {
  * Retrieve formatted date timestamp of a revision (linked to that revisions's page).
  *
  * @since 3.6.0
- *
- * @uses date_i18n()
  *
  * @param int|object $revision Revision ID or revision object.
  * @param bool $link Optional, default is true. Link to revisions's page?
@@ -1709,11 +1728,6 @@ function wp_post_revision_title_expanded( $revision, $link = true ) {
  * restore action links.
  *
  * @since 2.6.0
- *
- * @uses wp_get_post_revisions()
- * @uses wp_post_revision_title_expanded()
- * @uses get_edit_post_link()
- * @uses get_the_author_meta()
  *
  * @param int|WP_Post $post_id Optional. Post ID or WP_Post object. Default is global $post.
  * @param string $type 'all' (default), 'revision' or 'autosave'

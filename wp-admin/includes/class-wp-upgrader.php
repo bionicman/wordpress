@@ -4,7 +4,7 @@
  *
  * This set of classes are designed to be used to upgrade/install a local set of files on the filesystem via the Filesystem Abstraction classes.
  *
- * @link http://trac.wordpress.org/ticket/7875 consolidate plugin/theme/core upgrade/install functions
+ * @link https://core.trac.wordpress.org/ticket/7875 consolidate plugin/theme/core upgrade/install functions
  *
  * @package WordPress
  * @subpackage Upgrader
@@ -24,6 +24,8 @@ class WP_Upgrader {
 	public $strings = array();
 	public $skin = null;
 	public $result = array();
+	public $update_count = 0;
+	public $update_current = 0;
 
 	public function __construct($skin = null) {
 		if ( null == $skin )
@@ -1767,12 +1769,8 @@ class File_Upload_Upgrader {
 			if ( ! ( ( $uploads = wp_upload_dir() ) && false === $uploads['error'] ) )
 				wp_die( $uploads['error'] );
 
-			$this->filename = sanitize_file_name( $_GET[ $urlholder ] );
+			$this->filename = $_GET[$urlholder];
 			$this->package = $uploads['basedir'] . '/' . $this->filename;
-
-			if ( 0 !== strpos( realpath( $this->package ), realpath( $uploads['basedir'] ) ) ) {
-				wp_die( __( 'Please select a file' ) );
-			}
 		}
 	}
 
@@ -2600,7 +2598,7 @@ This debugging email is sent when you are using a development version of WordPre
 
 If you think these failures might be due to a bug in WordPress, could you report it?
  * Open a thread in the support forums: https://wordpress.org/support/forum/alphabeta
- * Or, if you're comfortable writing a bug report: http://core.trac.wordpress.org/
+ * Or, if you're comfortable writing a bug report: https://core.trac.wordpress.org/
 
 Thanks! -- The WordPress Team" ) );
 			$body[] = '';

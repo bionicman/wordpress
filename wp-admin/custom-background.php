@@ -43,6 +43,11 @@ class Custom_Background {
 	private $page = '';
 
 	/**
+	 * @var bool
+	 */
+	private $updated;
+
+	/**
 	 * Constructor - Register administration header callback.
 	 *
 	 * @since 3.0.0
@@ -312,9 +317,9 @@ class Custom_Background {
 	</p>
 	<p>
 		<label for="choose-from-library-link"><?php _e( 'Or choose an image from your media library:' ); ?></label><br />
-		<a id="choose-from-library-link" class="button"
+		<button id="choose-from-library-link" class="button"
 			data-choose="<?php esc_attr_e( 'Choose a Background Image' ); ?>"
-			data-update="<?php esc_attr_e( 'Set as background' ); ?>"><?php _e( 'Choose Image' ); ?></a>
+			data-update="<?php esc_attr_e( 'Set as background' ); ?>"><?php _e( 'Choose Image' ); ?></button>
 	</p>
 	</form>
 </td>
@@ -464,7 +469,6 @@ if ( current_theme_supports( 'custom-background', 'default-color' ) )
 	}
 
 	public function wp_set_background_image() {
-		check_ajax_referer( 'custom-background' );
 		if ( ! current_user_can('edit_theme_options') || ! isset( $_POST['attachment_id'] ) ) exit;
 		$attachment_id = absint($_POST['attachment_id']);
 		/** This filter is documented in wp-admin/includes/media.php */

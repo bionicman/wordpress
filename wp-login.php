@@ -14,10 +14,10 @@ require( dirname(__FILE__) . '/wp-load.php' );
 // Redirect to https login if forced to use SSL
 if ( force_ssl_admin() && ! is_ssl() ) {
 	if ( 0 === strpos($_SERVER['REQUEST_URI'], 'http') ) {
-		wp_safe_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
+		wp_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
 		exit();
 	} else {
-		wp_safe_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+		wp_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
 		exit();
 	}
 }
@@ -33,7 +33,7 @@ function login_header( $title = 'Log In', $message = '', $wp_error = '' ) {
 	global $error, $interim_login, $action;
 
 	// Don't index any of these forms
-	add_action( 'login_head', 'wp_sensitive_page_meta' );
+	add_action( 'login_head', 'wp_no_robots' );
 
 	if ( wp_is_mobile() )
 		add_action( 'login_head', 'wp_login_viewport_meta' );
@@ -263,7 +263,8 @@ function wp_login_viewport_meta() {
 /**
  * Handles sending password retrieval email to user.
  *
- * @uses $wpdb WordPress Database object
+ * @global wpdb         $wpdb      WordPress database abstraction object.
+ * @global PasswordHash $wp_hasher Portable PHP password hashing framework.
  *
  * @return bool|WP_Error True: when finish. WP_Error on error
  */
@@ -571,9 +572,6 @@ case 'rp' :
 	if ( isset( $_COOKIE[ $rp_cookie ] ) && 0 < strpos( $_COOKIE[ $rp_cookie ], ':' ) ) {
 		list( $rp_login, $rp_key ) = explode( ':', wp_unslash( $_COOKIE[ $rp_cookie ] ), 2 );
 		$user = check_password_reset_key( $rp_key, $rp_login );
-		if ( isset( $_POST['pass1'] ) && ! hash_equals( $rp_key, $_POST['rp_key'] ) ) {
-			$user = false;
-		}
 	} else {
 		$user = false;
 	}
@@ -629,8 +627,7 @@ case 'rp' :
 	</p>
 
 	<div id="pass-strength-result" class="hide-if-no-js"><?php _e('Strength indicator'); ?></div>
-	<p class="description indicator-hint"><?php _e('Hint: The password should be at least seven characters long. To make it stronger, use upper and lower case letters, numbers, and symbols like ! " ? $ % ^ &amp; ).'); ?></p>
-
+	<p class="description indicator-hint"><?php echo _wp_get_password_hint(); ?></p>
 	<br class="clear" />
 
 	<?php
@@ -643,7 +640,6 @@ case 'rp' :
 	 */
 	do_action( 'resetpass_form', $user );
 	?>
-	<input type="hidden" name="rp_key" value="<?php echo esc_attr( $rp_key ); ?>" />
 	<p class="submit"><input type="submit" name="wp-submit" id="wp-submit" class="button button-primary button-large" value="<?php esc_attr_e('Reset Password'); ?>" /></p>
 </form>
 

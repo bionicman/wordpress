@@ -100,7 +100,7 @@ function date_i18n( $dateformatstring, $unixtimestamp = false, $gmt = false ) {
 
 	/*
 	 * Store original value for language with untypical grammars.
-	 * See http://core.trac.wordpress.org/ticket/9396
+	 * See https://core.trac.wordpress.org/ticket/9396
 	 */
 	$req_format = $dateformatstring;
 
@@ -377,7 +377,7 @@ function maybe_serialize( $data ) {
 		return serialize( $data );
 
 	// Double serialization is required for backward compatibility.
-	// See http://core.trac.wordpress.org/ticket/12930
+	// See https://core.trac.wordpress.org/ticket/12930
 	if ( is_serialized( $data, false ) )
 		return serialize( $data );
 
@@ -457,23 +457,23 @@ function xmlrpc_removepostdata( $content ) {
  */
 function wp_extract_urls( $content ) {
 	preg_match_all(
-		"#("
+		"#([\"']?)("
 			. "(?:([\w-]+:)?//?)"
 			. "[^\s()<>]+"
 			. "[.]"
 			. "(?:"
 				. "\([\w\d]+\)|"
 				. "(?:"
-					. "[^`!()\[\]{};:'\".,<>?«»“”‘’\s]|"
+					. "[^`!()\[\]{};:'\".,<>«»“”‘’\s]|"
 					. "(?:[:]\d+)?/?"
 				. ")+"
 			. ")"
-		. ")#",
+		. ")\\1#",
 		$content,
 		$post_links
 	);
 
-	$post_links = array_unique( array_map( 'html_entity_decode', $post_links[0] ) );
+	$post_links = array_unique( array_map( 'html_entity_decode', $post_links[2] ) );
 
 	return array_values( $post_links );
 }
@@ -803,7 +803,7 @@ function add_query_arg() {
  * @since 1.5.0
  *
  * @param string|array $key   Query key or keys to remove.
- * @param bool         $query Optional. When false uses the $_SERVER value. Default false.
+ * @param bool|string  $query Optional. When false uses the $_SERVER value. Default false.
  * @return string New URL query string.
  */
 function remove_query_arg( $key, $query = false ) {
@@ -1087,7 +1087,7 @@ function cache_javascript_headers() {
  *
  * @since 2.0.0
  *
- * @global wpdb $wpdb WordPress database access abstraction object.
+ * @global wpdb $wpdb WordPress database abstraction object.
  *
  * @return int Number of database queries.
  */
@@ -1253,7 +1253,7 @@ function do_robots() {
  *
  * @since 2.1.0
  *
- * @global wpdb $wpdb WordPress database access abstraction object.
+ * @global wpdb $wpdb WordPress database abstraction object.
  *
  * @return bool Whether the blog is already installed.
  */
@@ -1492,11 +1492,6 @@ function wp_mkdir_p( $target ) {
 	if ( file_exists( $target ) )
 		return @is_dir( $target );
 
-	// Do not allow path traversals.
-	if ( false !== strpos( $target, '../' ) || false !== strpos( $target, '..' . DIRECTORY_SEPARATOR ) ) {
-		return false;
-	}
-
 	// We need to find the permissions of the parent folder that exists and inherit that.
 	$target_parent = dirname( $target );
 	while ( '.' != $target_parent && ! is_dir( $target_parent ) ) {
@@ -1580,38 +1575,18 @@ function path_join( $base, $path ) {
 /**
  * Normalize a filesystem path.
  *
- * On windows systems, replaces backslashes with forward slashes
- * and forces upper-case drive letters.
- * Allows for two leading slashes for Windows network shares, but
- * ensures that all other duplicate slashes are reduced to a single.
+ * Replaces backslashes with forward slashes for Windows systems, and ensures
+ * no duplicate slashes exist.
  *
  * @since 3.9.0
- * @since 4.4.0 Ensures upper-case drive letters on Windows systems.
- * @since 4.5.0 Allows for Windows network shares.
- * @since 4.9.7 Allows for PHP file wrappers.
  *
  * @param string $path Path to normalize.
  * @return string Normalized path.
  */
 function wp_normalize_path( $path ) {
-	$wrapper = '';
-	if ( wp_is_stream( $path ) ) {
-		list( $wrapper, $path ) = explode( '://', $path, 2 );
-		$wrapper .= '://';
-	}
-
-	// Standardise all paths to use /
 	$path = str_replace( '\\', '/', $path );
-
-	// Replace multiple slashes down to a singular, allowing for network shares having two slashes.
-	$path = preg_replace( '|(?<=.)/+|', '/', $path );
-
-	// Windows paths should uppercase the drive letter
-	if ( ':' === substr( $path, 1, 1 ) ) {
-		$path = ucfirst( $path );
-	}
-
-	return $wrapper . $path;
+	$path = preg_replace( '|/+|','/', $path );
+	return $path;
 }
 
 /**
@@ -2041,7 +2016,7 @@ function wp_ext2type( $ext ) {
 		'image'       => array( 'jpg', 'jpeg', 'jpe',  'gif',  'png',  'bmp',   'tif',  'tiff', 'ico' ),
 		'audio'       => array( 'aac', 'ac3',  'aif',  'aiff', 'm3a',  'm4a',   'm4b',  'mka',  'mp1',  'mp2',  'mp3', 'ogg', 'oga', 'ram', 'wav', 'wma' ),
 		'video'       => array( '3g2',  '3gp', '3gpp', 'asf', 'avi',  'divx', 'dv',   'flv',  'm4v',   'mkv',  'mov',  'mp4',  'mpeg', 'mpg', 'mpv', 'ogm', 'ogv', 'qt',  'rm', 'vob', 'wmv' ),
-		'document'    => array( 'doc', 'docx', 'docm', 'dotm', 'odt',  'pages', 'pdf',  'xps',  'oxps', 'rtf',  'wp',   'wpd' ),
+		'document'    => array( 'doc', 'docx', 'docm', 'dotm', 'odt',  'pages', 'pdf',  'xps',  'oxps', 'rtf',  'wp', 'wpd', 'psd' ),
 		'spreadsheet' => array( 'numbers',     'ods',  'xls',  'xlsx', 'xlsm',  'xlsb' ),
 		'interactive' => array( 'swf', 'key',  'ppt',  'pptx', 'pptm', 'pps',   'ppsx', 'ppsm', 'sldx', 'sldm', 'odp' ),
 		'text'        => array( 'asc', 'csv',  'tsv',  'txt' ),
@@ -2093,7 +2068,7 @@ function wp_check_filetype( $filename, $mimes = null ) {
  * If it's determined that the extension does not match the file's real type,
  * then the "proper_filename" value will be set with a proper filename and extension.
  *
- * Currently this function only supports renaming images validated via wp_get_image_mime().
+ * Currently this function only supports validating images known to getimagesize().
  *
  * @since 3.0.0
  *
@@ -2118,15 +2093,14 @@ function wp_check_filetype_and_ext( $file, $filename, $mimes = null ) {
 		return compact( 'ext', 'type', 'proper_filename' );
 	}
 
-	// Validate image types.
-	if ( $type && 0 === strpos( $type, 'image/' ) ) {
+	// We're able to validate images using GD
+	if ( $type && 0 === strpos( $type, 'image/' ) && function_exists('getimagesize') ) {
 
 		// Attempt to figure out what type of image it actually is
-		$real_mime = wp_get_image_mime( $file );
+		$imgstats = @getimagesize( $file );
 
-		if ( ! $real_mime ) {
-			$type = $ext = false;
-		} elseif ( $real_mime != $type ) {
+		// If getimagesize() knows what kind of image it really is and if the real MIME doesn't match the claimed MIME
+		if ( !empty($imgstats['mime']) && $imgstats['mime'] != $type ) {
 			/**
 			 * Filter the list mapping image mime types to their respective extensions.
 			 *
@@ -2143,10 +2117,10 @@ function wp_check_filetype_and_ext( $file, $filename, $mimes = null ) {
 			) );
 
 			// Replace whatever is after the last period in the filename with the correct extension
-			if ( ! empty( $mime_to_ext[ $real_mime ] ) ) {
+			if ( ! empty( $mime_to_ext[ $imgstats['mime'] ] ) ) {
 				$filename_parts = explode( '.', $filename );
 				array_pop( $filename_parts );
-				$filename_parts[] = $mime_to_ext[ $real_mime ];
+				$filename_parts[] = $mime_to_ext[ $imgstats['mime'] ];
 				$new_filename = implode( '.', $filename_parts );
 
 				if ( $new_filename != $filename ) {
@@ -2156,64 +2130,7 @@ function wp_check_filetype_and_ext( $file, $filename, $mimes = null ) {
 				$wp_filetype = wp_check_filetype( $new_filename, $mimes );
 				$ext = $wp_filetype['ext'];
 				$type = $wp_filetype['type'];
-			} else {
-				$type = $ext = false;
 			}
-		}
-	}
-
-	// Validate files that didn't get validated during previous checks.
-	if ( $type && ! $real_mime && extension_loaded( 'fileinfo' ) ) {
-		$finfo = finfo_open( FILEINFO_MIME_TYPE );
-		$real_mime = finfo_file( $finfo, $file );
-		finfo_close( $finfo );
-
-		// fileinfo often misidentifies obscure files as one of these types
-		$nonspecific_types = array(
-			'application/octet-stream',
-			'application/encrypted',
-			'application/CDFV2-encrypted',
-			'application/zip',
-		);
-
-		/*
-		 * If $real_mime doesn't match the content type we're expecting from the file's extension,
-		 * we need to do some additional vetting. Media types and those listed in $nonspecific_types are
-		 * allowed some leeway, but anything else must exactly match the real content type.
-		 */
-		if ( in_array( $real_mime, $nonspecific_types, true ) ) {
-			// File is a non-specific binary type. That's ok if it's a type that generally tends to be binary.
-			if ( !in_array( substr( $type, 0, strcspn( $type, '/' ) ), array( 'application', 'video', 'audio' ) ) ) {
-				$type = $ext = false;
-			}
-		} elseif ( 0 === strpos( $real_mime, 'video/' ) || 0 === strpos( $real_mime, 'audio/' ) ) {
-			/*
-			 * For these types, only the major type must match the real value.
-			 * This means that common mismatches are forgiven: application/vnd.apple.numbers is often misidentified as application/zip,
-			 * and some media files are commonly named with the wrong extension (.mov instead of .mp4)
-			 */
-
-			if ( substr( $real_mime, 0, strcspn( $real_mime, '/' ) ) !== substr( $type, 0, strcspn( $type, '/' ) ) ) {
-				$type = $ext = false;
-			}
-		} else {
-			if ( $type !== $real_mime ) {
-				/*
-				 * Everything else including image/* and application/*: 
-				 * If the real content type doesn't match the file extension, assume it's dangerous.
-				 */
-				$type = $ext = false;
-			}
-
-		}
-	}
-
-	// The mime type must be allowed 
-	if ( $type ) {
-		$allowed = get_allowed_mime_types();
-
-		if ( ! in_array( $type, $allowed ) ) {
-			$type = $ext = false;
 		}
 	}
 
@@ -2230,38 +2147,6 @@ function wp_check_filetype_and_ext( $file, $filename, $mimes = null ) {
 	 * @param array  $mimes                     Key is the file extension with value as the mime type.
 	 */
 	return apply_filters( 'wp_check_filetype_and_ext', compact( 'ext', 'type', 'proper_filename' ), $file, $filename, $mimes );
-}
-
-/**
- * Returns the real mime type of an image file.
- *
- * This depends on exif_imagetype() or getimagesize() to determine real mime types.
- *
- * @since 4.7.1
- *
- * @param string $file Full path to the file.
- * @return string|false The actual mime type or false if the type cannot be determined.
- */
-function wp_get_image_mime( $file ) {
-	/*
-	 * Use exif_imagetype() to check the mimetype if available or fall back to
-	 * getimagesize() if exif isn't avaialbe. If either function throws an Exception
-	 * we assume the file could not be validated.
-	 */
-	try {
-		if ( is_callable( 'exif_imagetype' ) ) {
-			$mime = image_type_to_mime_type( exif_imagetype( $file ) );
-		} elseif ( function_exists( 'getimagesize' ) ) {
-			$imagesize = getimagesize( $file );
-			$mime = ( isset( $imagesize['mime'] ) ) ? $imagesize['mime'] : false;
-		} else {
-			$mime = false;
-		}
-	} catch ( Exception $e ) {
-		$mime = false;
-	}
-
-	return $mime;
 }
 
 /**
@@ -2338,6 +2223,7 @@ function wp_get_mime_types() {
 	'rar' => 'application/rar',
 	'7z' => 'application/x-7z-compressed',
 	'exe' => 'application/x-msdownload',
+	'psd' => 'application/octet-stream',
 	// MS Office formats.
 	'doc' => 'application/msword',
 	'pot|pps|ppt' => 'application/vnd.ms-powerpoint',
@@ -2388,8 +2274,6 @@ function wp_get_mime_types() {
  *
  * @since 2.8.6
  *
- * @uses wp_get_upload_mime_types() to fetch the list of mime types
- *
  * @param int|WP_User $user Optional. User to check. Defaults to current user.
  * @return array Array of mime types keyed by the file extension regex corresponding
  *               to those types.
@@ -2401,9 +2285,8 @@ function get_allowed_mime_types( $user = null ) {
 	if ( function_exists( 'current_user_can' ) )
 		$unfiltered = $user ? user_can( $user, 'unfiltered_html' ) : current_user_can( 'unfiltered_html' );
 
-	if ( empty( $unfiltered ) ) {
-		unset( $t['htm|html'], $t['js'] );
-	}
+	if ( empty( $unfiltered ) )
+		unset( $t['htm|html'] );
 
 	/**
 	 * Filter list of allowed mime types and file extensions.
@@ -2436,16 +2319,8 @@ function wp_nonce_ays( $action ) {
 		$html .= sprintf( __( "Do you really want to <a href='%s'>log out</a>?"), wp_logout_url( $redirect_to ) );
 	} else {
 		$html = __( 'Are you sure you want to do this?' );
-		if ( wp_get_referer() ) {
-			$wp_http_referer = remove_query_arg( 'updated', wp_get_referer() );
-			$wp_http_referer = wp_validate_redirect( esc_url_raw( $wp_http_referer ) );
-			$html           .= '</p><p>';
-			$html           .= sprintf(
-				'<a href="%s">%s</a>',
-				esc_url( $wp_http_referer ),
-				__( 'Please try again.' )
-			);
-		}
+		if ( wp_get_referer() )
+			$html .= "</p><p><a href='" . esc_url( remove_query_arg( 'updated', wp_get_referer() ) ) . "'>" . __( 'Please try again.' ) . "</a>";
 	}
 
 	wp_die( $html, $title, array('response' => 403) );
@@ -2736,6 +2611,139 @@ function _scalar_wp_die_handler( $message = '' ) {
 }
 
 /**
+ * Encode a variable into JSON, with some sanity checks.
+ *
+ * @since 4.1.0
+ *
+ * @param mixed $data    Variable (usually an array or object) to encode as JSON.
+ * @param int   $options Options to be passed to json_encode(). Default 0.
+ * @param int   $depth   Maximum depth to walk through $data. Must be greater than 0, default 512.
+ * @return bool|string The JSON encoded string, or false if it cannot be encoded.
+ */
+function wp_json_encode( $data, $options = 0, $depth = 512 ) {
+	/*
+	 * json_encode() has had extra params added over the years.
+	 * $options was added in 5.3, and $depth in 5.5.
+	 * We need to make sure we call it with the correct arguments.
+	 */
+	if ( version_compare( PHP_VERSION, '5.5', '>=' ) ) {
+		$args = array( $data, $options, $depth );
+	} elseif ( version_compare( PHP_VERSION, '5.3', '>=' ) ) {
+		$args = array( $data, $options );
+	} else {
+		$args = array( $data );
+	}
+
+	$json = call_user_func_array( 'json_encode', $args );
+
+	// If json_encode() was successful, no need to do more sanity checking.
+	if ( false !== $json ) {
+		return $json;
+	}
+
+	try {
+		$args[0] = _wp_json_sanity_check( $data, $depth );
+	} catch ( Exception $e ) {
+		return false;
+	}
+
+	return call_user_func_array( 'json_encode', $args );
+}
+
+/**
+ * Perform sanity checks on data that shall be encoded to JSON.
+ *
+ * @see wp_json_encode()
+ *
+ * @since 4.1.0
+ * @access private
+ * @internal
+ *
+ * @param mixed $data  Variable (usually an array or object) to encode as JSON.
+ * @param int   $depth Maximum depth to walk through $data. Must be greater than 0.
+ * @return mixed The sanitized data that shall be encoded to JSON.
+ */
+function _wp_json_sanity_check( $data, $depth ) {
+	if ( $depth < 0 ) {
+		throw new Exception( 'Reached depth limit' );
+	}
+
+	if ( is_array( $data ) ) {
+		$output = array();
+		foreach ( $data as $id => $el ) {
+			// Don't forget to sanitize the ID!
+			if ( is_string( $id ) ) {
+				$clean_id = _wp_json_convert_string( $id );
+			} else {
+				$clean_id = $id;
+			}
+
+			// Check the element type, so that we're only recursing if we really have to.
+			if ( is_array( $el ) || is_object( $el ) ) {
+				$output[ $clean_id ] = _wp_json_sanity_check( $el, $depth - 1 );
+			} elseif ( is_string( $el ) ) {
+				$output[ $clean_id ] = _wp_json_convert_string( $el );
+			} else {
+				$output[ $clean_id ] = $el;
+			}
+		}
+	} elseif ( is_object( $data ) ) {
+		$output = new stdClass;
+		foreach ( $data as $id => $el ) {
+			if ( is_string( $id ) ) {
+				$clean_id = _wp_json_convert_string( $id );
+			} else {
+				$clean_id = $id;
+			}
+
+			if ( is_array( $el ) || is_object( $el ) ) {
+				$output->$clean_id = _wp_json_sanity_check( $el, $depth - 1 );
+			} elseif ( is_string( $el ) ) {
+				$output->$clean_id = _wp_json_convert_string( $el );
+			} else {
+				$output->$clean_id = $el;
+			}
+		}
+	} elseif ( is_string( $data ) ) {
+		return _wp_json_convert_string( $data );
+	} else {
+		return $data;
+	}
+
+	return $output;
+}
+
+/**
+ * Convert a string to UTF-8, so that it can be safely encoded to JSON.
+ *
+ * @see _wp_json_sanity_check()
+ *
+ * @since 4.1.0
+ * @access private
+ * @internal
+ *
+ * @param string $string The string which is to be converted.
+ * @return string The checked string.
+ */
+function _wp_json_convert_string( $string ) {
+	static $use_mb = null;
+	if ( is_null( $use_mb ) ) {
+		$use_mb = function_exists( 'mb_convert_encoding' );
+	}
+
+	if ( $use_mb ) {
+		$encoding = mb_detect_encoding( $string, mb_detect_order(), true );
+		if ( $encoding ) {
+			return mb_convert_encoding( $string, 'UTF-8', $encoding );
+		} else {
+			return mb_convert_encoding( $string, 'UTF-8', 'UTF-8' );
+		}
+	} else {
+		return wp_check_invalid_utf8( $string, true );
+	}
+}
+
+/**
  * Send a JSON response back to an Ajax request.
  *
  * @since 3.5.0
@@ -2745,7 +2753,7 @@ function _scalar_wp_die_handler( $message = '' ) {
  */
 function wp_send_json( $response ) {
 	@header( 'Content-Type: application/json; charset=' . get_option( 'blog_charset' ) );
-	echo json_encode( $response );
+	echo wp_json_encode( $response );
 	if ( defined( 'DOING_AJAX' ) && DOING_AJAX )
 		wp_die();
 	else
@@ -3190,8 +3198,6 @@ function wp_maybe_load_widgets() {
  * Append the Widgets menu to the themes main menu.
  *
  * @since 2.2.0
- *
- * @uses $submenu The administration submenu list.
  */
 function wp_widgets_add_menu() {
 	global $submenu;
@@ -3232,7 +3238,7 @@ function wp_ob_end_flush_all() {
  *
  * @since 2.3.2
  *
- * @global wpdb $wpdb WordPress database access abstraction object.
+ * @global wpdb $wpdb WordPress database abstraction object.
  */
 function dead_db() {
 	global $wpdb;
@@ -4050,7 +4056,7 @@ function wp_timezone_choice( $selected_zone ) {
  * @since 2.8.0
  * @access private
  *
- * @see http://core.trac.wordpress.org/ticket/8497
+ * @see https://core.trac.wordpress.org/ticket/8497
  *
  * @param string $str Header comment to clean up.
  * @return string
@@ -4399,7 +4405,7 @@ function wp_allowed_protocols() {
  *
  * @since 3.4.0
  *
- * @see http://core.trac.wordpress.org/ticket/19589
+ * @see https://core.trac.wordpress.org/ticket/19589
  *
  * @param string $ignore_class Optional. A class to ignore all function calls within - useful
  *                             when you want to just give info about the callee. Default null.
@@ -4660,7 +4666,7 @@ function get_tag_regex( $tag ) {
  * @since 3.6.0
  * @access private
  *
- * @see http://core.trac.wordpress.org/ticket/23688
+ * @see https://core.trac.wordpress.org/ticket/23688
  *
  * @param string $charset A charset name.
  * @return string The canonical form of the charset.
@@ -4734,7 +4740,9 @@ function reset_mbstring_encoding() {
 }
 
 /**
- * Alternative to filter_var( $var, FILTER_VALIDATE_BOOLEAN ).
+ * Filter/validate a variable as a boolean.
+ *
+ * Alternative to `filter_var( $var, FILTER_VALIDATE_BOOLEAN )`.
  *
  * @since 4.0.0
  *
@@ -4746,35 +4754,9 @@ function wp_validate_boolean( $var ) {
 		return $var;
 	}
 
-	if ( 'false' === $var ) {
+	if ( is_string( $var ) && 'false' === strtolower( $var ) ) {
 		return false;
 	}
 
 	return (bool) $var;
-}
-
-/**
- * Deletes a file if its path is within the given directory.
- *
- * @since 4.9.7
- *
- * @param string $file      Absolute path to the file to delete.
- * @param string $directory Absolute path to a directory.
- * @return bool True on success, false on failure.
- */
-function wp_delete_file_from_directory( $file, $directory ) {
-	$real_file = realpath( wp_normalize_path( $file ) );
-	$real_directory = realpath( wp_normalize_path( $directory ) );
-
-	if ( false === $real_file || false === $real_directory || strpos( wp_normalize_path( $real_file ), trailingslashit( wp_normalize_path( $real_directory ) ) ) !== 0 ) {
-		return false;
-	}
-
-	/** This filter is documented in wp-admin/custom-header.php */
-	$delete = apply_filters( 'wp_delete_file', $file );
-	if ( ! empty( $delete ) ) {
-		@unlink( $delete );
-	}
-
-	return true;
 }
