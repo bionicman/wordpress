@@ -51,7 +51,7 @@ get_current_screen()->add_help_tab( array(
 get_current_screen()->set_help_sidebar(
     '<p><strong>' . __('For more information:') . '</strong></p>' .
     '<p>' . __('<a href="http://codex.wordpress.org/Users_Your_Profile_Screen" target="_blank">Documentation on User Profiles</a>') . '</p>' .
-    '<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
+    '<p>' . __('<a href="https://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
 );
 
 $wp_http_referer = remove_query_arg(array('update', 'delete_count'), $wp_http_referer );
@@ -98,7 +98,7 @@ if ( is_multisite()
 // Execute confirmed email change. See send_confirmation_on_profile_email().
 if ( is_multisite() && IS_PROFILE_PAGE && isset( $_GET[ 'newuseremail' ] ) && $current_user->ID ) {
 	$new_email = get_option( $current_user->ID . '_new_email' );
-	if ( $new_email && hash_equals( $new_email[ 'hash' ], $_GET[ 'newuseremail' ] ) ) {
+	if ( $new_email[ 'hash' ] == $_GET[ 'newuseremail' ] ) {
 		$user = new stdClass;
 		$user->ID = $current_user->ID;
 		$user->user_email = esc_html( trim( $new_email[ 'newemail' ] ) );
@@ -109,8 +109,7 @@ if ( is_multisite() && IS_PROFILE_PAGE && isset( $_GET[ 'newuseremail' ] ) && $c
 		wp_redirect( add_query_arg( array('updated' => 'true'), self_admin_url( 'profile.php' ) ) );
 		die();
 	}
-} elseif ( is_multisite() && IS_PROFILE_PAGE && !empty( $_GET['dismiss'] ) && $current_user->ID . '_new_email' === $_GET['dismiss'] ) {
-	check_admin_referer( 'dismiss-' . $current_user->ID . '_new_email' );
+} elseif ( is_multisite() && IS_PROFILE_PAGE && !empty( $_GET['dismiss'] ) && $current_user->ID . '_new_email' == $_GET['dismiss'] ) {
 	delete_option( $current_user->ID . '_new_email' );
 	wp_redirect( add_query_arg( array('updated' => 'true'), self_admin_url( 'profile.php' ) ) );
 	die();
@@ -202,7 +201,7 @@ include (ABSPATH . 'wp-admin/admin-header.php');
 	<p><strong><?php _e('User updated.') ?></strong></p>
 	<?php endif; ?>
 	<?php if ( $wp_http_referer && !IS_PROFILE_PAGE ) : ?>
-	<p><a href="<?php echo esc_url( wp_validate_redirect( esc_url_raw( $wp_http_referer ), self_admin_url( 'users.php' ) ) ); ?>"><?php _e('&larr; Back to Users'); ?></a></p>
+	<p><a href="<?php echo esc_url( $wp_http_referer ); ?>"><?php _e('&larr; Back to Users'); ?></a></p>
 	<?php endif; ?>
 </div>
 <?php endif; ?>
@@ -236,13 +235,13 @@ if ( ! IS_PROFILE_PAGE ) {
 <?php endif; ?>
 <p>
 <input type="hidden" name="from" value="profile" />
-<input type="hidden" name="checkuser_id" value="<?php echo $user_ID ?>" />
+<input type="hidden" name="checkuser_id" value="<?php echo get_current_user_id(); ?>" />
 </p>
 
 <h3><?php _e('Personal Options'); ?></h3>
 
 <table class="form-table">
-<?php if ( rich_edit_exists() && !( IS_PROFILE_PAGE && !$user_can_edit ) ) : // don't bother showing the option if the editor has been removed ?>
+<?php if ( ! ( IS_PROFILE_PAGE && ! $user_can_edit ) ) : ?>
 	<tr>
 		<th scope="row"><?php _e('Visual Editor')?></th>
 		<td><label for="rich_editing"><input name="rich_editing" type="checkbox" id="rich_editing" value="false" <?php if ( ! empty( $profileuser->rich_editing ) ) checked( 'false', $profileuser->rich_editing ); ?> /> <?php _e( 'Disable the visual editor when writing' ); ?></label></td>
@@ -407,7 +406,7 @@ if ( is_multisite() && is_network_admin() && ! IS_PROFILE_PAGE && current_user_c
 	$new_email = get_option( $current_user->ID . '_new_email' );
 	if ( $new_email && $new_email['newemail'] != $current_user->user_email && $profileuser->ID == $current_user->ID ) : ?>
 	<div class="updated inline">
-	<p><?php printf( __('There is a pending change of your e-mail to <code>%1$s</code>. <a href="%2$s">Cancel</a>'), esc_html( $new_email['newemail'] ), esc_url( wp_nonce_url( self_admin_url( 'profile.php?dismiss=' . $current_user->ID . '_new_email' ), 'dismiss-' . $current_user->ID . '_new_email' ) ) ); ?></p>
+	<p><?php printf( __('There is a pending change of your e-mail to <code>%1$s</code>. <a href="%2$s">Cancel</a>'), $new_email['newemail'], esc_url( self_admin_url( 'profile.php?dismiss=' . $current_user->ID . '_new_email' ) ) ); ?></p>
 	</div>
 	<?php endif; ?>
 	</td>
@@ -471,7 +470,7 @@ if ( $show_password_fields ) :
 	<span class="description" for="pass2"><?php _e( 'Type your new password again.' ); ?></span>
 	<br />
 	<div id="pass-strength-result"><?php _e( 'Strength indicator' ); ?></div>
-	<p class="description indicator-hint"><?php _e( 'Hint: The password should be at least seven characters long. To make it stronger, use upper and lower case letters, numbers and symbols like ! " ? $ % ^ &amp; ).' ); ?></p>
+	<p class="description indicator-hint"><?php _e( 'Hint: The password should be at least seven characters long. To make it stronger, use upper and lower case letters, numbers, and symbols like ! " ? $ % ^ &amp; ).' ); ?></p>
 	</td>
 </tr>
 <?php endif; ?>
@@ -480,7 +479,7 @@ if ( $show_password_fields ) :
 <?php
 	if ( IS_PROFILE_PAGE ) {
 		/**
-		 * Fires after the 'About the User' settings table on the 'Your Profile' editing screen.
+		 * Fires after the 'About Yourself' settings table on the 'Your Profile' editing screen.
 		 *
 		 * The action only fires if the current user is editing their own profile.
 		 *

@@ -665,6 +665,8 @@ function preview_theme() {
 
 	// Prevent theme mods to current theme being used on theme being previewed
 	add_filter( 'pre_option_theme_mods_' . get_option( 'stylesheet' ), '__return_empty_array' );
+
+	ob_start( 'preview_theme_ob_filter' );
 }
 add_action('setup_theme', 'preview_theme');
 
@@ -702,7 +704,7 @@ function _preview_theme_stylesheet_filter() {
  * @return string
  */
 function preview_theme_ob_filter( $content ) {
-	return $content;
+	return preg_replace_callback( "|(<a.*?href=([\"']))(.*?)([\"'].*?>)|", 'preview_theme_ob_filter_callback', $content );
 }
 
 /**
@@ -717,7 +719,26 @@ function preview_theme_ob_filter( $content ) {
  * @return string
  */
 function preview_theme_ob_filter_callback( $matches ) {
-	return $matches[0];
+	if ( strpos($matches[4], 'onclick') !== false )
+		$matches[4] = preg_replace('#onclick=([\'"]).*?(?<!\\\)\\1#i', '', $matches[4]); //Strip out any onclicks from rest of <a>. (?<!\\\) means to ignore the '" if it's escaped by \  to prevent breaking mid-attribute.
+	if (
+		( false !== strpos($matches[3], '/wp-admin/') )
+	||
+		( false !== strpos( $matches[3], '://' ) && 0 !== strpos( $matches[3], home_url() ) )
+	||
+		( false !== strpos($matches[3], '/feed/') )
+	||
+		( false !== strpos($matches[3], '/trackback/') )
+	)
+		return $matches[1] . "#$matches[2] onclick=$matches[2]return false;" . $matches[4];
+
+	$stylesheet = isset( $_GET['stylesheet'] ) ? $_GET['stylesheet'] : '';
+	$template   = isset( $_GET['template'] )   ? $_GET['template']   : '';
+
+	$link = add_query_arg( array( 'preview' => 1, 'template' => $template, 'stylesheet' => $stylesheet, 'preview_iframe' => 1 ), $matches[3] );
+	if ( 0 === strpos($link, 'preview=1') )
+		$link = "?$link";
+	return $matches[1] . esc_attr( $link ) . $matches[4];
 }
 
 /**
@@ -892,8 +913,21 @@ function get_theme_mod( $name, $default = false ) {
  */
 function set_theme_mod( $name, $value ) {
 	$mods = get_theme_mods();
+	$old_value = isset( $mods[ $name ] ) ? $mods[ $name ] : false;
 
-	$mods[ $name ] = $value;
+	/**
+	 * Filter the theme mod value on save.
+	 *
+	 * The dynamic portion of the hook name, $name, refers to the key name of
+	 * the modification array. For example, 'header_textcolor', 'header_image',
+	 * and so on depending on the theme options.
+	 *
+	 * @since 3.9.0
+	 *
+	 * @param string $value     The new value of the theme mod.
+	 * @param string $old_value The current value of the theme mod.
+	 */
+	$mods[ $name ] = apply_filters( "pre_set_theme_mod_$name", $value, $old_value );
 
 	$theme = get_option( 'stylesheet' );
 	update_option( "theme_mods_$theme", $mods );
@@ -1103,7 +1137,7 @@ function get_uploaded_header_images() {
 		return array();
 
 	foreach ( (array) $headers as $header ) {
-		$url = esc_url_raw( $header->guid );
+		$url = esc_url_raw( wp_get_attachment_url( $header->ID ) );
 		$header_data = wp_get_attachment_metadata( $header->ID );
 		$header_index = basename($url);
 		$header_images[$header_index] = array();
@@ -1538,7 +1572,8 @@ add_action( 'wp_loaded', '_custom_header_background_just_in_time' );
 /**
  * Gets the theme support arguments passed when registering that support
  *
- * @since 3.1
+ * @since 3.1.0
+ *
  * @param string $feature the feature to check
  * @return array The array of extra arguments
  */
@@ -1702,12 +1737,17 @@ function current_theme_supports( $feature ) {
  * Checks a theme's support for a given feature before loading the functions which implement it.
  *
  * @since 2.9.0
- * @param string $feature the feature being checked
- * @param string $include the file containing the functions that implement the feature
+ *
+ * @param string $feature The feature being checked.
+ * @param string $include Path to the file.
+ * @return bool True if the current theme supports the supplied feature, false otherwise.
  */
-function require_if_theme_supports( $feature, $include) {
-	if ( current_theme_supports( $feature ) )
+function require_if_theme_supports( $feature, $include ) {
+	if ( current_theme_supports( $feature ) ) {
 		require ( $include );
+		return true;
+	}
+	return false;
 }
 
 /**

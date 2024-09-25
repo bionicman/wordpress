@@ -40,7 +40,7 @@ get_current_screen()->set_help_sidebar(
 	'<p>' . __('<a href="http://codex.wordpress.org/Using_Themes" target="_blank">Documentation on Using Themes</a>') . '</p>' .
 	'<p>' . __('<a href="http://codex.wordpress.org/Editing_Files" target="_blank">Documentation on Editing Files</a>') . '</p>' .
 	'<p>' . __('<a href="http://codex.wordpress.org/Template_Tags" target="_blank">Documentation on Template Tags</a>') . '</p>' .
-	'<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
+	'<p>' . __('<a href="https://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
 );
 
 wp_reset_vars( array( 'action', 'error', 'file', 'theme' ) );
@@ -68,7 +68,7 @@ if ( empty( $file ) ) {
 	$relative_file = 'style.css';
 	$file = $allowed_files['style.css'];
 } else {
-	$relative_file = wp_unslash( $file );
+	$relative_file = $file;
 	$file = $theme->get_stylesheet_directory() . '/' . $relative_file;
 }
 
@@ -127,12 +127,10 @@ default:
  <div id="message" class="updated"><p><?php _e( 'File edited successfully.' ) ?></p></div>
 <?php endif;
 
-$file_description = get_file_description( $relative_file );
+$description = get_file_description( $file );
 $file_show = array_search( $file, array_filter( $allowed_files ) );
-$description = esc_html( $file_description );
-if ( $file_description != $file_show ) {
-	$description .= ' <span>(' . esc_html( $file_show ) . ')</span>';
-}
+if ( $description != $file_show )
+	$description .= ' <span>(' . $file_show . ')</span>';
 ?>
 <div class="wrap">
 <h2><?php echo esc_html( $title ); ?></h2>
@@ -181,9 +179,9 @@ if ( $allowed_files ) :
 		if ( 'style.css' == $filename )
 			echo "\t</ul>\n\t<h3>" . _x( 'Styles', 'Theme stylesheets in theme editor' ) . "</h3>\n\t<ul>\n";
 
-		$file_description = esc_html( get_file_description( $filename ) );
+		$file_description = get_file_description( $absolute_filename );
 		if ( $file_description != basename( $filename ) )
-			$file_description .= '<br /><span class="nonessential">(' . esc_html( $filename ) . ')</span>';
+			$file_description .= '<br /><span class="nonessential">(' . $filename . ')</span>';
 
 		if ( $absolute_filename == $file )
 			$file_description = '<span class="highlight">' . $file_description . '</span>';

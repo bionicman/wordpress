@@ -181,19 +181,79 @@ function image_downsize($id, $size = 'medium') {
 }
 
 /**
- * Registers a new image size
+ * Register a new image size.
+ *
+ * Cropping behavior for the image size is dependent on the value of $crop:
+ * 1. If false (default), images will be scaled, not cropped.
+ * 2. If an array in the form of array( x_crop_position, y_crop_position ):
+ *    - x_crop_position accepts 'left' 'center', or 'right'.
+ *    - y_crop_position accepts 'top', 'center', or 'bottom'.
+ *    Images will be cropped to the specified dimensions within the defined crop area.
+ * 3. If true, images will be cropped to the specified dimensions using center positions.
  *
  * @since 2.9.0
+ *
+ * @param string     $name   Image size identifier.
+ * @param int        $width  Image width in pixels.
+ * @param int        $height Image height in pixels.
+ * @param bool|array $crop   Optional. Whether to crop images to specified height and width or resize.
+ *                           An array can specify positioning of the crop area. Default false.
+ * @return bool|array False, if no image was created. Metadata array on success.
  */
 function add_image_size( $name, $width = 0, $height = 0, $crop = false ) {
 	global $_wp_additional_image_sizes;
-	$_wp_additional_image_sizes[$name] = array( 'width' => absint( $width ), 'height' => absint( $height ), 'crop' => (bool) $crop );
+
+	$_wp_additional_image_sizes[ $name ] = array(
+		'width'  => absint( $width ),
+		'height' => absint( $height ),
+		'crop'   => $crop,
+	);
 }
 
 /**
- * Registers an image size for the post thumbnail
+ * Check if an image size exists.
+ *
+ * @since 3.9.0
+ *
+ * @param string $name The image size to check.
+ * @return bool True if the image size exists, false if not.
+ */
+function has_image_size( $name ) {
+	global $_wp_additional_image_sizes;
+
+	return isset( $_wp_additional_image_sizes[ $name ] );
+}
+
+/**
+ * Remove a new image size.
+ *
+ * @since 3.9.0
+ *
+ * @param string $name The image size to remove.
+ * @return bool True if the image size was successfully removed, false on failure.
+ */
+function remove_image_size( $name ) {
+	global $_wp_additional_image_sizes;
+
+	if ( isset( $_wp_additional_image_sizes[ $name ] ) ) {
+		unset( $_wp_additional_image_sizes[ $name ] );
+		return true;
+	}
+
+	return false;
+}
+
+/**
+ * Registers an image size for the post thumbnail.
  *
  * @since 2.9.0
+ * @see add_image_size() for details on cropping behavior.
+ *
+ * @param int        $width  Image width in pixels.
+ * @param int        $height Image height in pixels.
+ * @param bool|array $crop   Optional. Whether to crop images to specified height and width or resize.
+ *                           An array can specify positioning of the crop area. Default false.
+ * @return bool|array False, if no image was created. Metadata array on success.
  */
 function set_post_thumbnail_size( $width = 0, $height = 0, $crop = false ) {
 	add_image_size( 'post-thumbnail', $width, $height, $crop );
@@ -300,22 +360,30 @@ function wp_constrain_dimensions( $current_width, $current_height, $max_width=0,
 }
 
 /**
- * Retrieve calculated resized dimensions for use in WP_Image_Editor.
+ * Retrieve calculated resize dimensions for use in WP_Image_Editor.
  *
- * Calculate dimensions and coordinates for a resized image that fits within a
- * specified width and height. If $crop is true, the largest matching central
- * portion of the image will be cropped out and resized to the required size.
+ * Calculates dimensions and coordinates for a resized image that fits
+ * within a specified width and height.
+ *
+ * Cropping behavior is dependent on the value of $crop:
+ * 1. If false (default), images will not be cropped.
+ * 2. If an array in the form of array( x_crop_position, y_crop_position ):
+ *    - x_crop_position accepts 'left' 'center', or 'right'.
+ *    - y_crop_position accepts 'top', 'center', or 'bottom'.
+ *    Images will be cropped to the specified dimensions within the defined crop area.
+ * 3. If true, images will be cropped to the specified dimensions using center positions.
  *
  * @since 2.5.0
- * @uses apply_filters() Calls 'image_resize_dimensions' on $orig_w, $orig_h, $dest_w, $dest_h and
- *		$crop to provide custom resize dimensions.
+ * @uses apply_filters() Calls 'image_resize_dimensions' on $orig_w, $orig_h, $dest_w,
+ *                       $dest_h and $crop to provide custom resize dimensions.
  *
- * @param int $orig_w Original width.
- * @param int $orig_h Original height.
- * @param int $dest_w New width.
- * @param int $dest_h New height.
- * @param bool $crop Optional, default is false. Whether to crop image or resize.
- * @return bool|array False on failure. Returned array matches parameters for imagecopyresampled() PHP function.
+ * @param int        $orig_w Original width in pixels.
+ * @param int        $orig_h Original height in pixels.
+ * @param int        $dest_w New width in pixels.
+ * @param int        $dest_h New height in pixels.
+ * @param bool|array $crop   Optional. Whether to crop image to specified height and width or resize.
+ *                           An array can specify positioning of the crop area. Default false.
+ * @return bool|array False on failure. Returned array matches parameters for `imagecopyresampled()`.
  */
 function image_resize_dimensions($orig_w, $orig_h, $dest_w, $dest_h, $crop = false) {
 
@@ -349,8 +417,27 @@ function image_resize_dimensions($orig_w, $orig_h, $dest_w, $dest_h, $crop = fal
 		$crop_w = round($new_w / $size_ratio);
 		$crop_h = round($new_h / $size_ratio);
 
-		$s_x = floor( ($orig_w - $crop_w) / 2 );
-		$s_y = floor( ($orig_h - $crop_h) / 2 );
+		if ( ! is_array( $crop ) || count( $crop ) !== 2 ) {
+			$crop = array( 'center', 'center' );
+		}
+
+		list( $x, $y ) = $crop;
+
+		if ( 'left' === $x ) {
+			$s_x = 0;
+		} elseif ( 'right' === $x ) {
+			$s_x = $orig_w - $crop_w;
+		} else {
+			$s_x = floor( ( $orig_w - $crop_w ) / 2 );
+		}
+
+		if ( 'top' === $y ) {
+			$s_y = 0;
+		} elseif ( 'bottom' === $y ) {
+			$s_y = $orig_h - $crop_h;
+		} else {
+			$s_y = floor( ( $orig_h - $crop_h ) / 2 );
+		}
 	} else {
 		// don't crop, just resize using $dest_w x $dest_h as a maximum bounding box
 		$crop_w = $orig_w;
@@ -623,23 +710,43 @@ add_shortcode('caption', 'img_caption_shortcode');
  *
  * @since 2.6.0
  *
- * @param array $attr Attributes attributed to the shortcode.
+ * @param array $attr {
+ *     Attributes of the caption shortcode.
+ *
+ *     @type string $id      ID of the div element for the caption.
+ *     @type string $align   Class name that aligns the caption. Default 'alignnone'. Accepts 'alignleft',
+ *                           'aligncenter', alignright', 'alignnone'.
+ *     @type int    $width   The width of the caption, in pixels.
+ *     @type string $caption The caption text.
+ *     @type string $class   Additional class name(s) added to the caption container.
+ * }
  * @param string $content Optional. Shortcode content.
- * @return string
+ * @return string HTML content to display the caption.
  */
-function img_caption_shortcode($attr, $content = null) {
+function img_caption_shortcode( $attr, $content = null ) {
 	// New-style shortcode with the caption inside the shortcode with the link and image tags.
 	if ( ! isset( $attr['caption'] ) ) {
 		if ( preg_match( '#((?:<a [^>]+>\s*)?<img [^>]+>(?:\s*</a>)?)(.*)#is', $content, $matches ) ) {
 			$content = $matches[1];
 			$attr['caption'] = trim( $matches[2] );
 		}
-	} elseif ( strpos( $attr['caption'], '<' ) !== false ) {
-		$attr['caption'] = wp_kses( $attr['caption'], 'post' );
 	}
 
-	// Allow plugins/themes to override the default caption template.
-	$output = apply_filters('img_caption_shortcode', '', $attr, $content);
+	/**
+	 * Filter the default caption shortcode output.
+	 *
+	 * If the filtered output isn't empty, it will be used instead of generating
+	 * the default caption template.
+	 *
+	 * @since 2.6.0
+	 *
+	 * @see img_caption_shortcode()
+	 *
+	 * @param string $output  The caption output. Default empty.
+	 * @param array  $attr    Attributes of the caption shortcode.
+	 * @param string $content The image element, possibly wrapped in a hyperlink.
+	 */
+	$output = apply_filters( 'img_caption_shortcode', '', $attr, $content );
 	if ( $output != '' )
 		return $output;
 
@@ -647,7 +754,8 @@ function img_caption_shortcode($attr, $content = null) {
 		'id'	  => '',
 		'align'	  => 'alignnone',
 		'width'	  => '',
-		'caption' => ''
+		'caption' => '',
+		'class'   => '',
 	), $attr, 'caption' );
 
 	$atts['width'] = (int) $atts['width'];
@@ -667,16 +775,12 @@ function img_caption_shortcode($attr, $content = null) {
 	 *
 	 * @since 3.7.0
 	 *
-	 * @param int $caption_width Width in pixels. To remove this inline style, return zero.
-	 * @param array $atts {
-	 *     The attributes of the caption shortcode.
+	 * @see img_caption_shortcode()
 	 *
-	 *     @type string 'id'      The ID of the div element for the caption.
-	 *     @type string 'align'   The class name that aligns the caption. Default 'alignnone'.
-	 *     @type int    'width'   The width of the image being captioned.
-	 *     @type string 'caption' The image's caption.
-	 * }
-	 * @param string $content The image element, possibly wrapped in a hyperlink.
+	 * @param int    $caption_width Width of the caption in pixels. To remove this inline style,
+	 *                              return zero.
+	 * @param array  $atts          Attributes of the caption shortcode.
+	 * @param string $content       The image element, possibly wrapped in a hyperlink.
 	 */
 	$caption_width = apply_filters( 'img_caption_shortcode_width', $caption_width, $atts, $content );
 
@@ -684,7 +788,9 @@ function img_caption_shortcode($attr, $content = null) {
 	if ( $caption_width )
 		$style = 'style="width: ' . (int) $caption_width . 'px" ';
 
-	return '<div ' . $atts['id'] . $style . 'class="wp-caption ' . esc_attr( $atts['align'] ) . '">'
+	$class = trim( 'wp-caption ' . $atts['align'] . ' ' . $atts['class'] );
+
+	return '<div ' . $atts['id'] . $style . 'class="' . esc_attr( $class ) . '">'
 	. do_shortcode( $content ) . '<p class="wp-caption-text">' . $atts['caption'] . '</p></div>';
 }
 
@@ -698,10 +804,30 @@ add_shortcode('gallery', 'gallery_shortcode');
  *
  * @since 2.5.0
  *
- * @param array $attr Attributes of the shortcode.
+ * @param array $attr {
+ *     Attributes of the gallery shortcode.
+ *
+ *     @type string $order      Order of the images in the gallery. Default 'ASC'. Accepts 'ASC', 'DESC'.
+ *     @type string $orderby    The field to use when ordering the images. Default 'menu_order ID'.
+ *                              Accepts any valid SQL ORDERBY statement.
+ *     @type int    $id         Post ID.
+ *     @type string $itemtag    HTML tag to use for each image in the gallery.
+ *                              Default 'dl', or 'figure' when the theme registers HTML5 gallery support.
+ *     @type string $icontag    HTML tag to use for each image's icon.
+ *                              Default 'dt', or 'div' when the theme registers HTML5 gallery support.
+ *     @type string $captiontag HTML tag to use for each image's caption.
+ *                              Default 'dd', or 'figcaption' when the theme registers HTML5 gallery support.
+ *     @type int    $columns    Number of columns of images to display. Default 3.
+ *     @type string $size       Size of the images to display. Default 'thumbnail'.
+ *     @type string $ids        A comma-separated list of IDs of attachments to display. Default empty.
+ *     @type string $include    A comma-separated list of IDs of attachments to include. Default empty.
+ *     @type string $exclude    A comma-separated list of IDs of attachments to exclude. Default empty.
+ *     @type string $link       What to link each image to. Default empty (links to the attachment page).
+ *                              Accepts 'file', 'none'.
+ * }
  * @return string HTML content to display gallery.
  */
-function gallery_shortcode($attr) {
+function gallery_shortcode( $attr ) {
 	$post = get_post();
 
 	static $instance = 0;
@@ -714,8 +840,20 @@ function gallery_shortcode($attr) {
 		$attr['include'] = $attr['ids'];
 	}
 
-	// Allow plugins/themes to override the default gallery template.
-	$output = apply_filters('post_gallery', '', $attr);
+	/**
+	 * Filter the default gallery shortcode output.
+	 *
+	 * If the filtered output isn't empty, it will be used instead of generating
+	 * the default gallery template.
+	 *
+	 * @since 2.5.0
+	 *
+	 * @see gallery_shortcode()
+	 *
+	 * @param string $output The gallery output. Default empty.
+	 * @param array  $attr   Attributes of the gallery shortcode.
+	 */
+	$output = apply_filters( 'post_gallery', '', $attr );
 	if ( $output != '' )
 		return $output;
 
@@ -726,13 +864,14 @@ function gallery_shortcode($attr) {
 			unset( $attr['orderby'] );
 	}
 
+	$html5 = current_theme_supports( 'html5', 'gallery' );
 	extract(shortcode_atts(array(
 		'order'      => 'ASC',
 		'orderby'    => 'menu_order ID',
 		'id'         => $post ? $post->ID : 0,
-		'itemtag'    => 'dl',
-		'icontag'    => 'dt',
-		'captiontag' => 'dd',
+		'itemtag'    => $html5 ? 'figure'     : 'dl',
+		'icontag'    => $html5 ? 'div'        : 'dt',
+		'captiontag' => $html5 ? 'figcaption' : 'dd',
 		'columns'    => 3,
 		'size'       => 'thumbnail',
 		'include'    => '',
@@ -785,7 +924,17 @@ function gallery_shortcode($attr) {
 	$selector = "gallery-{$instance}";
 
 	$gallery_style = $gallery_div = '';
-	if ( apply_filters( 'use_default_gallery_style', true ) )
+
+	/**
+	 * Filter whether to print default gallery styles.
+	 *
+	 * @since 3.1.0
+	 *
+	 * @param bool $print Whether to print default gallery styles.
+	 *                    Defaults to false if the theme supports HTML5 galleries.
+	 *                    Otherwise, defaults to true.
+	 */
+	if ( apply_filters( 'use_default_gallery_style', ! $html5 ) ) {
 		$gallery_style = "
 		<style type='text/css'>
 			#{$selector} {
@@ -804,10 +953,12 @@ function gallery_shortcode($attr) {
 				margin-left: 0;
 			}
 			/* see gallery_shortcode() in wp-includes/media.php */
-		</style>";
+		</style>\n\t\t";
+	}
+
 	$size_class = sanitize_html_class( $size );
 	$gallery_div = "<div id='$selector' class='gallery galleryid-{$id} gallery-columns-{$columns} gallery-size-{$size_class}'>";
-	$output = apply_filters( 'gallery_style', $gallery_style . "\n\t\t" . $gallery_div );
+	$output = apply_filters( 'gallery_style', $gallery_style . $gallery_div );
 
 	$i = 0;
 	foreach ( $attachments as $id => $attachment ) {
@@ -848,6 +999,327 @@ function gallery_shortcode($attr) {
 }
 
 /**
+ * Output and enqueue default scripts and styles for playlists.
+ *
+ * @since 3.9.0
+ *
+ * @param string $type Type of playlist: "audio" or "video."
+ */
+function wp_playlist_scripts( $type ) {
+	wp_enqueue_style( 'wp-mediaelement' );
+	wp_enqueue_script( 'wp-playlist' );
+?>
+<!--[if lt IE 9]><script>document.createElement('<?php echo esc_js( $type ) ?>');</script><![endif]-->
+<script type="text/html" id="tmpl-wp-playlist-current-item">
+	<# if ( data.image ) { #>
+	<img src="{{{ data.thumb.src }}}"/>
+	<# } #>
+	<# if ( data.meta.title ) { #>
+	<div class="wp-playlist-caption">
+		<span class="wp-caption-meta wp-caption-title">&#8220;{{{ data.meta.title }}}&#8221;</span>
+		<span class="wp-caption-meta wp-caption-album">{{{ data.meta.album }}}</span>
+		<span class="wp-caption-meta wp-caption-artist">{{{ data.meta.artist }}}</span>
+	</div>
+	<# } else { #>
+	<div class="wp-playlist-caption">{{{ data.caption ? data.caption : data.title }}}</div>
+	<# } #>
+</script>
+<script type="text/html" id="tmpl-wp-playlist-item">
+	<div class="wp-playlist-item">
+		<# if ( ( data.title || data.meta.title ) && ( ! data.artists || data.meta.artist ) ) { #>
+		<div class="wp-playlist-caption">
+			{{{ data.index ? ( data.index + '.&nbsp;' ) : '' }}}
+			<span class="wp-caption-title">&#8220;{{{ data.title ? data.title : data.meta.title }}}&#8221;</span>
+			<# if ( data.artists ) { #>
+			<span class="wp-caption-by"><?php _e( 'by' ) ?></span>
+			<span class="wp-caption-artist">{{{ data.meta.artist }}}</span>
+			<# } #>
+		</div>
+		<# } else { #>
+		<div class="wp-playlist-caption">{{{ data.index ? ( data.index + '.' ) : '' }}} {{{ data.caption ? data.caption : data.title }}}</div>
+		<# } #>
+		<# if ( data.meta.length_formatted ) { #>
+		<div class="wp-playlist-item-length">{{{ data.meta.length_formatted }}}</div>
+		<# } #>
+	</div>
+</script>
+<?php
+}
+add_action( 'wp_playlist_scripts', 'wp_playlist_scripts' );
+
+/**
+ * The Playlist shortcode.
+ *
+ * This implements the functionality of the Playlist Shortcode for displaying
+ * a collection of WordPress audio or video files in a post.
+ *
+ * @since 3.9.0
+ *
+ * @param array  $attr Attributes of the shortcode.
+ * @param string $type Type of playlist. Accepts 'audio' and 'video'.
+ * @return string Playlist output. Empty string if the passed type is unsupported.
+ */
+function wp_get_playlist( $attr, $type ) {
+	global $content_width;
+	$post = get_post();
+
+	if ( ! in_array( $type, array( 'audio', 'video' ) ) ) {
+		return '';
+	}
+
+	static $instance = 0;
+	$instance++;
+
+	if ( ! empty( $attr['ids'] ) ) {
+		// 'ids' is explicitly ordered, unless you specify otherwise.
+		if ( empty( $attr['orderby'] ) ) {
+			$attr['orderby'] = 'post__in';
+		}
+		$attr['include'] = $attr['ids'];
+	}
+
+	/**
+	 * Filter the playlist output.
+	 *
+	 * Passing a non-empty value to the filter will short-circuit generation
+	 * of the default playlist output, returning the passed value instead.
+	 *
+	 * @since 3.9.0
+	 *
+	 * @param string $output Playlist output. Default empty.
+	 * @param array  $attr   Array of shortcode attributes.
+	 * @param string $type   Type of playlist to generate output for.
+	 */
+	$output = apply_filters( 'post_playlist', '', $attr, $type );
+	if ( $output != '' ) {
+		return $output;
+	}
+
+	/*
+	 * We're trusting author input, so let's at least make sure it looks
+	 * like a valid orderby statement.
+	 */
+	if ( isset( $attr['orderby'] ) ) {
+		$attr['orderby'] = sanitize_sql_orderby( $attr['orderby'] );
+		if ( ! $attr['orderby'] )
+			unset( $attr['orderby'] );
+	}
+
+	extract( shortcode_atts( array(
+		'order'		=> 'ASC',
+		'orderby'	=> 'menu_order ID',
+		'id'		=> $post ? $post->ID : 0,
+		'include'	=> '',
+		'exclude'   => '',
+		'style'		=> 'light',
+		'tracklist' => 'audio' === $type,
+		'tracknumbers' => 'audio' === $type,
+		'images'	=> true,
+		'artists'	=> true
+	), $attr, 'playlist' ) );
+
+	$id = intval( $id );
+	if ( 'RAND' == $order ) {
+		$orderby = 'none';
+	}
+
+	$playlist_styles = array(
+		'light' => _x( 'Light', 'light playlist theme' ),
+		'dark'	=> _x( 'Dark', 'dark playlist theme' )
+	);
+
+	/**
+	 * Filter the available playlist styles.
+	 *
+	 * @since 3.9.0
+	 *
+	 * @param array $playlist_styles Array of playlist styles. Defaults are 'light' and 'dark'.
+	 */
+	$styles = apply_filters( 'playlist_styles', $playlist_styles );
+
+	if ( ! in_array( $style, array_keys( $styles ), true ) ) {
+		$style = 'light';
+	}
+
+	$args = array(
+		'post_status' => 'inherit',
+		'post_type' => 'attachment',
+		'post_mime_type' => $type,
+		'order' => $order,
+		'orderby' => $orderby
+	);
+
+	if ( ! empty( $include ) ) {
+		$args['include'] = $include;
+		$_attachments = get_posts( $args );
+
+		$attachments = array();
+		foreach ( $_attachments as $key => $val ) {
+			$attachments[$val->ID] = $_attachments[$key];
+		}
+	} elseif ( ! empty( $exclude ) ) {
+		$args['post_parent'] = $id;
+		$args['exclude'] = $exclude;
+		$attachments = get_children( $args );
+	} else {
+		$args['post_parent'] = $id;
+		$attachments = get_children( $args );
+	}
+
+	if ( empty( $attachments ) ) {
+		return '';
+	}
+
+	if ( is_feed() ) {
+		$output = "\n";
+		foreach ( $attachments as $att_id => $attachment ) {
+			$output .= wp_get_attachment_link( $att_id ) . "\n";
+		}
+		return $output;
+	}
+
+	$supports_thumbs = ( current_theme_supports( 'post-thumbnails', "attachment:$type" ) && post_type_supports( "attachment:$type", 'thumbnail' ) )
+		|| $images;
+
+	$outer = 22; // default padding and border of wrapper
+
+	$default_width = 640;
+	$default_height = 360;
+
+	$theme_width = $content_width - $outer;
+	$theme_height = round( ( $default_height * $theme_width ) / $default_width );
+
+	$data = compact( 'type', 'style' );
+
+	// don't pass strings to JSON, will be truthy in JS
+	foreach ( array( 'tracklist', 'tracknumbers', 'images', 'artists' ) as $key ) {
+		$data[$key] = filter_var( $$key, FILTER_VALIDATE_BOOLEAN );
+	}
+
+	$tracks = array();
+	foreach ( $attachments as $attachment ) {
+		$url = wp_get_attachment_url( $attachment->ID );
+		$ftype = wp_check_filetype( $url, wp_get_mime_types() );
+		$track = array(
+			'src' => $url,
+			'type' => $ftype['type'],
+			'title' => get_the_title( $attachment->ID ),
+			'caption' => wptexturize( $attachment->post_excerpt ),
+			'description' => wptexturize( $attachment->post_content )
+		);
+
+		$track['meta'] = array();
+		$meta = wp_get_attachment_metadata( $attachment->ID );
+		if ( ! empty( $meta ) ) {
+
+			$keys = array( 'title', 'artist', 'band', 'album', 'genre', 'year', 'length', 'length_formatted' );
+			foreach ( $keys as $key ) {
+				if ( ! empty( $meta[ $key ] ) ) {
+					$track['meta'][ $key ] = $meta[ $key ];
+				}
+			}
+
+			if ( 'video' === $type ) {
+				if ( ! empty( $meta['width'] ) && ! empty( $meta['height'] ) ) {
+					$width = $meta['width'];
+					$height = $meta['height'];
+					$theme_height = round( ( $height * $theme_width ) / $width );
+				} else {
+					$width = $default_width;
+					$height = $default_height;
+				}
+
+				$track['dimensions'] = array(
+					'original' => compact( 'width', 'height' ),
+					'resized' => array(
+						'width' => $theme_width,
+						'height' => $theme_height
+					)
+				);
+			}
+		}
+
+		if ( $supports_thumbs ) {
+			$id = get_post_thumbnail_id( $attachment->ID );
+			if ( ! empty( $id ) ) {
+				list( $src, $width, $height ) = wp_get_attachment_image_src( $id, 'full' );
+				$track['image'] = compact( 'src', 'width', 'height' );
+				list( $src, $width, $height ) = wp_get_attachment_image_src( $id, 'thumbnail' );
+				$track['thumb'] = compact( 'src', 'width', 'height' );
+			}
+		}
+
+		$tracks[] = $track;
+	}
+	$data['tracks'] = $tracks;
+
+	$safe_type = esc_attr( $type );
+	$safe_style = esc_attr( $style );
+
+	ob_start();
+
+	if ( 1 === $instance ) {
+		/**
+		 * Hook to print and enqueue playlist scripts, styles, and JavaScript templates.
+		 *
+		 * @since 3.9.0
+		 *
+		 * @param string $type   Type of playlist: "audio" or "video."
+		 * @param string $style  The "theme" for the playlist. Core provides "light" and "dark."
+		 */
+		do_action( 'wp_playlist_scripts', $type, $style );
+	} ?>
+<div class="wp-playlist wp-<?php echo $safe_type ?>-playlist wp-playlist-<?php echo $safe_style ?>">
+	<?php if ( 'audio' === $type ): ?>
+	<div class="wp-playlist-current-item"></div>
+	<?php endif ?>
+	<<?php echo $safe_type ?> controls="controls" preload="metadata" width="<?php
+		echo (int) $theme_width;
+	?>"<?php if ( 'video' === $safe_type ):
+		echo ' height="', (int) $theme_height, '"';
+	endif; ?>></<?php echo $safe_type ?>>
+	<div class="wp-playlist-next"></div>
+	<div class="wp-playlist-prev"></div>
+	<noscript>
+	<ol><?php
+	foreach ( $attachments as $att_id => $attachment ) {
+		printf( '<li>%s</li>', wp_get_attachment_link( $att_id ) );
+	}
+	?></ol>
+	</noscript>
+	<script type="application/json"><?php echo json_encode( $data ) ?></script>
+</div>
+	<?php
+	return ob_get_clean();
+}
+
+/**
+ * Playlist shortcode handler
+ *
+ * @since 3.9.0
+ *
+ * @param array $attr Parsed shortcode attributes.
+ * @return string The resolved playlist shortcode markup.
+ */
+function wp_playlist_shortcode( $attr ) {
+	return wp_get_playlist( $attr, 'audio' );
+}
+add_shortcode( 'playlist', 'wp_playlist_shortcode' );
+
+/**
+ * Video playlist shortcode handler
+ *
+ * @since 3.9.0
+ *
+ * @param array $attr Parsed shortcode attributes.
+ * @return string The resolved video playlist shortcode markup.
+ */
+function wp_video_playlist_shortcode( $attr ) {
+	return wp_get_playlist( $attr, 'video' );
+}
+add_shortcode( 'video-playlist', 'wp_video_playlist_shortcode' );
+
+/**
  * Provide a No-JS Flash fallback as a last resort for audio / video
  *
  * @since 3.6.0
@@ -877,7 +1349,17 @@ function wp_get_audio_extensions() {
  *
  * @since 3.6.0
  *
- * @param array  $attr    Attributes of the shortcode.
+ * @param array $attr {
+ *     Attributes of the audio shortcode.
+ *
+ *     @type string $src      URL to the source of the audio file. Default empty.
+ *     @type string $loop     The 'loop' attribute for the `<audio>` element. Default empty.
+ *     @type string $autoplay The 'autoplay' attribute for the `<audio>` element. Default empty.
+ *     @type string $preload  The 'preload' attribute for the `<audio>` element. Default empty.
+ *     @type string $class    The 'class' attribute for the `<audio>` element. Default 'wp-audio-shortcode'.
+ *     @type string $id       The 'id' attribute for the `<audio>` element. Default 'audio-{$post_id}-{$instances}'.
+ *     @type string $style    The 'style' attribute for the `<audio>` element. Default 'width: 100%'.
+ * }
  * @param string $content Optional. Shortcode content.
  * @return string HTML content to display audio.
  */
@@ -888,16 +1370,19 @@ function wp_audio_shortcode( $attr, $content = '' ) {
 	$instances++;
 
 	/**
-	 * Override the default audio shortcode.
+	 * Filter the default audio shortcode output.
 	 *
-	 * @since 3.7.0
+	 * If the filtered output isn't empty, it will be used instead of generating the default audio template.
 	 *
-	 * @param null              Empty variable to be replaced with shortcode markup.
-	 * @param array  $attr      Attributes of the shortcode.
+	 * @since 3.6.0
+	 *
+	 * @param string $html      Empty variable to be replaced with shortcode markup.
+	 * @param array  $attr      Attributes of the shortcode. @see wp_audio_shortcode()
 	 * @param string $content   Shortcode content.
 	 * @param int    $instances Unique numeric ID of this audio shortcode instance.
 	 */
-	$html = apply_filters( 'wp_audio_shortcode_override', '', $attr, $content, $instances );
+	$html = '';
+	$html = apply_filters( 'wp_audio_shortcode_override', $html, $attr, $content, $instances );
 	if ( '' !== $html )
 		return $html;
 
@@ -1014,7 +1499,22 @@ function wp_get_video_extensions() {
  *
  * @since 3.6.0
  *
- * @param array  $attr    Attributes of the shortcode.
+ * @param array $attr {
+ *     Attributes of the shortcode.
+ *
+ *     @type string $src      URL to the source of the video file. Default empty.
+ *     @type int    $height   Height of the video embed in pixels. Default 360.
+ *     @type int    $width    Width of the video embed in pixels. Default $content_width or 640.
+ *     @type string $poster   The 'poster' attribute for the `<video>` element. Default empty.
+ *     @type string $loop     The 'loop' attribute for the `<video>` element. Default empty.
+ *     @type string $autoplay The 'autoplay' attribute for the `<video>` element. Default empty.
+ *     @type string $preload  The 'preload' attribute for the `<video>` element.
+ *                            Default 'metadata'.
+ *     @type string $class    The 'class' attribute for the `<video>` element.
+ *                            Default 'wp-video-shortcode'.
+ *     @type string $id       The 'id' attribute for the `<video>` element.
+ *                            Default 'video-{$post_id}-{$instances}'.
+ * }
  * @param string $content Optional. Shortcode content.
  * @return string HTML content to display video.
  */
@@ -1026,13 +1526,18 @@ function wp_video_shortcode( $attr, $content = '' ) {
 	$instances++;
 
 	/**
-	 * Override the default video shortcode.
+	 * Filter the default video shortcode output.
 	 *
-	 * @since 3.7.0
+	 * If the filtered output isn't empty, it will be used instead of generating
+	 * the default video template.
 	 *
-	 * @param null              Empty variable to be replaced with shortcode markup.
-	 * @param array  $attr      Attributes of the shortcode.
-	 * @param string $content   Shortcode content.
+	 * @since 3.6.0
+	 *
+	 * @see wp_video_shortcode()
+	 *
+	 * @param string $html      Empty variable to be replaced with shortcode markup.
+	 * @param array  $attr      Attributes of the video shortcode.
+	 * @param string $content   Video shortcode content.
 	 * @param int    $instances Unique numeric ID of this video shortcode instance.
 	 */
 	$html = apply_filters( 'wp_video_shortcode_override', '', $attr, $content, $instances );
@@ -1048,8 +1553,8 @@ function wp_video_shortcode( $attr, $content = '' ) {
 		'loop'     => '',
 		'autoplay' => '',
 		'preload'  => 'metadata',
+		'width'    => 640,
 		'height'   => 360,
-		'width'    => empty( $content_width ) ? 640 : $content_width,
 	);
 
 	foreach ( $default_types as $type )
@@ -1058,23 +1563,30 @@ function wp_video_shortcode( $attr, $content = '' ) {
 	$atts = shortcode_atts( $defaults_atts, $attr, 'video' );
 	extract( $atts );
 
-	$w = $width;
-	$h = $height;
-	if ( is_admin() && $width > 600 )
-		$w = 600;
-	elseif ( ! is_admin() && $w > $defaults_atts['width'] )
-		$w = $defaults_atts['width'];
+	if ( is_admin() ) {
+		// shrink the video so it isn't huge in the admin
+		if ( $width > $defaults_atts['width'] ) {
+			$height = round( ( $height * $defaults_atts['width'] ) / $width );
+			$width = $defaults_atts['width'];
+		}
+	} else {
+		// if the video is bigger than the theme
+		if ( $width > $content_width ) {
+			$height = round( ( $height * $content_width ) / $width );
+			$width = $content_width;
+		}
+	}
 
-	if ( $w < $width )
-		$height = round( ( $h * $w ) / $width );
-
-	$width = $w;
+	$yt_pattern = '#^https?://(:?www\.)?(:?youtube\.com/watch|youtu\.be/)#';
 
 	$primary = false;
 	if ( ! empty( $src ) ) {
-		$type = wp_check_filetype( $src, wp_get_mime_types() );
-		if ( ! in_array( strtolower( $type['ext'] ), $default_types ) )
-			return sprintf( '<a class="wp-embedded-video" href="%s">%s</a>', esc_url( $src ), esc_html( $src ) );
+		if ( ! preg_match( $yt_pattern, $src ) ) {
+			$type = wp_check_filetype( $src, wp_get_mime_types() );
+			if ( ! in_array( strtolower( $type['ext'] ), $default_types ) ) {
+				return sprintf( '<a class="wp-embedded-video" href="%s">%s</a>', esc_url( $src ), esc_html( $src ) );
+			}
+		}
 		$primary = true;
 		array_unshift( $default_types, 'src' );
 	} else {
@@ -1139,13 +1651,23 @@ function wp_video_shortcode( $attr, $content = '' ) {
 		if ( ! empty( $$fallback ) ) {
 			if ( empty( $fileurl ) )
 				$fileurl = $$fallback;
-			$type = wp_check_filetype( $$fallback, wp_get_mime_types() );
-			// m4v sometimes shows up as video/mpeg which collides with mp4
-			if ( 'm4v' === $type['ext'] )
-				$type['type'] = 'video/m4v';
+
+			if ( 'src' === $fallback && preg_match( $yt_pattern, $src ) ) {
+				$type = array( 'type' => 'video/youtube' );
+			} else {
+				$type = wp_check_filetype( $$fallback, wp_get_mime_types() );
+			}
 			$html .= sprintf( $source, $type['type'], esc_url( $$fallback ) );
 		}
 	}
+
+	if ( ! empty( $content ) ) {
+		if ( false !== strpos( $content, "\n" ) )
+			$content = str_replace( array( "\r\n", "\n", "\t" ), '', $content );
+
+		$html .= trim( $content );
+	}
+
 	if ( 'mediaelement' === $library )
 		$html .= wp_mediaelement_fallback( $fileurl );
 	$html .= '</video>';
@@ -1639,16 +2161,14 @@ function wp_plupload_default_settings() {
 	$max_upload_size = wp_max_upload_size();
 
 	$defaults = array(
-		'runtimes'            => 'html5,silverlight,html4',
+		'runtimes'            => 'html5,silverlight,flash,html4',
 		'file_data_name'      => 'async-upload', // key passed to $_FILE.
-		'multiple_queues'     => true,
-		'max_file_size'       => $max_upload_size . 'b',
 		'url'                 => admin_url( 'async-upload.php', 'relative' ),
-		'flash_swf_url'       => includes_url( 'js/plupload/plupload.flash.swf' ),
-		'silverlight_xap_url' => includes_url( 'js/plupload/plupload.silverlight.xap' ),
-		'filters'             => array( array( 'title' => __( 'Allowed Files' ), 'extensions' => '*') ),
-		'multipart'           => true,
-		'urlstream_upload'    => true,
+		'flash_swf_url'       => includes_url( 'js/plupload/Moxie.swf' ),
+		'silverlight_xap_url' => includes_url( 'js/plupload/Moxie.xap' ),
+		'filters' => array(
+			'max_file_size'   => $max_upload_size . 'b',
+		),
 	);
 
 	// Multi-file uploading doesn't currently work in iOS Safari,
@@ -1732,12 +2252,14 @@ function wp_prepare_attachment_for_js( $attachment ) {
 		'nonces'      => array(
 			'update' => false,
 			'delete' => false,
+			'edit'   => false
 		),
 		'editLink'   => false,
 	);
 
 	if ( current_user_can( 'edit_post', $attachment->ID ) ) {
 		$response['nonces']['update'] = wp_create_nonce( 'update-post_' . $attachment->ID );
+		$response['nonces']['edit'] = wp_create_nonce( 'image_editor-' . $attachment->ID );
 		$response['editLink'] = get_edit_post_link( $attachment->ID, 'raw' );
 	}
 
@@ -1852,6 +2374,18 @@ function wp_enqueue_media( $args = array() ) {
 		'size'  => get_option( 'image_default_size' ),  // empty default
 	);
 
+	$exts = array_merge( wp_get_audio_extensions(), wp_get_video_extensions() );
+	$mimes = get_allowed_mime_types();
+	$ext_mimes = array();
+	foreach ( $exts as $ext ) {
+		foreach ( $mimes as $ext_preg => $mime_match ) {
+			if ( preg_match( '#' . $ext . '#i', $ext_preg ) ) {
+				$ext_mimes[ $ext ] = $mime_match;
+				break;
+			}
+		}
+	}
+
 	$settings = array(
 		'tabs'      => $tabs,
 		'tabUrl'    => add_query_arg( array( 'chromeless' => true ), admin_url('media-upload.php') ),
@@ -1864,7 +2398,8 @@ function wp_enqueue_media( $args = array() ) {
 			'id' => 0,
 		),
 		'defaultProps' => $props,
-		'embedExts'    => array_merge( wp_get_audio_extensions(), wp_get_video_extensions() ),
+		'embedExts'    => $exts,
+		'embedMimes'   => $ext_mimes
 	);
 
 	$post = null;
@@ -1875,7 +2410,7 @@ function wp_enqueue_media( $args = array() ) {
 			'nonce' => wp_create_nonce( 'update-post_' . $post->ID ),
 		);
 
-		if ( current_theme_supports( 'post-thumbnails', $post->post_type ) && post_type_supports( $post->post_type, 'thumbnail' ) ) {
+		if ( theme_supports_thumbnails( $post ) && post_supports_thumbnails( $post ) ) {
 			$featured_image_id = get_post_meta( $post->ID, '_thumbnail_id', true );
 			$settings['post']['featuredImageId'] = $featured_image_id ? $featured_image_id : -1;
 		}
@@ -1890,6 +2425,10 @@ function wp_enqueue_media( $args = array() ) {
 		'search'      => __( 'Search' ),
 		'select'      => __( 'Select' ),
 		'cancel'      => __( 'Cancel' ),
+		'update'      => __( 'Update' ),
+		'replace'     => __( 'Replace' ),
+		'remove'      => __( 'Remove' ),
+		'back'        => __( 'Back' ),
 		/* translators: This is a would-be plural string used in the media manager.
 		   If there is not a word you can use in your language to avoid issues with the
 		   lack of plural support here, turn it into "selected: %d" then translate it.
@@ -1905,6 +2444,8 @@ function wp_enqueue_media( $args = array() ) {
 		'mediaLibraryTitle'  => __( 'Media Library' ),
 		'insertMediaTitle'   => __( 'Insert Media' ),
 		'createNewGallery'   => __( 'Create a new gallery' ),
+		'createNewPlaylist'   => __( 'Create a new playlist' ),
+		'createNewVideoPlaylist'   => __( 'Create a new video playlist' ),
 		'returnToLibrary'    => __( '&#8592; Return to library' ),
 		'allMediaItems'      => __( 'All media items' ),
 		'noItemsFound'       => __( 'No items found.' ),
@@ -1928,6 +2469,67 @@ function wp_enqueue_media( $args = array() ) {
 		'addToGallery'       => __( 'Add to gallery' ),
 		'addToGalleryTitle'  => __( 'Add to Gallery' ),
 		'reverseOrder'       => __( 'Reverse order' ),
+
+		// Edit Image
+		'imageDetailsTitle'     => __( 'Image Details' ),
+		'imageReplaceTitle'     => __( 'Replace Image' ),
+		'imageDetailsCancel'    => __( 'Cancel Edit' ),
+		'editImage'             => __( 'Edit Image' ),
+
+		// Crop Image
+		/* translators: title for Media Manager library view */
+		'chooseImage' => __( 'Choose Image' ),
+		/* translators: button to select an image from the MM library to crop */
+		'selectAndCrop' => __( 'Select and Crop' ),
+		/* translators: button to choose not to crop the selected image */
+		'skipCropping' => __( 'Skip Cropping' ),
+		/* translators: button to choose to crop the selected image */
+		'cropImage' => __( 'Crop Image' ),
+		'cropYourImage' => __( 'Crop your image' ),
+		/* translators: button label changes to this while the image is being cropped server-side */
+		'cropping' => __( 'Cropping...' ),
+		/* translators: suggested width of header image in pixels */
+		'suggestedWidth' => __( 'Suggested width is %d pixels.' ),
+		/* translators: suggested height of header image in pixels */
+		'suggestedHeight' => __( 'Suggested height is %d pixels.' ),
+
+		// Edit Audio
+		'audioDetailsTitle'     => __( 'Audio Details' ),
+		'audioReplaceTitle'     => __( 'Replace Audio' ),
+		'audioAddSourceTitle'   => __( 'Add Audio Source' ),
+		'audioDetailsCancel'    => __( 'Cancel Edit' ),
+		'audioDetailsText'      => __( '"Replace Audio" will remove all associated source files when you update. ' .
+			'"Add Audio Source" allows you to specify alternate sources for maximum native HTML5 audio playback.' ),
+
+		// Edit Video
+		'videoDetailsTitle'     => __( 'Video Details' ),
+		'videoReplaceTitle'     => __( 'Replace Video' ),
+		'videoAddSourceTitle'   => __( 'Add Video Source' ),
+		'videoDetailsCancel'    => __( 'Cancel Edit' ),
+		'videoDetailsText'      => __( '"Replace Video" will remove all associated source files when you update. ' .
+			'"Add Video Source" allows you to specify alternate sources for maximum native HTML5 video playback.' ),
+		'videoSelectPosterImageTitle' => _( 'Select Poster Image' ),
+		'videoAddTrackTitle'	=> __( 'Add Subtitles' ),
+
+ 		// Playlist
+ 		'playlistDragInfo'    => __( 'Drag and drop to reorder tracks.' ),
+ 		'createPlaylistTitle' => __( 'Create Playlist' ),
+ 		'editPlaylistTitle'   => __( 'Edit Playlist' ),
+ 		'cancelPlaylistTitle' => __( '&#8592; Cancel Playlist' ),
+ 		'insertPlaylist'      => __( 'Insert playlist' ),
+ 		'updatePlaylist'      => __( 'Update playlist' ),
+ 		'addToPlaylist'       => __( 'Add to playlist' ),
+ 		'addToPlaylistTitle'  => __( 'Add to Playlist' ),
+
+ 		// Video Playlist
+ 		'videoPlaylistDragInfo'    => __( 'Drag and drop to reorder videos.' ),
+ 		'createVideoPlaylistTitle' => __( 'Create Video Playlist' ),
+ 		'editVideoPlaylistTitle'   => __( 'Edit Video Playlist' ),
+ 		'cancelVideoPlaylistTitle' => __( '&#8592; Cancel Video Playlist' ),
+ 		'insertVideoPlaylist'      => __( 'Insert video playlist' ),
+ 		'updateVideoPlaylist'      => __( 'Update video playlist' ),
+ 		'addToVideoPlaylist'       => __( 'Add to video playlist' ),
+ 		'addToVideoPlaylistTitle'  => __( 'Add to Video Playlist' ),
 	);
 
 	$settings = apply_filters( 'media_view_settings', $settings, $post );
@@ -1939,6 +2541,7 @@ function wp_enqueue_media( $args = array() ) {
 
 	wp_enqueue_script( 'media-editor' );
 	wp_enqueue_style( 'media-views' );
+	wp_enqueue_style( 'imgareaselect' );
 	wp_plupload_default_settings();
 
 	require_once ABSPATH . WPINC . '/media-template.php';
@@ -2091,4 +2694,71 @@ function get_post_galleries_images( $post = 0 ) {
 function get_post_gallery_images( $post = 0 ) {
 	$gallery = get_post_gallery( $post, false );
 	return empty( $gallery['src'] ) ? array() : $gallery['src'];
+}
+
+/**
+ * If an attachment is missing its metadata, try to generate it.
+ *
+ * @since 3.9.0
+ *
+ * @param post $attachment Post object.
+ */
+function wp_maybe_generate_attachment_metadata( $attachment ) {
+	if ( empty( $attachment ) || ( empty( $attachment->ID ) || ! $attachment_id = (int) $attachment->ID ) ) {
+		return;
+	}
+
+	$file = get_attached_file( $attachment_id );
+	$meta = wp_get_attachment_metadata( $attachment_id );
+	if ( empty( $meta ) && file_exists( $file ) ) {
+		$_meta = get_post_meta( $attachment_id );
+		$regeneration_lock = 'wp_generating_att_' . $attachment_id;
+		if ( ! array_key_exists( '_wp_attachment_metadata', $_meta ) && ! get_transient( $regeneration_lock ) ) {
+			set_transient( $regeneration_lock, $file );
+			wp_update_attachment_metadata( $attachment_id, wp_generate_attachment_metadata( $attachment_id, $file ) );
+			delete_transient( $regeneration_lock );
+		}
+	}
+}
+
+/**
+ * Determine if a post supports thumbnails based on the passed $post
+ *
+ * @since 3.9.0
+ *
+ * @param WP_Post $post
+ *
+ * @return boolean
+ */
+function post_supports_thumbnails( $post ) {
+	if ( 'attachment' === $post->post_type ) {
+		if ( 0 === strpos( $post->post_mime_type, 'audio' ) ) {
+			return post_type_supports( 'attachment:audio', 'thumbnail' );
+		} elseif ( 0 === strpos( $post->post_mime_type, 'video' ) ) {
+			return post_type_supports( 'attachment:video', 'thumbnail' );
+		}
+	}
+
+	return post_type_supports( $post->post_type, 'thumbnail' );
+}
+
+/**
+ * Determine if a theme supports thumbnails based on the passed $post
+ *
+ * @since 3.9.0
+ *
+ * @param WP_Post $post
+ *
+ * @return boolean
+ */
+function theme_supports_thumbnails( $post ) {
+	if ( 'attachment' === $post->post_type ) {
+		if ( 0 === strpos( $post->post_mime_type, 'audio' ) ) {
+			return current_theme_supports( 'post-thumbnails', 'attachment:audio' );
+		} elseif ( 0 === strpos( $post->post_mime_type, 'video' ) ) {
+			return current_theme_supports( 'post-thumbnails', 'attachment:video' );
+		}
+	}
+
+	return current_theme_supports( 'post-thumbnails', $post->post_type );
 }

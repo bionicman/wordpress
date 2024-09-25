@@ -26,7 +26,7 @@
  * @param bool $unique Optional, default is false. Whether the specified metadata key should be
  * 		unique for the object. If true, and the object already has a value for the specified
  * 		metadata key, no change will be made
- * @return int|bool The meta ID on successful update, false on failure.
+ * @return int|bool The meta ID on success, false on failure.
  */
 function add_metadata($meta_type, $object_id, $meta_key, $meta_value, $unique = false) {
 	if ( !$meta_type || !$meta_key )
@@ -96,7 +96,7 @@ function add_metadata($meta_type, $object_id, $meta_key, $meta_value, $unique = 
  * @param mixed $meta_value Metadata value. Must be serializable if non-scalar.
  * @param mixed $prev_value Optional. If specified, only update existing metadata entries with
  * 		the specified value. Otherwise, update all entries.
- * @return bool True on successful update, false on failure.
+ * @return int|bool Meta ID if the key didn't exist, true on successful update, false on failure.
  */
 function update_metadata($meta_type, $object_id, $meta_key, $meta_value, $prev_value = '') {
 	if ( !$meta_type || !$meta_key )
@@ -894,9 +894,8 @@ function _get_meta_table($type) {
  * @param string $meta_key Meta key
  * @return bool True if the key is protected, false otherwise.
  */
-function is_protected_meta( $meta_key, $meta_type = '' ) {
-	$sanitized_key = preg_replace( "/[^\x20-\x7E\p{L}]/", '', $meta_key );
-	$protected     = strlen( $sanitized_key ) > 0 && ( '_' === $sanitized_key[0] );
+function is_protected_meta( $meta_key, $meta_type = null ) {
+	$protected = ( '_' == $meta_key[0] );
 
 	return apply_filters( 'is_protected_meta', $protected, $meta_key, $meta_type );
 }

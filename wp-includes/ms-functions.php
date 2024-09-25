@@ -275,8 +275,18 @@ function remove_user_from_blog($user_id, $blog_id = '', $reassign = '') {
 
 	if ( $reassign != '' ) {
 		$reassign = (int) $reassign;
-		$wpdb->query( $wpdb->prepare("UPDATE $wpdb->posts SET post_author = %d WHERE post_author = %d", $reassign, $user_id) );
-		$wpdb->query( $wpdb->prepare("UPDATE $wpdb->links SET link_owner = %d WHERE link_owner = %d", $reassign, $user_id) );
+		$post_ids = $wpdb->get_col( $wpdb->prepare( "SELECT ID FROM $wpdb->posts WHERE post_author = %d", $user_id ) );
+		$link_ids = $wpdb->get_col( $wpdb->prepare( "SELECT ID FROM $wpdb->links WHERE link_owner = %d", $user_id ) );
+
+		if ( ! empty( $post_ids ) ) {
+			$wpdb->query( $wpdb->prepare( "UPDATE $wpdb->posts SET post_author = %d WHERE post_author = %d", $reassign, $user_id ) );
+			array_walk( $post_ids, 'clean_post_cache' );
+		}
+
+		if ( ! empty( $link_ids ) ) {
+			$wpdb->query( $wpdb->prepare( "UPDATE $wpdb->links SET link_owner = %d WHERE link_owner = %d", $reassign, $user_id ) );
+			array_walk( $link_ids, 'clean_bookmark_cache' );
+		}
 	}
 
 	restore_current_blog();
@@ -715,7 +725,7 @@ function wpmu_validate_blog_signup( $blogname, $blog_title, $user = '' ) {
 function wpmu_signup_blog( $domain, $path, $title, $user, $user_email, $meta = array() )  {
 	global $wpdb;
 
-	$key = substr( md5( time() . wp_rand() . $domain ), 0, 16 );
+	$key = substr( md5( time() . rand() . $domain ), 0, 16 );
 	$meta = serialize($meta);
 
 	$wpdb->insert( $wpdb->signups, array(
@@ -751,7 +761,7 @@ function wpmu_signup_user( $user, $user_email, $meta = array() ) {
 	// Format data
 	$user = preg_replace( '/\s+/', '', sanitize_user( $user, true ) );
 	$user_email = sanitize_email( $user_email );
-	$key = substr( md5( time() . wp_rand() . $user_email ), 0, 16 );
+	$key = substr( md5( time() . rand() . $user_email ), 0, 16 );
 	$meta = serialize($meta);
 
 	$wpdb->insert( $wpdb->signups, array(

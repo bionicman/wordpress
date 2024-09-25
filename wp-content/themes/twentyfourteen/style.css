@@ -8,7 +8,7 @@ Version: 1.0
 License: GNU General Public License v2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 Tags: black, green, white, light, dark, two-columns, three-columns, left-sidebar, right-sidebar, fixed-layout, responsive-layout, custom-background, custom-header, custom-menu, editor-style, featured-images, flexible-header, full-width-template, microformats, post-formats, rtl-language-support, sticky-post, theme-options, translation-ready, accessibility-ready
-Text Domain: twentyfourteen 
+Text Domain: twentyfourteen
 
 This theme, like WordPress, is licensed under the GPL.
 Use it to make something cool, have fun, and share what you've learned with others.
@@ -502,7 +502,7 @@ textarea:focus {
 /* Buttons */
 
 button,
-.contributor-posts-link,
+.button,
 input[type="button"],
 input[type="reset"],
 input[type="submit"] {
@@ -519,7 +519,8 @@ input[type="submit"] {
 
 button:hover,
 button:focus,
-.contributor-posts-link:hover,
+.button:hover,
+.button:focus,
 input[type="button"]:hover,
 input[type="button"]:focus,
 input[type="reset"]:hover,
@@ -531,7 +532,7 @@ input[type="submit"]:focus {
 }
 
 button:active,
-.contributor-posts-link:active,
+.button:active,
 input[type="button"]:active,
 input[type="reset"]:active,
 input[type="submit"]:active {
@@ -1256,7 +1257,11 @@ a.post-thumbnail:hover {
 .entry-content a:hover,
 .entry-summary a:hover,
 .page-content a:hover,
-.comment-content a:hover {
+.comment-content a:hover,
+.entry-content a.button,
+.entry-summary a.button,
+.page-content a.button,
+.comment-content a.button {
 	text-decoration: none;
 }
 
@@ -2223,6 +2228,7 @@ a.post-thumbnail:hover {
 }
 
 .widget button,
+.widget .button,
 .widget input[type="button"],
 .widget input[type="reset"],
 .widget input[type="submit"] {
@@ -3218,7 +3224,8 @@ a.post-thumbnail:hover {
 	}
 
 	.full-width .site-content .has-post-thumbnail .entry-header,
-	.full-width.singular .site-content .hentry.has-post-thumbnail {
+	.full-width.singular .site-content .hentry.has-post-thumbnail,
+	.full-width.home .site-content .hentry.has-post-thumbnail {
 		margin-top: -48px;
 	}
 
@@ -3232,6 +3239,7 @@ a.post-thumbnail:hover {
 		float: right;
 		margin-left: -33.33333333%;
 		padding: 48px 30px 24px;
+		position: relative;
 		width: 33.33333333%;
 	}
 
@@ -3544,7 +3552,8 @@ a.post-thumbnail:hover {
 		margin-left: 20px;
 	}
 
-	.full-width.singular .site-content .hentry.has-post-thumbnail {
+	.full-width.singular .site-content .hentry.has-post-thumbnail,
+	.full-width.home .site-content .hentry.has-post-thumbnail {
 		margin-top: -72px;
 	}
 

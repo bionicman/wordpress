@@ -1071,20 +1071,15 @@ function map_meta_cap( $cap, $user_id ) {
 			break;
 		}
 
-		$post_author_id = $post->post_author;
-
-		// If no author set yet, default to current user for cap checks.
-		if ( ! $post_author_id )
-			$post_author_id = $user_id;
-
-		// If the user is the author...
-		if ( $user_id == $post_author_id ) {
+		// If the post author is set and the user is the author...
+		if ( $post->post_author && $user_id == $post->post_author ) {
 			// If the post is published...
 			if ( 'publish' == $post->post_status ) {
 				$caps[] = $post_type->cap->delete_published_posts;
 			} elseif ( 'trash' == $post->post_status ) {
-				if ('publish' == get_post_meta($post->ID, '_wp_trash_meta_status', true) )
+				if ( 'publish' == get_post_meta( $post->ID, '_wp_trash_meta_status', true ) ) {
 					$caps[] = $post_type->cap->delete_published_posts;
+				}
 			} else {
 				// If the post is draft...
 				$caps[] = $post_type->cap->delete_posts;
@@ -1093,10 +1088,11 @@ function map_meta_cap( $cap, $user_id ) {
 			// The user is trying to edit someone else's post.
 			$caps[] = $post_type->cap->delete_others_posts;
 			// The post is published, extra cap required.
-			if ( 'publish' == $post->post_status )
+			if ( 'publish' == $post->post_status ) {
 				$caps[] = $post_type->cap->delete_published_posts;
-			elseif ( 'private' == $post->post_status )
+			} elseif ( 'private' == $post->post_status ) {
 				$caps[] = $post_type->cap->delete_private_posts;
+			}
 		}
 		break;
 		// edit_post breaks down to edit_posts, edit_published_posts, or
@@ -1104,10 +1100,8 @@ function map_meta_cap( $cap, $user_id ) {
 	case 'edit_post':
 	case 'edit_page':
 		$post = get_post( $args[0] );
-		if ( empty( $post ) ) {
-			$caps[] = 'do_not_allow';
+		if ( empty( $post ) )
 			break;
-		}
 
 		if ( 'revision' == $post->post_type ) {
 			$post = get_post( $post->post_parent );
@@ -1123,20 +1117,15 @@ function map_meta_cap( $cap, $user_id ) {
 			break;
 		}
 
-		$post_author_id = $post->post_author;
-
-		// If no author set yet, default to current user for cap checks.
-		if ( ! $post_author_id )
-			$post_author_id = $user_id;
-
-		// If the user is the author...
-		if ( $user_id == $post_author_id ) {
+		// If the post author is set and the user is the author...
+		if ( $post->post_author && $user_id == $post->post_author ) {
 			// If the post is published...
 			if ( 'publish' == $post->post_status ) {
 				$caps[] = $post_type->cap->edit_published_posts;
 			} elseif ( 'trash' == $post->post_status ) {
-				if ('publish' == get_post_meta($post->ID, '_wp_trash_meta_status', true) )
+				if ( 'publish' == get_post_meta( $post->ID, '_wp_trash_meta_status', true ) ) {
 					$caps[] = $post_type->cap->edit_published_posts;
+				}
 			} else {
 				// If the post is draft...
 				$caps[] = $post_type->cap->edit_posts;
@@ -1145,10 +1134,11 @@ function map_meta_cap( $cap, $user_id ) {
 			// The user is trying to edit someone else's post.
 			$caps[] = $post_type->cap->edit_others_posts;
 			// The post is published, extra cap required.
-			if ( 'publish' == $post->post_status )
+			if ( 'publish' == $post->post_status ) {
 				$caps[] = $post_type->cap->edit_published_posts;
-			elseif ( 'private' == $post->post_status )
+			} elseif ( 'private' == $post->post_status ) {
 				$caps[] = $post_type->cap->edit_private_posts;
+			}
 		}
 		break;
 	case 'read_post':
@@ -1175,18 +1165,13 @@ function map_meta_cap( $cap, $user_id ) {
 			break;
 		}
 
-		$post_author_id = $post->post_author;
-
-		// If no author set yet, default to current user for cap checks.
-		if ( ! $post_author_id )
-			$post_author_id = $user_id;
-
-		if ( $user_id == $post_author_id )
+		if ( $post->post_author && $user_id == $post->post_author ) {
 			$caps[] = $post_type->cap->read;
-		elseif ( $status_obj->private )
+		} elseif ( $status_obj->private ) {
 			$caps[] = $post_type->cap->read_private_posts;
-		else
+		} else {
 			$caps = map_meta_cap( 'edit_post', $user_id, $post->ID );
+		}
 		break;
 	case 'publish_post':
 		$post = get_post( $args[0] );
@@ -1230,16 +1215,7 @@ function map_meta_cap( $cap, $user_id ) {
 		if ( empty( $comment ) )
 			break;
 		$post = get_post( $comment->comment_post_ID );
-
-		/*
-		 * If the post doesn't exist, we have an orphaned comment.
-		 * Fall back to the edit_posts capability, instead.
-		 */
-		if ( $post ) {
-			$caps = map_meta_cap( 'edit_post', $user_id, $post->ID );
-		} else {
-			$caps = map_meta_cap( 'edit_posts', $user_id );
-		}
+		$caps = map_meta_cap( 'edit_post', $user_id, $post->ID );
 		break;
 	case 'unfiltered_upload':
 		if ( defined('ALLOW_UNFILTERED_UPLOADS') && ALLOW_UNFILTERED_UPLOADS && ( !is_multisite() || is_super_admin( $user_id ) )  )
@@ -1371,25 +1347,21 @@ function current_user_can( $capability ) {
  * @return bool
  */
 function current_user_can_for_blog( $blog_id, $capability ) {
-	$switched = is_multisite() ? switch_to_blog( $blog_id ) : false;
+	if ( is_multisite() )
+		switch_to_blog( $blog_id );
 
 	$current_user = wp_get_current_user();
 
-	if ( empty( $current_user ) ) {
-		if ( $switched ) {
-			restore_current_blog();
-		}
+	if ( empty( $current_user ) )
 		return false;
-	}
 
 	$args = array_slice( func_get_args(), 2 );
 	$args = array_merge( array( $capability ), $args );
 
 	$can = call_user_func_array( array( $current_user, 'has_cap' ), $args );
 
-	if ( $switched ) {
+	if ( is_multisite() )
 		restore_current_blog();
-	}
 
 	return $can;
 }

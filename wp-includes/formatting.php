@@ -121,14 +121,7 @@ function wptexturize($text) {
 	$no_texturize_tags_stack = array();
 	$no_texturize_shortcodes_stack = array();
 
-	// Look for shortcodes and HTML elements.
-	
-	$shortcode_regex =
-		  '\['          // Find start of shortcode.
-		. '[^\[\]<>]++' // Shortcodes do not contain other shortcodes. Possessive critical.
-		. '\]';         // Find end of shortcode.
-
-	$textarr = preg_split("/(<[^>]*>|$shortcode_regex)/s", $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+	$textarr = preg_split('/(<.*>|\[.*\])/Us', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
 
 	foreach ( $textarr as &$curl ) {
 		if ( empty( $curl ) )
@@ -138,7 +131,7 @@ function wptexturize($text) {
 		$first = $curl[0];
 		if ( '<' === $first ) {
 			_wptexturize_pushpop_element($curl, $no_texturize_tags_stack, $no_texturize_tags, '<', '>');
-		} elseif ( '[' === $first && 1 === preg_match( '/^' . $shortcode_regex . '$/', $curl ) ) {
+		} elseif ( '[' === $first ) {
 			_wptexturize_pushpop_element($curl, $no_texturize_shortcodes_stack, $no_texturize_shortcodes, '[', ']');
 		} elseif ( empty($no_texturize_shortcodes_stack) && empty($no_texturize_tags_stack) ) {
 			// This is not a tag, nor is the texturization disabled static strings
@@ -179,8 +172,6 @@ function _wptexturize_pushpop_element($text, &$stack, $disabled_elements, $openi
 
 			array_push($stack, $matches[1]);
 		}
-	} elseif ( 0 == count( $stack ) ) {
-		// Stack is empty. Just stop.
 	} else {
 		// Closing? Check $text+2 against disabled elements
 		$c = preg_quote($closing, '/');
@@ -248,19 +239,29 @@ function wpautop($pee, $br = true) {
 	$pee = preg_replace('!(</' . $allblocks . '>)!', "$1\n\n", $pee);
 	$pee = str_replace(array("\r\n", "\r"), "\n", $pee); // cross-platform newlines
 
-	// Find newlines in all elements and add placeholders.
-	$pee = wp_replace_in_html_tags( $pee, array( "\n" => " <!-- wpnl --> " ) );
-
-	if ( strpos($pee, '<object') !== false ) {
-		$pee = preg_replace('|\s*<param([^>]*)>\s*|', "<param$1>", $pee); // no pee inside object/embed
-		$pee = preg_replace('|\s*</embed>\s*|', '</embed>', $pee);
+	if ( strpos( $pee, '</object>' ) !== false ) {
+		// no P/BR around param and embed
+		$pee = preg_replace( '|(<object[^>]*>)\s*|', '$1', $pee );
+		$pee = preg_replace( '|\s*</object>|', '</object>', $pee );
+		$pee = preg_replace( '%\s*(</?(?:param|embed)[^>]*>)\s*%', '$1', $pee );
 	}
+
+	if ( strpos( $pee, '<source' ) !== false || strpos( $pee, '<track' ) !== false ) {
+		// no P/BR around source and track
+		$pee = preg_replace( '%([<\[](?:audio|video)[^>\]]*[>\]])\s*%', '$1', $pee );
+		$pee = preg_replace( '%\s*([<\[]/(?:audio|video)[>\]])%', '$1', $pee );
+		$pee = preg_replace( '%\s*(<(?:source|track)[^>]*>)\s*%', '$1', $pee );
+	}
+
 	$pee = preg_replace("/\n\n+/", "\n\n", $pee); // take care of duplicates
 	// make paragraphs, including one at the end
 	$pees = preg_split('/\n\s*\n/', $pee, -1, PREG_SPLIT_NO_EMPTY);
 	$pee = '';
-	foreach ( $pees as $tinkle )
+
+	foreach ( $pees as $tinkle ) {
 		$pee .= '<p>' . trim($tinkle, "\n") . "</p>\n";
+	}
+
 	$pee = preg_replace('|<p>\s*</p>|', '', $pee); // under certain strange conditions it could create a P of entirely whitespace
 	$pee = preg_replace('!<p>([^<]+)</(div|address|form)>!', "<p>$1</p></$2>", $pee);
 	$pee = preg_replace('!<p>\s*(</?' . $allblocks . '[^>]*>)\s*</p>!', "$1", $pee); // don't pee all over a tag
@@ -269,11 +270,13 @@ function wpautop($pee, $br = true) {
 	$pee = str_replace('</blockquote></p>', '</p></blockquote>', $pee);
 	$pee = preg_replace('!<p>\s*(</?' . $allblocks . '[^>]*>)!', "$1", $pee);
 	$pee = preg_replace('!(</?' . $allblocks . '[^>]*>)\s*</p>!', "$1", $pee);
+
 	if ( $br ) {
 		$pee = preg_replace_callback('/<(script|style).*?<\/\\1>/s', '_autop_newline_preservation_helper', $pee);
 		$pee = preg_replace('|(?<!<br />)\s*\n|', "<br />\n", $pee); // optionally make line breaks
 		$pee = str_replace('<WPPreserveNewline />', "\n", $pee);
 	}
+
 	$pee = preg_replace('!(</?' . $allblocks . '[^>]*>)\s*<br />!', "$1", $pee);
 	$pee = preg_replace('!<br />(\s*</?(?:p|li|div|dl|dd|dt|th|pre|td|ul|ol)[^>]*>)!', '$1', $pee);
 	$pee = preg_replace( "|\n</p>$|", '</p>', $pee );
@@ -281,107 +284,7 @@ function wpautop($pee, $br = true) {
 	if ( !empty($pre_tags) )
 		$pee = str_replace(array_keys($pre_tags), array_values($pre_tags), $pee);
 
-	// Restore newlines in all elements.
-	$pee = str_replace( " <!-- wpnl --> ", "\n", $pee );
-
 	return $pee;
-}
-
-/**
- * Separate HTML elements and comments from the text.
- *
- * @since 4.2.4
- *
- * @param string $input The text which has to be formatted.
- * @return array The formatted text.
- */
-function wp_html_split( $input ) {
-	static $regex;
-
-	if ( ! isset( $regex ) ) {
-		$comments =
-			  '!'           // Start of comment, after the <.
-			. '(?:'         // Unroll the loop: Consume everything until --> is found.
-			.     '-(?!->)' // Dash not followed by end of comment.
-			.     '[^\-]*+' // Consume non-dashes.
-			. ')*+'         // Loop possessively.
-			. '(?:-->)?';   // End of comment. If not found, match all input.
-
-		$cdata =
-			  '!\[CDATA\['  // Start of comment, after the <.
-			. '[^\]]*+'     // Consume non-].
-			. '(?:'         // Unroll the loop: Consume everything until ]]> is found.
-			.     '](?!]>)' // One ] not followed by end of comment.
-			.     '[^\]]*+' // Consume non-].
-			. ')*+'         // Loop possessively.
-			. '(?:]]>)?';   // End of comment. If not found, match all input.
-
-		$regex =
-			  '/('              // Capture the entire match.
-			.     '<'           // Find start of element.
-			.     '(?(?=!--)'   // Is this a comment?
-			.         $comments // Find end of comment.
-			.     '|'
-			.         '(?(?=!\[CDATA\[)' // Is this a comment?
-			.             $cdata // Find end of comment.
-			.         '|'
-			.             '[^>]*>?' // Find end of element. If not found, match all input.
-			.         ')'
-			.     ')'
-			. ')/s';
-	}
-
-	return preg_split( $regex, $input, -1, PREG_SPLIT_DELIM_CAPTURE );
-}
-
-/**
- * Replace characters or phrases within HTML elements only.
- *
- * @since 4.2.3
- *
- * @param string $haystack The text which has to be formatted.
- * @param array $replace_pairs In the form array('from' => 'to', ...).
- * @return string The formatted text.
- */
-function wp_replace_in_html_tags( $haystack, $replace_pairs ) {
-	// Find all elements.
-	$textarr = wp_html_split( $haystack );
-	$changed = false;
-
-	// Optimize when searching for one item.
-	if ( 1 === count( $replace_pairs ) ) {
-		// Extract $needle and $replace.
-		foreach ( $replace_pairs as $needle => $replace );
-
-		// Loop through delimeters (elements) only.
-		for ( $i = 1, $c = count( $textarr ); $i < $c; $i += 2 ) { 
-			if ( false !== strpos( $textarr[$i], $needle ) ) {
-				$textarr[$i] = str_replace( $needle, $replace, $textarr[$i] );
-				$changed = true;
-			}
-		}
-	} else {
-		// Extract all $needles.
-		$needles = array_keys( $replace_pairs );
-
-		// Loop through delimeters (elements) only.
-		for ( $i = 1, $c = count( $textarr ); $i < $c; $i += 2 ) { 
-			foreach ( $needles as $needle ) {
-				if ( false !== strpos( $textarr[$i], $needle ) ) {
-					$textarr[$i] = strtr( $textarr[$i], $replace_pairs );
-					$changed = true;
-					// After one strtr() break out of the foreach loop and look at next element.
-					break;
-				}
-			}
-		}
-	}
-
-	if ( $changed ) {
-		$haystack = implode( $textarr );
-	}
-
-	return $haystack;
 }
 
 /**
@@ -677,14 +580,12 @@ function wp_check_invalid_utf8( $string, $strip = false ) {
  * Encode the Unicode values to be used in the URI.
  *
  * @since 1.5.0
- * @since 5.8.3 Added the `encode_ascii_characters` parameter.
  *
  * @param string $utf8_string
  * @param int $length Max length of the string
- * @param bool   $encode_ascii_characters Whether to encode ascii characters such as < " '
  * @return string String with Unicode encoded for URI.
  */
-function utf8_uri_encode( $utf8_string, $length = 0, $encode_ascii_characters = false ) {
+function utf8_uri_encode( $utf8_string, $length = 0 ) {
 	$unicode = '';
 	$values = array();
 	$num_octets = 1;
@@ -696,14 +597,10 @@ function utf8_uri_encode( $utf8_string, $length = 0, $encode_ascii_characters = 
 		$value = ord( $utf8_string[ $i ] );
 
 		if ( $value < 128 ) {
-			$char                = chr( $value );
-			$encoded_char        = $encode_ascii_characters ? rawurlencode( $char ) : $char;
-			$encoded_char_length = strlen( $encoded_char );
-			if ( $length && ( $unicode_length + $encoded_char_length ) > $length ) {
+			if ( $length && ( $unicode_length >= $length ) )
 				break;
-			}
-			$unicode        .= $encoded_char;
-			$unicode_length += $encoded_char_length;
+			$unicode .= chr($value);
+			$unicode_length++;
 		} else {
 			if ( count( $values ) == 0 ) $num_octets = ( $value < 224 ) ? 2 : 3;
 
@@ -972,8 +869,7 @@ function remove_accents($string) {
  * operating systems and special characters requiring special escaping
  * to manipulate at the command line. Replaces spaces and consecutive
  * dashes with a single dash. Trims period, dash and underscore from beginning
- * and end of filename. It is not guaranteed that this function will return a
- * filename that is allowed to be uploaded.
+ * and end of filename.
  *
  * @since 2.1.0
  *
@@ -983,24 +879,6 @@ function remove_accents($string) {
 function sanitize_file_name( $filename ) {
 	$filename_raw = $filename;
 	$special_chars = array("?", "[", "]", "/", "\\", "=", "<", ">", ":", ";", ",", "'", "\"", "&", "$", "#", "*", "(", ")", "|", "~", "`", "!", "{", "}", chr(0));
-
-	// Check for support for utf8 in the installed PCRE library once and store the result in a static.
-	static $utf8_pcre = null;
-	if ( ! isset( $utf8_pcre ) ) {
-		// phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-		$utf8_pcre = @preg_match( '/^./u', 'a' );
-	}
-
-	if ( ! seems_utf8( $filename ) ) {
-		$_ext     = pathinfo( $filename, PATHINFO_EXTENSION );
-		$_name    = pathinfo( $filename, PATHINFO_FILENAME );
-		$filename = sanitize_title_with_dashes( $_name ) . '.' . $_ext;
-	}
-
-	if ( $utf8_pcre ) {
-		$filename = preg_replace( "#\x{00a0}#siu", ' ', $filename );
-	}
-
 	/**
 	 * Filter the list of characters to remove from a filename.
 	 *
@@ -1013,14 +891,6 @@ function sanitize_file_name( $filename ) {
 	$filename = str_replace($special_chars, '', $filename);
 	$filename = preg_replace('/[\s-]+/', '-', $filename);
 	$filename = trim($filename, '.-_');
-
-	if ( false === strpos( $filename, '.' ) ) {
-		$mime_types = wp_get_mime_types();
-		$filetype = wp_check_filetype( 'test.' . $filename, $mime_types );
-		if ( $filetype['ext'] === $filename ) {
-			$filename = 'unnamed-file.' . $filetype['ext'];
-		}
-	}
 
 	// Split the filename into a base and extension[s]
 	$parts = explode('.', $filename);
@@ -1255,23 +1125,21 @@ function sanitize_title_with_dashes( $title, $raw_title = '', $context = 'displa
 }
 
 /**
- * Ensures a string is a valid SQL 'order by' clause.
+ * Ensures a string is a valid SQL order by clause.
  *
- * Accepts one or more columns, with or without a sort order (ASC / DESC).
- * e.g. 'column_1', 'column_1, column_2', 'column_1 ASC, column_2 DESC' etc.
- *
- * Also accepts 'RAND()'.
+ * Accepts one or more columns, with or without ASC/DESC, and also accepts
+ * RAND().
  *
  * @since 2.5.1
  *
- * @param string $orderby Order by clause to be validated.
- * @return string|bool Returns $orderby if valid, false otherwise.
+ * @param string $orderby Order by string to be checked.
+ * @return string|bool Returns the order by clause if it is a match, false otherwise.
  */
-function sanitize_sql_orderby( $orderby ) {
-	if ( preg_match( '/^\s*(([a-z0-9_]+|`[a-z0-9_]+`)(\s+(ASC|DESC))?\s*(,\s*(?=[a-z0-9_`])|$))+$/i', $orderby ) || preg_match( '/^\s*RAND\(\s*\)\s*$/i', $orderby ) ) {
-		return $orderby;
-	}
-	return false;
+function sanitize_sql_orderby( $orderby ){
+	preg_match('/^\s*([a-z0-9_]+(\s+(ASC|DESC))?(\s*,\s*|\s*$))+|^\s*RAND\(\s*\)\s*$/i', $orderby, $obmatches);
+	if ( !$obmatches )
+		return false;
+	return $orderby;
 }
 
 /**
@@ -1557,26 +1425,6 @@ function format_to_edit( $content, $richedit = false ) {
 }
 
 /**
- * Holder for the 'format_to_post' filter.
- *
- * @since 0.71
- *
- * @param string $content The text to pass through the filter.
- * @return string Text returned from the 'format_to_post' filter.
- */
-function format_to_post($content) {
-	/**
-	 * Filter the string returned by format_to_post().
-	 *
-	 * @since 1.2.0
-	 *
-	 * @param string $content The string to format.
-	 */
-	$content = apply_filters( 'format_to_post', $content );
-	return $content;
-}
-
-/**
  * Add leading zeros when necessary.
  *
  * If you set the threshold to '4' and the number is '10', then you will get
@@ -1614,35 +1462,34 @@ function backslashit($string) {
 /**
  * Appends a trailing slash.
  *
- * Will remove trailing slash if it exists already before adding a trailing
- * slash. This prevents double slashing a string or path.
+ * Will remove trailing forward and backslashes if it exists already before adding
+ * a trailing forward slash. This prevents double slashing a string or path.
  *
  * The primary use of this is for paths and thus should be used for paths. It is
  * not restricted to paths and offers no specific path support.
  *
  * @since 1.2.0
- * @uses untrailingslashit() Unslashes string if it was slashed already.
  *
  * @param string $string What to add the trailing slash to.
  * @return string String with trailing slash added.
  */
-function trailingslashit($string) {
-	return untrailingslashit($string) . '/';
+function trailingslashit( $string ) {
+	return untrailingslashit( $string ) . '/';
 }
 
 /**
- * Removes trailing slash if it exists.
+ * Removes trailing forward slashes and backslashes if they exist.
  *
  * The primary use of this is for paths and thus should be used for paths. It is
  * not restricted to paths and offers no specific path support.
  *
  * @since 2.2.0
  *
- * @param string $string What to remove the trailing slash from.
- * @return string String without the trailing slash.
+ * @param string $string What to remove the trailing slashes from.
+ * @return string String without the trailing slashes.
  */
-function untrailingslashit($string) {
-	return rtrim($string, '/');
+function untrailingslashit( $string ) {
+	return rtrim( $string, '/\\' );
 }
 
 /**
@@ -1890,7 +1737,7 @@ function make_clickable( $text ) {
 	}
 
 	// Cleanup of accidental links within links
-	$r = preg_replace( '#(<a( [^>]+?>|>))<a [^>]+?>([^>]+?)</a></a>#i', "$1$3</a>", $r );
+	$r = preg_replace( '#(<a([ \r\n\t]+[^>]+?>|>))<a [^>]+?>([^>]+?)</a></a>#i', "$1$3</a>", $r );
 	return $r;
 }
 
@@ -3563,6 +3410,8 @@ function wp_sprintf_l($pattern, $args) {
 
 	/**
 	 * Filter the translated delimiters used by wp_sprintf_l().
+	 * Placeholders (%s) are included to assist translators and then
+	 * removed before the array of strings reaches the filter.
 	 *
 	 * Please note: Ampersands and entities should be avoided here.
 	 *
@@ -3571,12 +3420,12 @@ function wp_sprintf_l($pattern, $args) {
 	 * @param array $delimiters An array of translated delimiters.
 	 */
 	$l = apply_filters( 'wp_sprintf_l', array(
-		/* translators: used between list items, there is a space after the comma */
-		'between'          => __(', '),
-		/* translators: used between list items, there is a space after the and */
-		'between_last_two' => __(', and '),
-		/* translators: used between only two list items, there is a space after the and */
-		'between_only_two' => __(' and '),
+		/* translators: used to join items in a list with more than 2 items */
+		'between'          => sprintf( __('%s, %s'), '', '' ),
+		/* translators: used to join last two items in a list with more than 2 times */
+		'between_last_two' => sprintf( __('%s, and %s'), '', '' ),
+		/* translators: used to join items in a list with only 2 items */
+		'between_only_two' => sprintf( __('%s and %s'), '', '' ),
 	) );
 
 	$args = (array) $args;
@@ -3716,6 +3565,10 @@ function normalize_whitespace( $str ) {
 
 /**
  * Properly strip all HTML tags including script and style
+ *
+ * This differs from strip_tags() because it removes the contents of
+ * the <script> and <style> tags. E.g. strip_tags( '<script>something</script>' )
+ * will return 'something'. wp_strip_all_tags will return ''
  *
  * @since 2.9.0
  *
@@ -3918,11 +3771,13 @@ function wp_unslash( $value ) {
  * @return string The found URL.
  */
 function get_url_in_content( $content ) {
-	if ( empty( $content ) )
-		return '';
+	if ( empty( $content ) ) {
+		return false;
+	}
 
-	if ( preg_match( '/<a\s[^>]*?href=([\'"])(.+?)\1/is', $content, $matches ) )
+	if ( preg_match( '/<a\s[^>]*?href=([\'"])(.+?)\1/is', $content, $matches ) ) {
 		return esc_url_raw( $matches[2] );
+	}
 
 	return false;
 }

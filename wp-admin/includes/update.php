@@ -7,9 +7,9 @@
  */
 
 /**
- * Selects the first update version from the update_core option
+ * Selects the first update version from the update_core option.
  *
- * @return object the response from the API
+ * @return bool|object The response from the API on success, false on failure.
  */
 function get_preferred_from_update_core() {
 	$updates = get_core_updates();
@@ -21,11 +21,11 @@ function get_preferred_from_update_core() {
 }
 
 /**
- * Get available core updates
+ * Get available core updates.
  *
  * @param array $options Set $options['dismissed'] to true to show dismissed upgrades too,
  * 	set $options['available'] to false to skip not-dismissed updates.
- * @return array Array of the update objects
+ * @return bool|array Array of the update objects on success, false on failure.
  */
 function get_core_updates( $options = array() ) {
 	$options = array_merge( array( 'available' => true, 'dismissed' => false ), $options );
@@ -114,7 +114,7 @@ function get_core_checksums( $version, $locale ) {
 
 	$response = wp_remote_get( $url, $options );
 	if ( $ssl && is_wp_error( $response ) ) {
-		trigger_error( __( 'An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="http://wordpress.org/support/">support forums</a>.' ) . ' ' . '(WordPress could not establish a secure connection to WordPress.org. Please contact your server administrator.)', headers_sent() || WP_DEBUG ? E_USER_WARNING : E_USER_NOTICE );
+		trigger_error( __( 'An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="https://wordpress.org/support/">support forums</a>.' ) . ' ' . '(WordPress could not establish a secure connection to WordPress.org. Please contact your server administrator.)', headers_sent() || WP_DEBUG ? E_USER_WARNING : E_USER_NOTICE );
 		$response = wp_remote_get( $http_url, $options );
 	}
 
@@ -210,23 +210,11 @@ function update_nag() {
 		return false;
 
 	if ( current_user_can('update_core') ) {
-		$msg       = sprintf( __('<a href="http://codex.wordpress.org/Version_%1$s">WordPress %1$s</a> is available! <a href="%2$s">Please update now</a>.'), $cur->current, network_admin_url( 'update-core.php' ) );
-		$msg_line2 = sprintf(
-			/* translators: 1: WordPress version number, 2: Link to update WordPress */
-			__( 'Important! Your version of WordPress (%1$s) is no longer supported, you will not receive any security updates for your website. To keep your site secure, please <a href="%2$s">update to the latest version of WordPress</a>.' ),
-			get_bloginfo( 'version', 'display' ),
-			network_admin_url( 'update-core.php' )
-		);
+		$msg = sprintf( __('<a href="http://codex.wordpress.org/Version_%1$s">WordPress %1$s</a> is available! <a href="%2$s">Please update now</a>.'), $cur->current, network_admin_url( 'update-core.php' ) );
 	} else {
-		$msg       = sprintf( __('<a href="http://codex.wordpress.org/Version_%1$s">WordPress %1$s</a> is available! Please notify the site administrator.'), $cur->current );
-		$msg_line2 = sprintf(
-			/* translators: 1: WordPress version number, 2: Link to update WordPress */
-			__( 'Important! Your version of WordPress (%1$s) is no longer supported, you will not receive any security updates for your website. To keep your site secure, please <a href="%2$s">update to the latest version of WordPress</a>.' ),
-			get_bloginfo( 'version', 'display' ),
-			__( 'https://wordpress.org/download/' )
-		);
+		$msg = sprintf( __('<a href="http://codex.wordpress.org/Version_%1$s">WordPress %1$s</a> is available! Please notify the site administrator.'), $cur->current );
 	}
-	echo "<div class='update-nag update-nag-core-insecure'><p>$msg</p><p>$msg_line2</p></div>";
+	echo "<div class='update-nag'>$msg</div>";
 }
 add_action( 'admin_notices', 'update_nag', 3 );
 add_action( 'network_admin_notices', 'update_nag', 3 );

@@ -86,9 +86,9 @@ default:
 			wp_die( $error );
 
 		if ( ( ! empty( $_GET['networkwide'] ) && ! is_plugin_active_for_network($file) ) || ! is_plugin_active($file) )
-			activate_plugin($file, "plugin-editor.php?file=" . urlencode( $file ) . "&phperror=1", ! empty( $_GET['networkwide'] ) ); // we'll override this later if the plugin can be included without fatal error
+			activate_plugin($file, "plugin-editor.php?file=$file&phperror=1", ! empty( $_GET['networkwide'] ) ); // we'll override this later if the plugin can be included without fatal error
 
-		wp_redirect( self_admin_url("plugin-editor.php?file=" . urlencode( $file ) . "&a=te&scrollto=$scrollto") );
+		wp_redirect( self_admin_url("plugin-editor.php?file=$file&a=te&scrollto=$scrollto") );
 		exit;
 	}
 
@@ -132,7 +132,7 @@ default:
 		'<p><strong>' . __('For more information:') . '</strong></p>' .
 		'<p>' . __('<a href="http://codex.wordpress.org/Plugins_Editor_Screen" target="_blank">Documentation on Editing Plugins</a>') . '</p>' .
 		'<p>' . __('<a href="http://codex.wordpress.org/Writing_a_Plugin" target="_blank">Documentation on Writing Plugins</a>') . '</p>' .
-		'<p>' . __('<a href="http://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
+		'<p>' . __('<a href="https://wordpress.org/support/" target="_blank">Support Forums</a>') . '</p>'
 	);
 
 	require_once(ABSPATH . 'wp-admin/admin-header.php');
@@ -174,14 +174,14 @@ default:
 <big><?php
 	if ( is_plugin_active($plugin) ) {
 		if ( is_writeable($real_file) )
-			echo sprintf(__('Editing <strong>%s</strong> (active)'), esc_html( $file ) );
+			echo sprintf(__('Editing <strong>%s</strong> (active)'), $file);
 		else
-			echo sprintf(__('Browsing <strong>%s</strong> (active)'), esc_html( $file ) );
+			echo sprintf(__('Browsing <strong>%s</strong> (active)'), $file);
 	} else {
 		if ( is_writeable($real_file) )
-			echo sprintf(__('Editing <strong>%s</strong> (inactive)'), esc_html( $file ) );
+			echo sprintf(__('Editing <strong>%s</strong> (inactive)'), $file);
 		else
-			echo sprintf(__('Browsing <strong>%s</strong> (inactive)'), esc_html( $file ) );
+			echo sprintf(__('Browsing <strong>%s</strong> (inactive)'), $file);
 	}
 	?></big>
 </div>
@@ -225,7 +225,7 @@ foreach ( $plugin_files as $plugin_file ) :
 		continue;
 	}
 ?>
-		<li<?php echo $file == $plugin_file ? ' class="highlight"' : ''; ?>><a href="plugin-editor.php?file=<?php echo urlencode( $plugin_file ) ?>&amp;plugin=<?php echo urlencode( $plugin ) ?>"><?php echo esc_html( $plugin_file ); ?></a></li>
+		<li<?php echo $file == $plugin_file ? ' class="highlight"' : ''; ?>><a href="plugin-editor.php?file=<?php echo urlencode( $plugin_file ) ?>&amp;plugin=<?php echo urlencode( $plugin ) ?>"><?php echo $plugin_file ?></a></li>
 <?php endforeach; ?>
 	</ul>
 </div>

@@ -316,7 +316,7 @@ class WP_Comments_List_Table extends WP_List_Table {
 		$this->display_tablenav( 'top' );
 
 ?>
-<table class="<?php echo implode( ' ', $this->get_table_classes() ); ?>" cellspacing="0">
+<table class="<?php echo implode( ' ', $this->get_table_classes() ); ?>">
 	<thead>
 	<tr>
 		<?php $this->print_column_headers(); ?>
@@ -537,9 +537,9 @@ class WP_Comments_List_Table extends WP_List_Table {
 
 		if ( current_user_can( 'edit_post', $post->ID ) ) {
 			$post_link = "<a href='" . get_edit_post_link( $post->ID ) . "'>";
-			$post_link .= esc_html( get_the_title( $post->ID ) ) . '</a>';
+			$post_link .= get_the_title( $post->ID ) . '</a>';
 		} else {
-			$post_link = esc_html( get_the_title( $post->ID ) );
+			$post_link = get_the_title( $post->ID );
 		}
 
 		echo '<div class="response-links"><span class="post-com-count-wrapper">';
@@ -602,7 +602,7 @@ class WP_Post_Comments_List_Table extends WP_Comments_List_Table {
 
 		wp_nonce_field( "fetch-list-" . get_class( $this ), '_ajax_fetch_list_nonce' );
 ?>
-<table class="<?php echo implode( ' ', $this->get_table_classes() ); ?>" cellspacing="0" style="display:none;">
+<table class="<?php echo implode( ' ', $this->get_table_classes() ); ?>" style="display:none;">
 	<tbody id="the-comment-list"<?php if ( $singular ) echo " data-wp-lists='list:$singular'"; ?>>
 		<?php if ( ! $output_empty ) $this->display_rows_or_placeholder(); ?>
 	</tbody>

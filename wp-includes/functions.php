@@ -46,13 +46,14 @@ function mysql2date( $format, $date, $translate = true ) {
  *
  * The 'mysql' type will return the time in the format for MySQL DATETIME field.
  * The 'timestamp' type will return the current timestamp.
+ * Other strings will be interpreted as PHP date formats (e.g. 'Y-m-d').
  *
  * If $gmt is set to either '1' or 'true', then both types will use GMT time.
  * if $gmt is false, the output is adjusted with the GMT offset in the WordPress option.
  *
  * @since 1.0.0
  *
- * @param string $type Either 'mysql' or 'timestamp'.
+ * @param string $type 'mysql', 'timestamp', or PHP date format string (e.g. 'Y-m-d').
  * @param int|bool $gmt Optional. Whether to use GMT timezone. Default is false.
  * @return int|string String if $type is 'gmt', int if $type is 'timestamp'.
  */
@@ -63,6 +64,9 @@ function current_time( $type, $gmt = 0 ) {
 			break;
 		case 'timestamp':
 			return ( $gmt ) ? time() : time() + ( get_option( 'gmt_offset' ) * HOUR_IN_SECONDS );
+			break;
+		default:
+			return ( $gmt ) ? date( $type ) : date( $type, time() + ( get_option( 'gmt_offset' ) * HOUR_IN_SECONDS ) );
 			break;
 	}
 }
@@ -349,8 +353,6 @@ function maybe_serialize( $data ) {
  * If the title element is not part of the XML, then the default post title from
  * the $post_default_title will be used instead.
  *
- * @package WordPress
- * @subpackage XMLRPC
  * @since 0.71
  *
  * @global string $post_default_title Default XMLRPC post title.
@@ -375,8 +377,6 @@ function xmlrpc_getposttitle( $content ) {
  * used. The return type then would be what $post_default_category. If the
  * category is found, then it will always be an array.
  *
- * @package WordPress
- * @subpackage XMLRPC
  * @since 0.71
  *
  * @global string $post_default_category Default XMLRPC post category.
@@ -398,8 +398,6 @@ function xmlrpc_getpostcategory( $content ) {
 /**
  * XMLRPC XML content without title and category elements.
  *
- * @package WordPress
- * @subpackage XMLRPC
  * @since 0.71
  *
  * @param string $content XMLRPC XML Request content
@@ -439,7 +437,6 @@ function wp_extract_urls( $content ) {
  * remove enclosures that are no longer in the post. This is called as
  * pingbacks and trackbacks.
  *
- * @package WordPress
  * @since 1.5.0
  *
  * @uses $wpdb
@@ -867,10 +864,14 @@ function get_status_header_desc( $code ) {
 			415 => 'Unsupported Media Type',
 			416 => 'Requested Range Not Satisfiable',
 			417 => 'Expectation Failed',
+			418 => 'I\'m a teapot',
 			422 => 'Unprocessable Entity',
 			423 => 'Locked',
 			424 => 'Failed Dependency',
 			426 => 'Upgrade Required',
+			428 => 'Precondition Required',
+			429 => 'Too Many Requests',
+			431 => 'Request Header Fields Too Large',
 
 			500 => 'Internal Server Error',
 			501 => 'Not Implemented',
@@ -880,7 +881,8 @@ function get_status_header_desc( $code ) {
 			505 => 'HTTP Version Not Supported',
 			506 => 'Variant Also Negotiates',
 			507 => 'Insufficient Storage',
-			510 => 'Not Extended'
+			510 => 'Not Extended',
+			511 => 'Network Authentication Required',
 		);
 	}
 
@@ -1187,14 +1189,12 @@ function is_blog_installed() {
 /**
  * Retrieve URL with nonce added to URL query.
  *
- * @package WordPress
- * @subpackage Security
  * @since 2.0.4
  *
  * @param string $actionurl URL to add nonce action.
  * @param string $action Optional. Nonce action name.
  * @param string $name Optional. Nonce name.
- * @return string URL with nonce action added.
+ * @return string Escaped URL with nonce action added.
  */
 function wp_nonce_url( $actionurl, $action = -1, $name = '_wpnonce' ) {
 	$actionurl = str_replace( '&amp;', '&', $actionurl );
@@ -1219,8 +1219,6 @@ function wp_nonce_url( $actionurl, $action = -1, $name = '_wpnonce' ) {
  * The input name will be whatever $name value you gave. The input value will be
  * the nonce creation value.
  *
- * @package WordPress
- * @subpackage Security
  * @since 2.0.4
  *
  * @param string $action Optional. Action name.
@@ -1248,8 +1246,6 @@ function wp_nonce_field( $action = -1, $name = "_wpnonce", $referer = true , $ec
  * The referer link is the current Request URI from the server super global. The
  * input name is '_wp_http_referer', in case you wanted to check manually.
  *
- * @package WordPress
- * @subpackage Security
  * @since 2.0.4
  *
  * @param bool $echo Whether to echo or return the referer field.
@@ -1270,8 +1266,6 @@ function wp_referer_field( $echo = true ) {
  * value of {@link wp_referer_field()}, if that was posted already or it will
  * be the current page, if it doesn't exist.
  *
- * @package WordPress
- * @subpackage Security
  * @since 2.0.4
  *
  * @param bool $echo Whether to echo the original http referer
@@ -1292,8 +1286,6 @@ function wp_original_referer_field( $echo = true, $jump_back_to = 'current' ) {
  * Retrieve referer from '_wp_http_referer' or HTTP referer. If it's the same
  * as the current request URL, will return false.
  *
- * @package WordPress
- * @subpackage Security
  * @since 2.0.4
  *
  * @return string|bool False on failure. Referer URL on success.
@@ -1315,8 +1307,6 @@ function wp_get_referer() {
 /**
  * Retrieve original referer that was posted, if it exists.
  *
- * @package WordPress
- * @subpackage Security
  * @since 2.0.4
  *
  * @return string|bool False if no original referer or original referer if set.
@@ -1360,11 +1350,6 @@ function wp_mkdir_p( $target ) {
 
 	if ( file_exists( $target ) )
 		return @is_dir( $target );
-
-	// Do not allow path traversals.
-	if ( false !== strpos( $target, '../' ) || false !== strpos( $target, '..' . DIRECTORY_SEPARATOR ) ) {
-		return false;
-	}
 
 	// We need to find the permissions of the parent folder that exists and inherit that.
 	$target_parent = dirname( $target );
@@ -1441,38 +1426,18 @@ function path_join( $base, $path ) {
 /**
  * Normalize a filesystem path.
  *
- * On windows systems, replaces backslashes with forward slashes
- * and forces upper-case drive letters.
- * Allows for two leading slashes for Windows network shares, but
- * ensures that all other duplicate slashes are reduced to a single.
+ * Replaces backslashes with forward slashes for Windows systems,
+ * and ensures no duplicate slashes exist.
  *
  * @since 3.9.0
- * @since 4.4.0 Ensures upper-case drive letters on Windows systems.
- * @since 4.5.0 Allows for Windows network shares.
- * @since 4.9.7 Allows for PHP file wrappers.
  *
  * @param string $path Path to normalize.
  * @return string Normalized path.
  */
 function wp_normalize_path( $path ) {
-	$wrapper = '';
-	if ( wp_is_stream( $path ) ) {
-		list( $wrapper, $path ) = explode( '://', $path, 2 );
-		$wrapper .= '://';
-	}
-
-	// Standardise all paths to use /
 	$path = str_replace( '\\', '/', $path );
-
-	// Replace multiple slashes down to a singular, allowing for network shares having two slashes.
-	$path = preg_replace( '|(?<=.)/+|', '/', $path );
-
-	// Windows paths should uppercase the drive letter
-	if ( ':' === substr( $path, 1, 1 ) ) {
-		$path = ucfirst( $path );
-	}
-
-	return $wrapper . $path;
+	$path = preg_replace( '|/+|','/', $path );
+	return $path;
 }
 
 /**
@@ -1495,17 +1460,17 @@ function get_temp_dir() {
 		return trailingslashit(WP_TEMP_DIR);
 
 	if ( $temp )
-		return trailingslashit( rtrim( $temp, '\\' ) );
+		return trailingslashit( $temp );
 
 	if ( function_exists('sys_get_temp_dir') ) {
 		$temp = sys_get_temp_dir();
 		if ( @is_dir( $temp ) && wp_is_writable( $temp ) )
-			return trailingslashit( rtrim( $temp, '\\' ) );
+			return trailingslashit( $temp );
 	}
 
 	$temp = ini_get('upload_tmp_dir');
 	if ( @is_dir( $temp ) && wp_is_writable( $temp ) )
-		return trailingslashit( rtrim( $temp, '\\' ) );
+		return trailingslashit( $temp );
 
 	$temp = WP_CONTENT_DIR . '/';
 	if ( is_dir( $temp ) && wp_is_writable( $temp ) )
@@ -1852,7 +1817,6 @@ function wp_upload_bits( $name, $deprecated, $bits, $time = null ) {
 /**
  * Retrieve the file type based on the extension name.
  *
- * @package WordPress
  * @since 2.5.0
  * @uses apply_filters() Calls 'ext2type' hook on default supported types.
  *
@@ -1916,7 +1880,7 @@ function wp_check_filetype( $filename, $mimes = null ) {
  * If it's determined that the extension does not match the file's real type,
  * then the "proper_filename" value will be set with a proper filename and extension.
  *
- * Currently this function only supports renaming images validated via wp_get_image_mime().
+ * Currently this function only supports validating images known to getimagesize().
  *
  * @since 3.0.0
  *
@@ -1937,15 +1901,14 @@ function wp_check_filetype_and_ext( $file, $filename, $mimes = null ) {
 	if ( ! file_exists( $file ) )
 		return compact( 'ext', 'type', 'proper_filename' );
 
-	// Validate image types.
-	if ( $type && 0 === strpos( $type, 'image/' ) ) {
+	// We're able to validate images using GD
+	if ( $type && 0 === strpos( $type, 'image/' ) && function_exists('getimagesize') ) {
 
 		// Attempt to figure out what type of image it actually is
-		$real_mime = wp_get_image_mime( $file );
+		$imgstats = @getimagesize( $file );
 
-		if ( ! $real_mime ) {
-			$type = $ext = false;
-		} elseif ( $real_mime != $type ) {
+		// If getimagesize() knows what kind of image it really is and if the real MIME doesn't match the claimed MIME
+		if ( !empty($imgstats['mime']) && $imgstats['mime'] != $type ) {
 			// This is a simplified array of MIMEs that getimagesize() can detect and their extensions
 			// You shouldn't need to use this filter, but it's here just in case
 			$mime_to_ext = apply_filters( 'getimagesize_mimes_to_exts', array(
@@ -1957,10 +1920,10 @@ function wp_check_filetype_and_ext( $file, $filename, $mimes = null ) {
 			) );
 
 			// Replace whatever is after the last period in the filename with the correct extension
-			if ( ! empty( $mime_to_ext[ $real_mime ] ) ) {
+			if ( ! empty( $mime_to_ext[ $imgstats['mime'] ] ) ) {
 				$filename_parts = explode( '.', $filename );
 				array_pop( $filename_parts );
-				$filename_parts[] = $mime_to_ext[ $real_mime ];
+				$filename_parts[] = $mime_to_ext[ $imgstats['mime'] ];
 				$new_filename = implode( '.', $filename_parts );
 
 				if ( $new_filename != $filename )
@@ -1969,102 +1932,13 @@ function wp_check_filetype_and_ext( $file, $filename, $mimes = null ) {
 				// Redefine the extension / MIME
 				$wp_filetype = wp_check_filetype( $new_filename, $mimes );
 				extract( $wp_filetype );
-			} else {
-				$type = $ext = false;
 			}
-		}
-	}
-
-	// Validate files that didn't get validated during previous checks.
-	if ( $type && ! $real_mime && extension_loaded( 'fileinfo' ) ) {
-		$finfo = finfo_open( FILEINFO_MIME_TYPE );
-		$real_mime = finfo_file( $finfo, $file );
-		finfo_close( $finfo );
-
-		// fileinfo often misidentifies obscure files as one of these types
-		$nonspecific_types = array(
-			'application/octet-stream',
-			'application/encrypted',
-			'application/CDFV2-encrypted',
-			'application/zip',
-		);
-
-		/*
-		 * If $real_mime doesn't match the content type we're expecting from the file's extension,
-		 * we need to do some additional vetting. Media types and those listed in $nonspecific_types are
-		 * allowed some leeway, but anything else must exactly match the real content type.
-		 */
-		if ( in_array( $real_mime, $nonspecific_types, true ) ) {
-			// File is a non-specific binary type. That's ok if it's a type that generally tends to be binary.
-			if ( !in_array( substr( $type, 0, strcspn( $type, '/' ) ), array( 'application', 'video', 'audio' ) ) ) {
-				$type = $ext = false;
-			}
-		} elseif ( 0 === strpos( $real_mime, 'video/' ) || 0 === strpos( $real_mime, 'audio/' ) ) {
-			/*
-			 * For these types, only the major type must match the real value.
-			 * This means that common mismatches are forgiven: application/vnd.apple.numbers is often misidentified as application/zip,
-			 * and some media files are commonly named with the wrong extension (.mov instead of .mp4)
-			 */
-
-			if ( substr( $real_mime, 0, strcspn( $real_mime, '/' ) ) !== substr( $type, 0, strcspn( $type, '/' ) ) ) {
-				$type = $ext = false;
-			}
-		} else {
-			if ( $type !== $real_mime ) {
-				/*
-				 * Everything else including image/* and application/*: 
-				 * If the real content type doesn't match the file extension, assume it's dangerous.
-				 */
-				$type = $ext = false;
-			}
-
-		}
-	}
-
-	// The mime type must be allowed 
-	if ( $type ) {
-		$allowed = get_allowed_mime_types();
-
-		if ( ! in_array( $type, $allowed ) ) {
-			$type = $ext = false;
 		}
 	}
 
 	// Let plugins try and validate other types of files
 	// Should return an array in the style of array( 'ext' => $ext, 'type' => $type, 'proper_filename' => $proper_filename )
 	return apply_filters( 'wp_check_filetype_and_ext', compact( 'ext', 'type', 'proper_filename' ), $file, $filename, $mimes );
-}
-
-/**
- * Returns the real mime type of an image file.
- *
- * This depends on exif_imagetype() or getimagesize() to determine real mime types.
- *
- * @since 4.7.1
- *
- * @param string $file Full path to the file.
- * @return string|false The actual mime type or false if the type cannot be determined.
- */
-function wp_get_image_mime( $file ) {
-	/*
-	 * Use exif_imagetype() to check the mimetype if available or fall back to
-	 * getimagesize() if exif isn't avaialbe. If either function throws an Exception
-	 * we assume the file could not be validated.
-	 */
-	try {
-		if ( is_callable( 'exif_imagetype' ) ) {
-			$mime = image_type_to_mime_type( exif_imagetype( $file ) );
-		} elseif ( function_exists( 'getimagesize' ) ) {
-			$imagesize = getimagesize( $file );
-			$mime = ( isset( $imagesize['mime'] ) ) ? $imagesize['mime'] : false;
-		} else {
-			$mime = false;
-		}
-	} catch ( Exception $e ) {
-		$mime = false;
-	}
-
-	return $mime;
 }
 
 /**
@@ -2109,6 +1983,7 @@ function wp_get_mime_types() {
 	'rtx' => 'text/richtext',
 	'css' => 'text/css',
 	'htm|html' => 'text/html',
+	'vtt' => 'text/vtt',
 	// Audio formats
 	'mp3|m4a|m4b' => 'audio/mpeg',
 	'ra|ram' => 'audio/x-realaudio',
@@ -2191,9 +2066,8 @@ function get_allowed_mime_types( $user = null ) {
 	if ( function_exists( 'current_user_can' ) )
 		$unfiltered = $user ? user_can( $user, 'unfiltered_html' ) : current_user_can( 'unfiltered_html' );
 
-	if ( empty( $unfiltered ) ) {
-		unset( $t['htm|html'], $t['js'] );
-	}
+	if ( empty( $unfiltered ) )
+		unset( $t['htm|html'] );
 
 	return apply_filters( 'upload_mimes', $t, $user );
 }
@@ -2204,8 +2078,6 @@ function get_allowed_mime_types( $user = null ) {
  * If the action has the nonce explain message, then it will be displayed along
  * with the "Are you sure?" message.
  *
- * @package WordPress
- * @subpackage Security
  * @since 2.0.4
  *
  * @param string $action The nonce action.
@@ -2214,19 +2086,12 @@ function wp_nonce_ays( $action ) {
 	$title = __( 'WordPress Failure Notice' );
 	if ( 'log-out' == $action ) {
 		$html = sprintf( __( 'You are attempting to log out of %s' ), get_bloginfo( 'name' ) ) . '</p><p>';
-		$html .= sprintf( __( "Do you really want to <a href='%s'>log out</a>?"), wp_logout_url() );
+		$redirect_to = isset( $_REQUEST['redirect_to'] ) ? $_REQUEST['redirect_to'] : '';
+		$html .= sprintf( __( "Do you really want to <a href='%s'>log out</a>?"), wp_logout_url( $redirect_to ) );
 	} else {
 		$html = __( 'Are you sure you want to do this?' );
-		if ( wp_get_referer() ) {
-			$wp_http_referer = remove_query_arg( 'updated', wp_get_referer() );
-			$wp_http_referer = wp_validate_redirect( esc_url_raw( $wp_http_referer ) );
-			$html           .= '</p><p>';
-			$html           .= sprintf(
-				'<a href="%s">%s</a>',
-				esc_url( $wp_http_referer ),
-				__( 'Please try again.' )
-			);
-		}
+		if ( wp_get_referer() )
+			$html .= "</p><p><a href='" . esc_url( remove_query_arg( 'updated', wp_get_referer() ) ) . "'>" . __( 'Please try again.' ) . "</a>";
 	}
 
 	wp_die( $html, $title, array('response' => 403) );
@@ -2550,7 +2415,6 @@ function wp_send_json_error( $data = null ) {
  * development environment.
  *
  * @access private
- * @package WordPress
  * @since 2.2.0
  *
  * @param string $url URL for the home location
@@ -2570,7 +2434,6 @@ function _config_wp_home( $url = '' ) {
  * your localhost while not having to change the database to your URL.
  *
  * @access private
- * @package WordPress
  * @since 2.2.0
  *
  * @param string $url URL to set the WordPress site location.
@@ -2592,8 +2455,6 @@ function _config_wp_siteurl( $url = '' ) {
  * keys. These keys are then returned in the $input array.
  *
  * @access private
- * @package WordPress
- * @subpackage MCE
  * @since 2.1.0
  *
  * @param array $input MCE plugin array.
@@ -2934,6 +2795,8 @@ function wp_ob_end_flush_all() {
 function dead_db() {
 	global $wpdb;
 
+	wp_load_translations_early();
+
 	// Load custom DB error template, if present.
 	if ( file_exists( WP_CONTENT_DIR . '/db-error.php' ) ) {
 		require_once( WP_CONTENT_DIR . '/db-error.php' );
@@ -2948,8 +2811,6 @@ function dead_db() {
 	status_header( 500 );
 	nocache_headers();
 	header( 'Content-Type: text/html; charset=utf-8' );
-
-	wp_load_translations_early();
 ?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml"<?php if ( is_rtl() ) echo ' dir="rtl"'; ?>>
@@ -3024,8 +2885,6 @@ function url_is_accessable_via_ssl($url)
  *
  * This function is to be used in every function that is deprecated.
  *
- * @package WordPress
- * @subpackage Debug
  * @since 2.5.0
  * @access private
  *
@@ -3069,8 +2928,6 @@ function _deprecated_function( $function, $version, $replacement = null ) {
  *
  * This function is to be used in every file that is deprecated.
  *
- * @package WordPress
- * @subpackage Debug
  * @since 2.5.0
  * @access private
  *
@@ -3122,8 +2979,6 @@ function _deprecated_file( $file, $version, $replacement = null, $message = '' )
  *
  * The current behavior is to trigger a user error if WP_DEBUG is true.
  *
- * @package WordPress
- * @subpackage Debug
  * @since 3.0.0
  * @access private
  *
@@ -3165,8 +3020,6 @@ function _deprecated_argument( $function, $version, $message = null ) {
  *
  * The current behavior is to trigger a user error if WP_DEBUG is true.
  *
- * @package WordPress
- * @subpackage Debug
  * @since 3.1.0
  * @access private
  *
@@ -3510,7 +3363,6 @@ function is_main_network( $network_id = null ) {
  *
  *
  * @since 3.0.0
- * @package WordPress
  *
  * @return bool True if multisite and global terms enabled
  */
@@ -4236,7 +4088,7 @@ function wp_auth_check_html() {
  *
  * @since 3.6.0
  */
-function wp_auth_check( $response, $data ) {
+function wp_auth_check( $response ) {
 	$response['wp-auth-check'] = is_user_logged_in() && empty( $GLOBALS['login_grace_period'] );
 	return $response;
 }
@@ -4331,30 +4183,4 @@ function mbstring_binary_safe_encoding( $reset = false ) {
  */
 function reset_mbstring_encoding() {
 	mbstring_binary_safe_encoding( true );
-}
-
-/**
- * Deletes a file if its path is within the given directory.
- *
- * @since 4.9.7
- *
- * @param string $file      Absolute path to the file to delete.
- * @param string $directory Absolute path to a directory.
- * @return bool True on success, false on failure.
- */
-function wp_delete_file_from_directory( $file, $directory ) {
-	$real_file = realpath( wp_normalize_path( $file ) );
-	$real_directory = realpath( wp_normalize_path( $directory ) );
-
-	if ( false === $real_file || false === $real_directory || strpos( wp_normalize_path( $real_file ), trailingslashit( wp_normalize_path( $real_directory ) ) ) !== 0 ) {
-		return false;
-	}
-
-	/** This filter is documented in wp-admin/custom-header.php */
-	$delete = apply_filters( 'wp_delete_file', $file );
-	if ( ! empty( $delete ) ) {
-		@unlink( $delete );
-	}
-
-	return true;
 }

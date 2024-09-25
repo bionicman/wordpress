@@ -560,7 +560,7 @@ class Plugin_Upgrader extends WP_Upgrader {
 			$this->skin->plugin_info = get_plugin_data( WP_PLUGIN_DIR . '/' . $plugin, false, true);
 
 			if ( !isset( $current->response[ $plugin ] ) ) {
-				$this->skin->set_result(true);
+				$this->skin->set_result('up_to_date');
 				$this->skin->before();
 				$this->skin->feedback('up_to_date');
 				$this->skin->after();
@@ -863,7 +863,7 @@ class Theme_Upgrader extends WP_Upgrader {
 		if ( !isset( $current->response[ $theme ] ) ) {
 			$this->skin->before();
 			$this->skin->set_result(false);
-			$this->skin->error('up_to_date');
+			$this->skin->error( 'up_to_date' );
 			$this->skin->after();
 			return false;
 		}
@@ -948,7 +948,7 @@ class Theme_Upgrader extends WP_Upgrader {
 			if ( !isset( $current->response[ $theme ] ) ) {
 				$this->skin->set_result(true);
 				$this->skin->before();
-				$this->skin->feedback('up_to_date');
+				$this->skin->feedback( 'up_to_date' );
 				$this->skin->after();
 				$results[$theme] = true;
 				continue;
@@ -1401,7 +1401,9 @@ class Core_Upgrader extends WP_Upgrader {
 			}
 
 			if ( $try_rollback ) {
+				/** This filter is documented in wp-admin/includes/update-core.php */
 				apply_filters( 'update_feedback', $result );
+				/** This filter is documented in wp-admin/includes/update-core.php */
 				apply_filters( 'update_feedback', $this->strings['start_rollback'] );
 
 				$rollback_result = $this->upgrade( $current, array_merge( $parsed_args, array( 'do_rollback' => true ) ) );
@@ -1601,12 +1603,8 @@ class File_Upload_Upgrader {
 			if ( ! ( ( $uploads = wp_upload_dir() ) && false === $uploads['error'] ) )
 				wp_die( $uploads['error'] );
 
-			$this->filename = sanitize_file_name( $_GET[ $urlholder ] );
+			$this->filename = $_GET[$urlholder];
 			$this->package = $uploads['basedir'] . '/' . $this->filename;
-
-			if ( 0 !== strpos( realpath( $this->package ), realpath( $uploads['basedir'] ) ) ) {
-				wp_die( __( 'Please select a file' ) );
-			}
 		}
 	}
 
@@ -1875,21 +1873,18 @@ class WP_Automatic_Updater {
 		if ( ! $this->should_update( $type, $item, $context ) )
 			return false;
 
-		$upgrader_item = $item;
 		switch ( $type ) {
 			case 'core':
 				$skin->feedback( __( 'Updating to WordPress %s' ), $item->version );
 				$item_name = sprintf( __( 'WordPress %s' ), $item->version );
 				break;
 			case 'theme':
-				$upgrader_item = $item->theme;
-				$theme = wp_get_theme( $upgrader_item );
+				$theme = wp_get_theme( $item );
 				$item_name = $theme->Get( 'Name' );
 				$skin->feedback( __( 'Updating theme: %s' ), $item_name );
 				break;
 			case 'plugin':
-				$upgrader_item = $item->plugin;
-				$plugin_data = get_plugin_data( $context . '/' . $upgrader_item );
+				$plugin_data = get_plugin_data( $context . '/' . $item );
 				$item_name = $plugin_data['Name'];
 				$skin->feedback( __( 'Updating plugin: %s' ), $item_name );
 				break;
@@ -1901,7 +1896,7 @@ class WP_Automatic_Updater {
 		}
 
 		// Boom, This sites about to get a whole new splash of paint!
-		$upgrade_result = $upgrader->upgrade( $upgrader_item, array(
+		$upgrade_result = $upgrader->upgrade( $item, array(
 			'clear_update_cache' => false,
 			'pre_check_md5'      => false, /* always use partial builds if possible for core updates */
 			'attempt_rollback'   => true, /* only available for core updates */
@@ -1975,7 +1970,7 @@ class WP_Automatic_Updater {
 		wp_update_plugins(); // Check for Plugin updates
 		$plugin_updates = get_site_transient( 'update_plugins' );
 		if ( $plugin_updates && !empty( $plugin_updates->response ) ) {
-			foreach ( $plugin_updates->response as $plugin ) {
+			foreach ( array_keys( $plugin_updates->response ) as $plugin ) {
 				$this->update( 'plugin', $plugin );
 			}
 			// Force refresh of plugin update information
@@ -1986,8 +1981,8 @@ class WP_Automatic_Updater {
 		wp_update_themes();  // Check for Theme updates
 		$theme_updates = get_site_transient( 'update_themes' );
 		if ( $theme_updates && !empty( $theme_updates->response ) ) {
-			foreach ( $theme_updates->response as $theme ) {
-				$this->update( 'theme', (object) $theme );
+			foreach ( array_keys( $theme_updates->response ) as $theme ) {
+				$this->update( 'theme', $theme );
 			}
 			// Force refresh of theme update information
 			wp_clean_themes_cache();
@@ -2002,21 +1997,8 @@ class WP_Automatic_Updater {
 
 		// Clean up, and check for any pending translations
 		// (Core_Upgrader checks for core updates)
-		$theme_stats = array();
-		if ( isset( $this->update_results['theme'] ) ) {
-			foreach ( $this->update_results['theme'] as $upgrade ) {
-				$theme_stats[ $upgrade->item->theme ] = ( true === $upgrade->result );
-			}
-		}
-		wp_update_themes( $theme_stats );  // Check for Theme updates
-
-		$plugin_stats = array();
-		if ( isset( $this->update_results['plugin'] ) ) {
-			foreach ( $this->update_results['plugin'] as $upgrade ) {
-				$plugin_stats[ $upgrade->item->plugin ] = ( true === $upgrade->result );
-			}
-		}
-		wp_update_plugins( $plugin_stats ); // Check for Plugin updates
+		wp_update_themes();  // Check for Theme updates
+		wp_update_plugins(); // Check for Plugin updates
 
 		// Finally, Process any new translations
 		$language_updates = wp_get_translation_updates();
@@ -2268,7 +2250,7 @@ class WP_Automatic_Updater {
 
 		// Add a note about the support forums to all emails.
 		$body .= "\n\n" . __( 'If you experience any issues or need support, the volunteers in the WordPress.org support forums may be able to help.' );
-		$body .= "\n" . __( 'http://wordpress.org/support/' );
+		$body .= "\n" . __( 'https://wordpress.org/support/' );
 
 		// If things are successful and we're now on the latest, mention plugins and themes if any are out of date.
 		if ( $type == 'success' && ! $newer_version_available && ( get_plugin_updates() || get_theme_updates() ) ) {
@@ -2405,7 +2387,7 @@ BETA TESTING?
 This debugging email is sent when you are using a development version of WordPress.
 
 If you think these failures might be due to a bug in WordPress, could you report it?
- * Open a thread in the support forums: http://wordpress.org/support/forum/alphabeta
+ * Open a thread in the support forums: https://wordpress.org/support/forum/alphabeta
  * Or, if you're comfortable writing a bug report: http://core.trac.wordpress.org/
 
 Thanks! -- The WordPress Team" );
@@ -2415,8 +2397,9 @@ Thanks! -- The WordPress Team" );
 			$subject = sprintf( __( '[%s] Background updates have finished' ), $site_title );
 		}
 
-		$body[] = __( 'UPDATE LOG' );
-		$body[] = '==========';
+		$title = __( 'UPDATE LOG' );
+		$body[] = $title;
+		$body[] = str_repeat( '=', strlen( $title ) );
 		$body[] = '';
 
 		foreach ( array( 'core', 'plugin', 'theme', 'translation' ) as $type ) {

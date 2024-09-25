@@ -97,14 +97,23 @@ function get_currentuserinfo() {
 		return false;
 	}
 
-	if ( ! $user = wp_validate_auth_cookie() ) {
-		 if ( is_blog_admin() || is_network_admin() || empty( $_COOKIE[LOGGED_IN_COOKIE] ) || !$user = wp_validate_auth_cookie( $_COOKIE[LOGGED_IN_COOKIE], 'logged_in' ) ) {
-		 	wp_set_current_user( 0 );
-		 	return false;
-		 }
+	/**
+	 * Determine the current user based on request data.
+	 *
+	 * The default filters use this to determine the current user from the
+	 * request's cookies, if available.
+	 *
+	 * @since 3.9.0
+	 *
+	 * @param int|boolean $user_id User ID if determined, or false otherwise.
+	 */
+	$user_id = apply_filters( 'determine_current_user', false );
+	if ( ! $user_id ) {
+		wp_set_current_user( 0 );
+		return false;
 	}
 
-	wp_set_current_user( $user );
+	wp_set_current_user( $user_id );
 }
 endif;
 
@@ -310,8 +319,6 @@ function wp_mail( $to, $subject, $message, $headers = '', $attachments = array()
 	$phpmailer->ClearAttachments();
 	$phpmailer->ClearCustomHeaders();
 	$phpmailer->ClearReplyTos();
-	$phpmailer->Body    = '';
-	$phpmailer->AltBody = '';
 
 	// From email and name
 	// If we don't have a name from the input headers
@@ -508,7 +515,7 @@ if ( !function_exists('wp_validate_auth_cookie') ) :
  * Makes sure the cookie is not expired. Verifies the hash in cookie is what is
  * should be and compares the two.
  *
- * @since 2.5
+ * @since 2.5.0
  *
  * @param string $cookie Optional. If used, will validate contents instead of cookie's
  * @param string $scheme Optional. The cookie scheme to use: auth, secure_auth, or logged_in
@@ -545,7 +552,7 @@ function wp_validate_auth_cookie($cookie = '', $scheme = '') {
 	$key = wp_hash($username . $pass_frag . '|' . $expiration, $scheme);
 	$hash = hash_hmac('md5', $username . '|' . $expiration, $key);
 
-	if ( ! hash_equals( $hash, $hmac ) ) {
+	if ( $hmac != $hash ) {
 		do_action('auth_cookie_bad_hash', $cookie_elements);
 		return false;
 	}
@@ -563,7 +570,8 @@ if ( !function_exists('wp_generate_auth_cookie') ) :
 /**
  * Generate authentication cookie contents.
  *
- * @since 2.5
+ * @since 2.5.0
+ *
  * @uses apply_filters() Calls 'auth_cookie' hook on $cookie contents, User ID
  *		and expiration of cookie.
  *
@@ -590,7 +598,7 @@ if ( !function_exists('wp_parse_auth_cookie') ) :
 /**
  * Parse a cookie into its components
  *
- * @since 2.7
+ * @since 2.7.0
  *
  * @param string $cookie
  * @param string $scheme Optional. The cookie scheme to use: auth, secure_auth, or logged_in
@@ -635,13 +643,13 @@ endif;
 
 if ( !function_exists('wp_set_auth_cookie') ) :
 /**
- * Sets the authentication cookies based User ID.
+ * Sets the authentication cookies based on user ID.
  *
  * The $remember parameter increases the time that the cookie will be kept. The
  * default the cookie is kept without remembering is two days. When $remember is
  * set, the cookies will be kept for 14 days or two weeks.
  *
- * @since 2.5
+ * @since 2.5.0
  *
  * @param int $user_id User ID
  * @param bool $remember Whether to remember the user
@@ -689,7 +697,7 @@ if ( !function_exists('wp_clear_auth_cookie') ) :
 /**
  * Removes all of the cookies associated with authentication.
  *
- * @since 2.5
+ * @since 2.5.0
  */
 function wp_clear_auth_cookie() {
 	do_action('clear_auth_cookie');
@@ -737,7 +745,7 @@ if ( !function_exists('auth_redirect') ) :
 /**
  * Checks if a user is logged in, if not it redirects them to the login page.
  *
- * @since 1.5
+ * @since 1.5.0
  */
 function auth_redirect() {
 	// Checks if a user is logged in, if not redirects them to the login page
@@ -757,14 +765,10 @@ function auth_redirect() {
 		}
 	}
 
-	/**
-	 * Filters the authentication redirect scheme.
-	 *
-	 * @since 2.9.0
-	 *
-	 * @param string $scheme Authentication redirect scheme. Default empty.
-	 */
-	$scheme = apply_filters( 'auth_redirect_scheme', '' );
+	if ( is_user_admin() )
+		$scheme = 'logged_in';
+	else
+		$scheme = apply_filters( 'auth_redirect_scheme', '' );
 
 	if ( $user_id = wp_validate_auth_cookie( '',  $scheme) ) {
 		do_action('auth_redirect', $user_id);
@@ -807,29 +811,18 @@ if ( !function_exists('check_admin_referer') ) :
  * @param string $action Action nonce
  * @param string $query_arg where to look for nonce in $_REQUEST (since 2.5)
  */
-function check_admin_referer( $action = -1, $query_arg = '_wpnonce' ) {
-	if ( -1 === $action )
-		_doing_it_wrong( __FUNCTION__, __( 'You should specify a nonce action to be verified by using the first parameter.' ), '3.2.0' );
+function check_admin_referer($action = -1, $query_arg = '_wpnonce') {
+	if ( -1 == $action )
+		_doing_it_wrong( __FUNCTION__, __( 'You should specify a nonce action to be verified by using the first parameter.' ), '3.2' );
 
 	$adminurl = strtolower(admin_url());
 	$referer = strtolower(wp_get_referer());
 	$result = isset($_REQUEST[$query_arg]) ? wp_verify_nonce($_REQUEST[$query_arg], $action) : false;
-
-	/**
-	 * Fires once the admin request has been validated or not.
-	 *
-	 * @since 1.5.1
-	 *
-	 * @param string $action The nonce action.
-	 * @param bool   $result Whether the admin request nonce was validated.
-	 */
-	do_action( 'check_admin_referer', $action, $result );
-
-	if ( ! $result && ! ( -1 === $action && strpos( $referer, $adminurl ) === 0 ) ) {
-		wp_nonce_ays( $action );
+	if ( !$result && !(-1 == $action && strpos($referer, $adminurl) === 0) ) {
+		wp_nonce_ays($action);
 		die();
 	}
-
+	do_action('check_admin_referer', $action, $result);
 	return $result;
 }
 endif;
@@ -844,9 +837,6 @@ if ( !function_exists('check_ajax_referer') ) :
  * @param string $query_arg where to look for nonce in $_REQUEST (since 2.5)
  */
 function check_ajax_referer( $action = -1, $query_arg = false, $die = true ) {
-	if ( -1 === $action )
-		_doing_it_wrong( __FUNCTION__, __( 'You should specify a nonce action to be verified by using the first parameter.' ), '3.2.0' );
-
 	$nonce = '';
 
 	if ( $query_arg && isset( $_REQUEST[ $query_arg ] ) )
@@ -923,12 +913,12 @@ if ( !function_exists('wp_sanitize_redirect') ) :
 /**
  * Sanitizes a URL for use in a redirect.
  *
- * @since 2.3
+ * @since 2.3.0
  *
  * @return string redirect-sanitized URL
  **/
 function wp_sanitize_redirect($location) {
-	$location = preg_replace('|[^a-z0-9-~+_.?#=&;,/:%!@]|i', '', $location);
+	$location = preg_replace('|[^a-z0-9-~+_.?#=&;,/:%!]|i', '', $location);
 	$location = wp_kses_no_null($location);
 
 	// remove %0d and %0a from location
@@ -950,7 +940,8 @@ if ( !function_exists('wp_safe_redirect') ) :
  * instead. This prevents malicious redirects which redirect to another host,
  * but only used in a few places.
  *
- * @since 2.3
+ * @since 2.3.0
+ *
  * @uses wp_validate_redirect() To validate the redirect is to an allowed host.
  *
  * @return void Does not return anything
@@ -985,7 +976,7 @@ if ( !function_exists('wp_validate_redirect') ) :
  * @return string redirect-sanitized URL
  **/
 function wp_validate_redirect($location, $default = '') {
-	$location = wp_sanitize_redirect( trim( $location, " \t\n\r\0\x08\x0B" ) );
+	$location = trim( $location );
 	// browsers will assume 'http' is your protocol, and will obey a redirect to a URL starting with '//'
 	if ( substr($location, 0, 2) == '//' )
 		$location = 'http:' . $location;
@@ -993,8 +984,7 @@ function wp_validate_redirect($location, $default = '') {
 	// In php 5 parse_url may fail if the URL query part contains http://, bug #38143
 	$test = ( $cut = strpos($location, '?') ) ? substr( $location, 0, $cut ) : $location;
 
-	// @-operator is used to prevent possible warnings in PHP < 5.3.3.
-	$lp = @parse_url($test);
+	$lp  = parse_url($test);
 
 	// Give up if malformed URL
 	if ( false === $lp )
@@ -1004,25 +994,9 @@ function wp_validate_redirect($location, $default = '') {
 	if ( isset($lp['scheme']) && !('http' == $lp['scheme'] || 'https' == $lp['scheme']) )
 		return $default;
 
-	if ( ! isset( $lp['host'] ) && ! empty( $lp['path'] ) && '/' !== $lp['path'][0] ) {
-		$path = '';
-		if ( ! empty( $_SERVER['REQUEST_URI'] ) ) {
-			$path = dirname( parse_url( 'http://placeholder' . $_SERVER['REQUEST_URI'], PHP_URL_PATH ) . '?' );
-		}
-		$location = '/' . ltrim( $path . '/', '/' ) . $location;
-	}
-
-	// Reject if certain components are set but host is not. This catches urls like https:host.com for which parse_url does not set the host field.
-	if ( ! isset( $lp['host'] ) && ( isset( $lp['scheme'] ) || isset( $lp['user'] ) || isset( $lp['pass'] ) || isset( $lp['port'] ) ) ) {
+	// Reject if scheme is set but host is not. This catches urls like https:host.com for which parse_url does not set the host field.
+	if ( isset($lp['scheme'])  && !isset($lp['host']) )
 		return $default;
-	}
-
-	// Reject malformed components parse_url() can return on odd inputs.
-	foreach ( array( 'user', 'pass', 'host' ) as $component ) {
-		if ( isset( $lp[ $component ] ) && strpbrk( $lp[ $component ], ':/?#@' ) ) {
-			return $default;
-		}
-	}
 
 	$wpp = parse_url(home_url());
 
@@ -1202,7 +1176,8 @@ if ( !function_exists('wp_notify_moderator') ) :
 /**
  * Notifies the moderator of the blog about a new comment that is awaiting approval.
  *
- * @since 1.0
+ * @since 1.0.0
+ *
  * @uses $wpdb
  *
  * @param int $comment_id Comment ID
@@ -1288,7 +1263,7 @@ if ( !function_exists('wp_password_change_notification') ) :
 /**
  * Notify the blog admin of a user changing password, normally via email.
  *
- * @since 2.7
+ * @since 2.7.0
  *
  * @param object $user User Object
  */
@@ -1307,12 +1282,14 @@ endif;
 
 if ( !function_exists('wp_new_user_notification') ) :
 /**
- * Notify the blog admin of a new user, normally via email.
+ * Email login credentials to a newly-registered user.
  *
- * @since 2.0
+ * A new user registration notification is also sent to admin email.
  *
- * @param int $user_id User ID
- * @param string $plaintext_pass Optional. The user's plaintext password
+ * @since 2.0.0
+ *
+ * @param int    $user_id        User ID.
+ * @param string $plaintext_pass Optional. The user's plaintext password. Default empty.
  */
 function wp_new_user_notification($user_id, $plaintext_pass = '') {
 	$user = get_userdata( $user_id );
@@ -1346,7 +1323,7 @@ if ( !function_exists('wp_nonce_tick') ) :
  * A nonce has a lifespan of two ticks. Nonces in their second tick may be
  * updated, e.g. by autosave.
  *
- * @since 2.5
+ * @since 2.5.0
  *
  * @return int
  */
@@ -1379,17 +1356,11 @@ function wp_verify_nonce($nonce, $action = -1) {
 	$i = wp_nonce_tick();
 
 	// Nonce generated 0-12 hours ago
-	$expected = substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce'), -12, 10 );
-	if ( hash_equals( $expected, $nonce ) ) {
+	if ( substr(wp_hash($i . $action . $uid, 'nonce'), -12, 10) === $nonce )
 		return 1;
-	}
-
 	// Nonce generated 12-24 hours ago
-	$expected = substr( wp_hash( ( $i - 1 ) . '|' . $action . '|' . $uid, 'nonce' ), -12, 10 );
-	if ( hash_equals( $expected, $nonce ) ) {
+	if ( substr(wp_hash(($i - 1) . $action . $uid, 'nonce'), -12, 10) === $nonce )
 		return 2;
-	}
-
 	// Invalid nonce
 	return false;
 }
@@ -1412,7 +1383,7 @@ function wp_create_nonce($action = -1) {
 
 	$i = wp_nonce_tick();
 
-	return substr(wp_hash($i . '|' . $action . '|' . $uid, 'nonce'), -12, 10);
+	return substr(wp_hash($i . $action . $uid, 'nonce'), -12, 10);
 }
 endif;
 
@@ -1444,7 +1415,7 @@ if ( !function_exists('wp_salt') ) :
  * Salting passwords helps against tools which has stored hashed values of
  * common dictionary strings. The added values makes it harder to crack.
  *
- * @since 2.5
+ * @since 2.5.0
  *
  * @link https://api.wordpress.org/secret-key/1.1/salt/ Create secrets for wp-config.php
  *
@@ -1528,7 +1499,8 @@ if ( !function_exists('wp_hash_password') ) :
  * For integration with other applications, this function can be overwritten to
  * instead use the other package password checking algorithm.
  *
- * @since 2.5
+ * @since 2.5.0
+ *
  * @global object $wp_hasher PHPass object
  * @uses PasswordHash::HashPassword
  *
@@ -1560,7 +1532,8 @@ if ( !function_exists('wp_check_password') ) :
  * For integration with other applications, this function can be overwritten to
  * instead use the other package password checking algorithm.
  *
- * @since 2.5
+ * @since 2.5.0
+ *
  * @global object $wp_hasher PHPass object used for checking the password
  *	against the $hash + $password
  * @uses PasswordHash::CheckPassword
@@ -1574,7 +1547,7 @@ function wp_check_password($password, $hash, $user_id = '') {
 
 	// If the hash is still md5...
 	if ( strlen($hash) <= 32 ) {
-		$check = hash_equals( $hash, md5( $password ) );
+		$check = ( $hash == md5($password) );
 		if ( $check && $user_id ) {
 			// Rehash using new hash.
 			wp_set_password($password, $user_id);
@@ -1602,7 +1575,7 @@ if ( !function_exists('wp_generate_password') ) :
 /**
  * Generates a random password drawn from the defined set of characters.
  *
- * @since 2.5
+ * @since 2.5.0
  *
  * @param int $length The length of password to generate
  * @param bool $special_chars Whether to include standard special characters. Default true.
@@ -1681,7 +1654,8 @@ if ( !function_exists('wp_set_password') ) :
  * For integration with other applications, this function can be overwritten to
  * instead use the other package password checking algorithm.
  *
- * @since 2.5
+ * @since 2.5.0
+ *
  * @uses $wpdb WordPress database object for queries
  * @uses wp_hash_password() Used to encrypt the user's password before passing to the database
  *
@@ -1702,7 +1676,8 @@ if ( !function_exists( 'get_avatar' ) ) :
 /**
  * Retrieve the avatar for a user who provided a user ID or email address.
  *
- * @since 2.5
+ * @since 2.5.0
+ *
  * @param int|string|object $id_or_email A user ID,  email address, or comment object
  * @param int $size Size of the avatar image
  * @param string $default URL to a default image to use if no avatar is available
@@ -1792,8 +1767,7 @@ function get_avatar( $id_or_email, $size = '96', $default = '', $alt = false ) {
 		$out = str_replace( '&#038;', '&amp;', esc_url( $out ) );
 		$avatar = "<img alt='{$safe_alt}' src='{$out}' class='avatar avatar-{$size} photo' height='{$size}' width='{$size}' />";
 	} else {
-		$out = esc_url( $default );
-		$avatar = "<img alt='{$safe_alt}' src='{$out}' class='avatar avatar-{$size} photo avatar-default' height='{$size}' width='{$size}' />";
+		$avatar = "<img alt='{$safe_alt}' src='{$default}' class='avatar avatar-{$size} photo avatar-default' height='{$size}' width='{$size}' />";
 	}
 
 	return apply_filters('get_avatar', $avatar, $id_or_email, $size, $default, $alt);
@@ -1817,7 +1791,8 @@ if ( !function_exists( 'wp_text_diff' ) ) :
  * 'title_right' : Default is an empty string. Change the HTML to the right of
  *		the title.
  *
- * @since 2.6
+ * @since 2.6.0
+ *
  * @see wp_parse_args() Used to change defaults to user defined settings.
  * @uses Text_Diff
  * @uses WP_Text_Diff_Renderer_Table
@@ -1873,3 +1848,4 @@ function wp_text_diff( $left_string, $right_string, $args = null ) {
 	return $r;
 }
 endif;
+

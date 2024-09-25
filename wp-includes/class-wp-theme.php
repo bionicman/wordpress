@@ -179,6 +179,7 @@ final class WP_Theme implements ArrayAccess {
 
 		// Initialize caching on first run.
 		if ( ! isset( self::$persistently_cache ) ) {
+			/** This action is documented in wp-includes/theme.php */
 			self::$persistently_cache = apply_filters( 'wp_cache_themes_persistently', false, 'WP_Theme' );
 			if ( self::$persistently_cache ) {
 				wp_cache_add_global_groups( 'themes' );
@@ -215,7 +216,7 @@ final class WP_Theme implements ArrayAccess {
 		} elseif ( ! file_exists( $this->theme_root . '/' . $theme_file ) ) {
 			$this->headers['Name'] = $this->stylesheet;
 			if ( ! file_exists( $this->theme_root . '/' . $this->stylesheet ) )
-				$this->errors = new WP_Error( 'theme_not_found', sprintf( __( 'The theme directory "%s" does not exist.' ), esc_html( $this->stylesheet ) ) );
+				$this->errors = new WP_Error( 'theme_not_found', sprintf( __( 'The theme directory "%s" does not exist.' ), $this->stylesheet ) );
 			else
 				$this->errors = new WP_Error( 'theme_no_stylesheet', __( 'Stylesheet is missing.' ) );
 			$this->template = $this->stylesheet;
@@ -262,7 +263,7 @@ final class WP_Theme implements ArrayAccess {
 				$theme_root_template = $directories[ $this->template ]['theme_root'];
 			} else {
 				// Parent theme is missing.
-				$this->errors = new WP_Error( 'theme_no_parent', sprintf( __( 'The parent theme is missing. Please install the "%s" parent theme.' ), esc_html( $this->template ) ) );
+				$this->errors = new WP_Error( 'theme_no_parent', sprintf( __( 'The parent theme is missing. Please install the "%s" parent theme.' ), $this->template ) );
 				$this->cache_add( 'theme', array( 'headers' => $this->headers, 'errors' => $this->errors, 'stylesheet' => $this->stylesheet, 'template' => $this->template ) );
 				$this->parent = new WP_Theme( $this->template, $this->theme_root, $this );
 				return;
@@ -274,11 +275,11 @@ final class WP_Theme implements ArrayAccess {
 			// If we are a parent, then there is a problem. Only two generations allowed! Cancel things out.
 			if ( is_a( $_child, 'WP_Theme' ) && $_child->template == $this->stylesheet ) {
 				$_child->parent = null;
-				$_child->errors = new WP_Error( 'theme_parent_invalid', sprintf( __( 'The "%s" theme is not a valid parent theme.' ), esc_html( $_child->template ) ) );
+				$_child->errors = new WP_Error( 'theme_parent_invalid', sprintf( __( 'The "%s" theme is not a valid parent theme.' ), $_child->template ) );
 				$_child->cache_add( 'theme', array( 'headers' => $_child->headers, 'errors' => $_child->errors, 'stylesheet' => $_child->stylesheet, 'template' => $_child->template ) );
 				// The two themes actually reference each other with the Template header.
 				if ( $_child->stylesheet == $this->template ) {
-					$this->errors = new WP_Error( 'theme_parent_invalid', sprintf( __( 'The "%s" theme is not a valid parent theme.' ), esc_html( $this->template ) ) );
+					$this->errors = new WP_Error( 'theme_parent_invalid', sprintf( __( 'The "%s" theme is not a valid parent theme.' ), $this->template ) );
 					$this->cache_add( 'theme', array( 'headers' => $this->headers, 'errors' => $this->errors, 'stylesheet' => $this->stylesheet, 'template' => $this->template ) );
 				}
 				return;
@@ -650,9 +651,8 @@ final class WP_Theme implements ArrayAccess {
 	private function markup_header( $header, $value, $translate ) {
 		switch ( $header ) {
 			case 'Name' :
-				if ( empty( $value ) ) {
-					$value = esc_html( $this->get_stylesheet() );
-				}
+				if ( empty( $value ) )
+					$value = $this->get_stylesheet();
 				break;
 			case 'Description' :
 				$value = wptexturize( $value );
@@ -931,9 +931,10 @@ final class WP_Theme implements ArrayAccess {
 	 * @since 3.4.0
 	 * @access public
 	 *
+	 * @param WP_Post|null $post Optional. The post being edited, provided for context.
 	 * @return array Array of page templates, keyed by filename, with the value of the translated header name.
 	 */
-	public function get_page_templates() {
+	public function get_page_templates( $post = null ) {
 		// If you screw up your current theme and we invalidate your parent, most things still work. Let it slide.
 		if ( $this->errors() && $this->errors()->get_error_codes() !== array( 'theme_parent_invalid' ) )
 			return array();
@@ -961,9 +962,22 @@ final class WP_Theme implements ArrayAccess {
 		}
 
 		if ( $this->parent() )
-			$page_templates += $this->parent()->get_page_templates();
+			$page_templates += $this->parent()->get_page_templates( $post );
 
-		return $page_templates;
+		/**
+		 * Remove or rename page templates for a theme.
+		 *
+		 * This filter does not currently allow for page templates to be added.
+		 *
+		 * @since 3.9.0
+		 *
+		 * @param array        $page_templates Array of page templates. Keys are filenames,
+		 *                                     values are translated names.
+		 * @param WP_Theme     $this           The theme object.
+		 * @param WP_Post|null $post           The post being edited, provided for context, or null.
+		 */
+		$return = apply_filters( 'theme_page_templates', $page_templates, $this, $post );
+		return array_intersect_assoc( $return, $page_templates );
 	}
 
 	/**
@@ -1087,6 +1101,13 @@ final class WP_Theme implements ArrayAccess {
 	 * @return array Array of stylesheet names.
 	 */
 	public static function get_allowed( $blog_id = null ) {
+		/**
+		 * Filter the array of themes allowed on the site or network.
+		 *
+		 * @since MU
+		 *
+		 * @param array $allowed_themes An array of theme stylesheet names.
+		 */
 		$network = (array) apply_filters( 'allowed_themes', self::get_allowed_on_network() );
 		return $network + self::get_allowed_on_site( $blog_id );
 	}

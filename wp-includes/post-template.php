@@ -96,7 +96,7 @@ function the_title_attribute( $args = '' ) {
  *
  * @since 0.71
  *
- * @param int|object $post Optional. Post ID or object.
+ * @param int|WP_Post $post Optional. Post ID or post object.
  * @return string
  */
 function get_the_title( $post = 0 ) {
@@ -129,7 +129,7 @@ function get_the_title( $post = 0 ) {
  *
  * @since 1.5.0
  *
- * @param int $id Optional. Post ID.
+ * @param int|WP_Post $id Optional. Post ID or post object.
  */
 function the_guid( $id = 0 ) {
 	echo esc_url( get_the_guid( $id ) );
@@ -144,7 +144,7 @@ function the_guid( $id = 0 ) {
  *
  * @since 1.5.0
  *
- * @param int $id Optional. Post ID.
+ * @param int|WP_Post $id Optional. Post ID or post object.
  * @return string
  */
 function get_the_guid( $id = 0 ) {
@@ -226,7 +226,22 @@ function get_the_content( $more_link_text = null, $strip_teaser = false ) {
 		}
 	}
 
+	if ( $preview ) // preview fix for javascript bug with foreign languages
+		$output =	preg_replace_callback( '/\%u([0-9A-F]{4})/', '_convert_urlencoded_to_entities', $output );
+
 	return $output;
+}
+
+/**
+ * Preview fix for javascript bug with foreign languages
+ *
+ * @since 3.1.0
+ * @access private
+ * @param array $match Match array from preg_replace_callback
+ * @return string
+ */
+function _convert_urlencoded_to_entities( $match ) {
+	return '&#' . base_convert( $match[1], 16, 10 ) . ';';
 }
 
 /**
@@ -265,7 +280,7 @@ function get_the_excerpt( $deprecated = '' ) {
  *
  * @since 2.3.0
  *
- * @param int $id Optional. Post ID.
+ * @param int|WP_Post $id Optional. Post ID or post object.
  * @return bool
  */
 function has_excerpt( $id = 0 ) {
@@ -279,7 +294,7 @@ function has_excerpt( $id = 0 ) {
  * @since 2.7.0
  *
  * @param string|array $class One or more classes to add to the class list.
- * @param int $post_id An optional post ID.
+ * @param int|WP_Post $post_id Optional. Post ID or post object.
  */
 function post_class( $class = '', $post_id = null ) {
 	// Separates classes with a single space, collates classes for post DIV
@@ -289,8 +304,9 @@ function post_class( $class = '', $post_id = null ) {
 /**
  * Retrieve the classes for the post div as an array.
  *
- * The class names are add are many. If the post is a sticky, then the 'sticky'
- * class name. The class 'hentry' is always added to each post. For each
+ * The class names are many. If the post is a sticky, then the 'sticky'
+ * class name. The class 'hentry' is always added to each post. If the post has a
+ * post thumbnail, 'has-post-thumbnail' is added as a class. For each
  * category, the class will be added with 'category-' with category slug is
  * added. The tags are the same way as the categories with 'tag-' before the tag
  * slug. All classes are passed through the filter, 'post_class' with the list
@@ -300,7 +316,7 @@ function post_class( $class = '', $post_id = null ) {
  * @since 2.7.0
  *
  * @param string|array $class One or more classes to add to the class list.
- * @param int $post_id An optional post ID.
+ * @param int|WP_Post $post_id Optional. Post ID or post object.
  * @return array Array of classes.
  */
 function get_post_class( $class = '', $post_id = null ) {
@@ -327,9 +343,13 @@ function get_post_class( $class = '', $post_id = null ) {
 			$classes[] = 'format-standard';
 	}
 
-	// post requires password
-	if ( post_password_required($post->ID) )
+	// Post requires password
+	if ( post_password_required( $post->ID ) ) {
 		$classes[] = 'post-password-required';
+	// Post thumbnails
+	} elseif ( current_theme_supports( 'post-thumbnails' ) && has_post_thumbnail( $post->ID ) ) {
+		$classes[] = 'has-post-thumbnail';
+	}
 
 	// sticky for Sticky Posts
 	if ( is_sticky($post->ID) && is_home() && !is_paged() )
@@ -578,12 +598,9 @@ function post_password_required( $post = null ) {
 	return ! $hasher->CheckPassword( $post->post_password, $hash );
 }
 
-/**
- * Page Template Functions for usage in Themes
- *
- * @package WordPress
- * @subpackage Template
- */
+//
+// Page Template Functions for usage in Themes
+//
 
 /**
  * The formatted output of a list of pages.
@@ -702,6 +719,19 @@ function _wp_link_page( $i ) {
 			$url = trailingslashit(get_permalink()) . user_trailingslashit($i, 'single_paged');
 	}
 
+	if ( is_preview() ) {
+		$url = add_query_arg( array(
+			'preview' => 'true'
+		), $url );
+
+		if ( ( 'draft' !== $post->post_status ) && isset( $_GET['preview_id'], $_GET['preview_nonce'] ) ) {
+			$url = add_query_arg( array(
+				'preview_id'    => wp_unslash( $_GET['preview_id'] ),
+				'preview_nonce' => wp_unslash( $_GET['preview_nonce'] )
+			), $url );
+		}
+	}
+
 	return '<a href="' . esc_url( $url ) . '">';
 }
 
@@ -731,12 +761,11 @@ function post_custom( $key = '' ) {
 /**
  * Display list of post custom fields.
  *
+ * @internal This will probably change at some point...
  * @since 1.2.0
- *
- * @deprecated 6.0.2 Use get_post_meta() to retrieve post meta and render manually.
+ * @uses apply_filters() Calls 'the_meta_key' on list item HTML content, with key and value as separate parameters.
  */
 function the_meta() {
-	_deprecated_function( __FUNCTION__, '6.0.2', 'get_post_meta()' );
 	if ( $keys = get_post_custom_keys() ) {
 		echo "<ul class='post-meta'>\n";
 		foreach ( (array) $keys as $key ) {
@@ -745,7 +774,7 @@ function the_meta() {
 				continue;
 			$values = array_map('trim', get_post_custom_values($key));
 			$value = implode($values,', ');
-			echo apply_filters('the_meta_key', "<li><span class='post-meta-key'>" . esc_html( $key ) . ":</span> " . esc_html( $value ) . "</li>\n", $key, $value);
+			echo apply_filters('the_meta_key', "<li><span class='post-meta-key'>$key:</span> $value</li>\n", $key, $value);
 		}
 		echo "</ul>\n";
 	}
@@ -972,7 +1001,6 @@ function walk_page_dropdown_tree() {
 /**
  * Create HTML list of pages.
  *
- * @package WordPress
  * @since 2.1.0
  * @uses Walker
  */
@@ -1088,7 +1116,6 @@ class Walker_Page extends Walker {
 /**
  * Create HTML dropdown list of pages.
  *
- * @package WordPress
  * @since 2.1.0
  * @uses Walker
  */
@@ -1125,7 +1152,13 @@ class Walker_PageDropdown extends Walker {
 		if ( $page->ID == $args['selected'] )
 			$output .= ' selected="selected"';
 		$output .= '>';
-		$title = apply_filters( 'list_pages', $page->post_title, $page );
+
+		$title = $page->post_title;
+		if ( '' === $title ) {
+			$title = sprintf( __( '#%d (no title)' ), $page->ID );
+		}
+
+		$title = apply_filters( 'list_pages', $title, $page );
 		$output .= $pad . esc_html( $title );
 		$output .= "</option>\n";
 	}
@@ -1140,7 +1173,7 @@ class Walker_PageDropdown extends Walker {
  *
  * @since 2.0.0
  *
- * @param int $id Optional. Post ID.
+ * @param int|WP_Post $id Optional. Post ID or post object.
  * @param bool $fullsize Optional, default is false. Whether to use full size.
  * @param bool $deprecated Deprecated. Not used.
  * @param bool $permalink Optional, default is false. Whether to include permalink.
@@ -1161,7 +1194,7 @@ function the_attachment_link( $id = 0, $fullsize = false, $deprecated = false, $
  * @since 2.5.0
  * @uses apply_filters() Calls 'wp_get_attachment_link' filter on HTML content with same parameters as function.
  *
- * @param int $id Optional. Post ID.
+ * @param int|WP_Post $id Optional. Post ID or post object.
  * @param string $size Optional, default is 'thumbnail'. Size of image, either array or string.
  * @param bool $permalink Optional, default is false. Whether to add permalink to image.
  * @param bool $icon Optional, default is false. Whether to include icon.
@@ -1190,7 +1223,7 @@ function wp_get_attachment_link( $id = 0, $size = 'thumbnail', $permalink = fals
 	if ( trim( $link_text ) == '' )
 		$link_text = $_post->post_title;
 
-	return apply_filters( 'wp_get_attachment_link', "<a href='" . esc_url( $url ) . "'>$link_text</a>", $id, $size, $permalink, $icon, $text );
+	return apply_filters( 'wp_get_attachment_link', "<a href='$url'>$link_text</a>", $id, $size, $permalink, $icon, $text );
 }
 
 /**
@@ -1226,7 +1259,7 @@ function prepend_attachment($content) {
  *
  * @since 1.0.0
  * @uses apply_filters() Calls 'the_password_form' filter on output.
- * @param int|WP_Post $post Optional. A post id or post object. Defaults to the current post when in The Loop, undefined otherwise.
+ * @param int|WP_Post $post Optional. A post ID or post object.
  * @return string HTML content for password form for password protected post.
  */
 function get_the_password_form( $post = 0 ) {
@@ -1292,8 +1325,6 @@ function get_page_template_slug( $post_id = null ) {
 /**
  * Retrieve formatted date timestamp of a revision (linked to that revisions's page).
  *
- * @package WordPress
- * @subpackage Post_Revisions
  * @since 2.6.0
  *
  * @uses date_i18n()
@@ -1331,8 +1362,6 @@ function wp_post_revision_title( $revision, $link = true ) {
 /**
  * Retrieve formatted date timestamp of a revision (linked to that revisions's page).
  *
- * @package WordPress
- * @subpackage Post_Revisions
  * @since 3.6.0
  *
  * @uses date_i18n()
@@ -1384,8 +1413,6 @@ function wp_post_revision_title_expanded( $revision, $link = true ) {
  * Can output either a UL with edit links or a TABLE with diff interface, and
  * restore action links.
  *
- * @package WordPress
- * @subpackage Post_Revisions
  * @since 2.6.0
  *
  * @uses wp_get_post_revisions()
@@ -1393,7 +1420,7 @@ function wp_post_revision_title_expanded( $revision, $link = true ) {
  * @uses get_edit_post_link()
  * @uses get_the_author_meta()
  *
- * @param int|object $post_id Post ID or post object.
+ * @param int|WP_Post $post_id Optional. Post ID or post object.
  * @param string $type 'all' (default), 'revision' or 'autosave'
  * @return null
  */
@@ -1428,22 +1455,3 @@ function wp_list_post_revisions( $post_id = 0, $type = 'all' ) {
 	echo $rows;
 	echo "</ul>";
 }
-
-/**
- * Dashboard CSS fixes for 3.8.2.
- *
- * This function cheaply fixes #WP27082 and #WP26910 in lieu of
- * changing the massive wp-admin.css file in a point release.
- * This lucky includes file was already receiving an update.
- *
- * @since 3.8.2
- * @access private
- */
-function wp_382_css_hotfix() {
-	echo '<style type="text/css">
-#activity-widget #the-comment-list .comment-item { position: relative; }
-.tagsdiv .newtag { padding: 6px 10px; height: auto; }
-</style>
-';
-}
-add_action( 'admin_print_styles', 'wp_382_css_hotfix', 30 );

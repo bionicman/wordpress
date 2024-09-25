@@ -333,10 +333,6 @@ function wp_network_dashboard_right_now() {
 function wp_dashboard_quick_press( $error_msg = false ) {
 	global $post_ID;
 
-	if ( ! current_user_can( 'edit_posts' ) ) {
-		return;
-	}
-
 	/* Check if a new auto-draft (= no new post_ID) is needed or if the old can be used */
 	$last_post_id = (int) get_user_option( 'dashboard_quick_press_last_post_id' ); // Get the last post_ID
 	if ( $last_post_id ) {
@@ -434,7 +430,7 @@ function _wp_dashboard_recent_comments_row( &$comment, $show_date = true ) {
 	$GLOBALS['comment'] =& $comment;
 
 	$comment_post_url = get_edit_post_link( $comment->comment_post_ID );
-	$comment_post_title = _draft_or_post_title( $comment->comment_post_ID );
+	$comment_post_title = strip_tags(get_the_title( $comment->comment_post_ID ));
 	$comment_post_link = "<a href='$comment_post_url'>$comment_post_title</a>";
 	$comment_link = '<a class="comment-link" href="' . esc_url(get_comment_link()) . '">#</a>';
 
@@ -486,9 +482,10 @@ function _wp_dashboard_recent_comments_row( &$comment, $show_date = true ) {
 ?>
 
 		<div id="comment-<?php echo $comment->comment_ID; ?>" <?php comment_class( array( 'comment-item', wp_get_comment_status($comment->comment_ID) ) ); ?>>
-			<?php if ( !$comment->comment_type || 'comment' == $comment->comment_type ) : ?>
 
 			<?php echo get_avatar( $comment, 50, 'mystery' ); ?>
+
+			<?php if ( !$comment->comment_type || 'comment' == $comment->comment_type ) : ?>
 
 			<div class="dashboard-comment-wrap">
 			<h4 class="comment-meta">

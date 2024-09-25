@@ -191,7 +191,7 @@ class WP_Widget_Search extends WP_Widget {
 
 	function __construct() {
 		$widget_ops = array('classname' => 'widget_search', 'description' => __( "A search form for your site.") );
-		parent::__construct('search', __('Search'), $widget_ops);
+		parent::__construct( 'search', _x( 'Search', 'Search widget' ), $widget_ops );
 	}
 
 	function widget( $args, $instance ) {
@@ -316,7 +316,7 @@ class WP_Widget_Meta extends WP_Widget {
 			<li><a href="<?php bloginfo('rss2_url'); ?>" title="<?php echo esc_attr(__('Syndicate this site using RSS 2.0')); ?>"><?php _e('Entries <abbr title="Really Simple Syndication">RSS</abbr>'); ?></a></li>
 			<li><a href="<?php bloginfo('comments_rss2_url'); ?>" title="<?php echo esc_attr(__('The latest comments to all posts in RSS')); ?>"><?php _e('Comments <abbr title="Really Simple Syndication">RSS</abbr>'); ?></a></li>
 			<?php echo apply_filters( 'widget_meta_poweredby', sprintf( '<li><a href="%s" title="%s">%s</a></li>',
-				esc_url( __( 'http://wordpress.org/' ) ),
+				esc_url( __( 'https://wordpress.org/' ) ),
 				esc_attr__( 'Powered by WordPress, state-of-the-art semantic personal publishing platform.' ),
 				_x( 'WordPress.org', 'meta widget link text' )
 			) ); ?>
@@ -834,7 +834,7 @@ function wp_widget_rss_output( $rss, $args = array() ) {
 
 	if ( is_wp_error($rss) ) {
 		if ( is_admin() || current_user_can('manage_options') )
-			echo '<p>' . sprintf( __('<strong>RSS Error</strong>: %s'), esc_html( $rss->get_error_message() ) ) . '</p>';
+			echo '<p>' . sprintf( __('<strong>RSS Error</strong>: %s'), $rss->get_error_message() ) . '</p>';
 		return;
 	}
 
@@ -942,7 +942,7 @@ function wp_widget_rss_form( $args, $inputs = null ) {
 	$show_date      = (int) $show_date;
 
 	if ( !empty($error) )
-		echo '<p class="widget-error"><strong>' . sprintf( __('RSS Error: %s'), esc_html( $error ) ) . '</strong></p>';
+		echo '<p class="widget-error"><strong>' . sprintf( __('RSS Error: %s'), $error) . '</strong></p>';
 
 	if ( $inputs['url'] ) :
 ?>
@@ -1144,7 +1144,7 @@ class WP_Widget_Tag_Cloud extends WP_Widget {
 		?>
 		<p>
 			<label for="<?php echo $this->get_field_id('title'); ?>"><?php _e('Title:') ?></label>
-			<input type="text" class="widefat" id="<?php echo $this->get_field_id('title'); ?>" name="<?php echo $this->get_field_name('title'); ?>" value="<?php echo esc_attr( $title ); ?>" />
+			<input type="text" class="widefat" id="<?php echo $this->get_field_id('title'); ?>" name="<?php echo $this->get_field_name('title'); ?>" value="<?php echo $title; ?>" />
 		</p>
 		<p>
 			<label for="<?php echo $this->get_field_id('nav_menu'); ?>"><?php _e('Select Menu:'); ?></label>

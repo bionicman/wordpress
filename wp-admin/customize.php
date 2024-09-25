@@ -1,6 +1,6 @@
 <?php
 /**
- * Customize Controls
+ * Theme Customize Screen.
  *
  * @package WordPress
  * @subpackage Customize
@@ -9,16 +9,17 @@
 
 define( 'IFRAME_REQUEST', true );
 
+/** Load WordPress Administration Bootstrap */
 require_once( dirname( __FILE__ ) . '/admin.php' );
+
 if ( ! current_user_can( 'edit_theme_options' ) )
 	wp_die( __( 'Cheatin&#8217; uh?' ) );
 
 wp_reset_vars( array( 'url', 'return' ) );
 $url = urldecode( $url );
-$url = esc_url_raw( $url );
 $url = wp_validate_redirect( $url, home_url( '/' ) );
 if ( $return )
-	$return = wp_validate_redirect( esc_url_raw( urldecode( $return ) ) );
+	$return = wp_validate_redirect( urldecode( $return ) );
 if ( ! $return )
 	$return = $url;
 
@@ -200,6 +201,7 @@ do_action( 'customize_controls_print_scripts' );
 		'customize-login' => 1
 	), wp_login_url() );
 
+	// Prepare customizer settings to pass to Javascript.
 	$settings = array(
 		'theme'    => array(
 			'stylesheet' => $wp_customize->get_stylesheet(),
@@ -228,6 +230,7 @@ do_action( 'customize_controls_print_scripts' );
  		),
 	);
 
+	// Prepare Customize Setting objects to pass to Javascript.
 	foreach ( $wp_customize->settings() as $id => $setting ) {
 		$settings['settings'][ $id ] = array(
 			'value'     => $setting->js_value(),
@@ -235,6 +238,7 @@ do_action( 'customize_controls_print_scripts' );
 		);
 	}
 
+	// Prepare Customize Control objects to pass to Javascript.
 	foreach ( $wp_customize->controls() as $id => $control ) {
 		$control->to_json();
 		$settings['controls'][ $id ] = $control->json;
