@@ -63,7 +63,7 @@ var imageEdit = window.imageEdit = {
 	},
 
 	toggleHelp : function(el) {
-		$(el).siblings('.imgedit-help').slideToggle('fast');
+		$( el ).parents( '.imgedit-group-top' ).toggleClass( 'imgedit-help-toggled' ).find( '.imgedit-help' ).slideToggle( 'fast' );
 		return false;
 	},
 
@@ -243,8 +243,8 @@ var imageEdit = window.imageEdit = {
 			$('#image-editor-' + postid).empty().append(r);
 			t.toggleEditor(postid, 0);
 			// refresh the attachment model so that changes propagate
-			if ( this._view ) {
-				this._view.refresh();
+			if ( t._view ) {
+				t._view.refresh();
 			}
 		});
 	},

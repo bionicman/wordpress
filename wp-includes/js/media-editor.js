@@ -189,6 +189,10 @@
 			shortcode = {};
 
 			if ( 'video' === type ) {
+				if ( attachment.image ) {
+					shortcode.poster = attachment.image.src;
+				}
+
 				if ( attachment.width ) {
 					shortcode.width = attachment.width;
 				}
@@ -196,6 +200,23 @@
 				if ( attachment.height ) {
 					shortcode.height = attachment.height;
 				}
+			}
+
+			if ( ! _.isEmpty( attachment.caption ) ) {
+				shortcode.caption = attachment.caption;
+			} else if ( attachment.meta && attachment.meta.title ) {
+				shortcode.caption = '&#8220;' + attachment.meta.title + '&#8221;';
+				if ( attachment.meta.album ) {
+					shortcode.caption += ' from ' + attachment.meta.album;
+				}
+
+				if ( attachment.meta.artist ) {
+					shortcode.caption += ' by ' + attachment.meta.artist;
+				}
+			} else if ( ! _.isEmpty( attachment.description ) ) {
+				shortcode.caption = attachment.description;
+			} else {
+				shortcode.caption = attachment.title;
 			}
 
 			extension = attachment.filename.split('.').pop();
@@ -384,9 +405,15 @@
 					attrs = _.pick( props, 'orderby', 'order' ),
 					shortcode, clone, self = this;
 
+				if ( attachments.type ) {
+					attrs.type = attachments.type;
+					delete attachments.type;
+				}
+
 				if ( attachments[this.tag] ) {
 					_.extend( attrs, attachments[this.tag].toJSON() );
 				}
+
 				// Convert all gallery shortcodes to use the `ids` property.
 				// Ignore `post__in` and `post__not_in`; the attachments in
 				// the collection will already reflect those properties.
@@ -455,7 +482,7 @@
 			edit: function( content ) {
 				var shortcode = wp.shortcode.next( this.tag, content ),
 					defaultPostId = this.defaults.id,
-					attachments, selection;
+					attachments, selection, state;
 
 				// Bail if we didn't match the shortcode or all of the content.
 				if ( ! shortcode || shortcode.content !== content ) {
@@ -492,10 +519,16 @@
 					this.frame.dispose();
 				}
 
-				// Store the current gallery frame.
+				if ( shortcode.attrs.named.type && 'video' === shortcode.attrs.named.type ) {
+					state = 'video-' + this.tag + '-edit';
+				} else {
+					state = this.tag + '-edit';
+				}
+
+				// Store the current frame.
 				this.frame = wp.media({
 					frame:     'post',
-					state:     this.tag + '-edit',
+					state:     state,
 					title:     this.editTitle,
 					editing:   true,
 					multiple:  true,
@@ -764,7 +797,7 @@
 				/**
 				 * @this wp.media.editor
 				 */
-				this.insert( wp.media['video-playlist'].shortcode( selection ).string() );
+				this.insert( wp.media.playlist.shortcode( selection ).string() );
 			}, this );
 
 			workflow.state('embed').on( 'select', function() {

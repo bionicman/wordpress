@@ -10,6 +10,7 @@ Version: 3.0-beta
 Author: Automattic
 Author URI: http://automattic.com/wordpress-plugins/
 License: GPLv2 or later
+Text Domain: akismet
 */
 
 /*
@@ -35,6 +36,7 @@ if ( !function_exists( 'add_action' ) ) {
 }
 
 define( 'AKISMET_VERSION', '3.0' );
+define( 'AKISMET__MINIMUM_WP_VERSION', '3.0' );
 define( 'AKISMET__PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'AKISMET__PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'AKISMET_DELETE_LIMIT', 100000 );

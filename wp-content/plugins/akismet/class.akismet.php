@@ -122,9 +122,9 @@ class Akismet {
 
 		if ( 'true' == $response[1] ) {
 			// akismet_spam_count will be incremented later by comment_is_spam()
-			add_filter('pre_comment_approved', array( 'Akismet',  'comment_is_spam' ) );
+			add_filter('pre_comment_approved', array( 'Akismet',  'comment_is_spam' ), 10, 2 );
 
-			$discard = ( isset( $commentdata['akismet_pro_tip'] ) && $commentdata['akismet_pro_tip'] === 'discard' && get_option( 'akismet_strictness' ) === '1' );
+			$discard = ( isset( $commentdata['akismet_pro_tip'] ) && $commentdata['akismet_pro_tip'] === 'discard' && self::allow_discard() );
 
 			do_action( 'akismet_spam_caught', $discard );
 
@@ -147,7 +147,7 @@ class Akismet {
 		// if the response is neither true nor false, hold the comment for moderation and schedule a recheck
 		if ( 'true' != $response[1] && 'false' != $response[1] ) {
 			if ( !current_user_can('moderate_comments') ) {
-				add_filter('pre_comment_approved', array( 'Akismet',  'comment_needs_moderation' ) );
+				add_filter('pre_comment_approved', array( 'Akismet',  'comment_needs_moderation' ), 10, 2 );
 			}
 			if ( function_exists('wp_next_scheduled') && function_exists('wp_schedule_single_event') ) {
 				if ( !wp_next_scheduled( 'akismet_schedule_cron_recheck' ) ) {
@@ -186,30 +186,30 @@ class Akismet {
 		// wp_insert_comment() might be called in other contexts, so make sure this is the same comment
 		// as was checked by auto_check_comment
 		if ( is_object( $comment ) && !empty( self::$last_comment ) && is_array( self::$last_comment ) ) {
-			if ( isset( self::$last_comment['comment_post_ID'] )
-				&& intval( self::$last_comment['comment_post_ID'] ) == intval( $comment->comment_post_ID )
-				&& self::$last_comment['comment_author'] == $comment->comment_author
-				&& self::$last_comment['comment_author_email'] == $comment->comment_author_email ) {
+			if ( self::matches_last_comment( $comment ) ) {
+					
+					load_plugin_textdomain( 'akismet' );
+					
 					// normal result: true or false
 					if ( self::$last_comment['akismet_result'] == 'true' ) {
 						update_comment_meta( $comment->comment_ID, 'akismet_result', 'true' );
-						self::update_comment_history( $comment->comment_ID, __('Akismet caught this comment as spam'), 'check-spam' );
+						self::update_comment_history( $comment->comment_ID, __('Akismet caught this comment as spam', 'akismet'), 'check-spam' );
 						if ( $comment->comment_approved != 'spam' )
-							self::update_comment_history( $comment->comment_ID, sprintf( __('Comment status was changed to %s'), $comment->comment_approved), 'status-changed'.$comment->comment_approved );
+							self::update_comment_history( $comment->comment_ID, sprintf( __('Comment status was changed to %s', 'akismet'), $comment->comment_approved), 'status-changed'.$comment->comment_approved );
 					}
 					elseif ( self::$last_comment['akismet_result'] == 'false' ) {
 						update_comment_meta( $comment->comment_ID, 'akismet_result', 'false' );
-						self::update_comment_history( $comment->comment_ID, __('Akismet cleared this comment'), 'check-ham' );
+						self::update_comment_history( $comment->comment_ID, __('Akismet cleared this comment', 'akismet'), 'check-ham' );
 						if ( $comment->comment_approved == 'spam' ) {
 							if ( wp_blacklist_check($comment->comment_author, $comment->comment_author_email, $comment->comment_author_url, $comment->comment_content, $comment->comment_author_IP, $comment->comment_agent) )
-								self::update_comment_history( $comment->comment_ID, __('Comment was caught by wp_blacklist_check'), 'wp-blacklisted' );
+								self::update_comment_history( $comment->comment_ID, __('Comment was caught by wp_blacklist_check', 'akismet'), 'wp-blacklisted' );
 							else
-								self::update_comment_history( $comment->comment_ID, sprintf( __('Comment status was changed to %s'), $comment->comment_approved), 'status-changed-'.$comment->comment_approved );
+								self::update_comment_history( $comment->comment_ID, sprintf( __('Comment status was changed to %s', 'akismet'), $comment->comment_approved), 'status-changed-'.$comment->comment_approved );
 						}
 					} // abnormal result: error
 					else {
 						update_comment_meta( $comment->comment_ID, 'akismet_error', time() );
-						self::update_comment_history( $comment->comment_ID, sprintf( __('Akismet was unable to check this comment (response: %s), will automatically retry again later.'), substr(self::$last_comment['akismet_result'], 0, 50)), 'check-error' );
+						self::update_comment_history( $comment->comment_ID, sprintf( __('Akismet was unable to check this comment (response: %s), will automatically retry again later.', 'akismet'), substr(self::$last_comment['akismet_result'], 0, 50)), 'check-error' );
 					}
 
 					// record the complete original data as submitted for checking
@@ -241,7 +241,7 @@ class Akismet {
 			clean_comment_cache( $comment_ids );
 		}
 
-		if ( apply_filters( 'akismet_optimize_table', ( mt_rand(1, 5000) == 11) ) ) // lucky number
+		if ( apply_filters( 'akismet_optimize_table', ( mt_rand(1, 5000) == 11), $wpdb->comments ) ) // lucky number
 			$wpdb->query("OPTIMIZE TABLE {$wpdb->comments}");
 	}
 
@@ -268,8 +268,8 @@ class Akismet {
 			}
 		}
 
-		if ( apply_filters( 'akismet_optimize_table', ( mt_rand(1, 5000) == 11) ) ) // lucky number
-			$wpdb->query("OPTIMIZE TABLE {$wpdb->comments}");
+		if ( apply_filters( 'akismet_optimize_table', ( mt_rand(1, 5000) == 11), $wpdb->commentmeta ) ) // lucky number
+			$wpdb->query("OPTIMIZE TABLE {$wpdb->commentmeta}");
 	}
 
 	// how many approved comments does this author have?
@@ -359,6 +359,8 @@ class Akismet {
 		delete_option('akismet_available_servers');
 
 		$comment_errors = $wpdb->get_col( "SELECT comment_id FROM {$wpdb->commentmeta} WHERE meta_key = 'akismet_error'	LIMIT 100" );
+		
+		load_plugin_textdomain( 'akismet' );
 
 		foreach ( (array) $comment_errors as $comment_id ) {
 			// if the comment no longer exists, or is too old, remove the meta entry from the queue to avoid getting stuck
@@ -373,9 +375,9 @@ class Akismet {
 
 			$msg = '';
 			if ( $status == 'true' ) {
-				$msg = __( 'Akismet caught this comment as spam during an automatic retry.' );
+				$msg = __( 'Akismet caught this comment as spam during an automatic retry.' , 'akismet');
 			} elseif ( $status == 'false' ) {
-				$msg = __( 'Akismet cleared this comment during an automatic retry.' );
+				$msg = __( 'Akismet cleared this comment during an automatic retry.' , 'akismet');
 			}
 
 			// If we got back a legit response then update the comment history
@@ -437,20 +439,38 @@ class Akismet {
 	public static function is_test_mode() {
 		return defined('AKISMET_TEST_MODE') && AKISMET_TEST_MODE;
 	}
+	
+	public static function allow_discard() {
+		if ( defined( 'DOING_AJAX' ) && DOING_AJAX )
+			return false;
+		if ( is_user_logged_in() )
+			return false;
+	
+		return ( get_option( 'akismet_strictness' ) === '1'  );
+	}
 
 	public static function get_ip_address() {
-		foreach( array( 'HTTP_CLIENT_IP', 'HTTP_X_FORWARDED_FOR', 'HTTP_X_FORWARDED', 'HTTP_X_CLUSTER_CLIENT_IP', 'HTTP_FORWARDED_FOR', 'HTTP_FORWARDED', 'REMOTE_ADDR' ) as $key ) {
-			if ( array_key_exists( $key, $_SERVER ) === true ) {
-				foreach ( explode( ',', $_SERVER[$key] ) as $ip ) {
-					$ip = trim($ip);
-
-					if ( filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) !== false ) {
-						return $ip;
-					}
-				}
-			}
+		return isset( $_SERVER['REMOTE_ADDR'] ) ? $_SERVER['REMOTE_ADDR'] : null;
+	}
+	
+	// Remember this comment for later
+	public static function set_last_comment( $commentdata ) {
+		self::$last_comment = $commentdata;
+	}
+	
+	// Does the supplied comment match the details of the one most recently stored with set_last_comment()?
+	public static function matches_last_comment( $comment ) {
+		if ( is_object( $comment ) )
+			$comment = (array) $comment;
+		
+		if ( is_array( $comment ) && !empty( self::$last_comment ) && is_array( self::$last_comment ) ) {
+			return ( isset( self::$last_comment['comment_post_ID'] ) 
+					&& intval( self::$last_comment['comment_post_ID'] ) == intval( $comment['comment_post_ID'] )
+					&& self::$last_comment['comment_author'] == $comment['comment_author']
+					&& self::$last_comment['comment_author_email'] == $comment['comment_author_email'] );
 		}
-		return null;
+		
+		return false;
 	}
 
 	private static function get_user_agent() {
@@ -487,28 +507,26 @@ class Akismet {
 	}
 
 	// filter handler used to return a spam result to pre_comment_approved
-	public static function comment_is_spam( $approved ) {
-		static $just_once = false;
-		if ( $just_once )
+	public static function comment_is_spam( $approved, $comment ) {	
+		// Only do this if it's the correct comment
+		if ( !self::matches_last_comment( $comment ) ) {
+			self::log( "comment_is_spam mismatched comment, returning unaltered $approved" );
 			return $approved;
+		}
 
 		// bump the counter here instead of when the filter is added to reduce the possibility of overcounting
 		if ( $incr = apply_filters('akismet_spam_count_incr', 1) )
 			update_option( 'akismet_spam_count', get_option('akismet_spam_count') + $incr );
 
-		// this is a one-shot deal
-		$just_once = true;
 		return 'spam';
 	}
 
-	public static function comment_needs_moderation( $approved ) {
-		static $just_once = false;
-		if ( $just_once )
+	public static function comment_needs_moderation( $approved, $comment ) {
+		// Only do this if it's the correct comment
+	    if ( !self::matches_last_comment( $comment ) ) {
 			return $approved;
-
-		// once only
-		$just_once = true;
-		return '0';
+		}    
+        return '0';
 	}
 
 	public static function _cmp_time( $a, $b ) {
@@ -540,46 +558,24 @@ class Akismet {
 			$http_host = $ip;
 		}
 
-		// use the WP HTTP class if it is available
-		if ( function_exists( 'wp_remote_post' ) ) {
-			$http_args = array(
-				'body'			=> $request,
-				'headers'		=> array(
-					'Content-Type'	=> 'application/x-www-form-urlencoded; charset=' . get_option( 'blog_charset' ),
-					'Host'			=> $host,
-					'User-Agent'	=> $akismet_ua
-				),
-				'httpversion'	=> '1.0',
-				'timeout'		=> 15
-			);
-			$akismet_url = "http://{$http_host}/1.1/{$path}";
-			$response = wp_remote_post( $akismet_url, $http_args );
-			Akismet::log( compact( 'akismet_url', 'http_args', 'response' ) );
-			if ( is_wp_error( $response ) )
-				return '';
+		$http_args = array(
+			'body' => $request,
+			'headers' => array(
+				'Content-Type' => 'application/x-www-form-urlencoded; charset=' . get_option( 'blog_charset' ),
+				'Host' => $host,
+				'User-Agent' => $akismet_ua,
+			),
+			'httpversion' => '1.0',
+			'timeout' => 15
+		);
 
-			return array( $response['headers'], $response['body'] );
-		} else {
-			$http_request  = "POST /1.1/{$path} HTTP/1.0\r\n";
-			$http_request .= "Host: {$host}\r\n";
-			$http_request .= 'Content-Type: application/x-www-form-urlencoded; charset=' . get_option('blog_charset') . "\r\n";
-			$http_request .= "Content-Length: {$content_length}\r\n";
-			$http_request .= "User-Agent: {$akismet_ua}\r\n";
-			$http_request .= "\r\n";
-			$http_request .= $request;
+		$akismet_url = "http://{$http_host}/1.1/{$path}";
+		$response = wp_remote_post( $akismet_url, $http_args );
+		Akismet::log( compact( 'akismet_url', 'http_args', 'response' ) );
+		if ( is_wp_error( $response ) )
+			return '';
 
-			$response = '';
-			if( false != ( $fs = @fsockopen( $http_host, self::API_PORT, $errno, $errstr, 10 ) ) ) {
-				fwrite( $fs, $http_request );
-
-				while ( !feof( $fs ) )
-					$response .= fgets( $fs, 1160 ); // One TCP-IP packet
-				fclose( $fs );
-				$response = explode( "\r\n\r\n", $response, 2 );
-			}
-			Akismet::log( compact( 'http_request', 'response' ) );
-			return $response;
-		}
+		return array( $response['headers'], $response['body'] );
 	}
 
 	// given a response from an API call like check_key_status(), update the alert code options if an alert is present.
@@ -650,9 +646,13 @@ p {
 	}
 
 	public static function view( $name, array $args = array() ) {
+		$args = apply_filters( 'akismet_view_arguments', $args, $name );
+		
 		foreach ( $args AS $key => $val ) {
 			$$key = $val;
 		}
+		
+		load_plugin_textdomain( 'akismet' );
 
 		$file = AKISMET__PLUGIN_DIR . 'views/'. $name . '.php';
 
@@ -665,7 +665,9 @@ p {
 	 */
 	public static function plugin_activation() {
 		if ( version_compare( $GLOBALS['wp_version'], AKISMET__MINIMUM_WP_VERSION, '<' ) ) {
-			$message = '<strong>'.sprintf(esc_html__( 'Akismet %s requires WordPress %s or higher.' ), AKISMET_VERSION, AKISMET__MINIMUM_WP_VERSION ).'</strong> '.sprintf(__('Please <a href="%1$s">upgrade WordPress</a> to a current version, or <a href="%2$s">downgrade to version 2.4 of the Akismet plugin</a>.'), 'http://codex.wordpress.org/Upgrading_WordPress', 'http://wordpress.org/extend/plugins/akismet/download/');
+			load_plugin_textdomain( 'akismet' );
+			
+			$message = '<strong>'.sprintf(esc_html__( 'Akismet %s requires WordPress %s or higher.' , 'akismet'), AKISMET_VERSION, AKISMET__MINIMUM_WP_VERSION ).'</strong> '.sprintf(__('Please <a href="%1$s">upgrade WordPress</a> to a current version, or <a href="%2$s">downgrade to version 2.4 of the Akismet plugin</a>.', 'akismet'), 'http://codex.wordpress.org/Upgrading_WordPress', 'http://wordpress.org/extend/plugins/akismet/download/');
 
 			Akismet::bail_on_activation( $message );
 		}
