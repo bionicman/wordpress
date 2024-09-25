@@ -30,7 +30,7 @@
 }
 
 #lost-connection-notice .spinner {
-	display: block;
+	visibility: visible;
 	float: left;
 	margin: 0 5px 0 0;
 }
@@ -289,19 +289,6 @@ ul.wp-tab-bar li {
 
 form#tags-filter {
 	position: relative;
-}
-
-/* Edit posts */
-td.post-title strong,
-td.plugin-title strong {
-	display: block;
-	margin-bottom: .2em;
-	font-size: 14px;
-}
-
-td.post-title p,
-td.plugin-title p {
-	margin: 6px 0;
 }
 
 /* Global classes */

@@ -161,10 +161,6 @@ body {
 	content: "\f341";
 }
 
-.rtl #customize-theme-controls .accordion-section-title:after {
-	content: "\f345";
-}
-
 #customize-theme-controls .accordion-section-content {
 	color: #555;
 	background: transparent;
@@ -491,6 +487,19 @@ h3.customize-section-title {
 .ios #customize-theme-controls .control-section.current-panel > h3.accordion-section-title {
 	-webkit-transition: right 0s;
 	transition: right 0s;
+}
+
+.wp-full-overlay.section-open #customize-controls .wp-full-overlay-sidebar-content {
+	visibility: hidden;
+	overflow-y: hidden;
+}
+
+.wp-full-overlay.section-open .wp-full-overlay-sidebar-content .accordion-section.open {
+	visibility: visible;
+}
+
+.wp-full-overlay.section-open .wp-full-overlay-sidebar-content .accordion-section.open .accordion-section-content {
+	overflow-y: auto;
 }
 
 p.customize-section-description {
