@@ -57,6 +57,20 @@ th {
 	font-size: inherit;
 }
 
+/* For emoji replacement images */
+img.emoji {
+	display: inline !important;
+	border: none !important;
+	height: 1em !important;
+	width: 1em !important;
+	margin: 0 .07em !important;
+	vertical-align: -0.1em !important;
+	background: none !important;
+	padding: 0 !important;
+	-webkit-box-shadow: none !important;
+	box-shadow: none !important;
+}
+
 /* DFW mode */
 html.wp-fullscreen,
 html.wp-fullscreen body#tinymce {
@@ -126,7 +140,7 @@ dl.wp-caption * {
 }
 
 /* Remove blue highlighting of selected images in WebKit */
-img::selection {
+img[data-mce-selected]::selection {
 	background-color: transparent;
 }
 
@@ -148,7 +162,7 @@ img::selection {
 	cursor: default;
 }
 
-.mce-content-body img[data-wp-more][data-mce-selected] {
+.mce-content-body img[data-mce-placeholder][data-mce-selected] {
 	outline: 1px dotted #888;
 }
 

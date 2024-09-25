@@ -621,8 +621,8 @@ function media_upload_form_handler() {
 	$errors = null;
 
 	if ( isset($_POST['send']) ) {
-		$keys = array_keys($_POST['send']);
-		$send_id = (int) array_shift($keys);
+		$keys = array_keys( $_POST['send'] );
+		$send_id = (int) reset( $keys );
 	}
 
 	if ( !empty($_POST['attachments']) ) foreach ( $_POST['attachments'] as $attachment_id => $attachment ) {
@@ -829,9 +829,10 @@ function wp_media_upload_handler() {
  * @param string $file The URL of the image to download
  * @param int $post_id The post ID the media is to be associated with
  * @param string $desc Optional. Description of the image
+ * @param string $return Optional. What to return: an image tag (default) or only the src.
  * @return string|WP_Error Populated HTML img tag on success
  */
-function media_sideload_image( $file, $post_id, $desc = null ) {
+function media_sideload_image( $file, $post_id, $desc = null, $return = 'html' ) {
 	if ( ! empty( $file ) ) {
 		// Set variables for storage, fix file filename for query strings.
 		preg_match( '/[^\?]+\.(jpe?g|jpe|gif|png)\b/i', $file, $matches );
@@ -860,9 +861,15 @@ function media_sideload_image( $file, $post_id, $desc = null ) {
 
 	// Finally check to make sure the file has been saved, then return the HTML.
 	if ( ! empty( $src ) ) {
+		if ( $return === 'src' ) {
+			return $src;
+		}
+
 		$alt = isset( $desc ) ? esc_attr( $desc ) : '';
 		$html = "<img src='$src' alt='$alt' />";
 		return $html;
+	} else {
+		return new WP_Error( 'image_sideload_failed' );
 	}
 }
 
@@ -1350,7 +1357,7 @@ function get_media_item( $attachment_id, $args = null ) {
 
 	$post_mime_types = get_post_mime_types();
 	$keys = array_keys( wp_match_mime_types( array_keys( $post_mime_types ), $post->post_mime_type ) );
-	$type = array_shift( $keys );
+	$type = reset( $keys );
 	$type_html = "<input type='hidden' id='type-of-$attachment_id' value='" . esc_attr( $type ) . "' />";
 
 	$form_fields = get_attachment_fields_to_edit( $post, $r['errors'] );

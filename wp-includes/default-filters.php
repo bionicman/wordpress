@@ -156,23 +156,23 @@ add_filter( 'list_cats',         'wptexturize' );
 add_filter( 'wp_sprintf', 'wp_sprintf_l', 10, 2 );
 
 // RSS filters
-add_filter( 'the_title_rss',      'strip_tags'      );
-add_filter( 'the_title_rss',      'ent2ncr',      8 );
-add_filter( 'the_title_rss',      'esc_html'        );
-add_filter( 'the_content_rss',    'ent2ncr',      8 );
-add_filter( 'the_content_feed',   'feed_emoji'      );
-add_filter( 'the_excerpt_rss',    'convert_chars'   );
-add_filter( 'the_excerpt_rss',    'ent2ncr',      8 );
-add_filter( 'comment_author_rss', 'ent2ncr',      8 );
-add_filter( 'comment_text_rss',   'ent2ncr',      8 );
-add_filter( 'comment_text_rss',   'esc_html'        );
-add_filter( 'comment_text_rss',   'feed_emoji'      );
-add_filter( 'bloginfo_rss',       'ent2ncr',      8 );
-add_filter( 'the_author',         'ent2ncr',      8 );
-add_filter( 'the_guid',           'esc_url'         );
+add_filter( 'the_title_rss',      'strip_tags'                    );
+add_filter( 'the_title_rss',      'ent2ncr',                    8 );
+add_filter( 'the_title_rss',      'esc_html'                      );
+add_filter( 'the_content_rss',    'ent2ncr',                    8 );
+add_filter( 'the_content_feed',   '_wp_staticize_emoji_for_feeds' );
+add_filter( 'the_excerpt_rss',    'convert_chars'                 );
+add_filter( 'the_excerpt_rss',    'ent2ncr',                    8 );
+add_filter( 'comment_author_rss', 'ent2ncr',                    8 );
+add_filter( 'comment_text_rss',   'ent2ncr',                    8 );
+add_filter( 'comment_text_rss',   'esc_html'                      );
+add_filter( 'comment_text_rss',   '_wp_staticize_emoji_for_feeds' );
+add_filter( 'bloginfo_rss',       'ent2ncr',                    8 );
+add_filter( 'the_author',         'ent2ncr',                    8 );
+add_filter( 'the_guid',           'esc_url'                       );
 
 // Email filters
-add_filter( 'wp_mail', 'mail_emoji' );
+add_filter( 'wp_mail', '_wp_staticize_emoji_for_email' );
 
 // Misc filters
 add_filter( 'option_ping_sites',        'privacy_ping_filter'                 );
@@ -254,7 +254,6 @@ add_action( 'sanitize_comment_cookies',   'sanitize_comment_cookies'            
 add_action( 'admin_print_scripts',        'print_head_scripts',                      20    );
 add_action( 'admin_print_footer_scripts', '_wp_footer_scripts'                             );
 add_action( 'admin_print_styles',         'print_admin_styles',                      20    );
-add_action( 'admin_print_styles',         'print_emoji_styles'                             );
 add_action( 'init',                       'smilies_init',                             5    );
 add_action( 'plugins_loaded',             'wp_maybe_load_widgets',                    0    );
 add_action( 'plugins_loaded',             'wp_maybe_load_embeds',                     0    );

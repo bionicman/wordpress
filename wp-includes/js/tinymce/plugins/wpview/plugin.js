@@ -173,19 +173,30 @@ tinymce.PluginManager.add( 'wpview', function( editor ) {
 			return;
 		}
 
-		if ( selected ) {
-			removeView( selected );
-		}
-
 		node = editor.selection.getNode();
 
 		// When a url is pasted, only try to embed it when pasted in an empty paragrapgh.
 		if ( event.content.match( /^\s*(https?:\/\/[^\s"]+)\s*$/i ) &&
 			( node.nodeName !== 'P' || node.parentNode !== editor.getBody() || ! editor.dom.isEmpty( node ) ) ) {
+
 			return;
 		}
 
 		event.content = wp.mce.views.setMarkers( event.content );
+	});
+
+	// When pasting strip all tags and check if the string is an URL.
+	// Then replace the pasted content with the cleaned URL.
+	editor.on( 'pastePreProcess', function( event ) {
+		var pastedStr = event.content;
+
+		if ( pastedStr ) {
+			pastedStr = tinymce.trim( pastedStr.replace( /<[^>]+>/g, '' ) );
+
+			if ( /^https?:\/\/\S+$/i.test( pastedStr ) ) {
+				event.content = pastedStr;
+			}
+		}
 	});
 
 	// When the editor's content has been updated and the DOM has been

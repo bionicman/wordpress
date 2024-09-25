@@ -18,6 +18,8 @@ class WP_Press_This {
 
 	private $embeds = array();
 
+	private $domain = '';
+
 	/**
 	 * Constructor.
 	 *
@@ -38,7 +40,7 @@ class WP_Press_This {
 		return array(
 			// Used to trigger the bookmarklet update notice.
 			// Needs to be set here and in get_shortcut_link() in wp-includes/link-template.php.
-			'version' => '7',
+			'version' => '8',
 
 			/**
 			 * Filter whether or not Press This should redirect the user in the parent window upon save.
@@ -58,60 +60,40 @@ class WP_Press_This {
 	 * @access public
 	 *
 	 * @param int    $post_id Post ID.
-	 * @param string $content Optional. Current expected markup for Press This. Default empty.
+	 * @param string $content Optional. Current expected markup for Press This. Expects slashed. Default empty.
 	 * @return string New markup with old image URLs replaced with the local attachment ones if swapped.
 	 */
 	public function side_load_images( $post_id, $content = '' ) {
-		$new_content = $content;
+		$content = wp_unslash( $content );
 
-		preg_match_all( '/<img [^>]+>/', $content, $matches );
-
-		if ( ! empty( $matches ) && current_user_can( 'upload_files' ) ) {
-			foreach ( (array) $matches[0] as $key => $image ) {
-				preg_match( '/src=["\']{1}([^"\']+)["\']{1}/', stripslashes( $image ), $url_matches );
-
-				if ( empty( $url_matches[1] ) ) {
+		if ( preg_match_all( '/<img [^>]+>/', $content, $matches ) && current_user_can( 'upload_files' ) ) {
+			foreach ( (array) $matches[0] as $image ) {
+				// This is inserted from our JS so HTML attributes should always be in double quotes.
+				if ( ! preg_match( '/src="([^"]+)"/', $image, $url_matches ) ) {
 					continue;
 				}
 
-				$image_url = $url_matches[1];
+				$image_src = $url_matches[1];
 
 				// Don't try to sideload a file without a file extension, leads to WP upload error.
-				if ( ! preg_match( '/[^\?]+\.(jpe?g|jpe|gif|png)\b/i', $image_url ) )
-					 continue;
+				if ( ! preg_match( '/[^\?]+\.(?:jpe?g|jpe|gif|png)(?:\?|$)/i', $image_src ) ) {
+					continue;
+				}
 
-				// See if files exist in content - we don't want to upload non-used selected files.
-				if ( false !== strpos( $new_content, htmlspecialchars( $image_url ) ) ) {
+				// Sideload image, which gives us a new image src.
+				$new_src = media_sideload_image( $image_src, $post_id, null, 'src' );
 
-					// Sideload image, which ives us a new image tag, strip the empty alt that comes with it.
-					$upload = str_replace( ' alt=""', '', media_sideload_image( $image_url, $post_id ) );
-
-					// Preserve assigned class, id, width, height and alt attributes.
-					if ( preg_match_all( '/(class|width|height|id|alt)=\\\?(\"|\')[^"\']+\\\?(\2)/', $image, $attr_matches )
-					     && is_array( $attr_matches[0] )
-					) {
-						foreach ( $attr_matches[0] as $attr ) {
-							$upload = str_replace( '<img', '<img ' . $attr, $upload );
-						}
-					}
-
-					/*
-					 * Replace the POSTED content <img> with correct uploaded ones.
-					 * Regex contains fix for Magic Quotes.
-					 */
-					if ( ! is_wp_error( $upload ) ) {
-						$new_content = str_replace( $image, $upload, $new_content );
-					}
+				if ( ! is_wp_error( $new_src ) ) {
+					// Replace the POSTED content <img> with correct uploaded ones.
+					// Need to do it in two steps so we don't replace links to the original image if any.
+					$new_image = str_replace( $image_src, $new_src, $image );
+					$content = str_replace( $image, $new_image, $content );
 				}
 			}
 		}
 
-		// Error handling for media_sideload, send original content back.
-		if ( is_wp_error( $new_content ) ) {
-			return $content;
-		}
-
-		return $new_content;
+		// Edxpected slashed
+		return wp_slash( $content );
 	}
 
 	/**
@@ -150,11 +132,7 @@ class WP_Press_This {
 			}
 		}
 
-		$new_content = $this->side_load_images( $post_id, $post['post_content'] );
-
-		if ( ! is_wp_error( $new_content ) ) {
-			$post['post_content'] = $new_content;
-		}
+		$post['post_content'] = $this->side_load_images( $post_id, $post['post_content'] );
 
 		$updated = wp_update_post( $post, true );
 
@@ -349,6 +327,16 @@ class WP_Press_This {
 
 		// Does it look like an URL?
 		if ( ! preg_match( '/^([!#$&-;=?-\[\]_a-z~]|%[0-9a-fA-F]{2})+$/', $url ) ) {
+			return '';
+		}
+
+		// If the URL is root-relative, prepend the protocol and domain name
+		if ( $url && $this->domain && preg_match( '%^/[^/]+%', $url ) ) {
+			$url = $this->domain . $url;
+		}
+
+		// Not absolute or protocol-relative URL.
+		if ( ! preg_match( '%^(?:https?:)?//[^/]+%', $url ) ) {
 			return '';
 		}
 
@@ -597,6 +585,10 @@ class WP_Press_This {
 
 			if ( 'u' === $key ) {
 				$value = $this->_limit_url( $value );
+
+				if ( preg_match( '%^(?:https?:)?//[^/]+%i', $value, $domain_match ) ) {
+					$this->domain = $domain_match[0];
+				}
 			} else {
 				$value = $this->_limit_string( $value );
 			}
@@ -786,16 +778,21 @@ class WP_Press_This {
 				</div>
 				<button type="button" class="add-cat-submit"><?php _e( 'Add' ); ?></button>
 			</div>
-		<?php } ?>
+			<?php
+
+		}
+		?>
 		<div class="categories-search-wrapper">
 			<input id="categories-search" type="search" class="categories-search" placeholder="<?php esc_attr_e( 'Search categories by name' ) ?>">
 			<label for="categories-search">
 				<span class="dashicons dashicons-search"></span><span class="screen-reader-text"><?php _e( 'Search categories' ); ?></span>
 			</label>
 		</div>
-		<ul class="categories-select" aria-label="<?php esc_attr_e( 'Categories' ); ?>">
-			<?php wp_terms_checklist( $post->ID, array( 'taxonomy' => 'category' ) ); ?>
-		</ul>
+		<div role="application" aria-label="<?php esc_attr_e( 'Categories' ); ?>">
+			<ul class="categories-select">
+				<?php wp_terms_checklist( $post->ID, array( 'taxonomy' => 'category', 'list_only' => true ) ); ?>
+			</ul>
+		</div>
 		<?php
 	}
 
@@ -815,29 +812,34 @@ class WP_Press_This {
 		if ( ! $esc_tags || is_wp_error( $esc_tags ) ) {
 			$esc_tags = '';
 		}
+
 		?>
 		<div class="tagsdiv" id="post_tag">
 			<div class="jaxtag">
 			<input type="hidden" name="tax_input[post_tag]" class="the-tags" value="<?php echo $esc_tags; // escaped in get_terms_to_edit() ?>">
-
 		 	<?php
+
 			if ( $user_can_assign_terms ) {
 				?>
 				<div class="ajaxtag hide-if-no-js">
 					<label class="screen-reader-text" for="new-tag-post_tag"><?php _e( 'Tags' ); ?></label>
 					<p>
-						<input type="text" id="new-tag-post_tag" name="newtag[post_tag]" class="newtag form-input-tip" size="16" autocomplete="off" value="" />
+						<input type="text" id="new-tag-post_tag" name="newtag[post_tag]" class="newtag form-input-tip" size="16" autocomplete="off" value="" aria-describedby="new-tag-desc" />
 						<button type="button" class="tagadd"><?php _e( 'Add' ); ?></button>
 					</p>
 				</div>
-				<p class="howto">
+				<p class="howto" id="new-tag-desc">
 					<?php echo $taxonomy->labels->separate_items_with_commas; ?>
 				</p>
-			<?php } ?>
+				<?php
+			}
+
+			?>
 			</div>
 			<div class="tagchecklist"></div>
 		</div>
 		<?php
+
 		if ( $user_can_assign_terms ) {
 			?>
 			<button type="button" class="button-reset button-link tagcloud-link" id="link-post_tag"><?php echo $taxonomy->labels->choose_from_most_used; ?></button>
@@ -993,13 +995,29 @@ class WP_Press_This {
 			} else if ( ! empty( $data['_meta']['description'] ) ) {
 				$text = $data['_meta']['description'];
 			}
+
+			// If there is an ellipsis at the end, the description is very likely auto-generated. Better to ignore it.
+			if ( $text && substr( $text, -3 ) === '...' ) {
+				$text = '';
+			}
 		}
 
-		$default_html = array(
-			'quote' => '<blockquote>%1$s</blockquote>',
-			'link' => '<p>' . _x( 'Source:', 'Used in Press This to indicate where the content comes from.' ) .
-				' <em><a href="%1$s">%2$s</a></em></p>',
-		);
+		require_once( ABSPATH . WPINC . '/class-oembed.php' );
+		$oembed = _wp_oembed_get_object();
+
+		if ( ! empty( $data['u'] ) && $oembed->get_provider( $data['u'], array( 'discover' => false ) ) ) {
+			$default_html = array(
+				'quote' => '',
+				'link' => '',
+				'embed' => '<p>[embed]' . $data['u'] . '[/embed]</p>',
+			);
+		} else {
+			$default_html = array(
+				'quote' => '<blockquote>%1$s</blockquote>',
+				'link' => '<p>' . _x( 'Source:', 'Used in Press This to indicate where the content comes from.' ) .
+					' <em><a href="%1$s">%2$s</a></em></p>',
+			);
+		}
 
 		/**
 		 * Filter the default HTML for the Press This editor.
@@ -1011,9 +1029,13 @@ class WP_Press_This {
 		 */
 		$default_html = apply_filters( 'press_this_suggested_html', $default_html, $data );
 
+		if ( ! empty( $default_html['embed'] ) ) {
+			$content .= $default_html['embed'];
+		}
+
 		// Wrap suggested content in the specified HTML.
 		if ( ! empty( $default_html['quote'] ) ) {
-			$content = sprintf( $default_html['quote'], $text );
+			$content .= sprintf( $default_html['quote'], $text );
 		}
 
 		// Add source attribution if there is one available.
@@ -1172,8 +1194,10 @@ class WP_Press_This {
 <body class="wp-admin wp-core-ui <?php echo $admin_body_classes . ' ' . $admin_body_class; ?>">
 	<div id="adminbar" class="adminbar">
 		<h1 id="current-site" class="current-site">
-			<span class="dashicons dashicons-wordpress"></span>
-			<span><?php bloginfo( 'name' ); ?></span>
+			<a class="current-site-link" href="<?php echo esc_url( home_url( '/' ) ); ?>" target="_blank" rel="home">
+				<span class="dashicons dashicons-wordpress"></span>
+				<span class="current-site-name"><?php bloginfo( 'name' ); ?></span>
+			</a>
 		</h1>
 		<button type="button" class="options-open button-subtle">
 			<span class="dashicons dashicons-tag"></span><span class="screen-reader-text"><?php _e( 'Show post options' ); ?></span>
@@ -1210,12 +1234,14 @@ class WP_Press_This {
 				</p>
 			</div>
 
-			<div id='app-container' class="editor">
+			<div id="app-container" class="editor">
 				<span id="title-container-label" class="post-title-placeholder" aria-hidden="true"><?php _e( 'Post title' ); ?></span>
 				<h2 id="title-container" class="post-title" contenteditable="true" spellcheck="true" aria-label="<?php esc_attr_e( 'Post title' ); ?>" tabindex="0"><?php echo esc_html( $post_title ); ?></h2>
-				<div id='featured-media-container' class="featured-container no-media">
-					<div id='all-media-widget' class="all-media">
-						<div id='all-media-container'></div>
+
+				<div class="media-list-container">
+					<div class="media-list-inner-container">
+						<h2 class="screen-reader-text"><?php _e( 'Suggested media' ); ?></h2>
+						<ul class="media-list"></ul>
 					</div>
 				</div>
 
@@ -1311,7 +1337,7 @@ class WP_Press_This {
 		<div class="post-actions">
 			<button type="button" class="button-subtle draft-button"><?php _e( 'Save Draft' ); ?></button>
 			<button type="button" class="button-subtle preview-button"><?php _e( 'Preview' ); ?></button>
-			<button type="button" class="button-primary publish-button"><?php _e( 'Publish' ); ?></button>
+			<button type="button" class="button-primary publish-button"><?php echo ( current_user_can( 'publish_posts' ) ) ? __( 'Publish' ) : __( 'Submit for Review' ); ?></button>
 		</div>
 	</div>
 	</form>
