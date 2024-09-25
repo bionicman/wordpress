@@ -7,7 +7,7 @@
  * @since 3.4.0
  */
 
-final class WP_Customize {
+final class WP_Customize_Manager {
 	protected $theme;
 	protected $original_stylesheet;
 
@@ -32,8 +32,18 @@ final class WP_Customize {
 		require( ABSPATH . WPINC . '/class-wp-customize-control.php' );
 
 		add_action( 'setup_theme',  array( $this, 'setup_theme' ) );
-		add_action( 'admin_init',   array( $this, 'admin_init' ) );
 		add_action( 'wp_loaded',    array( $this, 'wp_loaded' ) );
+
+		// Run wp_redirect_status late to make sure we override the status last.
+		add_action( 'wp_redirect_status', array( $this, 'wp_redirect_status' ), 1000 );
+
+		// Do not spawn cron (especially the alternate cron) while running the customizer.
+		remove_action( 'init', 'wp_cron' );
+
+		// Do not run update checks when rendering the controls.
+		remove_action( 'admin_init', '_maybe_update_core' );
+		remove_action( 'admin_init', '_maybe_update_plugins' );
+		remove_action( 'admin_init', '_maybe_update_themes' );
 
 		add_action( 'wp_ajax_customize_save', array( $this, 'save' ) );
 
@@ -68,8 +78,10 @@ final class WP_Customize {
 	 * @since 3.4.0
 	 */
 	public function setup_theme() {
-		if ( ! isset( $_REQUEST['customize'] ) || 'on' != $_REQUEST['customize'] )
+		if ( ! ( isset( $_REQUEST['customize'] ) && 'on' == $_REQUEST['customize'] ) && ! basename( $_SERVER['PHP_SELF'] ) == 'customize.php' )
 			return;
+
+		send_origin_headers();
 
 		$this->start_previewing_theme();
 		show_admin_bar( false );
@@ -88,7 +100,7 @@ final class WP_Customize {
 
 		// Initialize $theme and $original_stylesheet if they do not yet exist.
 		if ( ! isset( $this->theme ) ) {
-			$this->theme = wp_get_theme( $_REQUEST['theme'] );
+			$this->theme = wp_get_theme( isset( $_REQUEST['theme'] ) ? $_REQUEST['theme'] : null );
 			if ( ! $this->theme->exists() ) {
 				$this->theme = false;
 				return;
@@ -143,6 +155,61 @@ final class WP_Customize {
 	}
 
 	/**
+	 * Get the theme being customized.
+	 *
+	 * @since 3.4.0
+	 *
+	 * @return WP_Theme
+	 */
+	public function theme() {
+		return $this->theme;
+	}
+
+	/**
+	 * Get the registered settings.
+	 *
+	 * @since 3.4.0
+	 *
+	 * @return array
+	 */
+	public function settings() {
+		return $this->settings;
+	}
+
+	/**
+	 * Get the registered controls.
+	 *
+	 * @since 3.4.0
+	 *
+	 * @return array
+	 */
+	public function controls() {
+		return $this->controls;
+	}
+
+	/**
+	 * Get the registered sections.
+	 *
+	 * @since 3.4.0
+	 *
+	 * @return array
+	 */
+	public function sections() {
+		return $this->sections;
+	}
+
+	/**
+	 * Checks if the current theme is active.
+	 *
+	 * @since 3.4.0
+	 *
+	 * @return bool
+	 */
+	public function is_theme_active() {
+		return $this->get_stylesheet() == $this->original_stylesheet;
+	}
+
+	/**
 	 * Register styles/scripts and initialize the preview of each setting
 	 *
 	 * @since 3.4.0
@@ -152,6 +219,21 @@ final class WP_Customize {
 
 		if ( $this->is_preview() && ! is_admin() )
 			$this->customize_preview_init();
+	}
+
+	/**
+	 * Prevents AJAX requests from following redirects when previewing a theme
+	 * by issuing a 200 response instead of a 30x.
+	 *
+	 * Instead, the JS will sniff out the location header.
+	 *
+	 * @since 3.4.0
+	 */
+	public function wp_redirect_status( $status ) {
+		if ( $this->is_preview() && ! is_admin() )
+			return 200;
+
+		return $status;
 	}
 
 	/**
@@ -171,7 +253,6 @@ final class WP_Customize {
 			return $setting->sanitize( $this->_post_values[ $setting->id ] );
 	}
 
-
 	/**
 	 * Print javascript settings.
 	 *
@@ -181,7 +262,10 @@ final class WP_Customize {
 		$this->prepare_controls();
 
 		wp_enqueue_script( 'customize-preview' );
+		add_action( 'wp_head', array( $this, 'customize_preview_base' ) );
 		add_action( 'wp_footer', array( $this, 'customize_preview_settings' ), 20 );
+		add_action( 'shutdown', array( $this, 'customize_preview_signature' ), 1000 );
+		add_filter( 'wp_die_handler', array( $this, 'remove_preview_signature' ) );
 
 		foreach ( $this->settings as $setting ) {
 			$setting->preview();
@@ -190,33 +274,54 @@ final class WP_Customize {
 		do_action( 'customize_preview_init', $this );
 	}
 
+	/**
+	 * Print base element for preview frame.
+	 *
+	 * @since 3.4.0
+	 */
+	public function customize_preview_base() {
+		?><base href="<?php echo home_url( '/' ); ?>" /><?php
+	}
 
 	/**
-	 * Print javascript settings.
+	 * Print javascript settings for preview frame.
 	 *
 	 * @since 3.4.0
 	 */
 	public function customize_preview_settings() {
 		$settings = array(
-			// @todo: Perhaps grab the URL via $_POST?
-			'parent' => esc_url( admin_url( 'themes.php' ) ),
 			'values' => array(),
 		);
 
 		foreach ( $this->settings as $id => $setting ) {
-			$settings['values'][ $id ] = $setting->value();
+			$settings['values'][ $id ] = $setting->js_value();
 		}
 
 		?>
 		<script type="text/javascript">
-			(function() {
-				if ( typeof wp === 'undefined' || ! wp.customize )
-					return;
-
-				wp.customize.settings = <?php echo json_encode( $settings ); ?>;
-			})();
+			var _wpCustomizeSettings = <?php echo json_encode( $settings ); ?>;
 		</script>
 		<?php
+	}
+
+	/**
+	 * Prints a signature so we can ensure the customizer was properly executed.
+	 *
+	 * @since 3.4.0
+	 */
+	public function customize_preview_signature() {
+		echo 'WP_CUSTOMIZER_SIGNATURE';
+	}
+
+	/**
+	 * Removes the signature in case we experience a case where the customizer was not properly executed.
+	 *
+	 * @since 3.4.0
+	 */
+	public function remove_preview_signature( $return = null ) {
+		remove_action( 'shutdown', array( $this, 'customize_preview_signature' ), 1000 );
+
+		return $return;
 	}
 
 	/**
@@ -283,32 +388,6 @@ final class WP_Customize {
 	 */
 	public function current_theme( $current_theme ) {
 		return $this->theme->display('Name');
-	}
-
-	/**
-	 * Trigger save action and load customize controls.
-	 *
-	 * @since 3.4.0
-	 */
-	public function admin_init() {
-		if ( ( defined( 'DOING_AJAX' ) && DOING_AJAX ) )
-			return;
-
-		if ( ! isset( $_GET['customize'] ) || 'on' != $_GET['customize'] )
-			return;
-
-		if ( empty( $_GET['theme'] ) )
-			return;
-
-		if ( ! $this->is_preview() )
-			return;
-
-		if ( ! current_user_can( 'edit_theme_options' ) )
-			return;
-
-		include( ABSPATH . WPINC . '/customize-controls.php' );
-
-		die;
 	}
 
 	/**
@@ -551,35 +630,88 @@ final class WP_Customize {
 	 */
 	public function register_controls() {
 
-		/* Custom Header */
+		/* Site Title & Tagline */
 
-		$this->add_section( 'header', array(
-			'title'          => __( 'Header' ),
-			'theme_supports' => 'custom-header',
-			'priority'       => 20,
+		$this->add_section( 'title_tagline', array(
+			'title'    => __( 'Site Title & Tagline' ),
+			'priority' => 20,
+		) );
+
+		$this->add_setting( 'blogname', array(
+			'default'    => get_option( 'blogname' ),
+			'type'       => 'option',
+			'capability' => 'manage_options',
+		) );
+
+		$this->add_control( 'blogname', array(
+			'label'      => __( 'Site Title' ),
+			'section'    => 'title_tagline',
+		) );
+
+		$this->add_setting( 'blogdescription', array(
+			'default'    => get_option( 'blogdescription' ),
+			'type'       => 'option',
+			'capability' => 'manage_options',
+		) );
+
+		$this->add_control( 'blogdescription', array(
+			'label'      => __( 'Tagline' ),
+			'section'    => 'title_tagline',
+		) );
+
+		/* Colors */
+
+		$this->add_section( 'colors', array(
+			'title'          => __( 'Colors' ),
+			'priority'       => 40,
 		) );
 
 		$this->add_setting( 'header_textcolor', array(
-			// @todo: replace with a new accept() setting method
-			// 'sanitize_callback' => 'sanitize_hexcolor',
 			'theme_supports' => array( 'custom-header', 'header-text' ),
 			'default'        => get_theme_support( 'custom-header', 'default-text-color' ),
+
+			'sanitize_callback'    => array( $this, '_sanitize_header_textcolor' ),
+			'sanitize_js_callback' => 'maybe_hash_hex_color',
 		) );
 
+		// Input type: checkbox
+		// With custom value
 		$this->add_control( 'display_header_text', array(
 			'settings' => 'header_textcolor',
 			'label'    => __( 'Display Header Text' ),
-			'section'  => 'header',
+			'section'  => 'title_tagline',
 			'type'     => 'checkbox',
 		) );
 
 		$this->add_control( new WP_Customize_Color_Control( $this, 'header_textcolor', array(
-			'label'   => __( 'Text Color' ),
-			'section' => 'header',
+			'label'   => __( 'Header Text Color' ),
+			'section' => 'colors',
 		) ) );
 
-		// Input type: checkbox
-		// With custom value
+		// Input type: Color
+		// With sanitize_callback
+		$this->add_setting( 'background_color', array(
+			'default'        => get_theme_support( 'custom-background', 'default-color' ),
+			'theme_supports' => 'custom-background',
+
+			'sanitize_callback'    => 'sanitize_hex_color_no_hash',
+			'sanitize_js_callback' => 'maybe_hash_hex_color',
+		) );
+
+		$this->add_control( new WP_Customize_Color_Control( $this, 'background_color', array(
+			'label'   => __( 'Background Color' ),
+			'section' => 'colors',
+		) ) );
+
+
+		/* Custom Header */
+
+		$this->add_section( 'header_image', array(
+			'title'          => __( 'Header Image' ),
+			'theme_supports' => 'custom-header',
+			'priority'       => 60,
+		) );
+
 		$this->add_setting( 'header_image', array(
 			'default'        => get_theme_support( 'custom-header', 'default-image' ),
 			'theme_supports' => 'custom-header',
@@ -589,36 +721,18 @@ final class WP_Customize {
 
 		/* Custom Background */
 
-		$this->add_section( 'background', array(
-			'title'          => __( 'Background' ),
+		$this->add_section( 'background_image', array(
+			'title'          => __( 'Background Image' ),
 			'theme_supports' => 'custom-background',
-			'priority'       => 30,
+			'priority'       => 80,
 		) );
-
-		// Input type: Color
-		// With sanitize_callback
-		$this->add_setting( 'background_color', array(
-			'default'           => get_theme_support( 'custom-background', 'default-color' ),
-			'sanitize_callback' => 'sanitize_hexcolor',
-			'theme_supports'    => 'custom-background',
-			'transport'         => 'postMessage',
-		) );
-
-		$this->add_control( new WP_Customize_Color_Control( $this, 'background_color', array(
-			'label'   => __( 'Background Color' ),
-			'section' => 'background',
-		) ) );
 
 		$this->add_setting( 'background_image', array(
 			'default'        => get_theme_support( 'custom-background', 'default-image' ),
 			'theme_supports' => 'custom-background',
 		) );
 
-		$this->add_control( new WP_Customize_Image_Control( $this, 'background_image', array(
-			'label'          => __( 'Background Image' ),
-			'section'        => 'background',
-			'context'        => 'custom-background',
-		) ) );
+		$this->add_control( new WP_Customize_Background_Image_Control( $this ) );
 
 		$this->add_setting( 'background_repeat', array(
 			'default'        => 'repeat',
@@ -627,7 +741,7 @@ final class WP_Customize {
 
 		$this->add_control( 'background_repeat', array(
 			'label'      => __( 'Background Repeat' ),
-			'section'    => 'background',
+			'section'    => 'background_image',
 			'type'       => 'radio',
 			'choices'    => array(
 				'no-repeat'  => __('No Repeat'),
@@ -644,7 +758,7 @@ final class WP_Customize {
 
 		$this->add_control( 'background_position_x', array(
 			'label'      => __( 'Background Position' ),
-			'section'    => 'background',
+			'section'    => 'background_image',
 			'type'       => 'radio',
 			'choices'    => array(
 				'left'       => __('Left'),
@@ -660,13 +774,21 @@ final class WP_Customize {
 
 		$this->add_control( 'background_attachment', array(
 			'label'      => __( 'Background Attachment' ),
-			'section'    => 'background',
+			'section'    => 'background_image',
 			'type'       => 'radio',
 			'choices'    => array(
 				'fixed'      => __('Fixed'),
 				'scroll'     => __('Scroll'),
 			),
 		) );
+
+		// If the theme is using the default background callback, we can update
+		// the background CSS using postMessage.
+		if ( get_theme_support( 'custom-background', 'wp-head-callback' ) === '_custom_background_cb' ) {
+			foreach ( array( 'color', 'image', 'position_x', 'repeat', 'attachment' ) as $prop ) {
+				$this->get_setting( 'background_' . $prop )->transport = 'postMessage';
+			}
+		}
 
 		/* Nav Menus */
 
@@ -678,7 +800,7 @@ final class WP_Customize {
 		$this->add_section( 'nav', array(
 			'title'          => __( 'Navigation' ),
 			'theme_supports' => 'menus',
-			'priority'       => 40,
+			'priority'       => 100,
 			'description'    => sprintf( _n('Your theme supports %s menu. Select which menu you would like to use.', 'Your theme supports %s menus. Select which menu appears in each location.', $num_locations ), number_format_i18n( $num_locations ) ) . "\n\n" . __('You can edit your menu content on the Menus screen in the Appearance section.'),
 		) );
 
@@ -713,7 +835,7 @@ final class WP_Customize {
 		$this->add_section( 'static_front_page', array(
 			'title'          => __( 'Static Front Page' ),
 		//	'theme_supports' => 'static-front-page',
-			'priority'       => 50,
+			'priority'       => 120,
 			'description'    => __( 'Your theme supports a static front page.' ),
 		) );
 
@@ -757,44 +879,70 @@ final class WP_Customize {
 			'section'    => 'static_front_page',
 			'type'       => 'dropdown-pages',
 		) );
+	}
 
-		/* Site Title & Tagline */
-
-		$this->add_section( 'strings', array(
-			'title'    => __( 'Site Title & Tagline' ),
-			'priority' => 5,
-		) );
-
-		$this->add_setting( 'blogname', array(
-			'default'    => get_option( 'blogname' ),
-			'type'       => 'option',
-			'capability' => 'manage_options',
-		) );
-
-		$this->add_control( 'blogname', array(
-			'label'      => __( 'Site Title' ),
-			'section'    => 'strings',
-		) );
-
-		$this->add_setting( 'blogdescription', array(
-			'default'    => get_option( 'blogdescription' ),
-			'type'       => 'option',
-			'capability' => 'manage_options',
-		) );
-
-		$this->add_control( 'blogdescription', array(
-			'label'      => __( 'Tagline' ),
-			'section'    => 'strings',
-		) );
+	/**
+	 * Callback for validating the header_textcolor value.
+	 *
+	 * Accepts 'blank', and otherwise uses sanitize_hex_color_no_hash().
+	 *
+	 * @since 3.4.0
+	 */
+	public function _sanitize_header_textcolor( $color ) {
+		return ( 'blank' === $color ) ? 'blank' : sanitize_hex_color_no_hash( $color );
 	}
 };
 
-// Callback function for sanitizing a hex color
-function sanitize_hexcolor( $color ) {
-	$color = preg_replace( '/[^0-9a-fA-F]/', '', $color );
+/**
+ * Validates a hex color.
+ *
+ * Returns either '', a 3 or 6 digit hex color (with #), or null.
+ * For validating values without a #, see sanitize_hex_color_no_hash().
+ *
+ * @since 3.4.0
+ */
+function sanitize_hex_color( $color ) {
+	if ( '' === $color )
+		return '';
 
-	if ( preg_match('|[A-Fa-f0-9]{3,6}|', $color ) )
+	// 3 or 6 hex digits, or the empty string.
+	if ( preg_match('|^#([A-Fa-f0-9]{3}){1,2}$|', $color ) )
 		return $color;
+
+	return null;
+}
+
+/**
+ * Sanitizes a hex color without a hash. Use sanitize_hex_color() when possible.
+ *
+ * Saving hex colors without a hash puts the burden of adding the hash on the
+ * UI, which makes it difficult to use or upgrade to other color types such as
+ * rgba, hsl, rgb, and html color names.
+ *
+ * Returns either '', a 3 or 6 digit hex color (without a #), or null.
+ *
+ * @since 3.4.0
+ */
+function sanitize_hex_color_no_hash( $color ) {
+	$color = ltrim( $color, '#' );
+
+	if ( '' === $color )
+		return '';
+
+	return sanitize_hex_color( '#' . $color ) ? $color : null;
+}
+
+/**
+ * Ensures that any hex color is properly hashed.
+ * Otherwise, returns value untouched.
+ *
+ * This method should only be necessary if using sanitize_hex_color_no_hash().
+ *
+ * @since 3.4.0
+ */
+function maybe_hash_hex_color( $color ) {
+	if ( $unhashed = sanitize_hex_color_no_hash( $color ) )
+		return '#' . $unhashed;
 
 	return $color;
 }

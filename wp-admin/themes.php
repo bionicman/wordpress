@@ -38,12 +38,12 @@ $parent_file = 'themes.php';
 if ( current_user_can( 'switch_themes' ) ) :
 
 $help_manage = '<p>' . __('Aside from the default theme included with your WordPress installation, themes are designed and developed by third parties.') . '</p>' .
-	'<p>' . __('You can see your active theme at the top of the screen. Below are the other themes you have installed that are not currently in use. You can see what your site would look like with one of these themes by clicking the Preview link. To change themes, click the Activate link.') . '</p>';
+	'<p>' . __('You can see your active theme at the top of the screen. Below are the other themes you have installed that are not currently in use. You can see what your site would look like with one of these themes by clicking the Customize link (see "Previewing and Customizing", below). To change themes, click the Activate link.') . '</p>';
 
 get_current_screen()->add_help_tab( array(
 	'id'      => 'overview',
 	'title'   => __('Overview'),
-	'content' => $help_manage,
+	'content' => $help_manage
 ) );
 
 if ( current_user_can( 'install_themes' ) ) {
@@ -56,7 +56,21 @@ if ( current_user_can( 'install_themes' ) ) {
 	get_current_screen()->add_help_tab( array(
 		'id'      => 'adding-themes',
 		'title'   => __('Adding Themes'),
-		'content' => $help_install,
+		'content' => $help_install
+	) );
+}
+
+if ( current_user_can( 'edit_theme_options' ) ) {
+	$help_customize =
+		'<p>' . __('Click on the "Customize" link under any theme to preview that theme and change theme options in a separate, full-screen view. Any installed theme can be previewed and customized in this way.') . '</p>'.
+		'<p>' . __('The theme being previewed is fully interactive &mdash; navigate to different pages to see how the theme handles posts, archives, and other page templates.') . '</p>' .
+		'<p>' . __('In the left-hand pane of the Theme Customizer you can edit the theme settings. The settings will differ, depending on what theme features the theme being previewed supports. To accept the new settings and activate the theme all in one step, click the "Save and Activate" button at the bottom of the left-hand sidebar.') . '</p>' .
+		'<p>' . __('When previewing on smaller monitors, you can use the "Collapse" icon at the bottom of the left-hand pane. This will hide the pane, giving you more room to preview your site in the new theme. To bring the pane back, click on the Collapse icon again.') . '</p>';
+
+	get_current_screen()->add_help_tab( array(
+		'id'		=> 'customize-preview-themes',
+		'title'		=> __('Previewing and Customizing'),
+		'content'	=> $help_customize
 	) );
 }
 
@@ -101,10 +115,15 @@ $ct = wp_get_theme();
 $screenshot = $ct->get_screenshot();
 $class = $screenshot ? 'has-screenshot' : '';
 
+$customize_title = sprintf( __( 'Customize &#8220;%s&#8221;' ), $ct->display('Name') );
+
 ?>
 <div id="current-theme" class="<?php echo esc_attr( $class ); ?>">
 	<?php if ( $screenshot ) : ?>
-		<img src="<?php echo esc_url( $screenshot ); ?>" alt="<?php esc_attr_e( 'Current theme preview' ); ?>" />
+		<a href="<?php echo wp_customize_url(); ?>" class="load-customize hide-if-no-customize" title="<?php echo esc_attr( $customize_title ); ?>">
+			<img src="<?php echo esc_url( $screenshot ); ?>" alt="<?php esc_attr_e( 'Current theme preview' ); ?>" />
+		</a>
+		<img class="hide-if-customize" src="<?php echo esc_url( $screenshot ); ?>" alt="<?php esc_attr_e( 'Current theme preview' ); ?>" />
 	<?php endif; ?>
 
 	<h3><?php _e('Current Theme'); ?></h3>
@@ -122,7 +141,7 @@ $class = $screenshot ? 'has-screenshot' : '';
 	</div>
 
 <div class="theme-options">
-	<a href="<?php echo wp_customize_url( $ct->get_stylesheet() ); ?>" class="load-customize hide-if-no-customize" title="<?php echo esc_attr( sprintf( __( 'Customize &#8220;%s&#8221;' ), $ct->display('Name') ) ); ?>"><?php _e( 'Customize' )?></a>
+	<a id="customize-current-theme-link" href="<?php echo wp_customize_url(); ?>" class="load-customize hide-if-no-customize" title="<?php echo esc_attr( $customize_title ); ?>"><?php _e( 'Customize' )?></a>
 	<span><?php _e( 'Options:' )?></span>
 	<?php
 	// Pretend you didn't see this.
@@ -171,11 +190,11 @@ if ( ! current_user_can( 'switch_themes' ) ) {
 }
 ?>
 
+<form class="search-form filter-form" action="" method="get">
+
 <h3 class="available-themes"><?php _e('Available Themes'); ?></h3>
 
 <?php if ( !empty( $_REQUEST['s'] ) || !empty( $_REQUEST['features'] ) || $wp_list_table->has_items() ) : ?>
-
-<form class="search-form filter-form" action="" method="get">
 
 <p class="search-box">
 	<label class="screen-reader-text" for="theme-search-input"><?php _e('Search Installed Themes'); ?>:</label>
@@ -183,8 +202,6 @@ if ( ! current_user_can( 'switch_themes' ) ) {
 	<?php submit_button( __( 'Search Installed Themes' ), 'button', false, false, array( 'id' => 'search-submit' ) ); ?>
 	<a id="filter-click" href="?filter=1"><?php _e( 'Feature Filter' ); ?></a>
 </p>
-
-<br class="clear"/>
 
 <div id="filter-box" style="<?php if ( empty($_REQUEST['filter']) ) echo 'display: none;'; ?>">
 <?php $feature_list = get_theme_feature_list(); ?>
@@ -224,9 +241,9 @@ if ( ! current_user_can( 'switch_themes' ) ) {
 	<br class="clear"/>
 </div>
 
-<br class="clear" />
-
 <?php endif; ?>
+
+<br class="clear" />
 
 <?php $wp_list_table->display(); ?>
 

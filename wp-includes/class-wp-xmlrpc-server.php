@@ -493,7 +493,7 @@ class wp_xmlrpc_server extends IXR_Server {
 	/**
 	 * Checks if the method received at least the minimum number of arguments.
 	 *
-	 * @since 3.4
+	 * @since 3.4.0
 	 *
 	 * @param string|array $args Sanitize single string or array of strings.
 	 * @param int $count Minimum number of arguments.
@@ -569,7 +569,7 @@ class wp_xmlrpc_server extends IXR_Server {
 	 *
 	 * @access protected
 	 *
-	 * @param $date
+	 * @param string $date
 	 * @return IXR_Date
 	 */
 	protected function _convert_date( $date ) {
@@ -580,11 +580,12 @@ class wp_xmlrpc_server extends IXR_Server {
 	}
 
 	/**
-	 * Convert a WordPress gmt date string to an IXR_Date object.
+	 * Convert a WordPress GMT date string to an IXR_Date object.
 	 *
 	 * @access protected
 	 *
-	 * @param $date
+	 * @param string $date_gmt
+	 * @param string $date
 	 * @return IXR_Date
 	 */
 	protected function _convert_date_gmt( $date_gmt, $date ) {
@@ -689,7 +690,7 @@ class wp_xmlrpc_server extends IXR_Server {
 	 * @param array $fields The subset of post fields to return
 	 * @return array The prepared post type data
 	 */
-	public function _prepare_post_type( $post_type, $fields ) {
+	protected function _prepare_post_type( $post_type, $fields ) {
 		$_post_type = array(
 			'name' => $post_type->name,
 			'label' => $post_type->label,
@@ -728,10 +729,10 @@ class wp_xmlrpc_server extends IXR_Server {
 	 * @access protected
 	 *
 	 * @param object $media_item The unprepared media item data
-	 * @param string $size The image size to use for the thumbnail URL
+	 * @param string $thumbnail_size The image size to use for the thumbnail URL
 	 * @return array The prepared media item data
 	 */
-	protected function _prepare_media_item( $media_item, $thumbnail_size='thumbnail' ) {
+	protected function _prepare_media_item( $media_item, $thumbnail_size = 'thumbnail' ) {
 		$_media_item = array(
 			'attachment_id'    => strval( $media_item->ID ),
 			'date_created_gmt' => $this->_convert_date_gmt( $media_item->post_date_gmt, $media_item->post_date ),
@@ -749,7 +750,120 @@ class wp_xmlrpc_server extends IXR_Server {
 		else
 			$_media_item['thumbnail'] = $_media_item['link'];
 
-		return apply_filters( 'xmlrpc__prepare_media_item', $_media_item, $media_item, $thumbnail_size );
+		return apply_filters( 'xmlrpc_prepare_media_item', $_media_item, $media_item, $thumbnail_size );
+	}
+
+	/**
+	 * Prepares page data for return in an XML-RPC object.
+	 *
+	 * @access protected
+	 *
+	 * @param object $page The unprepared page data
+	 * @return array The prepared page data
+	 */
+	protected function _prepare_page( $page ) {
+		// Get all of the page content and link.
+		$full_page = get_extended( $page->post_content );
+		$link = post_permalink( $page->ID );
+
+		// Get info the page parent if there is one.
+		$parent_title = "";
+		if ( ! empty( $page->post_parent ) ) {
+			$parent = get_page( $page->post_parent );
+			$parent_title = $parent->post_title;
+		}
+
+		// Determine comment and ping settings.
+		$allow_comments = comments_open( $page->ID ) ? 1 : 0;
+		$allow_pings = pings_open( $page->ID ) ? 1 : 0;
+
+		// Format page date.
+		$page_date = $this->_convert_date( $page->post_date );
+		$page_date_gmt = $this->_convert_date_gmt( $page->post_date_gmt, $page->post_date );
+
+		// Pull the categories info together.
+		$categories = array();
+		foreach ( wp_get_post_categories( $page->ID ) as $cat_id ) {
+			$categories[] = get_cat_name( $cat_id );
+		}
+
+		// Get the author info.
+		$author = get_userdata( $page->post_author );
+
+		$page_template = get_page_template_slug( $page->ID );
+		if ( empty( $page_template ) )
+			$page_template = 'default';
+
+		$_page = array(
+			'dateCreated'            => $page_date,
+			'userid'                 => $page->post_author,
+			'page_id'                => $page->ID,
+			'page_status'            => $page->post_status,
+			'description'            => $full_page['main'],
+			'title'                  => $page->post_title,
+			'link'                   => $link,
+			'permaLink'              => $link,
+			'categories'             => $categories,
+			'excerpt'                => $page->post_excerpt,
+			'text_more'              => $full_page['extended'],
+			'mt_allow_comments'      => $allow_comments,
+			'mt_allow_pings'         => $allow_pings,
+			'wp_slug'                => $page->post_name,
+			'wp_password'            => $page->post_password,
+			'wp_author'              => $author->display_name,
+			'wp_page_parent_id'      => $page->post_parent,
+			'wp_page_parent_title'   => $parent_title,
+			'wp_page_order'          => $page->menu_order,
+			'wp_author_id'           => (string) $author->ID,
+			'wp_author_display_name' => $author->display_name,
+			'date_created_gmt'       => $page_date_gmt,
+			'custom_fields'          => $this->get_custom_fields( $page->ID ),
+			'wp_page_template'       => $page_template
+		);
+
+		return apply_filters( 'xmlrpc_prepare_page', $_page, $page );
+	}
+
+	/**
+	 * Prepares comment data for return in an XML-RPC object.
+	 *
+	 * @access protected
+	 *
+	 * @param object $comment The unprepared comment data
+	 * @return array The prepared comment data
+	 */
+	protected function _prepare_comment( $comment ) {
+		// Format page date.
+		$comment_date = $this->_convert_date( $comment->comment_date );
+		$comment_date_gmt = $this->_convert_date_gmt( $comment->comment_date_gmt, $comment->comment_date );
+
+		if ( '0' == $comment->comment_approved )
+			$comment_status = 'hold';
+		else if ( 'spam' == $comment->comment_approved )
+			$comment_status = 'spam';
+		else if ( '1' == $comment->comment_approved )
+			$comment_status = 'approve';
+		else
+			$comment_status = $comment->comment_approved;
+
+		$_comment = array(
+			'date_created_gmt' => $comment_date_gmt,
+			'user_id'          => $comment->user_id,
+			'comment_id'       => $comment->comment_ID,
+			'parent'           => $comment->comment_parent,
+			'status'           => $comment_status,
+			'content'          => $comment->comment_content,
+			'link'             => get_comment_link($comment),
+			'post_id'          => $comment->comment_post_ID,
+			'post_title'       => get_the_title($comment->comment_post_ID),
+			'author'           => $comment->comment_author,
+			'author_url'       => $comment->comment_author_url,
+			'author_email'     => $comment->comment_author_email,
+			'author_ip'        => $comment->comment_author_IP,
+			'type'             => $comment->comment_type,
+		);
+
+		return apply_filters( 'xmlrpc_prepare_comment', $_comment, $comment );
 	}
 
 	/**
@@ -757,7 +871,6 @@ class wp_xmlrpc_server extends IXR_Server {
 	 *
 	 * @since 3.4.0
 	 *
-	 * @uses wp_insert_post()
 	 * @param array $args Method parameters. Contains:
 	 *  - int     $blog_id
 	 *  - string  $username
@@ -805,19 +918,25 @@ class wp_xmlrpc_server extends IXR_Server {
 		return $this->_insert_post( $user, $content_struct );
 	}
 
-	/*
+	/**
 	 * Helper method for filtering out elements from an array.
 	 *
 	 * @since 3.4.0
+	 *
+	 * @param int $count Number to compare to one.
 	 */
-	function _is_greater_than_one( $count ) {
+	private function _is_greater_than_one( $count ) {
 		return $count > 1;
 	}
 
-	/*
+	/**
 	 * Helper method for wp_newPost and wp_editPost, containing shared logic.
 	 *
 	 * @since 3.4.0
+	 * @uses wp_insert_post()
+	 *
+	 * @param WP_User $user The post author if post_author isn't set in $content_struct.
+	 * @param array $content_struct Post data to insert.
 	 */
 	protected function _insert_post( $user, $content_struct ) {
 		$defaults = array( 'post_status' => 'draft', 'post_type' => 'post', 'post_author' => 0,
@@ -1047,12 +1166,11 @@ class wp_xmlrpc_server extends IXR_Server {
 	/**
 	 * Edit a post for any registered post type.
 	 *
-	 * @since 3.4.0
-	 *
 	 * The $content_struct parameter only needs to contain fields that
 	 * should be changed. All other fields will retain their existing values.
 	 *
-	 * @uses wp_insert_post()
+	 * @since 3.4.0
+	 *
 	 * @param array $args Method parameters. Contains:
 	 *  - int     $blog_id
 	 *  - string  $username
@@ -1287,7 +1405,7 @@ class wp_xmlrpc_server extends IXR_Server {
 			$query['post_status'] = $filter['post_status'];
 
 		if ( isset( $filter['number'] ) )
-			$query['number'] = absint( $filter['number'] );
+			$query['numberposts'] = absint( $filter['number'] );
 
 		if ( isset( $filter['offset'] ) )
 			$query['offset'] = absint( $filter['offset'] );
@@ -1828,66 +1946,7 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		// If we found the page then format the data.
 		if ( $page->ID && ($page->post_type == 'page') ) {
-			// Get all of the page content and link.
-			$full_page = get_extended($page->post_content);
-			$link = post_permalink($page->ID);
-
-			// Get info the page parent if there is one.
-			$parent_title = "";
-			if ( !empty($page->post_parent) ) {
-				$parent = get_page($page->post_parent);
-				$parent_title = $parent->post_title;
-			}
-
-			// Determine comment and ping settings.
-			$allow_comments = comments_open($page->ID) ? 1 : 0;
-			$allow_pings = pings_open($page->ID) ? 1 : 0;
-
-			// Format page date.
-			$page_date = $this->_convert_date( $page->post_date );
-			$page_date_gmt = $this->_convert_date_gmt( $page->post_date_gmt, $page->post_date );
-
-			// Pull the categories info together.
-			$categories = array();
-			foreach ( wp_get_post_categories($page->ID) as $cat_id ) {
-				$categories[] = get_cat_name($cat_id);
-			}
-
-			// Get the author info.
-			$author = get_userdata($page->post_author);
-
-			$page_template = get_page_template_slug( $page->ID );
-			if ( empty( $page_template ) )
-				$page_template = 'default';
-
-			$page_struct = array(
-				'dateCreated'			=> $page_date,
-				'userid'				=> $page->post_author,
-				'page_id'				=> $page->ID,
-				'page_status'			=> $page->post_status,
-				'description'			=> $full_page['main'],
-				'title'					=> $page->post_title,
-				'link'					=> $link,
-				'permaLink'				=> $link,
-				'categories'			=> $categories,
-				'excerpt'				=> $page->post_excerpt,
-				'text_more'				=> $full_page['extended'],
-				'mt_allow_comments'		=> $allow_comments,
-				'mt_allow_pings'		=> $allow_pings,
-				'wp_slug'				=> $page->post_name,
-				'wp_password'			=> $page->post_password,
-				'wp_author'				=> $author->display_name,
-				'wp_page_parent_id'		=> $page->post_parent,
-				'wp_page_parent_title'	=> $parent_title,
-				'wp_page_order'			=> $page->menu_order,
-				'wp_author_id'			=> (string) $author->ID,
-				'wp_author_display_name'	=> $author->display_name,
-				'date_created_gmt'		=> $page_date_gmt,
-				'custom_fields'			=> $this->get_custom_fields($page_id),
-				'wp_page_template'		=> $page_template
-			);
-
-			return($page_struct);
+			return $this->_prepare_page( $page );
 		}
 		// If the page doesn't exist indicate that.
 		else {
@@ -1930,11 +1989,9 @@ class wp_xmlrpc_server extends IXR_Server {
 		if ( $num_pages >= 1 ) {
 			$pages_struct = array();
 
-			for ( $i = 0; $i < $num_pages; $i++ ) {
-				$page = wp_xmlrpc_server::wp_getPage(array(
-					$blog_id, $pages[$i]->ID, $username, $password
-				));
-				$pages_struct[] = $page;
+			foreach ($pages as $page) {
+				if ( current_user_can( 'edit_page', $page->ID ) )
+					$pages_struct[] = $this->_prepare_page( $page );
 			}
 
 			return($pages_struct);
@@ -2346,39 +2403,7 @@ class wp_xmlrpc_server extends IXR_Server {
 		if ( ! $comment = get_comment($comment_id) )
 			return new IXR_Error( 404, __( 'Invalid comment ID.' ) );
 
-		// Format page date.
-		$comment_date = $this->_convert_date( $comment->comment_date );
-		$comment_date_gmt = $this->_convert_date_gmt( $comment->comment_date_gmt, $comment->comment_date );
-
-		if ( '0' == $comment->comment_approved )
-			$comment_status = 'hold';
-		else if ( 'spam' == $comment->comment_approved )
-			$comment_status = 'spam';
-		else if ( '1' == $comment->comment_approved )
-			$comment_status = 'approve';
-		else
-			$comment_status = $comment->comment_approved;
-
-		$link = get_comment_link($comment);
-
-		$comment_struct = array(
-			'date_created_gmt'		=> $comment_date_gmt,
-			'user_id'				=> $comment->user_id,
-			'comment_id'			=> $comment->comment_ID,
-			'parent'				=> $comment->comment_parent,
-			'status'				=> $comment_status,
-			'content'				=> $comment->comment_content,
-			'link'					=> $link,
-			'post_id'				=> $comment->comment_post_ID,
-			'post_title'			=> get_the_title($comment->comment_post_ID),
-			'author'				=> $comment->comment_author,
-			'author_url'			=> $comment->comment_author_url,
-			'author_email'			=> $comment->comment_author_email,
-			'author_ip'				=> $comment->comment_author_IP,
-			'type'					=> $comment->comment_type,
-		);
-
-		return $comment_struct;
+		return $this->_prepare_comment( $comment );
 	}
 
 	/**
@@ -2401,13 +2426,12 @@ class wp_xmlrpc_server extends IXR_Server {
 	 * @return array. Contains a collection of comments. See {@link wp_xmlrpc_server::wp_getComment()} for a description of each item contents
 	 */
 	function wp_getComments($args) {
-		$raw_args = $args;
 		$this->escape($args);
 
 		$blog_id	= (int) $args[0];
 		$username	= $args[1];
 		$password	= $args[2];
-		$struct		= $args[3];
+		$struct		= isset( $args[3] ) ? $args[3] : array();
 
 		if ( !$user = $this->login($username, $password) )
 			return $this->error;
@@ -2435,19 +2459,11 @@ class wp_xmlrpc_server extends IXR_Server {
 			$number = absint($struct['number']);
 
 		$comments = get_comments( array('status' => $status, 'post_id' => $post_id, 'offset' => $offset, 'number' => $number ) );
-		$num_comments = count($comments);
-
-		if ( ! $num_comments )
-			return array();
 
 		$comments_struct = array();
 
-		// FIXME: we already have the comments, why query them again?
-		for ( $i = 0; $i < $num_comments; $i++ ) {
-			$comment = wp_xmlrpc_server::wp_getComment(array(
-				$raw_args[0], $raw_args[1], $raw_args[2], $comments[$i]->comment_ID,
-			));
-			$comments_struct[] = $comment;
+		foreach ( $comments as $comment ) {
+			$comments_struct[] = $this->_prepare_comment( $comment );
 		}
 
 		return $comments_struct;
@@ -3275,7 +3291,7 @@ class wp_xmlrpc_server extends IXR_Server {
 		$post_data = wp_get_single_post($post_ID, ARRAY_A);
 		if ( ! $post_data )
 			return new IXR_Error( 404, __( 'Invalid post ID.' ) );
-			
+
 		if ( !current_user_can( 'edit_post', $post_ID ) )
 			return new IXR_Error( 401, __( 'Sorry, you cannot edit this post.' ) );
 

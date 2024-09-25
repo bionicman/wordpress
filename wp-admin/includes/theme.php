@@ -124,7 +124,7 @@ function theme_update_available( $theme ) {
 
 	if ( isset($themes_update->response[ $stylesheet ]) ) {
 		$update = $themes_update->response[ $stylesheet ];
-		$theme_name = $theme->get('Name');
+		$theme_name = $theme->display('Name');
 		$details_url = add_query_arg(array('TB_iframe' => 'true', 'width' => 1024, 'height' => 800), $update['url']); //Theme browser inside WP? replace this, Also, theme preview JS will override this on the available list.
 		$update_url = wp_nonce_url('update.php?action=upgrade-theme&amp;theme=' . urlencode($stylesheet), 'upgrade-theme_' . $stylesheet);
 		$update_onclick = 'onclick="if ( confirm(\'' . esc_js( __("Updating this theme will lose any customizations you have made. 'Cancel' to stop, 'OK' to update.") ) . '\') ) {return true;}return false;"';
@@ -283,11 +283,11 @@ function themes_api($action, $args = null) {
 	if ( ! $res ) {
 		$request = wp_remote_post('http://api.wordpress.org/themes/info/1.0/', array( 'body' => array('action' => $action, 'request' => serialize($args))) );
 		if ( is_wp_error($request) ) {
-			$res = new WP_Error('themes_api_failed', __('An Unexpected HTTP Error occurred during the API request.'), $request->get_error_message() );
+			$res = new WP_Error('themes_api_failed', __( 'An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="http://wordpress.org/support/">support forums</a>.' ), $request->get_error_message() );
 		} else {
 			$res = maybe_unserialize( wp_remote_retrieve_body( $request ) );
 			if ( ! is_object( $res ) && ! is_array( $res ) )
-				$res = new WP_Error('themes_api_failed', __('An unknown error occurred during the API request.'), wp_remote_retrieve_body( $request ) );
+				$res = new WP_Error('themes_api_failed', __( 'An unexpected error occurred. Something may be wrong with WordPress.org or this server&#8217;s configuration. If you continue to have problems, please try the <a href="http://wordpress.org/support/">support forums</a>.' ), wp_remote_retrieve_body( $request ) );
 		}
 	}
 

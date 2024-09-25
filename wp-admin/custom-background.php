@@ -207,15 +207,15 @@ if ( $bgcolor = get_background_color() )
 
 if ( get_background_image() ) {
 	// background-image URL must be single quote, see below
-	$background_styles .= ' background-image: url(\'' . get_theme_mod('background_image_thumb', '') . '\');'
+	$background_styles .= ' background-image: url(\'' . set_url_scheme( get_theme_mod( 'background_image_thumb', get_background_image() ) ) . '\');'
 		. ' background-repeat: ' . get_theme_mod('background_repeat', 'repeat') . ';'
 		. ' background-position: top ' . get_theme_mod('background_position_x', 'left');
 }
 ?>
 <div id="custom-background-image" style="<?php echo $background_styles; ?>"><?php // must be double quote, see above ?>
 <?php if ( get_background_image() ) { ?>
-<img class="custom-background-image" src="<?php echo get_theme_mod('background_image_thumb', ''); ?>" style="visibility:hidden;" alt="" /><br />
-<img class="custom-background-image" src="<?php echo get_theme_mod('background_image_thumb', ''); ?>" style="visibility:hidden;" alt="" />
+<img class="custom-background-image" src="<?php echo set_url_scheme( get_theme_mod( 'background_image_thumb', get_background_image() ) ); ?>" style="visibility:hidden;" alt="" /><br />
+<img class="custom-background-image" src="<?php echo set_url_scheme( get_theme_mod( 'background_image_thumb', get_background_image() ) ); ?>" style="visibility:hidden;" alt="" />
 <?php } ?>
 </div>
 <?php } ?>
@@ -248,19 +248,25 @@ if ( get_background_image() ) {
 
 <?php endif; ?>
 <tr valign="top">
-<th scope="row"><?php _e('Upload Image'); ?></th>
+<th scope="row"><?php _e('Select Image'); ?></th>
 <td><form enctype="multipart/form-data" id="upload-form" method="post" action="">
-<label for="upload"><?php _e('Choose an image from your computer:'); ?></label><br /><input type="file" id="upload" name="import" />
-<input type="hidden" name="action" value="save" />
-<?php wp_nonce_field('custom-background-upload', '_wpnonce-custom-background-upload') ?>
-<?php submit_button( __( 'Upload' ), 'button', 'submit', false ); ?>
-<?php
-	$image_library_url = get_upload_iframe_src( 'image', null, 'library' );
-	$image_library_url = remove_query_arg( 'TB_iframe', $image_library_url );
-	$image_library_url = add_query_arg( array( 'context' => 'custom-background', 'TB_iframe' => 1 ), $image_library_url );
-?>
+	<p>
+		<label for="upload"><?php _e( 'Choose an image from your computer:' ); ?></label><br />
+		<input type="file" id="upload" name="import" />
+		<input type="hidden" name="action" value="save" />
+		<?php wp_nonce_field( 'custom-background-upload', '_wpnonce-custom-background-upload' ); ?>
+		<?php submit_button( __( 'Upload' ), 'button', 'submit', false ); ?>
+	</p>
+	<?php
+		$image_library_url = get_upload_iframe_src( 'image', null, 'library' );
+		$image_library_url = remove_query_arg( 'TB_iframe', $image_library_url );
+		$image_library_url = add_query_arg( array( 'context' => 'custom-background', 'TB_iframe' => 1 ), $image_library_url );
+	?>
+	<p>
+		<label for="choose-from-library-link"><?php _e( 'Or choose an image from your media library:' ); ?></label><br />
+		<a id="choose-from-library-link" class="button thickbox" href="<?php echo esc_url( $image_library_url ); ?>"><?php _e( 'Choose Image' ); ?></a>
+	</p>
 	</form>
-	<span class="howto"><?php _ex( 'or', 'Custom Background: Choose an image from your computer - or - Choose from image library' ); ?></span> <a class="thickbox" href="<?php echo $image_library_url; ?>"><?php _e( 'Choose from image library' ); ?></a>
 </td>
 </tr>
 </tbody>
@@ -316,9 +322,10 @@ if ( get_background_image() ) {
 <tr valign="top">
 <th scope="row"><?php _e( 'Background Color' ); ?></th>
 <td><fieldset><legend class="screen-reader-text"><span><?php _e( 'Background Color' ); ?></span></legend>
-<?php $show_clear = get_background_color() ? '' : ' style="display:none"'; ?>
+<?php $show_clear = get_theme_mod('background_color') ? '' : ' style="display:none"'; ?>
 <input type="text" name="background-color" id="background-color" value="#<?php echo esc_attr(get_background_color()) ?>" />
-<a class="hide-if-no-js" href="#" id="pickcolor"><?php _e('Select a Color'); ?></a> <span<?php echo $show_clear; ?> class="hide-if-no-js" id="clearcolor"> (<a href="#"><?php _e( 'Clear' ); ?></a>)</span>
+<a class="hide-if-no-js" href="#" id="pickcolor"><?php _e('Select a Color'); ?></a> <span<?php echo $show_clear; ?> class="hide-if-no-js" id="clearcolor"> (<a href="#"><?php current_theme_supports( 'custom-background', 'default-color' ) ? _e( 'Default' ) : _e( 'Clear' ); ?></a>)</span>
+<input type="hidden" id="defaultcolor" value="<?php if ( current_theme_supports( 'custom-background', 'default-color' ) ) echo '#' . esc_attr( get_theme_support( 'custom-background', 'default-color' ) ); ?>" />
 <div id="colorPickerDiv" style="z-index: 100; background:#eee; border:1px solid #ccc; position:absolute; display:none;"></div>
 </fieldset></td>
 </tr>
@@ -383,7 +390,7 @@ if ( get_background_image() ) {
 	function attachment_fields_to_edit( $form_fields, $post ) {
 		if ( isset( $_REQUEST['context'] ) && $_REQUEST['context'] == 'custom-background' ) {
 			$form_fields = array( 'image-size' => $form_fields['image-size'] );
-			$form_fields['buttons'] = array( 'tr' => '<tr class="submit"><td></td><td><a data-attachment-id="' . $post->ID . '" class="wp-set-background">' . _( 'Set as background' ) . '</a></td></tr>' );
+			$form_fields['buttons'] = array( 'tr' => '<tr class="submit"><td></td><td><a data-attachment-id="' . $post->ID . '" class="wp-set-background">' . __( 'Set as background' ) . '</a></td></tr>' );
 			$form_fields['context'] = array( 'input' => 'hidden', 'value' => 'custom-background' );
 		}
 

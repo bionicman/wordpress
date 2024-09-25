@@ -2,6 +2,8 @@ if ( typeof wp === 'undefined' )
 	var wp = {};
 
 (function( exports, $ ) {
+	var Uploader;
+
 	/*
 	 * An object that helps create a WordPress uploader using plupload.
 	 *
@@ -16,7 +18,7 @@ if ( typeof wp === 'undefined' )
 	 *
 	 * @param attributes - object - Attributes and methods for this specific instance.
 	 */
-	var Uploader = function( options ) {
+	Uploader = function( options ) {
 		var self = this,
 			elements = {
 				container: 'container',
@@ -69,6 +71,37 @@ if ( typeof wp === 'undefined' )
 		this.uploader.bind( 'Init', this.init );
 
 		this.uploader.init();
+
+		// Generate drag/drop helper classes.
+		(function( dropzone, supported ) {
+			var sensitivity = 50,
+				active;
+
+			if ( ! dropzone )
+				return;
+
+			dropzone.toggleClass( 'supports-drag-drop', !! supported );
+
+			if ( ! supported )
+				return dropzone.unbind('.wp-uploader');
+
+			// 'dragenter' doesn't fire correctly,
+			// simulate it with a limited 'dragover'
+			dropzone.bind( 'dragover.wp-uploader', function(){
+				if ( active )
+					return;
+
+				dropzone.addClass('drag-over');
+				active = true;
+			});
+
+			dropzone.bind('dragleave.wp-uploader, drop.wp-uploader', function(){
+				active = false;
+				dropzone.removeClass('drag-over');
+			});
+		}( this.dropzone, this.uploader.features.dragdrop ));
+
+		this.browser.on( 'mouseenter', this.refresh );
 
 		this.uploader.bind( 'UploadProgress', this.progress );
 
@@ -160,7 +193,10 @@ if ( typeof wp === 'undefined' )
 		success:  function() {},
 		added:    function() {},
 		progress: function() {},
-		complete: function() {}
+		complete: function() {},
+		refresh:  function() {
+			this.uploader.refresh();
+		}
 	});
 
 	exports.Uploader = Uploader;

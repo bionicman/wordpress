@@ -120,7 +120,32 @@ if ( typeof wp === 'undefined' )
 	api.Class.extend = extend;
 
 	/* =====================================================================
-	 * Light two-way binding.
+	 * Events mixin.
+	 * ===================================================================== */
+
+	api.Events = {
+		trigger: function( id ) {
+			if ( this.topics && this.topics[ id ] )
+				this.topics[ id ].fireWith( this, slice.call( arguments, 1 ) );
+			return this;
+		},
+
+		bind: function( id, callback ) {
+			this.topics = this.topics || {};
+			this.topics[ id ] = this.topics[ id ] || $.Callbacks();
+			this.topics[ id ].add.apply( this.topics[ id ], slice.call( arguments, 1 ) );
+			return this;
+		},
+
+		unbind: function( id, callback ) {
+			if ( this.topics && this.topics[ id ] )
+				this.topics[ id ].remove.apply( this.topics[ id ], slice.call( arguments, 1 ) );
+			return this;
+		}
+	};
+
+	/* =====================================================================
+	 * Observable values that support two-way binding.
 	 * ===================================================================== */
 
 	api.Value = api.Class.extend({
@@ -227,6 +252,10 @@ if ( typeof wp === 'undefined' )
 		}
 	});
 
+	/* =====================================================================
+	 * A collection of observable values.
+	 * ===================================================================== */
+
 	api.Values = api.Class.extend({
 		defaultConstructor: api.Value,
 
@@ -257,7 +286,11 @@ if ( typeof wp === 'undefined' )
 				return this.value( id );
 
 			this._value[ id ] = value;
-			this._value[ id ].parent = this;
+			value.parent = this;
+			if ( value.extended( api.Value ) )
+				value.bind( this._change );
+
+			this.trigger( 'add', value );
 
 			if ( this._deferreds[ id ] )
 				this._deferreds[ id ].resolve();
@@ -265,11 +298,12 @@ if ( typeof wp === 'undefined' )
 			return this._value[ id ];
 		},
 
+		create: function( id ) {
+			return this.add( id, new this.defaultConstructor( api.Class.applicator, slice.call( arguments, 1 ) ) );
+		},
+
 		get: function() {
 			var result = {};
-
-			if ( arguments.length )
-				return this.pass( 'get', arguments );
 
 			$.each( this._value, function( key, obj ) {
 				result[ key ] = obj.get();
@@ -277,72 +311,78 @@ if ( typeof wp === 'undefined' )
 			return result;
 		},
 
-		set: function( id ) {
-			if ( this.has( id ) )
-				return this.pass( 'set', arguments );
-
-			return this.add( id, new this.defaultConstructor( api.Class.applicator, slice.call( arguments, 1 ) ) );
-		},
-
 		remove: function( id ) {
+			var value;
+
+			if ( this.has( id ) ) {
+				value = this.value( id );
+				this.trigger( 'remove', value );
+				if ( value.extended( api.Value ) )
+					value.unbind( this._change );
+				delete value.parent;
+			}
+
 			delete this._value[ id ];
 			delete this._deferreds[ id ];
-		},
-
-		pass: function( fn, args ) {
-			var id, value;
-
-			args = slice.call( args );
-			id   = args.shift();
-
-			if ( ! this.has( id ) )
-				return;
-
-			value = this.value( id );
-			return value[ fn ].apply( value, args );
 		},
 
 		/**
 		 * Runs a callback once all requested values exist.
 		 *
-		 * when( ids*, callback );
+		 * when( ids*, [callback] );
 		 *
 		 * For example:
 		 *     when( id1, id2, id3, function( value1, value2, value3 ) {} );
+		 *
+		 * @returns $.Deferred.promise();
 		 */
 		when: function() {
 			var self = this,
-				ids = slice.call( arguments ),
-				callback = ids.pop();
+				ids  = slice.call( arguments ),
+				dfd  = $.Deferred();
+
+			// If the last argument is a callback, bind it to .done()
+			if ( $.isFunction( ids[ ids.length - 1 ] ) )
+				dfd.done( ids.pop() );
 
 			$.when.apply( $, $.map( ids, function( id ) {
 				if ( self.has( id ) )
 					return;
 
-				return self._deferreds[ id ] || ( self._deferreds[ id ] = $.Deferred() );
+				return self._deferreds[ id ] = self._deferreds[ id ] || $.Deferred();
 			})).done( function() {
 				var values = $.map( ids, function( id ) {
 						return self( id );
 					});
 
 				// If a value is missing, we've used at least one expired deferred.
-				// Call Values.when again to update our master deferred.
+				// Call Values.when again to generate a new deferred.
 				if ( values.length !== ids.length ) {
-					ids.push( callback );
-					self.when.apply( self, ids );
+					// ids.push( callback );
+					self.when.apply( self, ids ).done( function() {
+						dfd.resolveWith( self, values );
+					});
 					return;
 				}
 
-				callback.apply( self, values );
+				dfd.resolveWith( self, values );
 			});
+
+			return dfd.promise();
+		},
+
+		_change: function() {
+			this.parent.trigger( 'change', this );
 		}
 	});
 
-	$.each( [ 'bind', 'unbind', 'link', 'unlink', 'sync', 'unsync', 'setter', 'resetSetter' ], function( i, method ) {
-		api.Values.prototype[ method ] = function() {
-			return this.pass( method, arguments );
-		};
-	});
+	$.extend( api.Values.prototype, api.Events );
+
+	/* =====================================================================
+	 * An observable value that syncs with an element.
+	 *
+	 * Handles inputs, selects, and textareas by default.
+	 * ===================================================================== */
 
 	api.ensure = function( element ) {
 		return typeof element == 'string' ? $( element ) : element;
@@ -434,21 +474,24 @@ if ( typeof wp === 'undefined' )
 	 * Messenger for postMessage.
 	 * ===================================================================== */
 
+	$.support.postMessage = !! window.postMessage;
+
 	api.Messenger = api.Class.extend({
 		add: function( key, initial, options ) {
 			return this[ key ] = new api.Value( initial, options );
 		},
 
 		initialize: function( url, targetWindow, options ) {
+			// Target the parent frame by default, but only if a parent frame exists.
+			var defaultTarget = window.parent == window ? null : window.parent;
+
 			$.extend( this, options || {} );
 
 			url = this.add( 'url', url );
-			this.add( 'targetWindow', targetWindow || window.parent );
+			this.add( 'targetWindow', targetWindow || defaultTarget );
 			this.add( 'origin', url() ).link( url ).setter( function( to ) {
 				return to.replace( /([^:]+:\/\/[^\/]+).*/, '$1' );
 			});
-
-			this.topics = {};
 
 			this.receive = $.proxy( this.receive, this );
 			$( window ).on( 'message', this.receive );
@@ -463,38 +506,34 @@ if ( typeof wp === 'undefined' )
 
 			event = event.originalEvent;
 
+			if ( ! this.targetWindow() )
+				return;
+
 			// Check to make sure the origin is valid.
 			if ( this.origin() && event.origin !== this.origin() )
 				return;
 
 			message = JSON.parse( event.data );
 
-			if ( message && message.id && message.data && this.topics[ message.id ] )
-				this.topics[ message.id ].fireWith( this, [ message.data ]);
+			if ( message && message.id && typeof message.data !== 'undefined' )
+				this.trigger( message.id, message.data );
 		},
 
 		send: function( id, data ) {
 			var message;
 
-			data = data || {};
+			data = typeof data === 'undefined' ? {} : data;
 
-			if ( ! this.url() )
+			if ( ! this.url() || ! this.targetWindow() )
 				return;
 
 			message = JSON.stringify({ id: id, data: data });
 			this.targetWindow().postMessage( message, this.origin() );
-		},
-
-		bind: function( id, callback ) {
-			var topic = this.topics[ id ] || ( this.topics[ id ] = $.Callbacks() );
-			topic.add( callback );
-		},
-
-		unbind: function( id, callback ) {
-			if ( this.topics[ id ] )
-				this.topics[ id ].remove( callback );
 		}
 	});
+
+	// Add the Events mixin to api.Messenger.
+	$.extend( api.Messenger.prototype, api.Events );
 
 	/* =====================================================================
 	 * Core customize object.

@@ -11,12 +11,14 @@ class WP_Customize_Setting {
 	public $manager;
 	public $id;
 
-	public $type              = 'theme_mod';
-	public $capability        = 'edit_theme_options';
-	public $theme_supports    = '';
-	public $default           = '';
-	public $sanitize_callback = '';
-	public $transport         = 'refresh';
+	public $type            = 'theme_mod';
+	public $capability      = 'edit_theme_options';
+	public $theme_supports  = '';
+	public $default         = '';
+	public $transport       = 'refresh';
+
+	public $sanitize_callback    = '';
+	public $sanitize_js_callback = '';
 
 	protected $id_data = array();
 	private $_post_value; // Cached, sanitized $_POST value.
@@ -49,8 +51,11 @@ class WP_Customize_Setting {
 		if ( ! empty( $this->id_data[ 'keys' ] ) )
 			$this->id .= '[' . implode( '][', $this->id_data[ 'keys' ] ) . ']';
 
-		if ( $this->sanitize_callback != '' )
-			add_filter( "customize_sanitize_{$this->id}", $this->sanitize_callback );
+		if ( $this->sanitize_callback )
+			add_filter( "customize_sanitize_{$this->id}", $this->sanitize_callback, 10, 2 );
+
+		if ( $this->sanitize_js_callback )
+			add_filter( "customize_sanitize_js_{$this->id}", $this->sanitize_js_callback, 10, 2 );
 
 		return $this;
 	}
@@ -68,8 +73,10 @@ class WP_Customize_Setting {
 			case 'option' :
 				if ( empty( $this->id_data[ 'keys' ] ) )
 					add_filter( 'pre_option_' . $this->id_data[ 'base' ], array( $this, '_preview_filter' ) );
-				else
+				else {
 					add_filter( 'option_' . $this->id_data[ 'base' ], array( $this, '_preview_filter' ) );
+					add_filter( 'default_option_' . $this->id_data[ 'base' ], array( $this, '_preview_filter' ) );
+				}
 				break;
 			default :
 				do_action( 'customize_preview_' . $this->id );
@@ -136,7 +143,7 @@ class WP_Customize_Setting {
 	 */
 	public function sanitize( $value ) {
 		$value = stripslashes_deep( $value );
-		return apply_filters( "customize_sanitize_{$this->id}", $value );
+		return apply_filters( "customize_sanitize_{$this->id}", $value, $this );
 	}
 
 	/**
@@ -226,6 +233,22 @@ class WP_Customize_Setting {
 		// Handle array-based value
 		$values = $function( $this->id_data[ 'base' ] );
 		return $this->multidimensional_get( $values, $this->id_data[ 'keys' ], $this->default );
+	}
+
+	/**
+	 * Escape the parameter's value for use in JavaScript.
+	 *
+	 * @since 3.4.0
+	 *
+	 * @return mixed The requested escaped value.
+	 */
+	public function js_value() {
+		$value = apply_filters( "customize_sanitize_js_{$this->id}", $this->value(), $this );
+
+		if ( is_string( $value ) )
+			return html_entity_decode( $value, ENT_QUOTES, 'UTF-8');
+
+		return $value;
 	}
 
 	/**
