@@ -20,6 +20,7 @@
 }
 
 .media-frame a {
+	border-bottom: none;
 	color: #21759b;
 }
 
@@ -61,6 +62,18 @@
 	border-color: #dfdfdf;
 }
 
+.media-frame select {
+	height: 24px;
+	padding: 2px;
+}
+
+.media-frame input:disabled,
+.media-frame textarea:disabled,
+.media-frame input[readonly],
+.media-frame textarea[readonly] {
+	background-color: #eee;
+}
+
 .media-frame input[type="search"] {
 	-webkit-appearance: textfield;
 }
@@ -93,6 +106,7 @@
 	left: 0;
 	right: 0;
 	bottom: 0;
+	min-height: 360px;
 	background: #000;
 	opacity: 0.7;
 	z-index: 159900;
@@ -125,6 +139,7 @@
 	right: 0;
 	bottom: 0;
 	overflow: auto;
+	min-height: 300px;
 	background: #fff;
 }
 
@@ -145,14 +160,17 @@
 	height: 60px;
 	padding: 0 16px;
 	border: 0 solid #dfdfdf;
+	overflow: hidden;
 }
 
 .media-toolbar-primary {
 	float: right;
+	height: 100%;
 }
 
 .media-toolbar-secondary {
 	float: left;
+	height: 100%;
 }
 
 .media-toolbar-primary > .media-button,
@@ -225,6 +243,14 @@
 	margin: 1px 0;
 }
 
+.media-sidebar .setting label {
+	display: block;
+}
+
+.media-sidebar .setting .link-to-custom {
+	margin: 3px 0;
+}
+
 .media-sidebar .setting span {
 	min-width: 30%;
 	margin-right: 4%;
@@ -233,11 +259,13 @@
 
 .media-sidebar .setting select {
 	max-width: 65%;
-	*max-width: 55%; /* IE7 */
 }
 
 .media-sidebar .setting input[type="checkbox"] {
-	margin-top: 10px;
+	width: auto;
+	float: none;
+	margin-top: 8px;
+	padding: 0;
 }
 
 .media-sidebar .setting span,
@@ -255,7 +283,6 @@
 .media-sidebar .setting input,
 .media-sidebar .setting textarea {
 	width: 65%;
-	*width: 55%; /* IE7 */
 	float: right;
 }
 
@@ -547,7 +574,8 @@
 	overflow: hidden;
 }
 
-.media-iframe iframe {
+.media-frame .media-iframe,
+.media-frame .media-iframe iframe {
 	height: 100%;
 	width: 100%;
 }
@@ -799,24 +827,10 @@
 	position: relative;
 	display: block;
 	width: 100%;
-	*width: 183px; /* IE7 only */
 	margin: -1px 0 0;
 	padding: 8px;
 	font-size: 12px;
 	border-radius: 0;
-}
-
-/**
- * HiDPI Displays
- */
-@media print,
-  (-o-min-device-pixel-ratio: 5/4),
-  (-webkit-min-device-pixel-ratio: 1.25),
-  (min-resolution: 120dpi) {
-  	.media-modal-icon {
-  		background-image: url(../images/uploader-icons-2x.png);
-  		background-size: 134px 15px;
-  	}
 }
 
 /**
@@ -1066,6 +1080,10 @@
 	margin: 4em 0;
 }
 
+.uploader-inline-content .post-upload-ui {
+	margin-bottom: 2em;
+}
+
 .uploader-inline .has-upload-message .upload-ui {
 	margin: 0 0 4em;
 }
@@ -1129,7 +1147,12 @@
 	vertical-align: top;
 }
 
-.media-selection.empty {
+.media-selection.empty,
+.media-selection.editing {
+	display: none;
+}
+
+.media-selection.one .edit-selection {
 	display: none;
 }
 
@@ -1160,6 +1183,7 @@
 
 .media-selection .selection-info a:last-child {
 	border-right: 0;
+	margin-right: 0;
 }
 
 .media-selection .selection-info .clear-selection {
@@ -1168,6 +1192,11 @@
 
 .media-selection .selection-info .clear-selection:hover {
 	background: red;
+}
+
+.media-selection .selection-view {
+	display: inline-block;
+	vertical-align: top;
 }
 
 .media-selection .attachments {
@@ -1228,7 +1257,7 @@
 }
 
 .media-sidebar .settings-save-status .spinner {
-	background: url(../../wp-admin/images/wpspin_light.gif) no-repeat;
+	background: url(../images/wpspin.gif) no-repeat;
 	background-size: 16px 16px;
 	display: none;
 	float: right;
@@ -1279,6 +1308,7 @@
 	float: left;
 	max-width: 120px;
 	max-height: 120px;
+	margin-top: 5px;
 	margin-right: 10px;
 	margin-bottom: 5px;
 }
@@ -1318,17 +1348,30 @@
 	max-width: 100%;
 }
 
-.attachment-info .delete-attachment a {
-	color: red;
-	padding: 2px 4px;
-	margin: -2px -4px;
+.attachment-info .edit-attachment,
+.attachment-info .refresh-attachment,
+.attachment-info .delete-attachment {
+	display: block;
 	text-decoration: none;
 	white-space: nowrap;
 }
 
-.attachment-info .delete-attachment a:hover {
-	color: #fff;
-	background: red;
+.attachment-info .refresh-attachment,
+.attachment-details.needs-refresh .attachment-info .edit-attachment {
+	display: none;
+}
+
+.attachment-details.needs-refresh .attachment-info .refresh-attachment,
+.attachment-info .edit-attachment {
+	display: block;
+}
+
+.attachment-info .delete-attachment {
+	color: #bc0b0b;
+}
+
+.attachment-info .delete-attachment:hover {
+	color: red;
 }
 
 /**
@@ -1438,6 +1481,56 @@
 }
 
 /**
+ * IE7 Fixes
+ */
+.ie7 .media-frame .attachments-browser {
+	position: static;
+}
+
+.ie7 .media-frame .embed-url input {
+	margin-top: 4px;
+	width: 90%;
+}
+
+.ie7 .compat-item {
+	width: 99%;
+}
+
+.ie7 .attachment-display-settings {
+	width: auto;
+}
+
+.ie7 .attachment-preview,
+.ie7 .attachment-preview .thumbnail {
+	width: 120px;
+	height: 120px;
+}
+
+.ie7 .media-frame .attachment .describe {
+	width: 102px;
+}
+
+.ie7 .media-sidebar .setting select {
+	max-width: 55%;
+}
+
+.ie7 .media-sidebar .setting input,
+.ie7 .media-sidebar .setting textarea {
+	width: 55%;
+}
+
+.ie7 .media-sidebar .setting .link-to-custom {
+	float: left;
+}
+
+@media only screen and (max-width: 960px) {
+	.media-frame-content .media-toolbar-primary .search,
+	.media-frame-content .media-toolbar-secondary .attachment-filters {
+		max-width: 120px;
+	}
+}
+
+/**
  * Responsive layout
  */
 @media only screen and (max-width: 900px) {
@@ -1494,17 +1587,6 @@
 		width: auto;
 	}
 
-	.media-frame-content .media-toolbar-primary,
-	.media-frame-content .media-toolbar-secondary {
-		display: inline;
-		float: none;
-	}
-
-	.media-frame-content .media-toolbar-primary .search,
-	.media-frame-content .media-toolbar-secondary select {
-		max-width: 45%;
-	}
-
 	.media-frame input,
 	.media-frame textarea,
 	.media-frame .search {
@@ -1532,6 +1614,19 @@
 	}
 }
 
+@media only screen and (max-width: 800px) {
+	.media-frame-content .media-toolbar .instructions {
+		display: none;
+	}
+}
+
+@media only screen and (max-width: 680px) {
+	.media-frame-content .media-toolbar .search,
+	.media-frame-content .media-toolbar .attachment-filters {
+		max-width: 85px;
+	}
+}
+
 /* Use the same min-width as in the admin */
 @media only screen and (max-width: 600px) {
 	.media-modal {
@@ -1543,4 +1638,21 @@
 		width: 600px;
 		position: absolute;
 	}
+}
+
+/**
+ * HiDPI Displays
+ */
+@media print,
+  (-o-min-device-pixel-ratio: 5/4),
+  (-webkit-min-device-pixel-ratio: 1.25),
+  (min-resolution: 120dpi) {
+  	.media-modal-icon {
+  		background-image: url(../images/uploader-icons-2x.png);
+  		background-size: 134px 15px;
+  	}
+
+  	.media-sidebar .settings-save-status .spinner {
+  		background-image: url(../images/wpspin-2x.gif);
+  	}
 }

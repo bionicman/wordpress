@@ -34,7 +34,7 @@ window.wp = window.wp || {};
 		return frame;
 	};
 
-	_.extend( media, { model: {}, view: {}, controller: {} });
+	_.extend( media, { model: {}, view: {}, controller: {}, frames: {} });
 
 	// Link any localized strings.
 	l10n = media.model.l10n = typeof _wpMediaModelsL10n === 'undefined' ? {} : _wpMediaModelsL10n;
@@ -142,6 +142,11 @@ window.wp = window.wp || {};
 
 				// Use with PHP's wp_send_json_success() and wp_send_json_error()
 				$.ajax( options ).done( function( response ) {
+					// Treat a response of `1` as successful for backwards
+					// compatibility with existing handlers.
+					if ( response === '1' || response === 1 )
+						response = { success: true };
+
 					if ( _.isObject( response ) && ! _.isUndefined( response.success ) )
 						deferred[ response.success ? 'resolveWith' : 'rejectWith' ]( this, [response.data] );
 					else
@@ -211,6 +216,13 @@ window.wp = window.wp || {};
 	 * ========================================================================
 	 */
 
+	 /**
+	  * wp.media.attachment
+	  */
+	 media.attachment = function( id ) {
+		return Attachment.get( id );
+	 };
+
 	/**
 	 * wp.media.model.Attachment
 	 */
@@ -219,7 +231,7 @@ window.wp = window.wp || {};
 			// If the attachment does not yet have an `id`, return an instantly
 			// rejected promise. Otherwise, all of our requests will fail.
 			if ( _.isUndefined( this.id ) )
-				return $.Deferred().reject().promise();
+				return $.Deferred().rejectWith( this ).promise();
 
 			// Overload the `read` request so Attachment.fetch() functions correctly.
 			if ( 'read' === method ) {
@@ -233,8 +245,9 @@ window.wp = window.wp || {};
 
 			// Overload the `update` request so properties can be saved.
 			} else if ( 'update' === method ) {
-				if ( ! this.get('nonces') )
-					return $.Deferred().resolveWith( this ).promise();
+				// If we do not have the necessary nonce, fail immeditately.
+				if ( ! this.get('nonces') || ! this.get('nonces').update )
+					return $.Deferred().rejectWith( this ).promise();
 
 				options = options || {};
 				options.context = this;
@@ -263,13 +276,22 @@ window.wp = window.wp || {};
 			// This will permanently delete an attachment.
 			} else if ( 'delete' === method ) {
 				options = options || {};
+
+				if ( ! options.wait )
+					this.destroyed = true;
+
 				options.context = this;
 				options.data = _.extend( options.data || {}, {
 					action:   'delete-post',
 					id:       this.id,
 					_wpnonce: this.get('nonces')['delete']
 				});
-				return media.ajax( options );
+
+				return media.ajax( options ).done( function() {
+					this.destroyed = true;
+				}).fail( function() {
+					this.destroyed = false;
+				});
 			}
 		},
 
@@ -285,6 +307,10 @@ window.wp = window.wp || {};
 
 		saveCompat: function( data, options ) {
 			var model = this;
+
+			// If we do not have the necessary nonce, fail immeditately.
+			if ( ! this.get('nonces') || ! this.get('nonces').update )
+				return $.Deferred().rejectWith( this ).promise();
 
 			return media.post( 'save-attachment-compat', _.defaults({
 				id:      this.id,
@@ -396,7 +422,11 @@ window.wp = window.wp || {};
 			this.reset( this._source.filter( this.validator, this ) );
 		},
 
+		validateDestroyed: false,
+
 		validator: function( attachment ) {
+			if ( ! this.validateDestroyed && attachment.destroyed )
+				return false;
 			return _.all( this.filters, function( filter, key ) {
 				return !! filter.call( this, attachment );
 			}, this );
@@ -853,8 +883,14 @@ window.wp = window.wp || {};
 
 			// If single has changed, fire an event.
 			if ( this._single !== previous ) {
-				if ( previous )
+				if ( previous ) {
 					previous.trigger( 'selection:unsingle', previous, this );
+
+					// If the model was already removed, trigger the collection
+					// event manually.
+					if ( ! this.getByCid( previous.cid ) )
+						this.trigger( 'selection:unsingle', previous, this );
+				}
 				if ( this._single )
 					this._single.trigger( 'selection:single', this._single, this );
 			}

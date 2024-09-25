@@ -248,7 +248,7 @@ class WP_Image_Editor_Imagick extends WP_Image_Editor {
 	 * @since 3.5.0
 	 * @access public
 	 *
-	 * @param array $sizes
+	 * @param array $sizes { {'width'=>int, 'height'=>int, 'crop'=>bool}, ... }
 	 * @return array
 	 */
 	public function multi_resize( $sizes ) {
@@ -317,13 +317,13 @@ class WP_Image_Editor_Imagick extends WP_Image_Editor {
 					$dst_h = $src_h;
 
 				$this->image->scaleImage( $dst_w, $dst_h );
-				return $this->update_size( $dst_w, $dst_h );
+				return $this->update_size();
 			}
 		}
 		catch ( Exception $e ) {
 			return new WP_Error( 'image_crop_error', $e->getMessage() );
 		}
-		return $this->update_size( $src_w, $src_h );
+		return $this->update_size();
 	}
 
 	/**
