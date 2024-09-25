@@ -3301,7 +3301,7 @@ img {
 
 .control-section .accordion-section-title:after,
 .customize-pane-child .accordion-section-title:after {
-	top: 11px;
+	top: calc(50% - 10px); /* Arrow height is 20px, so use half of that to vertically center */
 }
 
 .js .control-section:hover .accordion-section-title,
@@ -3713,6 +3713,23 @@ img {
 	h3 .nav-tab {
 		margin: 10px 0 0 10px;
 		border-bottom: 1px solid #ccc;
+	}
+}
+
+.options-media-php br {
+	display: none;
+}
+
+@media screen and (max-width: 375px) {
+	.options-media-php input[type="number"][name*="_size_"] {
+		margin: 5px 0;
+	}
+	.options-media-php label[for*="_size_h"]:before {
+		content: '';
+		display: block;
+	}
+	.options-media-php br {
+		display: block;
 	}
 }
 

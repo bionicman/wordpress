@@ -20,6 +20,46 @@ body {
 	text-align: center;
 }
 
+#customize-controls #customize-notifications-area .notice.notification-overlay.notification-changeset-locked {
+	background-color: rgba( 0, 0, 0, 0.7 );
+	padding: 25px;
+}
+
+#customize-controls #customize-notifications-area .notice.notification-overlay.notification-changeset-locked .customize-changeset-locked-message {
+	margin-right: auto;
+	margin-left: auto;
+	max-width: 366px;
+	min-height: 64px;
+	width: auto;
+	padding: 25px 109px 25px 25px;
+	position: relative;
+	background: #fff;
+	box-shadow: 0 3px 6px rgba( 0, 0, 0, 0.3 );
+	line-height: 1.5;
+	overflow-y: auto;
+	text-align: right;
+	top: calc( 50% - 100px );
+}
+
+#customize-controls #customize-notifications-area .notice.notification-overlay.notification-changeset-locked .currently-editing {
+	margin-top: 0;
+}
+#customize-controls #customize-notifications-area .notice.notification-overlay.notification-changeset-locked .action-buttons {
+	margin-bottom: 0;
+}
+
+.customize-changeset-locked-avatar {
+	width: 64px;
+	position: absolute;
+	right: 25px;
+	top: 25px;
+}
+
+.wp-core-ui.wp-customizer .customize-changeset-locked-message a.button {
+	margin-left: 10px;
+	margin-top: 0;
+}
+
 #customize-controls .description {
 	color: #555d66;
 }
@@ -38,6 +78,11 @@ body:not(.ready) #customize-save-button-wrapper .save {
 	box-shadow: none; /* @todo Adjust box shadow based on the disable states of paired button. */
 	margin-top: 0;
 }
+
+#customize-save-button-wrapper .save:focus, #publish-settings:focus {
+	box-shadow: 0 1px 0 #0073aa, 0 0 2px 1px #33b3db; /* This is default box shadow for focus */
+}
+
 #customize-save-button-wrapper .save.has-next-sibling {
 	border-radius: 0 3px 3px 0;
 }
@@ -46,16 +91,17 @@ body:not(.ready) #customize-save-button-wrapper .save {
 	position: absolute;
 	top: 0;
 	bottom: 0;
-	right: -301px;
+	right: 0;
 	visibility: hidden;
 	overflow-x: hidden;
 	overflow-y: auto;
-	width: 300px;
+	width: 100%;
 	margin: 0;
-	z-index: 4;
+	z-index: -1;
 	background: #eee;
 	transition: right .18s;
 	border-left: 1px solid #ddd;
+	border-right: 1px solid #ddd;
 	height: 100%;
 }
 
@@ -73,7 +119,7 @@ body:not(.ready) #customize-save-button-wrapper .save {
 
 .outer-section-open .wp-full-overlay.expanded #customize-sidebar-outer-content {
 	visibility: visible;
-	right: 0;
+	right: 100%;
 	transition: right .18s;
 }
 
@@ -130,6 +176,10 @@ body.trashing #publish-settings {
 #customize-controls .wp-full-overlay-sidebar-content {
 	overflow-y: auto;
 	overflow-x: hidden;
+}
+
+.outer-section-open #customize-controls .wp-full-overlay-sidebar-content {
+	background: #eee;
 }
 
 #customize-controls .customize-info {
@@ -667,8 +717,15 @@ body.trashing #publish-settings {
 }
 
 .customize-section-description-container,
-.control-section-nav_menu .customize-section-description-container {
+.control-section-nav_menu .customize-section-description-container,
+.control-section-new_menu .customize-section-description-container {
 	margin-bottom: 15px;
+}
+
+.control-section-nav_menu .customize-control,
+.control-section-new_menu .customize-control {
+	/* Override default `margin-bottom` for `.customize-control` */
+	margin-bottom: 0;
 }
 
 .customize-section-title {
@@ -961,6 +1018,11 @@ p.customize-section-description {
 
 .customize-control-radio .customize-control-title + .customize-control-description {
 	margin-top: 7px;
+}
+
+.customize-control-radio label,
+.customize-control-checkbox label {
+	vertical-align: top;
 }
 
 .customize-control .attachment-thumb.type-icon {
@@ -2674,6 +2736,10 @@ body.adding-widget .add-new-widget:before,
 		display: inline;
 	}
 
+	.customize-control-header button.random .dice {
+		margin-top: 0;
+	}
+
 	.customize-control-radio .customize-inside-control-row,
 	.customize-control-checkbox .customize-inside-control-row,
 	.customize-control-nav_menu_auto_add .customize-inside-control-row {
@@ -2686,9 +2752,9 @@ body.adding-widget .add-new-widget:before,
 		margin-right: -32px;
 	}
 
-	.customize-control input[type="radio"] + label,
-	.customize-control input[type="checkbox"] + label {
-		line-height: 32px;
+	.customize-control input[type="radio"] + label + br,
+	.customize-control input[type="checkbox"] + label + br {
+		line-height: 32px; /* For widgets checkboxes */
 	}
 
 	.customize-control .date-time-fields select {
@@ -2722,7 +2788,9 @@ body.adding-widget .add-new-widget:before,
 		bottom: 10px;
 	}
 
-	.wp-core-ui.wp-customizer .button {
+	.media-widget-control .media-widget-buttons .button.edit-media,
+	.media-widget-control .media-widget-buttons .button.change-media,
+	.media-widget-control .media-widget-buttons .button.select-media {
 		margin-top: 12px;
 	}
 }
@@ -2826,6 +2894,14 @@ body.adding-widget .add-new-widget:before,
 		right: 0;
 		z-index: 10;
 		width: 100%;
+	}
+
+	body.wp-customizer .wp-full-overlay.expanded #customize-sidebar-outer-content {
+		right: -100%;
+	}
+
+	body.wp-customizer.outer-section-open .wp-full-overlay.expanded #customize-sidebar-outer-content {
+		right: 0;
 	}
 
 	#available-widgets .customize-section-title,

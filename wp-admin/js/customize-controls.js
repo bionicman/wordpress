@@ -34,6 +34,37 @@
 			if ( notification.loading ) {
 				notification.containerClasses += ' notification-loading';
 			}
+		},
+
+		/**
+		 * Render notification.
+		 *
+		 * @since 4.9.0
+		 *
+		 * @return {jQuery} Notification container.
+		 */
+		render: function() {
+			var li = api.Notification.prototype.render.call( this );
+			li.on( 'keydown', _.bind( this.handleEscape, this ) );
+			return li;
+		},
+
+		/**
+		 * Stop propagation on escape key presses, but also dismiss notification if it is dismissible.
+		 *
+		 * @since 4.9.0
+		 *
+		 * @param {jQuery.Event} event - Event.
+		 * @returns {void}
+		 */
+		handleEscape: function( event ) {
+			var notification = this;
+			if ( 27 === event.which ) {
+				event.stopPropagation();
+				if ( notification.dismissible && notification.parent ) {
+					notification.parent.remove( notification.code );
+				}
+			}
 		}
 	});
 
@@ -78,6 +109,8 @@
 
 			api.Values.prototype.initialize.call( collection, options );
 
+			_.bindAll( collection, 'constrainFocus' );
+
 			// Keep track of the order in which the notifications were added for sorting purposes.
 			collection._addedIncrement = 0;
 			collection._addedOrder = {};
@@ -106,7 +139,7 @@
 		 *
 		 * @since 4.9.0
 		 *
-		 * @param {string|wp.customize.Notification} - Notification object to add. Alternatively code may be supplied, and in that case the second notificationObject argument must be supplied.
+		 * @param {string|wp.customize.Notification} notification - Notification object to add. Alternatively code may be supplied, and in that case the second notificationObject argument must be supplied.
 		 * @param {wp.customize.Notification} [notificationObject] - Notification to add when first argument is the code string.
 		 * @returns {wp.customize.Notification} Added notification (or existing instance if it was already added).
 		 */
@@ -188,9 +221,9 @@
 		 */
 		render: function() {
 			var collection = this,
-				notifications, hadOverlayNotification = false, hasOverlayNotification,
+				notifications, hadOverlayNotification = false, hasOverlayNotification, overlayNotifications = [],
 				previousNotificationsByCode = {},
-				listElement;
+				listElement, focusableElements;
 
 			// Short-circuit if there are no container to render into.
 			if ( ! collection.container || ! collection.container.length ) {
@@ -226,14 +259,15 @@
 					wp.a11y.speak( notification.message, 'assertive' );
 				}
 				notificationContainer = $( notification.render() );
+				notification.container = notificationContainer;
 				listElement.append( notificationContainer ); // @todo Consider slideDown() as enhancement.
 
-				// @todo Constraing focus in notificationContainer if notification.extended( api.OverlayNotification ).
+				if ( notification.extended( api.OverlayNotification ) ) {
+					overlayNotifications.push( notification );
+				}
 			});
+			hasOverlayNotification = Boolean( overlayNotifications.length );
 
-			hasOverlayNotification = Boolean( _.find( notifications, function( notification ) {
-				return notification.extended( api.OverlayNotification );
-			} ) );
 			if ( collection.previousNotifications ) {
 				hadOverlayNotification = Boolean( _.find( collection.previousNotifications, function( notification ) {
 					return notification.extended( api.OverlayNotification );
@@ -243,11 +277,66 @@
 			if ( hasOverlayNotification !== hadOverlayNotification ) {
 				$( document.body ).toggleClass( 'customize-loading', hasOverlayNotification );
 				collection.container.toggleClass( 'has-overlay-notifications', hasOverlayNotification );
+				if ( hasOverlayNotification ) {
+					collection.previousActiveElement = document.activeElement;
+					$( document ).on( 'keydown', collection.constrainFocus );
+				} else {
+					$( document ).off( 'keydown', collection.constrainFocus );
+				}
+			}
+
+			if ( hasOverlayNotification ) {
+				collection.focusContainer = overlayNotifications[ overlayNotifications.length - 1 ].container;
+				collection.focusContainer.prop( 'tabIndex', -1 );
+				focusableElements = collection.focusContainer.find( ':focusable' );
+				if ( focusableElements.length ) {
+					focusableElements.first().focus();
+				} else {
+					collection.focusContainer.focus();
+				}
+			} else if ( collection.previousActiveElement ) {
+				$( collection.previousActiveElement ).focus();
+				collection.previousActiveElement = null;
 			}
 
 			collection.previousNotifications = notifications;
 			collection.previousContainer = collection.container;
 			collection.trigger( 'rendered' );
+		},
+
+		/**
+		 * Constrain focus on focus container.
+		 *
+		 * @since 4.9.0
+		 *
+		 * @param {jQuery.Event} event - Event.
+		 * @returns {void}
+		 */
+		constrainFocus: function constrainFocus( event ) {
+			var collection = this, focusableElements;
+
+			// Prevent keys from escaping.
+			event.stopPropagation();
+
+			if ( 9 !== event.which ) { // Tab key.
+				return;
+			}
+
+			focusableElements = collection.focusContainer.find( ':focusable' );
+			if ( 0 === focusableElements.length ) {
+				focusableElements = collection.focusContainer;
+			}
+
+			if ( ! $.contains( collection.focusContainer[0], event.target ) || ! $.contains( collection.focusContainer[0], document.activeElement ) ) {
+				event.preventDefault();
+				focusableElements.first().focus();
+			} else if ( focusableElements.last().is( event.target ) && ! event.shiftKey ) {
+				event.preventDefault();
+				focusableElements.first().focus();
+			} else if ( focusableElements.first().is( event.target ) && event.shiftKey ) {
+				event.preventDefault();
+				focusableElements.last().focus();
+			}
 		}
 	});
 
@@ -1678,14 +1767,16 @@
 				section.closeDetails();
 			});
 
-			// Filter-search all theme objects loaded in the section.
-			section.container.on( 'input', '.wp-filter-search-themes', function( event ) {
-					section.filterSearch( event.currentTarget );
-			});
+			if ( 'local' === section.params.filter_type ) {
 
-			// Event listeners for remote wporg queries with user-entered terms.
-			if ( 'wporg' === section.params.action ) {
+				// Filter-search all theme objects loaded in the section.
+				section.container.on( 'input', '.wp-filter-search-themes', function( event ) {
+					section.filterSearch( event.currentTarget.value );
+				});
 
+			} else if ( 'remote' === section.params.filter_type ) {
+
+				// Event listeners for remote queries with user-entered terms.
 				// Search terms.
 				debounced = _.debounce( section.checkTerm, 500 ); // Wait until there is no input for 500 milliseconds to initiate a search.
 				section.contentContainer.on( 'input', '.wp-filter-search', function() {
@@ -1701,29 +1792,29 @@
 					section.filtersChecked();
 					section.checkTerm( section );
 				});
-
-				// Toggle feature filter sections.
-				section.contentContainer.on( 'click', '.feature-filter-toggle', function( e ) {
-					$( e.currentTarget )
-						.toggleClass( 'open' )
-						.attr( 'aria-expanded', function( i, attr ) {
-							return 'true' === attr ? 'false' : 'true';
-						})
-						.next( '.filter-drawer' ).slideToggle( 180, 'linear', function() {
-							if ( 0 === section.filtersHeight ) {
-								section.filtersHeight = $( this ).height();
-
-								// First time, so it's opened.
-								section.contentContainer.find( '.themes' ).css( 'margin-top', section.filtersHeight + 76 );
-							}
-						});
-					if ( $( e.currentTarget ).hasClass( 'open' ) ) {
-						section.contentContainer.find( '.themes' ).css( 'margin-top', section.filtersHeight + 76 );
-					} else {
-						section.contentContainer.find( '.themes' ).css( 'margin-top', 0 );
-					}
-				});
 			}
+
+			// Toggle feature filters.
+			section.contentContainer.on( 'click', '.feature-filter-toggle', function( e ) {
+				$( e.currentTarget )
+					.toggleClass( 'open' )
+					.attr( 'aria-expanded', function( i, attr ) {
+						return 'true' === attr ? 'false' : 'true';
+					})
+					.next( '.filter-drawer' ).slideToggle( 180, 'linear', function() {
+						if ( 0 === section.filtersHeight ) {
+							section.filtersHeight = $( this ).height();
+
+							// First time, so it's opened.
+							section.contentContainer.find( '.themes' ).css( 'margin-top', section.filtersHeight + 76 );
+						}
+					});
+				if ( $( e.currentTarget ).hasClass( 'open' ) ) {
+					section.contentContainer.find( '.themes' ).css( 'margin-top', section.filtersHeight + 76 );
+				} else {
+					section.contentContainer.find( '.themes' ).css( 'margin-top', 0 );
+				}
+			});
 
 			// Setup section cross-linking.
 			section.contentContainer.on( 'click', '.no-themes-local .search-dotorg-themes', function() {
@@ -1767,7 +1858,7 @@
 
 				// Try to load controls if none are loaded yet.
 				if ( 0 === section.loaded ) {
-					section.loadControls();
+					section.loadThemes();
 				}
 
 				// Collapse any sibling sections/panels
@@ -1782,13 +1873,16 @@
 							section.contentContainer.find( '.wp-filter-search' ).val( searchTerm );
 
 							// Directly initialize an empty remote search to avoid a race condition.
-							if ( '' === searchTerm && '' !== section.term && 'installed' !== section.params.action ) {
+							if ( '' === searchTerm && '' !== section.term && 'local' !== section.params.filter_type ) {
 								section.term = '';
 								section.initializeNewQuery( section.term, section.tags );
 							} else {
-								section.checkTerm( section );
+								if ( 'remote' === section.params.filter_type ) {
+									section.checkTerm( section );
+								} else if ( 'local' === section.params.filter_type ) {
+									section.filterSearch( searchTerm );
+								}
 							}
-							section.filterSearch( section.contentContainer.find( '.wp-filter-search' ).get( 0 ) );
 						}
 						otherSection.collapse( { duration: args.duration } );
 					}
@@ -1838,7 +1932,7 @@
 		 *
 		 * @returns {void}
 		 */
-		loadControls: function() {
+		loadThemes: function() {
 			var section = this, params, page, request;
 
 			if ( section.loading ) {
@@ -1855,8 +1949,8 @@
 				'page': page
 			};
 
-			// Add fields for wporg actions.
-			if ( 'wporg' === section.params.action ) {
+			// Add fields for remote filtering.
+			if ( 'remote' === section.params.filter_type ) {
 				params.search = section.term;
 				params.tags = section.tags;
 			}
@@ -1867,7 +1961,7 @@
 			section.container.find( '.no-themes' ).hide();
 			request = wp.ajax.post( 'customize_load_themes', params );
 			request.done(function( data ) {
-				var themes = data.themes, newThemeControls;
+				var themes = data.themes;
 
 				// Stop and try again if the term changed while loading.
 				if ( '' !== section.nextTerm || '' !== section.nextTags ) {
@@ -1880,26 +1974,13 @@
 					section.nextTerm = '';
 					section.nextTags = '';
 					section.loading = false;
-					section.loadControls();
+					section.loadThemes();
 					return;
 				}
 
 				if ( 0 !== themes.length ) {
-					newThemeControls = [];
 
-					// Add controls for each theme.
-					_.each( themes, function( theme ) {
-						var themeControl = new api.controlConstructor.theme( section.params.action + '_theme_' + theme.id, {
-							type: 'theme',
-							section: section.params.id,
-							theme: theme,
-							priority: section.loaded + 1
-						} );
-
-						api.control.add( themeControl );
-						newThemeControls.push( themeControl );
-						section.loaded = section.loaded + 1;
-					});
+					section.loadControls( themes, page );
 
 					if ( 1 === page ) {
 
@@ -1911,15 +1992,14 @@
 								img.src = src;
 							}
 						});
-						if ( 'installed' !== section.params.action ) {
+						if ( 'local' !== section.params.filter_type ) {
 							wp.a11y.speak( api.settings.l10n.themeSearchResults.replace( '%d', data.info.results ) );
 						}
-					} else {
-						Array.prototype.push.apply( section.screenshotQueue, newThemeControls ); // Add new themes to the screenshot queue.
 					}
+
 					_.delay( section.renderScreenshots, 100 ); // Wait for the controls to become visible.
 
-					if ( 'installed' === section.params.action || 100 > themes.length ) { // If we have less than the requested 100 themes, it's the end of the list.
+					if ( 'local' === section.params.filter_type || 100 > themes.length ) { // If we have less than the requested 100 themes, it's the end of the list.
 						section.fullyLoaded = true;
 					}
 				} else {
@@ -1930,7 +2010,7 @@
 						section.fullyLoaded = true;
 					}
 				}
-				if ( 'installed' === section.params.action ) {
+				if ( 'local' === section.params.filter_type ) {
 					section.updateCount(); // Count of visible theme controls.
 				} else {
 					section.updateCount( data.info.results ); // Total number of results including pages not yet loaded.
@@ -1956,6 +2036,37 @@
 		},
 
 		/**
+		 * Loads controls into the section from data received from loadThemes().
+		 *
+		 * @since 4.9.0
+		 * @param {Array} themes - Array of theme data to create controls with.
+		 * @param {integer} page - Page of results being loaded.
+		 * @returns {void}
+		 */
+		loadControls: function( themes, page ) {
+			var newThemeControls = [],
+				section = this;
+
+			// Add controls for each theme.
+			_.each( themes, function( theme ) {
+				var themeControl = new api.controlConstructor.theme( section.params.action + '_theme_' + theme.id, {
+					type: 'theme',
+					section: section.params.id,
+					theme: theme,
+					priority: section.loaded + 1
+				} );
+
+				api.control.add( themeControl );
+				newThemeControls.push( themeControl );
+				section.loaded = section.loaded + 1;
+			});
+
+			if ( 1 !== page ) {
+				Array.prototype.push.apply( section.screenshotQueue, newThemeControls ); // Add new themes to the screenshot queue.
+			}
+		},
+
+		/**
 		 * Determines whether more themes should be loaded, and loads them.
 		 *
 		 * @since 4.9.0
@@ -1970,7 +2081,7 @@
 				threshold = container.prop( 'scrollHeight' ) - 3000; // Use a fixed distance to the bottom of loaded results to avoid unnecessarily loading results sooner when using a percentage of scroll distance.
 
 				if ( bottom > threshold ) {
-					section.loadControls();
+					section.loadThemes();
 				}
 			}
 		},
@@ -1980,23 +2091,26 @@
 		 *
 		 * @since 4.9.0
 		 *
-		 * @param {Element} el - The search input element as a raw JS object.
+		 * @param {string} term - The raw search input value.
 		 * @returns {void}
 		 */
-		filterSearch: function( el ) {
+		filterSearch: function( term ) {
 			var count = 0,
 				visible = false,
 				section = this,
-				noFilter = ( undefined !== api.section( 'wporg_themes' ) && 'wporg' !== section.params.action ) ? '.no-themes-local' : '.no-themes',
-				term = el.value.toLowerCase().trim().replace( '-', ' ' ),
-				controls = section.controls();
+				noFilter = ( api.section.has( 'wporg_themes' ) && 'remote' !== section.params.filter_type ) ? '.no-themes-local' : '.no-themes',
+				controls = section.controls(),
+				terms;
 
 			if ( section.loading ) {
 				return;
 			}
 
+			// Standardize search term format and split into an array of individual words.
+			terms = term.toLowerCase().trim().replace( /-/g, ' ' ).split( ' ' );
+
 			_.each( controls, function( control ) {
-				visible = control.filter( term );
+				visible = control.filter( terms ); // Shows/hides and sorts control based on the applicability of the search term.
 				if ( visible ) {
 					count = count + 1;
 				}
@@ -2010,6 +2124,7 @@
 			}
 
 			section.renderScreenshots();
+			api.reflowPaneContents();
 
 			// Update theme count.
 			section.updateCount( count );
@@ -2025,7 +2140,7 @@
 		 */
 		checkTerm: function( section ) {
 			var newTerm;
-			if ( 'wporg' === section.params.action ) {
+			if ( 'remote' === section.params.filter_type ) {
 				newTerm = section.contentContainer.find( '.wp-filter-search' ).val();
 				if ( section.term !== newTerm ) {
 					section.initializeNewQuery( newTerm, section.tags );
@@ -2065,7 +2180,11 @@
 				if ( section.loading ) {
 					section.nextTags = tags;
 				} else {
-					section.initializeNewQuery( section.term, tags );
+					if ( 'remote' === section.params.filter_type ) {
+						section.initializeNewQuery( section.term, tags );
+					} else if ( 'local' === section.params.filter_type ) {
+						section.filterSearch( tags.join( ' ' ) );
+					}
 				}
 			}
 		},
@@ -2091,14 +2210,14 @@
 			section.fullyLoaded = false;
 			section.screenshotQueue = null;
 
-			// Run a new query, with loadControls handling paging, etc.
+			// Run a new query, with loadThemes handling paging, etc.
 			if ( ! section.loading ) {
 				section.term = newTerm;
 				section.tags = newTags;
-				section.loadControls();
+				section.loadThemes();
 			} else {
-				section.nextTerm = newTerm; // This will reload from loadControls() with the newest term once the current batch is loaded.
-				section.nextTags = newTags; // This will reload from loadControls() with the newest tags once the current batch is loaded.
+				section.nextTerm = newTerm; // This will reload from loadThemes() with the newest term once the current batch is loaded.
+				section.nextTags = newTags; // This will reload from loadThemes() with the newest tags once the current batch is loaded.
 			}
 			if ( ! section.expanded() ) {
 				section.expand(); // Expand the section if it isn't expanded.
@@ -2801,10 +2920,23 @@
 		 * @returns {void}
 		 */
 		attachEvents: function() {
-			var panel = this;
+			var panel = this, toggleDisabledNotification;
 
 			// Attach regular panel events.
 			api.Panel.prototype.attachEvents.apply( panel );
+
+			toggleDisabledNotification = function() {
+				if ( 'publish' === api.state( 'selectedChangesetStatus' ).get() ) {
+					panel.notifications.remove( 'theme_switch_unavailable' );
+				} else {
+					panel.notifications.add( new api.Notification( 'theme_switch_unavailable', {
+						message: api.l10n.themePreviewUnavailable,
+						type: 'warning'
+					} ) );
+				}
+			};
+			toggleDisabledNotification();
+			api.state( 'selectedChangesetStatus' ).bind( toggleDisabledNotification );
 
 			// Collapse panel to customize the current theme.
 			panel.contentContainer.on( 'click', '.customize-theme', function() {
@@ -2887,18 +3019,32 @@
 		 *
 		 * @since 4.9.0
 		 *
-		 * @returns {void}
+		 * @param {jQuery.Event} event - Event.
+		 * @returns {jQuery.promise} Promise.
 		 */
 		installTheme: function( event ) {
-			var panel = this, preview = false, slug = $( event.target ).data( 'slug' );
+			var panel = this, preview, onInstallSuccess, slug = $( event.target ).data( 'slug' ), deferred = $.Deferred(), request;
+			preview = $( event.target ).hasClass( 'preview' );
 
+			// Prevent loading a non-active theme preview when there is a drafted/scheduled changeset.
+			if ( 'publish' !== api.state( 'selectedChangesetStatus' ).get() && slug !== api.settings.theme.stylesheet ) {
+				deferred.reject({
+					errorCode: 'theme_switch_unavailable'
+				});
+				return deferred.promise();
+			}
+
+			// Theme is already being installed.
 			if ( _.contains( panel.installingThemes, slug ) ) {
-				return; // Theme is already being installed.
+				deferred.reject({
+					errorCode: 'theme_already_installing'
+				});
+				return deferred.promise();
 			}
 
 			wp.updates.maybeRequestFilesystemCredentials( event );
 
-			$( document ).one( 'wp-theme-install-success', function( event, response ) {
+			onInstallSuccess = function( response ) {
 				var theme = false, themeControl;
 				if ( preview ) {
 					api.notifications.remove( 'theme_installing' );
@@ -2915,6 +3061,7 @@
 
 					// Don't add the same theme more than once.
 					if ( ! theme || api.control.has( 'installed_theme_' + theme.id ) ) {
+						deferred.resolve( response );
 						return;
 					}
 
@@ -2939,23 +3086,29 @@
 						}
 					});
 				}
-			} );
+				deferred.resolve( response );
+			};
 
-			panel.installingThemes.push( $( event.target ).data( 'slug' ) ); // Note: we don't remove elements from installingThemes, since they shouldn't be installed again.
-			wp.updates.installTheme( {
+			panel.installingThemes.push( slug ); // Note: we don't remove elements from installingThemes, since they shouldn't be installed again.
+			request = wp.updates.installTheme( {
 				slug: slug
 			} );
 
 			// Also preview the theme as the event is triggered on Install & Preview.
-			if ( $( event.target ).hasClass( 'preview' ) ) {
-				preview = true;
-
+			if ( preview ) {
 				api.notifications.add( new api.OverlayNotification( 'theme_installing', {
 					message: api.l10n.themeDownloading,
 					type: 'info',
 					loading: true
 				} ) );
 			}
+
+			request.done( onInstallSuccess );
+			request.fail( function() {
+				api.notifications.remove( 'theme_installing' );
+			} );
+
+			return deferred.promise();
 		},
 
 		/**
@@ -2969,13 +3122,19 @@
 		loadThemePreview: function( themeId ) {
 			var deferred = $.Deferred(), onceProcessingComplete, urlParser, queryParams;
 
+			// Prevent loading a non-active theme preview when there is a drafted/scheduled changeset.
+			if ( 'publish' !== api.state( 'selectedChangesetStatus' ).get() && themeId !== api.settings.theme.stylesheet ) {
+				return deferred.reject().promise();
+			}
+
 			urlParser = document.createElement( 'a' );
 			urlParser.href = location.href;
 			queryParams = _.extend(
 				api.utils.parseQueryString( urlParser.search.substr( 1 ) ),
 				{
 					theme: themeId,
-					changeset_uuid: api.settings.changeset.uuid
+					changeset_uuid: api.settings.changeset.uuid,
+					'return': api.settings.url['return']
 				}
 			);
 
@@ -3005,7 +3164,7 @@
 				request.done( function() {
 					deferred.resolve();
 					$( window ).off( 'beforeunload.customize-confirm' );
-					window.location.href = urlParser.href; // @todo Use location.replace()?
+					location.replace( urlParser.href );
 				} );
 				request.fail( function() {
 
@@ -3183,7 +3342,6 @@
 			standardTypes = [
 				'button',
 				'checkbox',
-				'color',
 				'date',
 				'datetime-local',
 				'email',
@@ -4742,7 +4900,17 @@
 		 * @since 4.2.0
 		 */
 		ready: function() {
-			var control = this;
+			var control = this, disableSwitchButtons, updateButtons;
+
+			disableSwitchButtons = function() {
+				return 'publish' !== api.state( 'selectedChangesetStatus' ).get() && control.params.theme.id !== api.settings.theme.stylesheet;
+			};
+			updateButtons = function() {
+				control.container.find( 'button' ).toggleClass( 'disabled', disableSwitchButtons() );
+			};
+
+			api.state( 'selectedChangesetStatus' ).bind( updateButtons );
+			updateButtons();
 
 			control.container.on( 'touchmove', '.theme', function() {
 				control.touchDrag = true;
@@ -4750,6 +4918,7 @@
 
 			// Bind details view trigger.
 			control.container.on( 'click keydown touchend', '.theme', function( event ) {
+				var section;
 				if ( api.utils.isKeydownButNotEnterEvent( event ) ) {
 					return;
 				}
@@ -4765,7 +4934,10 @@
 				}
 
 				event.preventDefault(); // Keep this AFTER the key filter above
-				api.section( control.section() ).showDetails( control.params.theme );
+				section = api.section( control.section() );
+				section.showDetails( control.params.theme, function() {
+					section.overlay.find( '.theme-actions button' ).toggleClass( 'disabled', disableSwitchButtons() );
+				} );
 			});
 
 			control.container.on( 'render-screenshot', function() {
@@ -4783,20 +4955,50 @@
 		 * Show or hide the theme based on the presence of the term in the title, description, tags, and author.
 		 *
 		 * @since 4.2.0
+		 * @param {Array} terms - An array of terms to search for.
 		 * @returns {boolean} Whether a theme control was activated or not.
 		 */
-		filter: function( term ) {
+		filter: function( terms ) {
 			var control = this,
+				matchCount = 0,
 				haystack = control.params.theme.name + ' ' +
 					control.params.theme.description + ' ' +
 					control.params.theme.tags + ' ' +
-					control.params.theme.author;
+					control.params.theme.author + ' ';
 			haystack = haystack.toLowerCase().replace( '-', ' ' );
-			if ( -1 !== haystack.search( term ) ) {
+
+			// Back-compat for behavior in WordPress 4.2.0 to 4.8.X.
+			if ( ! _.isArray( terms ) ) {
+				terms = [ terms ];
+			}
+
+			// Always give exact name matches highest ranking.
+			if ( control.params.theme.name.toLowerCase() === terms.join( ' ' ) ) {
+				matchCount = 100;
+			} else {
+
+				// Search for and weight (by 10) complete term matches.
+				matchCount = matchCount + 10 * ( haystack.split( terms.join( ' ' ) ).length - 1 );
+
+				// Search for each term individually (as whole-word and partial match) and sum weighted match counts.
+				_.each( terms, function( term ) {
+					matchCount = matchCount + 2 * ( haystack.split( term + ' ' ).length - 1 ); // Whole-word, double-weighted.
+					matchCount = matchCount + haystack.split( term ).length - 1; // Partial word, to minimize empty intermediate searches while typing.
+				});
+
+				// Upper limit on match ranking.
+				if ( matchCount > 99 ) {
+					matchCount = 99;
+				}
+			}
+
+			if ( 0 !== matchCount ) {
 				control.activate();
+				control.params.priority = 101 - matchCount; // Sort results by match count.
 				return true;
 			} else {
-				control.deactivate();
+				control.deactivate(); // Hide control
+				control.params.priority = 101;
 				return false;
 			}
 		},
@@ -5531,12 +5733,167 @@
 	// Change objects contained within the main customize object to Settings.
 	api.defaultConstructor = api.Setting;
 
-	// Create the collections for Controls, Sections and Panels.
+	/**
+	 * Callback for resolved controls.
+	 *
+	 * @callback deferredControlsCallback
+	 * @param {wp.customize.Control[]} Resolved controls.
+	 */
+
+	/**
+	 * Collection of all registered controls.
+	 *
+	 * @since 3.4.0
+	 *
+	 * @type {Function}
+	 * @param {...string} ids - One or more ids for controls to obtain.
+	 * @param {deferredControlsCallback} [callback] - Function called when all supplied controls exist.
+	 * @returns {wp.customize.Control|undefined|jQuery.promise} Control instance or undefined (if function called with one id param), or promise resolving to requested controls.
+	 *
+	 * @example <caption>Loop over all registered controls.</caption>
+	 * wp.customize.control.each( function( control ) { ... } );
+	 *
+	 * @example <caption>Getting `background_color` control instance.</caption>
+	 * control = wp.customize.control( 'background_color' );
+	 *
+	 * @example <caption>Check if control exists.</caption>
+	 * hasControl = wp.customize.control.has( 'background_color' );
+	 *
+	 * @example <caption>Deferred getting of `background_color` control until it exists, using callback.</caption>
+	 * wp.customize.control( 'background_color', function( control ) { ... } );
+	 *
+	 * @example <caption>Get title and tagline controls when they both exist, using promise (only available when multiple IDs are present).</caption>
+	 * promise = wp.customize.control( 'blogname', 'blogdescription' );
+	 * promise.done( function( titleControl, taglineControl ) { ... } );
+	 *
+	 * @example <caption>Get title and tagline controls when they both exist, using callback.</caption>
+	 * wp.customize.control( 'blogname', 'blogdescription', function( titleControl, taglineControl ) { ... } );
+	 *
+	 * @example <caption>Getting setting value for `background_color` control.</caption>
+	 * value = wp.customize.control( 'background_color ').setting.get();
+	 * value = wp.customize( 'background_color' ).get(); // Same as above, since setting ID and control ID are the same.
+	 *
+	 * @example <caption>Add new control for site title.</caption>
+	 * wp.customize.control.add( new wp.customize.Control( 'other_blogname', {
+	 *     setting: 'blogname',
+	 *     type: 'text',
+	 *     label: 'Site title',
+	 *     section: 'other_site_identify'
+	 * } ) );
+	 *
+	 * @example <caption>Remove control.</caption>
+	 * wp.customize.control.remove( 'other_blogname' );
+	 *
+	 * @example <caption>Listen for control being added.</caption>
+	 * wp.customize.control.bind( 'add', function( addedControl ) { ... } )
+	 *
+	 * @example <caption>Listen for control being removed.</caption>
+	 * wp.customize.control.bind( 'removed', function( removedControl ) { ... } )
+	 */
 	api.control = new api.Values({ defaultConstructor: api.Control });
+
+	/**
+	 * Callback for resolved sections.
+	 *
+	 * @callback deferredSectionsCallback
+	 * @param {wp.customize.Section[]} Resolved sections.
+	 */
+
+	/**
+	 * Collection of all registered sections.
+	 *
+	 * @since 3.4.0
+	 *
+	 * @type {Function}
+	 * @param {...string} ids - One or more ids for sections to obtain.
+	 * @param {deferredSectionsCallback} [callback] - Function called when all supplied sections exist.
+	 * @returns {wp.customize.Section|undefined|jQuery.promise} Section instance or undefined (if function called with one id param), or promise resolving to requested sections.
+	 *
+	 * @example <caption>Loop over all registered sections.</caption>
+	 * wp.customize.section.each( function( section ) { ... } )
+	 *
+	 * @example <caption>Getting `title_tagline` section instance.</caption>
+	 * section = wp.customize.section( 'title_tagline' )
+	 *
+	 * @example <caption>Expand dynamically-created section when it exists.</caption>
+	 * wp.customize.section( 'dynamically_created', function( section ) {
+	 *     section.expand();
+	 * } );
+	 *
+	 * @see {@link wp.customize.control} for further examples of how to interact with {@link wp.customize.Values} instances.
+	 */
 	api.section = new api.Values({ defaultConstructor: api.Section });
+
+	/**
+	 * Callback for resolved panels.
+	 *
+	 * @callback deferredPanelsCallback
+	 * @param {wp.customize.Panel[]} Resolved panels.
+	 */
+
+	/**
+	 * Collection of all registered panels.
+	 *
+	 * @since 4.0.0
+	 *
+	 * @type {Function}
+	 * @param {...string} ids - One or more ids for panels to obtain.
+	 * @param {deferredPanelsCallback} [callback] - Function called when all supplied panels exist.
+	 * @returns {wp.customize.Panel|undefined|jQuery.promise} Panel instance or undefined (if function called with one id param), or promise resolving to requested panels.
+	 *
+	 * @example <caption>Loop over all registered panels.</caption>
+	 * wp.customize.panel.each( function( panel ) { ... } )
+	 *
+	 * @example <caption>Getting nav_menus panel instance.</caption>
+	 * panel = wp.customize.panel( 'nav_menus' );
+	 *
+	 * @example <caption>Expand dynamically-created panel when it exists.</caption>
+	 * wp.customize.panel( 'dynamically_created', function( panel ) {
+	 *     panel.expand();
+	 * } );
+	 *
+	 * @see {@link wp.customize.control} for further examples of how to interact with {@link wp.customize.Values} instances.
+	 */
 	api.panel = new api.Values({ defaultConstructor: api.Panel });
 
-	// Create the collection for global Notifications.
+	/**
+	 * Callback for resolved notifications.
+	 *
+	 * @callback deferredNotificationsCallback
+	 * @param {wp.customize.Notification[]} Resolved notifications.
+	 */
+
+	/**
+	 * Collection of all global notifications.
+	 *
+	 * @since 4.9.0
+	 *
+	 * @type {Function}
+	 * @param {...string} codes - One or more codes for notifications to obtain.
+	 * @param {deferredNotificationsCallback} [callback] - Function called when all supplied notifications exist.
+	 * @returns {wp.customize.Notification|undefined|jQuery.promise} notification instance or undefined (if function called with one code param), or promise resolving to requested notifications.
+	 *
+	 * @example <caption>Check if existing notification</caption>
+	 * exists = wp.customize.notifications.has( 'a_new_day_arrived' );
+	 *
+	 * @example <caption>Obtain existing notification</caption>
+	 * notification = wp.customize.notifications( 'a_new_day_arrived' );
+	 *
+	 * @example <caption>Obtain notification that may not exist yet.</caption>
+	 * wp.customize.notifications( 'a_new_day_arrived', function( notification ) { ... } );
+	 *
+	 * @example <caption>Add a warning notification.</caption>
+	 * wp.customize.notifications.add( new wp.customize.Notification( 'midnight_almost_here', {
+	 *     type: 'warning',
+	 *     message: 'Midnight has almost arrived!',
+	 *     dismissible: true
+	 * } ) );
+	 *
+	 * @example <caption>Remove a notification.</caption>
+	 * wp.customize.notifications.remove( 'a_new_day_arrived' );
+	 *
+	 * @see {@link wp.customize.control} for further examples of how to interact with {@link wp.customize.Values} instances.
+	 */
 	api.notifications = new api.Notifications();
 
 	/**
@@ -6430,7 +6787,8 @@
 		'selectedChangesetStatus',
 		'remainingTimeToPublish',
 		'previewerAlive',
-		'editShortcutVisibility'
+		'editShortcutVisibility',
+		'changesetLocked'
 	], function( name ) {
 		api.state.create( name );
 	});
@@ -6877,14 +7235,14 @@
 						} else if ( response.code ) {
 							if ( 'not_future_date' === response.code && api.section.has( 'publish_settings' ) && api.section( 'publish_settings' ).active.get() && api.control.has( 'changeset_scheduled_date' ) ) {
 								api.control( 'changeset_scheduled_date' ).toggleFutureDateNotification( true ).focus();
-							} else {
+							} else if ( 'changeset_locked' !== response.code ) {
 								notification = new api.Notification( response.code, _.extend( notificationArgs, {
 									message: response.message
 								} ) );
 							}
 						} else {
 							notification = new api.Notification( 'unknown_error', _.extend( notificationArgs, {
-								message: api.l10n.serverSaveError
+								message: api.l10n.unknownRequestFail
 							} ) );
 						}
 
@@ -6906,7 +7264,9 @@
 						if ( 'changeset_already_published' === response.code && response.next_changeset_uuid ) {
 							api.settings.changeset.uuid = response.next_changeset_uuid;
 							api.state( 'changesetStatus' ).set( '' );
-							parent.send( 'changeset-uuid', api.settings.changeset.uuid );
+							if ( api.settings.changeset.branching ) {
+								parent.send( 'changeset-uuid', api.settings.changeset.uuid );
+							}
 							api.previewer.send( 'changeset-uuid', api.settings.changeset.uuid );
 						}
 					} );
@@ -6937,7 +7297,9 @@
 
 							api.state( 'changesetStatus' ).set( '' );
 							api.settings.changeset.uuid = response.next_changeset_uuid;
-							parent.send( 'changeset-uuid', api.settings.changeset.uuid );
+							if ( api.settings.changeset.branching ) {
+								parent.send( 'changeset-uuid', api.settings.changeset.uuid );
+							}
 						}
 
 						// Prevent subsequent requestChangesetUpdate() calls from including the settings that have been saved.
@@ -7013,6 +7375,7 @@
 					urlParser.href = location.href;
 					queryParams = api.utils.parseQueryString( urlParser.search.substr( 1 ) );
 					delete queryParams.changeset_uuid;
+					queryParams['return'] = api.settings.url['return'];
 					urlParser.search = $.param( queryParams );
 					location.replace( urlParser.href );
 				};
@@ -7185,6 +7548,7 @@
 				selectedChangesetDate = state.instance( 'selectedChangesetDate' ),
 				previewerAlive = state.instance( 'previewerAlive' ),
 				editShortcutVisibility  = state.instance( 'editShortcutVisibility' ),
+				changesetLocked = state.instance( 'changesetLocked' ),
 				populateChangesetUuidParam;
 
 			state.bind( 'change', function() {
@@ -7235,7 +7599,7 @@
 				 * Save (publish) button should be enabled if saving is not currently happening,
 				 * and if the theme is not active or the changeset exists but is not published.
 				 */
-				canSave = ! saving() && ! trashing() && ( ! activated() || ! saved() || ( changesetStatus() !== selectedChangesetStatus() && '' !== changesetStatus() ) || ( 'future' === selectedChangesetStatus() && changesetDate.get() !== selectedChangesetDate.get() ) );
+				canSave = ! saving() && ! trashing() && ! changesetLocked() && ( ! activated() || ! saved() || ( changesetStatus() !== selectedChangesetStatus() && '' !== changesetStatus() ) || ( 'future' === selectedChangesetStatus() && changesetDate.get() !== selectedChangesetDate.get() ) );
 
 				saveBtn.prop( 'disabled', ! canSave );
 			});
@@ -7249,6 +7613,7 @@
 
 			// Set default states.
 			changesetStatus( api.settings.changeset.status );
+			changesetLocked( Boolean( api.settings.changeset.lockUser ) );
 			changesetDate( api.settings.changeset.publishDate );
 			selectedChangesetDate( api.settings.changeset.publishDate );
 			selectedChangesetStatus( '' === api.settings.changeset.status || 'auto-draft' === api.settings.changeset.status ? 'publish' : api.settings.changeset.status );
@@ -7340,24 +7705,6 @@
 				history.replaceState( {}, document.title, urlParser.href );
 			};
 
-			// Deactivate themes panel if changeset status is not auto-draft.
-			api.panel( 'themes', function( themesPanel ) {
-				var isPanelActive, updatePanelActive;
-
-				isPanelActive = function() {
-					return 'publish' === selectedChangesetStatus.get() && ( ! changesetStatus() || 'auto-draft' === changesetStatus() );
-				};
-				themesPanel.active.validate = isPanelActive;
-
-				updatePanelActive = function() {
-					themesPanel.active.set( isPanelActive() );
-				};
-
-				updatePanelActive();
-				changesetStatus.bind( updatePanelActive );
-				selectedChangesetStatus.bind( updatePanelActive );
-			} );
-
 			// Show changeset UUID in URL when in branching mode and there is a saved changeset.
 			if ( api.settings.changeset.branching ) {
 				changesetStatus.bind( function( newStatus ) {
@@ -7365,6 +7712,185 @@
 				} );
 			}
 		}( api.state ) );
+
+		/**
+		 * Handles lock notice and take over request.
+		 *
+		 * @since 4.9.0
+		 */
+		( function checkAndDisplayLockNotice() {
+
+			/**
+			 * A notification that is displayed in a full-screen overlay with information about the locked changeset.
+			 *
+			 * @since 4.9.0
+			 * @class
+			 * @augments wp.customize.Notification
+			 * @augments wp.customize.OverlayNotification
+			 */
+			var LockedNotification = api.OverlayNotification.extend({
+
+				/**
+				 * Template ID.
+				 *
+				 * @type {string}
+				 */
+				templateId: 'customize-changeset-locked-notification',
+
+				/**
+				 * Lock user.
+				 *
+				 * @type {object}
+				 */
+				lockUser: null,
+
+				/**
+				 * Initialize.
+				 *
+				 * @since 4.9.0
+				 *
+				 * @param {string} [code] - Code.
+				 * @param {object} [params] - Params.
+				 */
+				initialize: function( code, params ) {
+					var notification = this, _code, _params;
+					_code = code || 'changeset_locked';
+					_params = _.extend(
+						{
+							type: 'warning',
+							containerClasses: '',
+							lockUser: {}
+						},
+						params
+					);
+					_params.containerClasses += ' notification-changeset-locked';
+					api.OverlayNotification.prototype.initialize.call( notification, _code, _params );
+				},
+
+				/**
+				 * Render notification.
+				 *
+				 * @since 4.9.0
+				 *
+				 * @return {jQuery} Notification container.
+				 */
+				render: function() {
+					var notification = this, li, data, takeOverButton, request;
+					data = _.extend(
+						{
+							allowOverride: false,
+							returnUrl: api.settings.url['return'],
+							previewUrl: api.previewer.previewUrl.get(),
+							frontendPreviewUrl: api.previewer.getFrontendPreviewUrl()
+						},
+						this
+					);
+
+					li = api.OverlayNotification.prototype.render.call( data );
+
+					// Try to autosave the changeset now.
+					api.requestChangesetUpdate( {}, { autosave: true } ).fail( function( response ) {
+						if ( ! response.autosaved ) {
+							li.find( '.notice-error' ).prop( 'hidden', false ).text( response.message || api.l10n.unknownRequestFail );
+						}
+					} );
+
+					takeOverButton = li.find( '.customize-notice-take-over-button' );
+					takeOverButton.on( 'click', function( event ) {
+						event.preventDefault();
+						if ( request ) {
+							return;
+						}
+
+						takeOverButton.addClass( 'disabled' );
+						request = wp.ajax.post( 'customize_override_changeset_lock', {
+							wp_customize: 'on',
+							customize_theme: api.settings.theme.stylesheet,
+							customize_changeset_uuid: api.settings.changeset.uuid,
+							nonce: api.settings.nonce.override_lock
+						} );
+
+						request.done( function() {
+							api.notifications.remove( notification.code ); // Remove self.
+							api.state( 'changesetLocked' ).set( false );
+						} );
+
+						request.fail( function( response ) {
+							var message = response.message || api.l10n.unknownRequestFail;
+							li.find( '.notice-error' ).prop( 'hidden', false ).text( message );
+
+							request.always( function() {
+								takeOverButton.removeClass( 'disabled' );
+							} );
+						} );
+
+						request.always( function() {
+							request = null;
+						} );
+					} );
+
+					return li;
+				}
+			});
+
+			/**
+			 * Start lock.
+			 *
+			 * @since 4.9.0
+			 *
+			 * @param {object} [args] - Args.
+			 * @param {object} [args.lockUser] - Lock user data.
+			 * @param {boolean} [args.allowOverride=false] - Whether override is allowed.
+			 * @returns {void}
+			 */
+			function startLock( args ) {
+				if ( args && args.lockUser ) {
+					api.settings.changeset.lockUser = args.lockUser;
+				}
+				api.state( 'changesetLocked' ).set( true );
+				api.notifications.add( new LockedNotification( 'changeset_locked', {
+					lockUser: api.settings.changeset.lockUser,
+					allowOverride: Boolean( args && args.allowOverride )
+				} ) );
+			}
+
+			// Show initial notification.
+			if ( api.settings.changeset.lockUser ) {
+				startLock( { allowOverride: true } );
+			}
+
+			// Check for lock when sending heartbeat requests.
+			$( document ).on( 'heartbeat-send.update_lock_notice', function( event, data ) {
+				data.check_changeset_lock = true;
+			} );
+
+			// Handle heartbeat ticks.
+			$( document ).on( 'heartbeat-tick.update_lock_notice', function( event, data ) {
+				var notification, code = 'changeset_locked';
+				if ( ! data.customize_changeset_lock_user ) {
+					return;
+				}
+
+				// Update notification when a different user takes over.
+				notification = api.notifications( code );
+				if ( notification && notification.lockUser.id !== api.settings.changeset.lockUser.id ) {
+					api.notifications.remove( code );
+				}
+
+				startLock( {
+					lockUser: data.customize_changeset_lock_user
+				} );
+			} );
+
+			// Handle locking in response to changeset save errors.
+			api.bind( 'error', function( response ) {
+				if ( 'changeset_locked' === response.code && response.lock_user ) {
+					startLock( {
+						lockUser: response.lock_user
+					} );
+				}
+			} );
+		} )();
 
 		// Set up initial notifications.
 		(function() {
@@ -7384,6 +7910,7 @@
 				} else {
 					queryParams.customize_autosaved = 'on';
 				}
+				queryParams['return'] = api.settings.url['return'];
 				urlParser.search = $.param( queryParams );
 				return urlParser.href;
 			}
@@ -7438,11 +7965,12 @@
 
 						// Handle dismissal of notice.
 						li.find( '.notice-dismiss' ).on( 'click', function() {
-							wp.ajax.post( 'customize_dismiss_autosave', {
+							wp.ajax.post( 'customize_dismiss_autosave_or_lock', {
 								wp_customize: 'on',
 								customize_theme: api.settings.theme.stylesheet,
 								customize_changeset_uuid: api.settings.changeset.uuid,
-								nonce: api.settings.nonce.dismiss_autosave
+								nonce: api.settings.nonce.dismiss_autosave_or_lock,
+								dismiss_autosave: true
 							} );
 						} );
 
@@ -7461,6 +7989,7 @@
 			}
 
 			if ( api.settings.changeset.autosaved ) {
+				api.state( 'saved' ).set( false );
 				stripParamsFromLocation( [ 'customize_autosaved' ] ); // Remove param when restoring autosave revision.
 			} else if ( ! api.settings.changeset.branching && 'auto-draft' === api.settings.changeset.status ) {
 				stripParamsFromLocation( [ 'changeset_uuid' ] ); // Remove UUID when restoring autosave auto-draft.
@@ -7855,6 +8384,15 @@
 			var isInsideIframe = false;
 
 			function isCleanState() {
+
+				/*
+				 * Handle special case of previewing theme switch since some settings (for nav menus and widgets)
+				 * are pre-dirty and non-active themes can only ever be auto-drafts.
+				 */
+				if ( ! api.state( 'activated' ).get() ) {
+					return 0 === api._latestRevision;
+				}
+
 				return api.state( 'saved' ).get() && 'auto-draft' !== api.state( 'changesetStatus' ).get();
 			}
 
@@ -7871,7 +8409,7 @@
 
 				// Prompt user with AYS dialog if leaving the Customizer with unsaved changes
 				$( window ).on( 'beforeunload.customize-confirm', function() {
-					if ( ! isCleanState() ) {
+					if ( ! isCleanState() && ! api.state( 'changesetLocked' ).get() ) {
 						setTimeout( function() {
 							overlay.removeClass( 'customize-loading' );
 						}, 1 );
@@ -7881,18 +8419,14 @@
 			}
 			api.bind( 'change', startPromptingBeforeUnload );
 
-			closeBtn.on( 'click.customize-controls-close', function( event ) {
-				var clearedToClose = $.Deferred();
-				event.preventDefault();
+			function requestClose() {
+				var clearedToClose = $.Deferred(), dismissAutoSave = false, dismissLock = false;
 
-				/*
-				 * The isInsideIframe condition is because Customizer is not able to use a confirm()
-				 * since customize-loader.js will also use one. So autosave restorations are disabled
-				 * when customize-loader.js is used.
-				 */
-				if ( isInsideIframe || isCleanState() ) {
-					clearedToClose.resolve();
+				if ( isCleanState() ) {
+					dismissLock = true;
 				} else if ( confirm( api.l10n.saveAlert ) ) {
+
+					dismissLock = true;
 
 					// Mark all settings as clean to prevent another call to requestChangesetUpdate.
 					api.each( function( setting ) {
@@ -7902,33 +8436,50 @@
 					$( window ).off( 'beforeunload.wp-customize-changeset-update' );
 
 					closeBtn.css( 'cursor', 'progress' );
-					if ( '' === api.state( 'changesetStatus' ).get() ) {
-						clearedToClose.resolve();
-					} else {
-						wp.ajax.send( 'customize_dismiss_autosave', {
-							timeout: 500, // Don't wait too long.
-							data: {
-								wp_customize: 'on',
-								customize_theme: api.settings.theme.stylesheet,
-								customize_changeset_uuid: api.settings.changeset.uuid,
-								nonce: api.settings.nonce.dismiss_autosave
-							}
-						} ).always( function() {
-							clearedToClose.resolve();
-						} );
+					if ( '' !== api.state( 'changesetStatus' ).get() ) {
+						dismissAutoSave = true;
 					}
 				} else {
 					clearedToClose.reject();
 				}
 
-				clearedToClose.done( function() {
-					$( window ).off( 'beforeunload.customize-confirm' );
-					if ( isInsideIframe ) {
-						parent.send( 'close' );
-					} else {
-						window.location.href = closeBtn.prop( 'href' );
-					}
+				if ( dismissLock || dismissAutoSave ) {
+					wp.ajax.send( 'customize_dismiss_autosave_or_lock', {
+						timeout: 500, // Don't wait too long.
+						data: {
+							wp_customize: 'on',
+							customize_theme: api.settings.theme.stylesheet,
+							customize_changeset_uuid: api.settings.changeset.uuid,
+							nonce: api.settings.nonce.dismiss_autosave_or_lock,
+							dismiss_autosave: dismissAutoSave,
+							dismiss_lock: dismissLock
+						}
+					} ).always( function() {
+						clearedToClose.resolve();
+					} );
+				}
+
+				return clearedToClose.promise();
+			}
+
+			parent.bind( 'confirm-close', function() {
+				requestClose().done( function() {
+					parent.send( 'confirmed-close', true );
+				} ).fail( function() {
+					parent.send( 'confirmed-close', false );
 				} );
+			} );
+
+			closeBtn.on( 'click.customize-controls-close', function( event ) {
+				event.preventDefault();
+				if ( isInsideIframe ) {
+					parent.send( 'close' ); // See confirm-close logic above.
+				} else {
+					requestClose().done( function() {
+						$( window ).off( 'beforeunload.customize-confirm' );
+						window.location.href = closeBtn.prop( 'href' );
+					} );
+				}
 			});
 		})();
 
@@ -7944,7 +8495,9 @@
 			parent.send( 'title', newTitle );
 		});
 
-		parent.send( 'changeset-uuid', api.settings.changeset.uuid );
+		if ( api.settings.changeset.branching ) {
+			parent.send( 'changeset-uuid', api.settings.changeset.uuid );
+		}
 
 		// Initialize the connection with the parent frame.
 		parent.send( 'ready' );
