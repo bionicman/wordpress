@@ -13,9 +13,6 @@ if ( ! current_user_can( 'manage_privacy_options' ) ) {
 	wp_die( __( 'Sorry, you are not allowed to manage privacy on this site.' ) );
 }
 
-// "Borrow" xfn.js for now so we don't have to create new files.
-// wp_enqueue_script( 'xfn' );
-
 $action = isset( $_POST['action'] ) ? $_POST['action'] : '';
 
 if ( ! empty( $action ) ) {
@@ -36,6 +33,7 @@ if ( ! empty( $action ) ) {
 			'updated'
 		);
 	} elseif ( 'create-privacy-page' === $action ) {
+
 		if ( ! class_exists( 'WP_Privacy_Policy_Content' ) ) {
 			require_once( ABSPATH . 'wp-admin/includes/misc.php' );
 		}
@@ -100,17 +98,6 @@ if ( ! empty( $privacy_policy_page_id ) ) {
 	}
 }
 
-get_current_screen()->add_help_tab( array(
-	'id'      => 'privacy',
-	'title'   => __( 'Privacy' ),
-	'content' => '<p>' . __( 'This page provides settings with which you can manage your site&#8217;s privacy policy.' ) . '</p>',
-) );
-
-get_current_screen()->set_help_sidebar(
-	'<p><strong>' . __( 'For more information:' ) . '</strong></p>' .
-	'<p>' . __( '<a href="#">Documentation on privacy</a>' ) . '</p>'
-);
-
 require_once( ABSPATH . 'wp-admin/admin-header.php' );
 
 ?>
@@ -119,17 +106,18 @@ require_once( ABSPATH . 'wp-admin/admin-header.php' );
 	<h2><?php _e( 'Privacy Policy page' ); ?></h2>
 	<p>
 		<?php _e( 'As a website owner, you may need to follow national or international privacy laws. For example, you may need to create and display a privacy policy.' ); ?>
-		<?php _e( 'If you already have a privacy policy page, please select it below. If not, create one.' ); ?>
+		<?php _e( 'If you already have a privacy policy page, please select it below. If not, please create one.' ); ?>
 	</p>
 	<p>
 		<?php _e( 'The new page will include help and suggestions for your privacy policy.' ); ?>
 		<?php _e( 'However, it is your responsibility to use those resources correctly, to provide the information that your privacy policy requires, and to keep that information current and accurate.' ); ?>
 	</p>
 	<p>
-		<?php _e( 'After your privacy policy page is set, we suggest that you edit it. On the edit page screen you will find additional privacy information added by your themes and plugins.' ); ?>
-		<?php _e( 'We would also suggest reviewing your privacy policy from time to time, especially after an update. There may be changes or new suggested information for you to consider adding to your policy.' ); ?>
+		<?php _e( 'After your privacy policy page is set, we suggest that you edit it.' ); ?>
+		<?php _e( 'We would also suggest reviewing your privacy policy from time to time, especially after installing or updating any themes or plugins. There may be changes or new suggested information for you to consider adding to your policy.' ); ?>
 	</p>
 	<?php
+
 	if ( $privacy_policy_page_exists ) {
 		$edit_href = add_query_arg(
 			array(
@@ -140,17 +128,29 @@ require_once( ABSPATH . 'wp-admin/admin-header.php' );
 		);
 
 		$view_href = get_permalink( $privacy_policy_page_id );
+
 		?>
 		<p class="tools-privacy-edit"><strong>
 			<?php
-			printf(
-				/* translators: 1: URL to edit page, 2: URL to view page */
-				__( '<a href="%1$s">Edit</a> or <a href="%2$s">view</a> your privacy policy page content.' ),
-				$edit_href,
-				$view_href
-			);
+
+			/* translators: 1: URL to edit page, 2: URL to view page */
+			printf( __( '<a href="%1$s">Edit</a> or <a href="%2$s">view</a> your privacy policy page content.' ), $edit_href, $view_href );
+
 			?>
 		</strong></p>
+		<p>
+			<?php
+
+			/* translators: 1: Privacy Policy guide URL, 2: additional link attributes, 3: accessibility text */
+			printf(
+				__( 'Need help putting together your new Privacy Policy page? <a href="%1$s" %2$s>Check out our guide%3$s</a> for recommendations on what content to include, along with policies suggested by your plugins and theme.' ),
+				admin_url( 'tools.php?wp-privacy-policy-guide' ),
+				'',
+				''
+			);
+
+			?>
+		</p>
 		<?php
 	}
 	?>
@@ -167,32 +167,50 @@ require_once( ABSPATH . 'wp-admin/admin-header.php' );
 				?>
 			</th>
 			<td>
-				<form method="post" action="">
-					<label for="page_for_privacy_policy">
-						<?php _e( 'Either select an existing page:' ); ?>
-					</label>
-					<input type="hidden" name="action" value="set-privacy-page" />
-					<?php
-					wp_dropdown_pages(
-						array(
-							'name'              => 'page_for_privacy_policy',
-							'show_option_none'  => __( '&mdash; Select &mdash;' ),
-							'option_none_value' => '0',
-							'selected'          => $privacy_policy_page_id,
-							'post_status'       => array( 'draft', 'publish' ),
-						)
-					);
+				<?php
+				$has_pages = (bool) get_posts( array(
+					'post_type' => 'page',
+					'posts_per_page' => 1,
+					'post_status' => array(
+						'publish',
+						'draft',
+					),
+				) );
 
-					wp_nonce_field( 'set-privacy-page' );
+				if ( $has_pages ) : ?>
+					<form method="post" action="">
+						<label for="page_for_privacy_policy">
+							<?php _e( 'Select an existing page:' ); ?>
+						</label>
+						<input type="hidden" name="action" value="set-privacy-page" />
+						<?php
+						wp_dropdown_pages(
+							array(
+								'name'              => 'page_for_privacy_policy',
+								'show_option_none'  => __( '&mdash; Select &mdash;' ),
+								'option_none_value' => '0',
+								'selected'          => $privacy_policy_page_id,
+								'post_status'       => array( 'draft', 'publish' ),
+							)
+						);
 
-					submit_button( __( 'Use This Page' ), 'primary', 'submit', false, array( 'id' => 'set-page' ) );
-					?>
-				</form>
+						wp_nonce_field( 'set-privacy-page' );
+
+						submit_button( __( 'Use This Page' ), 'primary', 'submit', false, array( 'id' => 'set-page' ) );
+						?>
+					</form>
+				<?php endif; ?>
 
 				<form method="post" action="">
 					<input type="hidden" name="action" value="create-privacy-page" />
 					<span>
-						<?php _e( 'Or create a new page:' ); ?>
+						<?php
+						if ( $has_pages ) {
+							_e( 'Or:' );
+						} else {
+							_e( 'There are no pages.' );
+						}
+						?>
 					</span>
 					<?php
 					wp_nonce_field( 'create-privacy-page' );

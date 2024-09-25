@@ -1911,7 +1911,7 @@ function wp_privacy_generate_personal_data_export_file( $request_id ) {
 	$obscura              = wp_generate_password( 32, false, false );
 	$file_basename        = 'wp-personal-data-file-' . $stripped_email . '-' . $obscura;
 	$html_report_filename = $file_basename . '.html';
-	$html_report_pathname = $exports_dir . $html_report_filename;
+	$html_report_pathname = wp_normalize_path( $exports_dir . $html_report_filename );
 	$file = fopen( $html_report_pathname, 'w' );
 	if ( false === $file ) {
 		wp_send_json_error( __( 'Unable to open export file (HTML report) for writing.' ) );
@@ -1990,11 +1990,29 @@ function wp_privacy_generate_personal_data_export_file( $request_id ) {
 	fwrite( $file, "</html>\n" );
 	fclose( $file );
 
-	// Now, generate the ZIP.
+	/*
+	 * Now, generate the ZIP.
+	 *
+	 * If an archive has already been generated, then remove it and reuse the
+	 * filename, to avoid breaking any URLs that may have been previously sent
+	 * via email.
+	 */
 	$error            = false;
-	$archive_filename = $file_basename . '.zip';
-	$archive_pathname = $exports_dir . $archive_filename;
-	$archive_url      = $exports_url . $archive_filename;
+	$archive_url      = get_post_meta( $request_id, '_export_file_url', true );
+	$archive_pathname = get_post_meta( $request_id, '_export_file_path', true );
+
+	if ( empty( $archive_pathname ) || empty( $archive_url ) ) {
+		$archive_filename = $file_basename . '.zip';
+		$archive_pathname = $exports_dir . $archive_filename;
+		$archive_url      = $exports_url . $archive_filename;
+
+		update_post_meta( $request_id, '_export_file_url', $archive_url );
+		update_post_meta( $request_id, '_export_file_path', wp_normalize_path( $archive_pathname ) );
+	}
+
+	if ( ! empty( $archive_pathname ) && file_exists( $archive_pathname ) ) {
+		wp_delete_file( $archive_pathname );
+	}
 
 	$zip = new ZipArchive;
 	if ( true === $zip->open( $archive_pathname, ZipArchive::CREATE ) ) {
@@ -2013,8 +2031,9 @@ function wp_privacy_generate_personal_data_export_file( $request_id ) {
 			 * @param string $archive_pathname     The full path to the export file on the filesystem.
 			 * @param string $archive_url          The URL of the archive file.
 			 * @param string $html_report_pathname The full path to the personal data report on the filesystem.
+			 * @param string $request_id           The export request ID.
 			 */
-			do_action( 'wp_privacy_personal_data_export_file_created', $archive_pathname, $archive_url, $html_report_pathname );
+			do_action( 'wp_privacy_personal_data_export_file_created', $archive_pathname, $archive_url, $html_report_pathname, $request_id );
 		}
 	} else {
 		$error = __( 'Unable to open export file (archive) for writing.' );
@@ -2026,10 +2045,6 @@ function wp_privacy_generate_personal_data_export_file( $request_id ) {
 	if ( $error ) {
 		wp_send_json_error( $error );
 	}
-
-	// Save the export file in the request.
-	update_post_meta( $request_id, '_export_file_url', $archive_url );
-	update_post_meta( $request_id, '_export_file_path', $archive_pathname );
 }
 
 /**
@@ -2204,14 +2219,6 @@ function wp_privacy_process_personal_data_export_page( $response, $exporter_inde
 	// Then save the grouped data into the request.
 	delete_post_meta( $request_id, '_export_data_raw' );
 	update_post_meta( $request_id, '_export_data_grouped', $groups );
-
-	// And now, generate the export file, cleaning up any previous file
-	$export_path = get_post_meta( $request_id, '_export_file_path', true );
-	if ( ! empty( $export_path ) ) {
-		delete_post_meta( $request_id, '_export_file_path' );
-		@unlink( $export_path );
-	}
-	delete_post_meta( $request_id, '_export_file_url' );
 
 	// Generate the export file from the collected, grouped personal data.
 	do_action( 'wp_privacy_personal_data_export_file', $request_id );
