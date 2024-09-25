@@ -1052,10 +1052,14 @@ function add_menu_page( $page_title, $menu_title, $capability, $menu_slug, $func
 
 	$new_menu = array( $menu_title, $capability, $menu_slug, $page_title, 'menu-top ' . $icon_class . $hookname, $hookname, $icon_url );
 
-	if ( null === $position )
+	if ( null === $position ) {
 		$menu[] = $new_menu;
-	else
-		$menu[$position] = $new_menu;
+	} elseif ( isset( $menu[ "$position" ] ) ) {
+	 	$position = $position + substr( base_convert( md5( $menu_slug . $menu_title ), 16, 10 ) , -5 ) * 0.00001;
+		$menu[ "$position" ] = $new_menu;
+	} else {
+		$menu[ $position ] = $new_menu;
+	}
 
 	$_registered_pages[$hookname] = true;
 
@@ -1132,7 +1136,7 @@ function add_utility_page( $page_title, $menu_title, $capability, $menu_slug, $f
  *
  * @global array $submenu
  * @global array $menu
- * @global type $_wp_real_parent_file
+ * @global array $_wp_real_parent_file
  * @global bool $_wp_submenu_nopriv
  * @global array $_registered_pages
  * @global array $_parent_pages
@@ -1525,7 +1529,7 @@ function menu_page_url($menu_slug, $echo = true) {
  * @global string $pagenow
  * @global string $typenow
  * @global string $plugin_page
- * @global string $_wp_real_parent_file
+ * @global array $_wp_real_parent_file
  * @global array $_wp_menu_nopriv
  * @global array $_wp_submenu_nopriv
  */

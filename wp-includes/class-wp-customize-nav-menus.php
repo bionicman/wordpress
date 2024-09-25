@@ -107,7 +107,8 @@ final class WP_Customize_Nav_Menus {
 		$items = array();
 
 		if ( 'post_type' === $type ) {
-			if ( ! get_post_type_object( $object ) ) {
+			$post_type = get_post_type_object( $object );
+			if ( ! $post_type ) {
 				return new WP_Error( 'nav_menus_invalid_post_type' );
 			}
 
@@ -120,6 +121,16 @@ final class WP_Customize_Nav_Menus {
 					'type_label' => __( 'Custom Link' ),
 					'object'     => '',
 					'url'        => home_url(),
+				);
+			} elseif ( 'post' !== $object && 0 === $page && $post_type->has_archive ) {
+				// Add a post type archive link.
+				$items[] = array(
+					'id'         => $object . '-archive',
+					'title'      => $post_type->labels->archives,
+					'type'       => 'post_type_archive',
+					'type_label' => __( 'Post Type Archive' ),
+					'object'     => $object,
+					'url'        => get_post_type_archive_link( $object ),
 				);
 			}
 

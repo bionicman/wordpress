@@ -14,11 +14,9 @@ if ( ! headers_sent() ) {
 	header( 'X-WP-embed: true' );
 }
 
-wp_enqueue_style( 'open-sans' );
-
 ?>
 <!DOCTYPE html>
-<html <?php language_attributes(); ?>>
+<html <?php language_attributes(); ?> class="no-js">
 <head>
 	<title><?php echo wp_get_document_title(); ?></title>
 	<meta http-equiv="X-UA-Compatible" content="IE=edge">
@@ -160,35 +158,34 @@ if ( have_posts() ) :
 						</div>
 					<?php endif; ?>
 					<div class="wp-embed-share">
-						<button type="button" class="wp-embed-share-dialog-open"
-						        aria-label="<?php esc_attr_e( 'Open sharing dialog' ); ?>">
+						<button type="button" class="wp-embed-share-dialog-open" aria-label="<?php esc_attr_e( 'Open sharing dialog' ); ?>">
 							<span class="dashicons dashicons-share"></span>
 						</button>
 					</div>
 				</div>
 			</div>
-			<div class="wp-embed-share-dialog hidden">
+			<div class="wp-embed-share-dialog hidden" role="dialog" aria-label="<?php esc_attr_e( 'Sharing options' ); ?>">
 				<div class="wp-embed-share-dialog-content">
 					<div class="wp-embed-share-dialog-text">
 						<ul class="wp-embed-share-tabs" role="tablist">
-							<li id="wp-embed-share-tab-button-wordpress" class="wp-embed-share-tab-button" role="presentation">
-								<button role="tab" aria-controls="wp-embed-share-tab-wordpress" aria-selected="true" tabindex="0"><?php esc_html_e( 'WordPress Embed' ); ?></button>
+							<li class="wp-embed-share-tab-button wp-embed-share-tab-button-wordpress" role="presentation">
+								<button type="button" role="tab" aria-controls="wp-embed-share-tab-wordpress" aria-selected="true" tabindex="0"><?php esc_html_e( 'WordPress Embed' ); ?></button>
 							</li>
-							<li id="wp-embed-share-tab-button-embed" class="wp-embed-share-tab-button" role="presentation">
-								<button role="tab" aria-controls="wp-embed-share-tab-html" aria-selected="false" tabindex="-1"><?php esc_html_e( 'HTML Embed' ); ?></button>
+							<li class="wp-embed-share-tab-button wp-embed-share-tab-button-html" role="presentation">
+								<button type="button" role="tab" aria-controls="wp-embed-share-tab-html" aria-selected="false" tabindex="-1"><?php esc_html_e( 'HTML Embed' ); ?></button>
 							</li>
 						</ul>
-						<div id="wp-embed-share-tab-wordpress" class="wp-embed-share-tab" role="tabpanel" aria-labelledby="wp-embed-share-tab-button-wordpress" aria-hidden="false">
-							<input type="text" value="<?php the_permalink(); ?>" class="wp-embed-share-input" tabindex="0" readonly/>
+						<div id="wp-embed-share-tab-wordpress" class="wp-embed-share-tab" role="tabpanel" aria-hidden="false">
+							<input type="text" value="<?php the_permalink(); ?>" class="wp-embed-share-input" aria-describedby="wp-embed-share-description-wordpress" tabindex="0" readonly />
 
-							<p class="wp-embed-share-description">
+							<p class="wp-embed-share-description" id="wp-embed-share-description-wordpress">
 								<?php _e( 'Copy and paste this URL into your WordPress site to embed' ); ?>
 							</p>
 						</div>
-						<div id="wp-embed-share-tab-html" class="wp-embed-share-tab" role="tabpanel" aria-labelledby="wp-embed-share-tab-button-html" aria-hidden="true">
-							<textarea class="wp-embed-share-input" tabindex="0" readonly><?php echo esc_textarea( get_post_embed_html( null, 600, 400 ) ); ?></textarea>
+						<div id="wp-embed-share-tab-html" class="wp-embed-share-tab" role="tabpanel" aria-hidden="true">
+							<textarea class="wp-embed-share-input" aria-describedby="wp-embed-share-description-html" tabindex="0" readonly><?php echo esc_textarea( get_post_embed_html( 600, 400 ) ); ?></textarea>
 
-							<p class="wp-embed-share-description">
+							<p class="wp-embed-share-description" id="wp-embed-share-description-html">
 								<?php _e( 'Copy and paste this code into your site to embed' ); ?>
 							</p>
 						</div>
@@ -205,10 +202,18 @@ if ( have_posts() ) :
 else :
 	?>
 	<div class="wp-embed">
-		<p class="wp-embed-heading"><?php _e( 'Page not found' ); ?></p>
+		<p class="wp-embed-heading"><?php _e( 'Oops! That embed can&#8217;t be found.' ); ?></p>
 
 		<div class="wp-embed-excerpt">
-			<p><?php _e( 'Error 404! The requested content was not found.' ) ?></p>
+			<p>
+				<?php
+				printf(
+					/* translators: %s: a link to the embedded site */
+					__( 'It looks like nothing was found at this location. Maybe try visiting %s directly?' ),
+					'<strong><a href="' . esc_url( home_url() ) . '">' . esc_html( get_bloginfo( 'name' ) ) . '</a></strong>'
+				);
+				?>
+			</p>
 		</div>
 
 		<div class="wp-embed-footer">

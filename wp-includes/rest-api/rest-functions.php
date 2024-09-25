@@ -52,7 +52,7 @@ function register_rest_route( $namespace, $route, $args = array(), $override = f
 		 * and namespace indexes. If you really need to register a
 		 * non-namespaced route, call `WP_REST_Server::register_route` directly.
 		 */
-		_doing_it_wrong( 'register_rest_route', 'Routes must be namespaced with plugin name and version', 'WPAPI-2.0' );
+		_doing_it_wrong( 'register_rest_route', 'Routes must be namespaced with plugin name and version', '4.4.0' );
 
 		$full_route = '/' . trim( $route, '/' );
 	}
@@ -132,9 +132,10 @@ function rest_api_register_rewrites() {
 /**
  * Registers the default REST API filters.
  *
- * @since 4.4.0
+ * Attached to the {@see 'rest_api_init'} action
+ * to make testing and disabling these filters easier.
  *
- * @internal This will live in default-filters.php
+ * @since 4.4.0
  */
 function rest_api_default_filters() {
 	// Deprecated reporting.
@@ -254,12 +255,12 @@ function get_rest_url( $blog_id = null, $path = '/', $scheme = 'rest' ) {
 		$url = add_query_arg( 'rest_route', $path, $url );
 	}
 
-	if ( is_ssl() ) { 
-		// If the current host is the same as the REST URL host, force the REST URL scheme to HTTPS 
-		if ( $_SERVER['SERVER_NAME'] === parse_url( get_home_url( $blog_id ), PHP_URL_HOST ) ) { 
-			$url = set_url_scheme( $url, 'https' ); 
-		} 
-	} 
+	if ( is_ssl() ) {
+		// If the current host is the same as the REST URL host, force the REST URL scheme to HTTPS.
+		if ( $_SERVER['SERVER_NAME'] === parse_url( get_home_url( $blog_id ), PHP_URL_HOST ) ) {
+			$url = set_url_scheme( $url, 'https' );
+		}
+	}
 
 	/**
 	 * Filter the REST URL.
@@ -361,8 +362,10 @@ function rest_ensure_response( $response ) {
  */
 function rest_handle_deprecated_function( $function, $replacement, $version ) {
 	if ( ! empty( $replacement ) ) {
+		/* translators: 1: function name, 2: WordPress version number, 3: new function name */
 		$string = sprintf( __( '%1$s (since %2$s; use %3$s instead)' ), $function, $version, $replacement );
 	} else {
+		/* translators: 1: function name, 2: WordPress version number */
 		$string = sprintf( __( '%1$s (since %2$s; no alternative available)' ), $function, $version );
 	}
 
@@ -380,8 +383,10 @@ function rest_handle_deprecated_function( $function, $replacement, $version ) {
  */
 function rest_handle_deprecated_argument( $function, $replacement, $version ) {
 	if ( ! empty( $replacement ) ) {
+		/* translators: 1: function name, 2: WordPress version number, 3: new argument name */
 		$string = sprintf( __( '%1$s (since %2$s; %3$s)' ), $function, $version, $replacement );
 	} else {
+		/* translators: 1: function name, 2: WordPress version number */
 		$string = sprintf( __( '%1$s (since %2$s; no alternative available)' ), $function, $version );
 	}
 

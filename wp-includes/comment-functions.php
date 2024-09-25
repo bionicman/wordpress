@@ -2592,6 +2592,11 @@ function _close_comments_for_old_post( $open, $post_id ) {
 	if ( ! in_array( $post->post_type, $post_types ) )
 		return $open;
 
+	// Undated drafts should not show up as comments closed.
+	if ( '0000-00-00 00:00:00' === $post->post_date_gmt ) {
+		return $open;
+	}
+
 	if ( time() - strtotime( $post->post_date_gmt ) > ( $days_old * DAY_IN_SECONDS ) )
 		return false;
 
@@ -2742,6 +2747,7 @@ function wp_handle_comment_submission( $comment_data ) {
 		$comment_author       = $user->display_name;
 		$comment_author_email = $user->user_email;
 		$comment_author_url   = $user->user_url;
+		$user_id              = $user->ID;
 		if ( current_user_can( 'unfiltered_html' ) ) {
 			if ( ! isset( $comment_data['_wp_unfiltered_html_comment'] )
 				|| ! wp_verify_nonce( $comment_data['_wp_unfiltered_html_comment'], 'unfiltered-html-comment_' . $comment_post_ID )
@@ -2778,7 +2784,7 @@ function wp_handle_comment_submission( $comment_data ) {
 		'comment_content',
 		'comment_type',
 		'comment_parent',
-		'user_ID'
+		'user_id'
 	);
 
 	$comment_id = wp_new_comment( wp_slash( $commentdata ) );

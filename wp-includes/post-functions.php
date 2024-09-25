@@ -1411,6 +1411,7 @@ function get_post_type_labels( $post_type_object ) {
  *
  * @param object $object                  A custom-something object.
  * @param array  $nohier_vs_hier_defaults Hierarchical vs non-hierarchical default labels.
+ * @return object Object containing labels for the given custom-something object.
  */
 function _get_custom_object_labels( $object, $nohier_vs_hier_defaults ) {
 	$object->labels = (array) $object->labels;
@@ -4287,7 +4288,15 @@ function get_page_uri( $page ) {
 		}
 	}
 
-	return $uri;
+	/**
+	 * Filter the URI for a page.
+	 *
+	 * @since 4.4.0
+	 *
+	 * @param string  $uri  Page URI.
+	 * @param WP_Post $page Page object.
+	 */
+	return apply_filters( 'get_page_uri', $uri, $page );
 }
 
 /**

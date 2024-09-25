@@ -1174,10 +1174,10 @@ a:active {
 .pagination .prev:before,
 .pagination .next:before {
 	font-size: 32px;
-	height: 52px;
+	height: 53px;
 	line-height: 52px;
 	position: relative;
-	width: 52px;
+	width: 53px;
 }
 
 .pagination .prev:hover,
@@ -1686,6 +1686,11 @@ a.post-thumbnail:focus {
 	opacity: 0.85;
 }
 
+.entry-content,
+.entry-summary {
+	border-color: #d1d1d1;
+}
+
 .entry-content h1,
 .entry-summary h1,
 .comment-content h1,
@@ -1888,10 +1893,10 @@ body:not(.search-results) .entry-summary > :last-child,
 }
 
 .author-info {
-	border-top: 1px solid #d1d1d1;
-	border-bottom: 1px solid #d1d1d1;
+	border-color: inherit;
+	border-style: solid;
+	border-width: 1px 0 1px 0;
 	clear: both;
-	margin-top: 1.75em;
 	padding-top: 1.75em;
 	padding-bottom: 1.75em;
 }
@@ -2569,12 +2574,12 @@ p > video {
 	width: auto;
 }
 
-.widecolumn .mu_alert {
-	margin-bottom: 1.75em;
-}
-
-.widecolumn  .mu_register .mu_alert {
-	padding: 0.875em;
+.widecolumn .mu_register .mu_alert {
+	background: transparent;
+	border-color: #d1d1d1;
+	color: inherit;
+	margin-bottom: 3.5em;
+	padding: 1.75em;
 }
 
 .widecolumn form,
@@ -2928,12 +2933,12 @@ p > video {
 		margin: 0 -0.875em;
 	}
 
-	.main-navigation .primary-menu {
+	.main-navigation .primary-menu,
+	.main-navigation .primary-menu > li {
 		border: 0;
 	}
 
-	.main-navigation li {
-		border: 0;
+	.main-navigation .primary-menu > li {
 		float: left;
 	}
 
@@ -3447,7 +3452,7 @@ p > video {
 	}
 
 	.author-info {
-		border-bottom: 0;
+		border-bottom-width: 0;
 		padding-bottom: 0;
 	}
 

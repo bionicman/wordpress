@@ -3621,7 +3621,7 @@ function tag_escape( $tag_name ) {
  * @return string Absolute path.
  */
 function wp_make_link_relative( $link ) {
-	return preg_replace( '|^(https?:)?//[^/]+(/.*)|i', '$2', $link );
+	return preg_replace( '|^(https?:)?//[^/]+(/?.*)|i', '$2', $link );
 }
 
 /**
@@ -3662,6 +3662,8 @@ function sanitize_option( $option, $value ) {
 		case 'thumbnail_size_h':
 		case 'medium_size_w':
 		case 'medium_size_h':
+		case 'medium_large_size_w':
+		case 'medium_large_size_h':
 		case 'large_size_w':
 		case 'large_size_h':
 		case 'mailserver_port':
