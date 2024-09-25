@@ -949,18 +949,18 @@ function remove_theme_mods() {
 }
 
 /**
- * Retrieve text color for custom header.
+ * Retrieves the custom header text color in HEX format.
  *
  * @since 2.1.0
  *
- * @return string
+ * @return string Header text color in HEX format (minus the hash symbol).
  */
 function get_header_textcolor() {
 	return get_theme_mod('header_textcolor', get_theme_support( 'custom-header', 'default-text-color' ) );
 }
 
 /**
- * Display text color for custom header.
+ * Displays the custom header text color in HEX format (minus the hash symbol).
  *
  * @since 2.1.0
  */
@@ -1560,6 +1560,9 @@ function add_theme_support( $feature ) {
 			break;
 
 		case 'custom-logo':
+			if ( ! is_array( $args ) ) {
+				$args = array( 0 => array() );
+			}
 			$defaults = array(
 				'width'       => null,
 				'height'      => null,
