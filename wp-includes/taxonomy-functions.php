@@ -764,25 +764,12 @@ function get_term( $term, $taxonomy = '', $output = OBJECT, $filter = 'raw' ) {
 			$_term = WP_Term::get_instance( $term->term_id );
 		}
 	} else {
-		$_term = WP_Term::get_instance( $term );
+		$_term = WP_Term::get_instance( $term, $taxonomy );
 	}
 
-	// If `$taxonomy` was provided, make sure it matches the taxonomy of the located term.
-	if ( $_term && $taxonomy && $taxonomy !== $_term->taxonomy ) {
-		// If there are two terms with the same ID, split the other one to a new term.
-		$new_term_id = _split_shared_term( $_term->term_id, $_term->term_taxonomy_id );
-
-		// If no split occurred, this is an invalid request. Return null (not WP_Error) for back compat.
-		if ( $new_term_id === $_term->term_id ) {
-			return null;
-
-		// The term has been split. Refetch the term from the proper taxonomy.
-		} else {
-			return get_term( $_term->term_id, $taxonomy, $output, $filter );
-		}
-	}
-
-	if ( ! $_term ) {
+	if ( is_wp_error( $_term ) ) {
+		return $_term;
+	} elseif ( ! $_term ) {
 		return null;
 	}
 
@@ -2067,6 +2054,8 @@ function wp_delete_object_term_relationships( $object_id, $taxonomies ) {
  * If the term is a parent of other terms, then the children will be updated to
  * that term's parent.
  *
+ * Metadata associated with the term will be deleted.
+ *
  * The `$args` 'default' will only override the terms found, if there is only one
  * term found. Any other and the found terms are used.
  *
@@ -2184,6 +2173,11 @@ function wp_delete_term( $term, $taxonomy, $args = array() ) {
 	$tax_object = get_taxonomy( $taxonomy );
 	foreach ( $tax_object->object_type as $object_type )
 		clean_object_term_cache( $objects, $object_type );
+
+	$term_meta_ids = $wpdb->get_col( $wpdb->prepare( "SELECT meta_id FROM $wpdb->termmeta WHERE term_id = %d ", $term ) );
+	foreach ( $term_meta_ids as $mid ) {
+		delete_metadata_by_mid( 'term', $mid );
+	}
 
 	/**
 	 * Fires immediately before a term taxonomy ID is deleted.

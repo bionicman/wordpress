@@ -1002,7 +1002,7 @@ final class WP_Customize_Manager {
 	 * @since 4.2.0
 	 *
 	 * @param array $setting_ids The setting IDs to add.
-	 * @return WP_Customize_Setting The settings added.
+	 * @return array The WP_Customize_Setting objects added.
 	 */
 	public function add_dynamic_settings( $setting_ids ) {
 		$new_settings = array();
@@ -1302,7 +1302,7 @@ final class WP_Customize_Manager {
 	 */
 	protected function _cmp_priority( $a, $b ) {
 		if ( $a->priority === $b->priority ) {
-			return $a->instance_number - $a->instance_number;
+			return $a->instance_number - $b->instance_number;
 		} else {
 			return $a->priority - $b->priority;
 		}

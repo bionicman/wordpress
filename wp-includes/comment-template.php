@@ -869,7 +869,13 @@ function get_comments_number_text( $zero = false, $one = false, $more = false ) 
 	$number = get_comments_number();
 
 	if ( $number > 1 ) {
-		$output = str_replace( '%', number_format_i18n( $number ), ( false === $more ) ? __( '% Comments' ) : $more );
+		if ( false === $more ) {
+			/* translators: %s: number of comments */
+			$output = sprintf( _n( '%s Comment', '%s Comments', $number ), number_format_i18n( $number ) );
+		} else {
+			// % Comments
+			$output = str_replace( '%', number_format_i18n( $number ), $more );
+		}
 	} elseif ( $number == 0 ) {
 		$output = ( false === $zero ) ? __( 'No Comments' ) : $zero;
 	} else { // must be one
@@ -1085,12 +1091,20 @@ function get_trackback_url() {
  *                     for the result instead.
  */
 function trackback_url( $deprecated_echo = true ) {
-	if ( $deprecated_echo !== true )
-		_deprecated_argument( __FUNCTION__, '2.5', __('Use <code>get_trackback_url()</code> instead if you do not want the value echoed.') );
-	if ( $deprecated_echo )
+	if ( true !== $deprecated_echo ) {
+		_deprecated_argument( __FUNCTION__, '2.5',
+			/* translators: %s: get_trackback_url() */
+			sprintf( __( 'Use %s instead if you do not want the value echoed.' ),
+				'<code>get_trackback_url()</code>'
+			)
+		);
+	}
+
+	if ( $deprecated_echo ) {
 		echo get_trackback_url();
-	else
+	} else {
 		return get_trackback_url();
+	}
 }
 
 /**

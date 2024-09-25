@@ -216,6 +216,30 @@
 	-webkit-font-smoothing: subpixel-antialiased;
 }
 
+.media-modal-content .media-frame select.attachment-filters {
+	margin-top: 11px;
+	margin-left: 2%;
+	width: 42%;
+	width: -webkit-calc(48% - 12px);
+	width: calc(48% - 12px);
+}
+
+.media-modal-content .attachments-browser .media-toolbar-secondary {
+	width: 66%;
+}
+
+.media-modal-content .media-toolbar-primary.search-form {
+	width: 33%;
+}
+
+.media-modal-content .media-toolbar-primary .media-button {
+	float: left;
+}
+
+.media-modal-content .attachments-browser .search {
+	width: 100%;
+}
+
 /* higher specificity */
 .wp-core-ui .media-modal-icon {
 	background-image: url(../images/uploader-icons.png);
@@ -752,9 +776,9 @@
 .media-frame select.attachment-filters {
 	margin-top: 11px;
 	margin-left: 2%;
-	width: 42%;
-	width: -webkit-calc(48% - 12px);
-	width: calc(48% - 12px);
+	max-width: 42%;
+	max-width: -webkit-calc(48% - 12px);
+	max-width: calc(48% - 12px);
 }
 
 .media-frame select.attachment-filters:last-of-type {
@@ -1081,15 +1105,11 @@
 }
 
 .attachments-browser .media-toolbar-primary {
-	width: 33%;
+	max-width: 33%;
 }
 
 .attachments-browser .media-toolbar-secondary {
-	width: 66%;
-}
-
-.attachments-browser .search {
-	width: 100%;
+	max-width: 66%;
 }
 
 .uploader-inline .close {
@@ -1507,7 +1527,7 @@
 	width: 25px;
 	background-image: -webkit-gradient(linear, left top, right top, from(rgba( 255, 255, 255, 1 )), to(rgba( 255, 255, 255, 0 )));
 	background-image: -webkit-linear-gradient(left, rgba( 255, 255, 255, 1 ), rgba( 255, 255, 255, 0 ));
-	background-image: linear-gradient(to right, rgba( 255, 255, 255, 1 ) ,  rgba( 255, 255, 255, 0 ) );
+	background-image: linear-gradient(to right, rgba( 255, 255, 255, 1 ), rgba( 255, 255, 255, 0 ));
 }
 
 .media-selection .attachment .filename {
