@@ -130,14 +130,19 @@ function wp_dashboard_setup() {
 }
 
 /**
+ * Adds a new dashboard widget.
  *
- * @global array   $wp_dashboard_control_callbacks
+ * @since 2.7.0
  *
- * @param string   $widget_id
- * @param string   $widget_name
- * @param callable $callback
- * @param callable $control_callback
- * @param array    $callback_args
+ * @global array $wp_dashboard_control_callbacks
+ *
+ * @param string   $widget_id        Widget ID  (used in the 'id' attribute for the widget).
+ * @param string   $widget_name      Title of the widget.
+ * @param callable $callback         Function that fills the widget with the desired content.
+ *                                   The function should echo its output.
+ * @param callable $control_callback Optional. Function that outputs controls for the widget. Default null.
+ * @param array    $callback_args    Optional. Data that should be set as the $args property of the widget array
+ *                                   (which is the second parameter passed to your callback). Default null.
  */
 function wp_add_dashboard_widget( $widget_id, $widget_name, $callback, $control_callback = null, $callback_args = null ) {
 	$screen = get_current_screen();
@@ -309,7 +314,7 @@ function wp_dashboard_right_now() {
 		 * Prior to 3.8.0, the widget was named 'Right Now'.
 		 *
 		 * @since 3.0.0
-		 * @since 4.5.0 No title attribute output by default.
+		 * @since 4.5.0 The default for `$title` was updated to an empty string.
 		 *
 		 * @param string $title Default attribute text.
 		 */
