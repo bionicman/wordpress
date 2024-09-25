@@ -396,6 +396,10 @@ input[type="radio"].disabled:checked:before {
 	max-width: 100%;
 }
 
+.meta-box-sortables input {
+	vertical-align: middle;
+}
+
 .misc-pub-post-status select {
 	margin-top: 0;
 }
@@ -1629,6 +1633,13 @@ table.form-table td .updated p {
 	.wp-list-table.privacy_requests.widefat thead td input {
 		margin-left: 5px;
 	}
+
+	.wp-privacy-request-form-field input[type="text"] {
+		width: 100%;
+		margin-bottom: 10px;
+		vertical-align: middle;
+	}
+
 	.regular-text {
 		max-width: 100%;
 	}
