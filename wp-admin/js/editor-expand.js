@@ -31,8 +31,11 @@ jQuery( document ).ready( function($) {
 		fixedSideBottom = false,
 		scrollTimer,
 		lastScrollPosition = 0,
+		visualEditorScrollPosition = 0,
+		textEditorScrollPosition = 0,
 		pageYOffsetAtTop = 130,
 		pinnedToolsTop = 56,
+		sidebarBottom = 20,
 		autoresizeMinHeight = 300,
 		initialMode = window.getUserSetting( 'editor' ),
 		// These are corrected when adjust() runs, except on scrolling if already set.
@@ -194,6 +197,14 @@ jQuery( document ).ready( function($) {
 				return;
 			}
 
+			// Bail on special keys.
+			if ( key <= 47 && ! ( key === VK.SPACEBAR || key === VK.ENTER || key === VK.DELETE || key === VK.BACKSPACE || key === VK.UP || key === VK.LEFT || key === VK.DOWN || key === VK.UP ) ) {
+				return;
+			// OS keys, function keys, num lock, scroll lock
+			} else if ( ( key >= 91 && key <= 93 ) || ( key >= 112 && key <= 123 ) || key === 144 || key === 145 ) {
+				return;
+			}
+
 			cursorTop = offset.top + editor.iframeElement.getBoundingClientRect().top;
 			cursorBottom = cursorTop + offset.height;
 			cursorTop = cursorTop - buffer;
@@ -215,20 +226,35 @@ jQuery( document ).ready( function($) {
 
 		// Adjust when switching editor modes.
 		function mceShow() {
+			textEditorScrollPosition = window.pageYOffset;
+
 			setTimeout( function() {
+				var top = $contentWrap.offset().top;
+
+				if ( window.pageYOffset > top || visualEditorScrollPosition ) {
+					window.scrollTo( window.pageXOffset, visualEditorScrollPosition ? visualEditorScrollPosition : top - heights.adminBarHeight );
+				}
+
 				editor.execCommand( 'wpAutoResize' );
 				adjust();
 			}, 300 );
+
+			adjust();
 		}
 
 		function mceHide() {
-			var wrapHeight = $( '#wpwrap' ).height();
+			visualEditorScrollPosition = window.pageYOffset;
 
-			textEditorResize();
+			setTimeout( function() {
+				var top = $contentWrap.offset().top;
 
-			if ( wrapHeight && $window.scrollTop() > wrapHeight ) {
-				window.scrollTo( window.pageXOffset, wrapHeight - 1 );
-			}
+				if ( window.pageYOffset > top || textEditorScrollPosition ) {
+					window.scrollTo( window.pageXOffset, textEditorScrollPosition ? textEditorScrollPosition : top - heights.adminBarHeight );
+				}
+
+				textEditorResize();
+				adjust();
+			}, 100 );
 
 			adjust();
 		}
@@ -432,7 +458,7 @@ jQuery( document ).ready( function($) {
 			$document.height() > ( $sideSortables.height() + postBodyTop + 120 ) && // the sidebar is not the tallest element
 			heights.windowHeight < editorHeight ) { // the editor is taller than the viewport
 
-			if ( heights.sideSortablesHeight > heights.windowHeight || fixedSideTop || fixedSideBottom ) {
+			if ( ( heights.sideSortablesHeight + pinnedToolsTop + sidebarBottom ) > heights.windowHeight || fixedSideTop || fixedSideBottom ) {
 				// Reset when scrolling to the top
 				if ( windowPos + pinnedToolsTop <= postBodyTop ) {
 					$sideSortables.attr( 'style', '' );
@@ -447,8 +473,8 @@ jQuery( document ).ready( function($) {
 							footerTop = $footer.offset().top;
 
 							// don't get over the footer
-							if ( footerTop < sidebarTop + heights.sideSortablesHeight + 20 ) {
-								sidebarTop = footerTop - heights.sideSortablesHeight - 20;
+							if ( footerTop < sidebarTop + heights.sideSortablesHeight + sidebarBottom ) {
+								sidebarTop = footerTop - heights.sideSortablesHeight - 12;
 							}
 
 							$sideSortables.css({
@@ -456,14 +482,14 @@ jQuery( document ).ready( function($) {
 								top: sidebarTop,
 								bottom: ''
 							});
-						} else if ( ! fixedSideBottom && heights.sideSortablesHeight + $sideSortables.offset().top + 20 < windowPos + heights.windowHeight ) {
+						} else if ( ! fixedSideBottom && heights.sideSortablesHeight + $sideSortables.offset().top + sidebarBottom < windowPos + heights.windowHeight ) {
 							// pin the bottom
 							fixedSideBottom = true;
 
 							$sideSortables.css({
 								position: 'fixed',
 								top: 'auto',
-								bottom: '20px'
+								bottom: sidebarBottom
 							});
 						}
 					} else if ( windowPos < lastScrollPosition ) {
@@ -471,12 +497,12 @@ jQuery( document ).ready( function($) {
 						if ( fixedSideBottom ) {
 							// let it scroll
 							fixedSideBottom = false;
-							sidebarTop = $sideSortables.offset().top - 20;
+							sidebarTop = $sideSortables.offset().top - sidebarBottom;
 							footerTop = $footer.offset().top;
 
 							// don't get over the footer
-							if ( footerTop < sidebarTop + heights.sideSortablesHeight + 20 ) {
-								sidebarTop = footerTop - heights.sideSortablesHeight - 20;
+							if ( footerTop < sidebarTop + heights.sideSortablesHeight + sidebarBottom ) {
+								sidebarTop = footerTop - heights.sideSortablesHeight - 12;
 							}
 
 							$sideSortables.css({
@@ -499,6 +525,7 @@ jQuery( document ).ready( function($) {
 			} else {
 				// if the sidebar container is smaller than the viewport, then pin/unpin the top when scrolling
 				if ( windowPos >= ( postBodyTop - pinnedToolsTop ) ) {
+
 					$sideSortables.css( {
 						position: 'fixed',
 						top: pinnedToolsTop
@@ -569,7 +596,7 @@ jQuery( document ).ready( function($) {
 		// Adjust when collapsing the menu, changing the columns, changing the body class.
 		$document.on( 'wp-collapse-menu.editor-expand postboxes-columnchange.editor-expand editor-classchange.editor-expand', adjust )
 			.on( 'postbox-toggled.editor-expand', function() {
-				if ( ! fixedSideTop && ! fixedSideBottom && window.pageYOffset > 20 ) {
+				if ( ! fixedSideTop && ! fixedSideBottom && window.pageYOffset > pinnedToolsTop ) {
 					fixedSideBottom = true;
 					window.scrollBy( 0, -1 );
 					adjust();

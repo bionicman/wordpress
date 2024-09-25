@@ -189,7 +189,7 @@ if ( ! empty( $_REQUEST['language'] ) ) {
 switch($step) {
 	case 0: // Step 0
 
-		if ( empty( $langugage ) && ( $languages = wp_get_available_translations() ) ) {
+		if ( wp_can_install_language_pack() && empty( $langugage ) && ( $languages = wp_get_available_translations() ) ) {
 			display_header( 'language-chooser' );
 			echo '<form id="setup" method="post" action="?step=1">';
 			wp_install_language_form( $languages );
@@ -204,6 +204,7 @@ switch($step) {
 			$loaded_language = wp_download_language_pack( $langugage );
 			if ( $loaded_language ) {
 				load_default_textdomain( $loaded_language );
+				$GLOBALS['wp_locale'] = new WP_Locale();
 			}
 		}
 
@@ -221,6 +222,7 @@ switch($step) {
 	case 2:
 		if ( ! empty( $langugage ) && load_default_textdomain( $langugage ) ) {
 			$loaded_language = $langugage;
+			$GLOBALS['wp_locale'] = new WP_Locale();
 		} else {
 			$loaded_language = 'en_US';
 		}
