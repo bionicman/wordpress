@@ -1,3 +1,4 @@
+/*! This file is auto-generated */
 #wpbody-content #dashboard-widgets.columns-1 .postbox-container {
 	width: 100%;
 }
@@ -6,7 +7,7 @@
 	width: 49.5%;
 }
 
-#wpbody-content #dashboard-widgets.columns-2 #postbox-container-2,
+#wpbody-content #dashboard-widgets.columns-2 .postbox-container-2,
 #wpbody-content #dashboard-widgets.columns-2 #postbox-container-3,
 #wpbody-content #dashboard-widgets.columns-2 #postbox-container-4 {
 	float: left;
@@ -42,7 +43,7 @@
 	width: 49.5%;
 }
 
-.ie8 #wpbody-content #dashboard-widgets #postbox-container-2,
+.ie8 #wpbody-content #dashboard-widgets .postbox-container-2,
 .ie8 #wpbody-content #dashboard-widgets #postbox-container-3,
 .ie8 #wpbody-content #dashboard-widgets #postbox-container-4 {
 	float: left;
@@ -130,7 +131,7 @@
 	color: #72777c;
 }
 
-.welcome-panel a {
+.welcome-panel li a {
 	text-decoration: none;
 }
 
@@ -257,6 +258,16 @@
 
 .welcome-panel .welcome-widgets-menus:before {
 	content: "\f116";
+	top: -2px;
+}
+
+.welcome-panel .welcome-widgets:before {
+	content: "\f538";
+	top: -2px;
+}
+
+.welcome-panel .welcome-menus:before {
+	content: "\f163";
 	top: -2px;
 }
 
@@ -811,7 +822,7 @@ body #dashboard-widgets .postbox form .submit {
 	top: 12px;
 }
 
-#activity-widget #the-comment-list .dashboard-comment-wrap {
+#activity-widget #the-comment-list .dashboard-comment-wrap.has-avatar {
 	padding-right: 63px;
 }
 
@@ -886,8 +897,9 @@ body #dashboard-widgets .postbox form .submit {
 	min-width: 0;
 }
 
-#dashboard-widgets a,
-#dashboard-widgets .button-link {
+#dashboard-widgets li a,
+#dashboard-widgets .button-link,
+.community-events-footer a {
 	text-decoration: none;
 }
 
@@ -1101,7 +1113,7 @@ a.rsswidget {
 		width: 49.5%;
 	}
 
-	#wpbody-content #dashboard-widgets #postbox-container-2,
+	#wpbody-content #dashboard-widgets .postbox-container-2,
 	#wpbody-content #dashboard-widgets #postbox-container-3,
 	#wpbody-content #dashboard-widgets #postbox-container-4 {
 		float: left;

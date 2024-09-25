@@ -49,7 +49,7 @@ class WP_Widget_Recent_Comments extends WP_Widget {
 		 * @param bool   $active  Whether the widget is active. Default true.
 		 * @param string $id_base The widget ID.
 		 */
-		if ( ! current_theme_supports( 'widgets' ) // Temp hack #14876
+		if ( ! current_theme_supports( 'widgets' ) // Temp hack #14876.
 			|| ! apply_filters( 'show_recent_comments_widget_style', true, $this->id_base ) ) {
 			return;
 		}
@@ -88,18 +88,18 @@ class WP_Widget_Recent_Comments extends WP_Widget {
 			$number = 5;
 		}
 
-		/**
-		 * Filters the arguments for the Recent Comments widget.
-		 *
-		 * @since 3.4.0
-		 * @since 4.9.0 Added the `$instance` parameter.
-		 *
-		 * @see WP_Comment_Query::query() for information on accepted arguments.
-		 *
-		 * @param array $comment_args An array of arguments used to retrieve the recent comments.
-		 * @param array $instance     Array of settings for the current widget.
-		 */
 		$comments = get_comments(
+			/**
+			 * Filters the arguments for the Recent Comments widget.
+			 *
+			 * @since 3.4.0
+			 * @since 4.9.0 Added the `$instance` parameter.
+			 *
+			 * @see WP_Comment_Query::query() for information on accepted arguments.
+			 *
+			 * @param array $comment_args An array of arguments used to retrieve the recent comments.
+			 * @param array $instance     Array of settings for the current widget.
+			 */
 			apply_filters(
 				'widget_comments_args',
 				array(
