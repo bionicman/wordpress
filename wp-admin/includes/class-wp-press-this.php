@@ -119,28 +119,10 @@ class WP_Press_This {
 			'post_type'     => 'post',
 			'post_status'   => 'draft',
 			'post_format'   => ( ! empty( $_POST['post_format'] ) ) ? sanitize_text_field( $_POST['post_format'] ) : '',
+			'tax_input'     => ( ! empty( $_POST['tax_input'] ) ) ? $_POST['tax_input'] : array(),
+			'post_category' => ( ! empty( $_POST['post_category'] ) ) ? $_POST['post_category'] : array(),
 		);
 
-		// Only accept categories if the user actually can assign
-		$category_tax = get_taxonomy( 'category' );
-		if ( current_user_can( $category_tax->cap->assign_terms ) ) {
-			$post_data['post_category'] = ( ! empty( $_POST['post_category'] ) ) ? $_POST['post_category'] : array();
-		}
-
-		// Only accept taxonomies if the user can actually assign
-		if ( ! empty( $_POST['tax_input'] ) ) {
-			$tax_input = $_POST['tax_input'];
-			foreach ( $tax_input as $tax => $_ti ) {
-				$tax_object = get_taxonomy( $tax );
-				if ( ! $tax_object || ! current_user_can( $tax_object->cap->assign_terms ) ) {
-					unset( $tax_input[ $tax ] );
-				}
-			}
-
-			$post_data['tax_input'] = $tax_input;
-		}
-
-		// Toggle status to pending if user cannot actually publish
 		if ( ! empty( $_POST['post_status'] ) && 'publish' === $_POST['post_status'] ) {
 			if ( current_user_can( 'publish_posts' ) ) {
 				$post['post_status'] = 'publish';
@@ -408,8 +390,8 @@ class WP_Press_This {
 	/**
 	 * Utility method to limit image source URLs.
 	 *
-	 * Excluded URLs include share-this type buttons, loaders, spinners, spacers, WP interface images,
-	 * tiny buttons or thumbs, mathtag.com or quantserve.com images, or the WP stats gif.
+	 * Excluded URLs include share-this type buttons, loaders, spinners, spacers, WordPress interface images,
+	 * tiny buttons or thumbs, mathtag.com or quantserve.com images, or the WordPress.com stats gif.
 	 *
 	 * @ignore
 	 * @since 4.2.0
@@ -420,32 +402,32 @@ class WP_Press_This {
 	private function _limit_img( $src ) {
 		$src = $this->_limit_url( $src );
 
-		if ( preg_match( '/\/ad[sx]{1}?\//', $src ) ) {
+		if ( preg_match( '!/ad[sx]?/!i', $src ) ) {
 			// Ads
 			return '';
-		} else if ( preg_match( '/(\/share-?this[^\.]+?\.[a-z0-9]{3,4})(\?.*)?$/', $src ) ) {
+		} else if ( preg_match( '!(/share-?this[^.]+?\.[a-z0-9]{3,4})(\?.*)?$!i', $src ) ) {
 			// Share-this type button
 			return '';
-		} else if ( preg_match( '/\/(spinner|loading|spacer|blank|rss)\.(gif|jpg|png)/', $src ) ) {
+		} else if ( preg_match( '!/(spinner|loading|spacer|blank|rss)\.(gif|jpg|png)!i', $src ) ) {
 			// Loaders, spinners, spacers
 			return '';
-		} else if ( preg_match( '/\/([^\.\/]+[-_]{1})?(spinner|loading|spacer|blank)s?([-_]{1}[^\.\/]+)?\.[a-z0-9]{3,4}/', $src ) ) {
+		} else if ( preg_match( '!/([^./]+[-_])?(spinner|loading|spacer|blank)s?([-_][^./]+)?\.[a-z0-9]{3,4}!i', $src ) ) {
 			// Fancy loaders, spinners, spacers
 			return '';
-		} else if ( preg_match( '/([^\.\/]+[-_]{1})?thumb[^.]*\.(gif|jpg|png)$/', $src ) ) {
+		} else if ( preg_match( '!([^./]+[-_])?thumb[^.]*\.(gif|jpg|png)$!i', $src ) ) {
 			// Thumbnails, too small, usually irrelevant to context
 			return '';
-		} else if ( preg_match( '/\/wp-includes\//', $src ) ) {
-			// Classic WP interface images
+		} else if ( false !== stripos( $src, '/wp-includes/' ) ) {
+			// Classic WordPress interface images
 			return '';
-		} else if ( preg_match( '/[^\d]{1}\d{1,2}x\d+\.(gif|jpg|png)$/', $src ) ) {
+		} else if ( preg_match( '![^\d]\d{1,2}x\d+\.(gif|jpg|png)$!i', $src ) ) {
 			// Most often tiny buttons/thumbs (< 100px wide)
 			return '';
-		} else if ( preg_match( '/\/pixel\.(mathtag|quantserve)\.com/', $src ) ) {
+		} else if ( preg_match( '!/pixel\.(mathtag|quantserve)\.com!i', $src ) ) {
 			// See mathtag.com and https://www.quantcast.com/how-we-do-it/iab-standard-measurement/how-we-collect-data/
 			return '';
-		} else if ( preg_match( '/\/[gb]\.gif(\?.+)?$/', $src ) ) {
-			// Classic WP stats gif
+		} else if ( preg_match( '!/[gb]\.gif(\?.+)?$!i', $src ) ) {
+			// WordPress.com stats gif
 			return '';
 		}
 
@@ -462,7 +444,7 @@ class WP_Press_This {
 	 * @since 4.2.0
 	 *
 	 * @param string $src Embed source URL.
-	 * @return string If not from a supported provider, an empty string. Otherwise, a reformatted embed URL.
+	 * @return string If not from a supported provider, an empty string. Otherwise, a reformattd embed URL.
 	 */
 	private function _limit_embed( $src ) {
 		$src = $this->_limit_url( $src );
@@ -470,19 +452,19 @@ class WP_Press_This {
 		if ( empty( $src ) )
 			return '';
 
-		if ( preg_match( '/\/\/(m|www)\.youtube\.com\/(embed|v)\/([^\?]+)\?.+$/', $src, $src_matches ) ) {
+		if ( preg_match( '!//(m|www)\.youtube\.com/(embed|v)/([^?]+)\?.+$!i', $src, $src_matches ) ) {
 			// Embedded Youtube videos (www or mobile)
 			$src = 'https://www.youtube.com/watch?v=' . $src_matches[3];
-		} else if ( preg_match( '/\/\/player\.vimeo\.com\/video\/([\d]+)([\?\/]{1}.*)?$/', $src, $src_matches ) ) {
+		} else if ( preg_match( '!//player\.vimeo\.com/video/([\d]+)([?/].*)?$!i', $src, $src_matches ) ) {
 			// Embedded Vimeo iframe videos
 			$src = 'https://vimeo.com/' . (int) $src_matches[1];
-		} else if ( preg_match( '/\/\/vimeo\.com\/moogaloop\.swf\?clip_id=([\d]+)$/', $src, $src_matches ) ) {
+		} else if ( preg_match( '!//vimeo\.com/moogaloop\.swf\?clip_id=([\d]+)$!i', $src, $src_matches ) ) {
 			// Embedded Vimeo Flash videos
 			$src = 'https://vimeo.com/' . (int) $src_matches[1];
-		} else if ( preg_match( '/\/\/vine\.co\/v\/([^\/]+)\/embed/', $src, $src_matches ) ) {
+		} else if ( preg_match( '!//vine\.co/v/([^/]+)/embed!i', $src, $src_matches ) ) {
 			// Embedded Vine videos
 			$src = 'https://vine.co/v/' . $src_matches[1];
-		} else if ( preg_match( '/\/\/(www\.)?dailymotion\.com\/embed\/video\/([^\/\?]+)([\/\?]{1}.+)?/', $src, $src_matches ) ) {
+		} else if ( preg_match( '!//(www\.)?dailymotion\.com/embed/video/([^/?]+)([/?].+)?!i', $src, $src_matches ) ) {
 			// Embedded Daily Motion videos
 			$src = 'https://www.dailymotion.com/video/' . $src_matches[2];
 		} else {
@@ -710,11 +692,7 @@ class WP_Press_This {
 			 * making PT fully backward compatible with the older bookmarklet.
 			 */
 			if ( empty( $_POST ) && ! empty( $data['u'] ) ) {
-				if ( isset( $_GET['_wpnonce'] ) && wp_verify_nonce( $_GET['_wpnonce'], 'scan-site' ) ) {
-					$data = $this->source_data_fetch_fallback( $data['u'], $data );
-				} else {
-					$data['errors'] = 'missing nonce';
-				}
+				$data = $this->source_data_fetch_fallback( $data['u'], $data );
 			} else {
 				foreach ( array( '_images', '_embeds' ) as $type ) {
 					if ( empty( $_POST[ $type ] ) ) {
@@ -896,12 +874,6 @@ class WP_Press_This {
 	public function categories_html( $post ) {
 		$taxonomy = get_taxonomy( 'category' );
 
-		// Bail if user cannot assign terms
-		if ( ! current_user_can( $taxonomy->cap->assign_terms ) ) {
-			return;
-		}
-
-		// Only show "add" if user can edit terms
 		if ( current_user_can( $taxonomy->cap->edit_terms ) ) {
 			?>
 			<button type="button" class="add-cat-toggle button-subtle" aria-expanded="false">
@@ -1012,7 +984,7 @@ class WP_Press_This {
 		}
 
 		if ( ! empty( $data['_embeds'] ) ) {
-			foreach( $data['_embeds'] as $src ) {
+			foreach ( $data['_embeds'] as $src ) {
 				$prot_relative_src = preg_replace( '/^https?:/', '', $src );
 
 				if ( in_array( $prot_relative_src, $this->embeds ) ) {
@@ -1040,7 +1012,7 @@ class WP_Press_This {
 		$selected_images = array();
 
 		if ( ! empty( $data['_images'] ) ) {
-			foreach( $data['_images'] as $src ) {
+			foreach ( $data['_images'] as $src ) {
 				if ( false !== strpos( $src, 'gravatar.com' ) ) {
 					$src = preg_replace( '%http://[\d]+\.gravatar\.com/%', 'https://secure.gravatar.com/', $src );
 				}
@@ -1254,7 +1226,7 @@ class WP_Press_This {
 		$site_data = array(
 			'v' => ! empty( $data['v'] ) ? $data['v'] : '',
 			'u' => ! empty( $data['u'] ) ? $data['u'] : '',
-			'hasData' => ! empty( $data ) && ! isset( $data['errors'] ),
+			'hasData' => ! empty( $data ),
 		);
 
 		if ( ! empty( $images ) ) {
@@ -1314,12 +1286,6 @@ class WP_Press_This {
 		wp_enqueue_script( 'press-this' );
 		wp_enqueue_script( 'json2' );
 		wp_enqueue_script( 'editor' );
-
-		$categories_tax   = get_taxonomy( 'category' );
-		$show_categories  = current_user_can( $categories_tax->cap->assign_terms ) || current_user_can( $categories_tax->cap->edit_terms );
-
-		$tag_tax          = get_taxonomy( 'post_tag' );
-		$show_tags        = current_user_can( $tag_tax->cap->assign_terms );
 
 		$supports_formats = false;
 		$post_format      = 0;
@@ -1386,9 +1352,8 @@ class WP_Press_This {
 	<div id="scanbar" class="scan">
 		<form method="GET">
 			<label for="url-scan" class="screen-reader-text"><?php _e( 'Scan site for content' ); ?></label>
-			<input type="url" name="u" id="url-scan" class="scan-url" value="<?php echo esc_attr( $site_data['u'] ) ?>" placeholder="<?php esc_attr_e( 'Enter a URL to scan' ) ?>" />
+			<input type="url" name="u" id="url-scan" class="scan-url" value="" placeholder="<?php esc_attr_e( 'Enter a URL to scan' ) ?>" />
 			<input type="submit" name="url-scan-submit" id="url-scan-submit" class="scan-submit" value="<?php esc_attr_e( 'Scan' ) ?>" />
-			<?php wp_nonce_field( 'scan-site' ); ?>
 		</form>
 	</div>
 
@@ -1473,21 +1438,17 @@ class WP_Press_This {
 					</button>
 				<?php endif; ?>
 
-				<?php if ( $show_categories ) : ?>
-					<button type="button" class="button-reset post-option">
-						<span class="dashicons dashicons-category"></span>
-						<span class="post-option-title"><?php _e( 'Categories' ); ?></span>
-						<span class="dashicons post-option-forward"></span>
-					</button>
-				<?php endif; ?>
+				<button type="button" class="button-reset post-option">
+					<span class="dashicons dashicons-category"></span>
+					<span class="post-option-title"><?php _e( 'Categories' ); ?></span>
+					<span class="dashicons post-option-forward"></span>
+				</button>
 
-				<?php if ( $show_tags ) : ?>
-					<button type="button" class="button-reset post-option">
-						<span class="dashicons dashicons-tag"></span>
-						<span class="post-option-title"><?php _e( 'Tags' ); ?></span>
-						<span class="dashicons post-option-forward"></span>
-					</button>
-				<?php endif; ?>
+				<button type="button" class="button-reset post-option">
+					<span class="dashicons dashicons-tag"></span>
+					<span class="post-option-title"><?php _e( 'Tags' ); ?></span>
+					<span class="dashicons post-option-forward"></span>
+				</button>
 			</div>
 
 			<?php if ( $supports_formats ) : ?>
@@ -1501,27 +1462,23 @@ class WP_Press_This {
 				</div>
 			<?php endif; ?>
 
-			<?php if ( $show_categories ) : ?>
-				<div class="setting-modal is-off-screen is-hidden">
-					<button type="button" class="button-reset modal-close">
-						<span class="dashicons post-option-back"></span>
-						<span class="setting-title" aria-hidden="true"><?php _e( 'Categories' ); ?></span>
-						<span class="screen-reader-text"><?php _e( 'Back to post options' ) ?></span>
-					</button>
-					<?php $this->categories_html( $post ); ?>
-				</div>
-			<?php endif; ?>
+			<div class="setting-modal is-off-screen is-hidden">
+				<button type="button" class="button-reset modal-close">
+					<span class="dashicons post-option-back"></span>
+					<span class="setting-title" aria-hidden="true"><?php _e( 'Categories' ); ?></span>
+					<span class="screen-reader-text"><?php _e( 'Back to post options' ) ?></span>
+				</button>
+				<?php $this->categories_html( $post ); ?>
+			</div>
 
-			<?php if ( $show_tags ) : ?>
-				<div class="setting-modal tags is-off-screen is-hidden">
-					<button type="button" class="button-reset modal-close">
-						<span class="dashicons post-option-back"></span>
-						<span class="setting-title" aria-hidden="true"><?php _e( 'Tags' ); ?></span>
-						<span class="screen-reader-text"><?php _e( 'Back to post options' ) ?></span>
-					</button>
-					<?php $this->tags_html( $post ); ?>
-				</div>
-			<?php endif; ?>
+			<div class="setting-modal tags is-off-screen is-hidden">
+				<button type="button" class="button-reset modal-close">
+					<span class="dashicons post-option-back"></span>
+					<span class="setting-title" aria-hidden="true"><?php _e( 'Tags' ); ?></span>
+					<span class="screen-reader-text"><?php _e( 'Back to post options' ) ?></span>
+				</button>
+				<?php $this->tags_html( $post ); ?>
+			</div>
 		</div><!-- .options-panel -->
 	</div><!-- .wrapper -->
 
@@ -1538,7 +1495,7 @@ class WP_Press_This {
 				<div class="split-button-head">
 					<button type="button" class="publish-button split-button-primary" aria-live="polite">
 						<span class="publish"><?php echo ( current_user_can( 'publish_posts' ) ) ? __( 'Publish' ) : __( 'Submit for Review' ); ?></span>
-						<span class="saving-draft"><?php _e( 'Saving...' ); ?></span>
+						<span class="saving-draft"><?php _e( 'Saving&hellip;' ); ?></span>
 					</button><button type="button" class="split-button-toggle" aria-haspopup="true" aria-expanded="false">
 						<i class="dashicons dashicons-arrow-down-alt2"></i>
 						<span class="screen-reader-text"><?php _e('More actions'); ?></span>

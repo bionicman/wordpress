@@ -392,7 +392,7 @@ if ( !function_exists('wp_upgrade') ) :
  *
  * @global int  $wp_current_db_version
  * @global int  $wp_db_version
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  */
 function wp_upgrade() {
 	global $wp_current_db_version, $wp_db_version, $wpdb;
@@ -538,6 +538,9 @@ function upgrade_all() {
 	if ( $wp_current_db_version < 33056 )
 		upgrade_431();
 
+	if ( $wp_current_db_version < 34030 )
+		upgrade_440();
+
 	maybe_disable_link_manager();
 
 	maybe_disable_automattic_widgets();
@@ -551,7 +554,7 @@ function upgrade_all() {
  *
  * @since 1.0.0
  *
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  */
 function upgrade_100() {
 	global $wpdb;
@@ -559,7 +562,7 @@ function upgrade_100() {
 	// Get the title and ID of every post, post_name to check if it already has a value
 	$posts = $wpdb->get_results("SELECT ID, post_title, post_name FROM $wpdb->posts WHERE post_name = ''");
 	if ($posts) {
-		foreach($posts as $post) {
+		foreach ($posts as $post) {
 			if ('' == $post->post_name) {
 				$newtitle = sanitize_title($post->post_title);
 				$wpdb->query( $wpdb->prepare("UPDATE $wpdb->posts SET post_name = %s WHERE ID = %d", $newtitle, $post->ID) );
@@ -609,7 +612,7 @@ function upgrade_100() {
  *
  * @since 1.0.1
  *
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  */
 function upgrade_101() {
 	global $wpdb;
@@ -629,7 +632,7 @@ function upgrade_101() {
  *
  * @since 1.2.0
  *
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  */
 function upgrade_110() {
 	global $wpdb;
@@ -691,7 +694,7 @@ function upgrade_110() {
  *
  * @since 1.5.0
  *
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  */
 function upgrade_130() {
 	global $wpdb;
@@ -699,7 +702,7 @@ function upgrade_130() {
 	// Remove extraneous backslashes.
 	$posts = $wpdb->get_results("SELECT ID, post_title, post_content, post_excerpt, guid, post_date, post_name, post_status, post_author FROM $wpdb->posts");
 	if ($posts) {
-		foreach($posts as $post) {
+		foreach ($posts as $post) {
 			$post_content = addslashes(deslash($post->post_content));
 			$post_title = addslashes(deslash($post->post_title));
 			$post_excerpt = addslashes(deslash($post->post_excerpt));
@@ -716,7 +719,7 @@ function upgrade_130() {
 	// Remove extraneous backslashes.
 	$comments = $wpdb->get_results("SELECT comment_ID, comment_author, comment_content FROM $wpdb->comments");
 	if ($comments) {
-		foreach($comments as $comment) {
+		foreach ($comments as $comment) {
 			$comment_content = deslash($comment->comment_content);
 			$comment_author = deslash($comment->comment_author);
 
@@ -727,7 +730,7 @@ function upgrade_130() {
 	// Remove extraneous backslashes.
 	$links = $wpdb->get_results("SELECT link_id, link_name, link_description FROM $wpdb->links");
 	if ($links) {
-		foreach($links as $link) {
+		foreach ($links as $link) {
 			$link_name = deslash($link->link_name);
 			$link_description = deslash($link->link_description);
 
@@ -777,7 +780,7 @@ function upgrade_130() {
  *
  * @since 2.0.0
  *
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  * @global int  $wp_current_db_version
  */
 function upgrade_160() {
@@ -863,7 +866,7 @@ function upgrade_160() {
  *
  * @since 2.1.0
  *
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  * @global int  $wp_current_db_version
  */
 function upgrade_210() {
@@ -910,7 +913,7 @@ function upgrade_210() {
  *
  * @since 2.3.0
  *
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  * @global int  $wp_current_db_version
  */
 function upgrade_230() {
@@ -1089,7 +1092,7 @@ function upgrade_230() {
  *
  * @since 2.3.0
  *
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  */
 function upgrade_230_options_table() {
 	global $wpdb;
@@ -1105,7 +1108,7 @@ function upgrade_230_options_table() {
  *
  * @since 2.3.0
  *
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  */
 function upgrade_230_old_tables() {
 	global $wpdb;
@@ -1119,7 +1122,7 @@ function upgrade_230_old_tables() {
  *
  * @since 2.2.0
  *
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  */
 function upgrade_old_slugs() {
 	// Upgrade people who were using the Redirect Old Slugs plugin.
@@ -1148,7 +1151,7 @@ function upgrade_250() {
  *
  * @since 2.5.2
  *
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  */
 function upgrade_252() {
 	global $wpdb;
@@ -1175,7 +1178,7 @@ function upgrade_260() {
  *
  * @since 2.7.0
  *
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  * @global int  $wp_current_db_version
  */
 function upgrade_270() {
@@ -1195,7 +1198,7 @@ function upgrade_270() {
  * @since 2.8.0
  *
  * @global int  $wp_current_db_version
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  */
 function upgrade_280() {
 	global $wp_current_db_version, $wpdb;
@@ -1205,9 +1208,9 @@ function upgrade_280() {
 	if ( is_multisite() ) {
 		$start = 0;
 		while( $rows = $wpdb->get_results( "SELECT option_name, option_value FROM $wpdb->options ORDER BY option_id LIMIT $start, 20" ) ) {
-			foreach( $rows as $row ) {
-				$value = maybe_unserialize( $row->option_value );
-				if ( $value === $row->option_value )
+			foreach ( $rows as $row ) {
+				$value = $row->option_value;
+				if ( !@unserialize( $value ) )
 					$value = stripslashes( $value );
 				if ( $value !== $row->option_value ) {
 					update_option( $row->option_name, $value );
@@ -1244,7 +1247,7 @@ function upgrade_290() {
  * @since 3.0.0
  *
  * @global int  $wp_current_db_version
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  */
 function upgrade_300() {
 	global $wp_current_db_version, $wpdb;
@@ -1596,6 +1599,22 @@ function upgrade_431() {
 }
 
 /**
+ * Executes changes made in WordPress 4.4.0.
+ *
+ * @since 4.4.0
+ *
+ * @global int  $wp_current_db_version Current version.
+ * @global wpdb $wpdb                  WordPress database abstraction object.
+ */
+function upgrade_440() {
+	global $wp_current_db_version, $wpdb;
+
+	if ( $wp_current_db_version < 34030 ) {
+		$wpdb->query( "ALTER TABLE {$wpdb->options} MODIFY option_name VARCHAR(191)" );
+	}
+}
+
+/**
  * Executes network-level upgrade routines.
  *
  * @since 3.0.0
@@ -1639,7 +1658,7 @@ function upgrade_network() {
 
 		$start = 0;
 		while( $rows = $wpdb->get_results( "SELECT meta_key, meta_value FROM {$wpdb->sitemeta} ORDER BY meta_id LIMIT $start, 20" ) ) {
-			foreach( $rows as $row ) {
+			foreach ( $rows as $row ) {
 				$value = $row->meta_value;
 				if ( !@unserialize( $value ) )
 					$value = stripslashes( $value );
@@ -1721,7 +1740,7 @@ function upgrade_network() {
 		if ( wp_should_upgrade_global_tables() ) {
 			$upgrade = false;
 			$indexes = $wpdb->get_results( "SHOW INDEXES FROM $wpdb->signups" );
-			foreach( $indexes as $index ) {
+			foreach ( $indexes as $index ) {
 				if ( 'domain_path' == $index->Key_name && 'domain' == $index->Column_name && 140 != $index->Sub_part ) {
 					$upgrade = true;
 					break;
@@ -2025,7 +2044,7 @@ function dbDelta( $queries = '', $execute = true ) {
 	$for_update = array();
 
 	// Create a tablename index for an array ($cqueries) of queries
-	foreach($queries as $qry) {
+	foreach ($queries as $qry) {
 		if ( preg_match( "|CREATE TABLE ([^ ]*)|", $qry, $matches ) ) {
 			$cqueries[ trim( $matches[1], '`' ) ] = $qry;
 			$for_update[$matches[1]] = 'Created table '.$matches[1];
@@ -2061,9 +2080,6 @@ function dbDelta( $queries = '', $execute = true ) {
 	 * @param array $iqueries An array of dbDelta insert or update SQL queries.
 	 */
 	$iqueries = apply_filters( 'dbdelta_insert_queries', $iqueries );
-
-	$text_fields = array( 'tinytext', 'text', 'mediumtext', 'longtext' );
-	$blob_fields = array( 'tinyblob', 'blob', 'mediumblob', 'longblob' );
 
 	$global_tables = $wpdb->tables( 'global' );
 	foreach ( $cqueries as $table => $qry ) {
@@ -2134,24 +2150,9 @@ function dbDelta( $queries = '', $execute = true ) {
 
 				// Is actual field type different from the field type in query?
 				if ($tablefield->Type != $fieldtype) {
-					$do_change = true;
-					if ( in_array( strtolower( $fieldtype ), $text_fields ) && in_array( strtolower( $tablefield->Type ), $text_fields ) ) {
-						if ( array_search( strtolower( $fieldtype ), $text_fields ) < array_search( strtolower( $tablefield->Type ), $text_fields ) ) {
-							$do_change = false;
-						}
-					}
-
-					if ( in_array( strtolower( $fieldtype ), $blob_fields ) && in_array( strtolower( $tablefield->Type ), $blob_fields ) ) {
-						if ( array_search( strtolower( $fieldtype ), $blob_fields ) < array_search( strtolower( $tablefield->Type ), $blob_fields ) ) {
-							$do_change = false;
-						}
-					}
-
-					if ( $do_change ) {
 					// Add a query to change the column type
-						$cqueries[] = "ALTER TABLE {$table} CHANGE COLUMN {$tablefield->Field} " . $cfields[strtolower($tablefield->Field)];
-						$for_update[$table.'.'.$tablefield->Field] = "Changed type of {$table}.{$tablefield->Field} from {$tablefield->Type} to {$fieldtype}";
-					}
+					$cqueries[] = "ALTER TABLE {$table} CHANGE COLUMN {$tablefield->Field} " . $cfields[strtolower($tablefield->Field)];
+					$for_update[$table.'.'.$tablefield->Field] = "Changed type of {$table}.{$tablefield->Field} from {$tablefield->Type} to {$fieldtype}";
 				}
 
 				// Get the default value from the array
@@ -2232,7 +2233,7 @@ function dbDelta( $queries = '', $execute = true ) {
 					"$index_string ($alt_index_columns)",
 				);
 
-				foreach( $index_strings as $index_string ) {
+				foreach ( $index_strings as $index_string ) {
 					if ( ! ( ( $aindex = array_search( $index_string, $indices ) ) === false ) ) {
 						unset( $indices[ $aindex ] );
 						break;
@@ -2283,7 +2284,7 @@ function dbDelta( $queries = '', $execute = true ) {
 function make_db_current( $tables = 'all' ) {
 	$alterations = dbDelta( $tables );
 	echo "<ol>\n";
-	foreach($alterations as $alteration) echo "<li>$alteration</li>\n";
+	foreach ($alterations as $alteration) echo "<li>$alteration</li>\n";
 	echo "</ol>\n";
 }
 
@@ -2567,7 +2568,7 @@ function maybe_disable_automattic_widgets() {
  * @since 3.5.0
  *
  * @global int  $wp_current_db_version
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  */
 function maybe_disable_link_manager() {
 	global $wp_current_db_version, $wpdb;
@@ -2582,7 +2583,7 @@ function maybe_disable_link_manager() {
  * @since 2.9.0
  *
  * @global int  $wp_current_db_version
- * @global wpdb $wpdb
+ * @global wpdb $wpdb WordPress database abstraction object.
  */
 function pre_schema_upgrade() {
 	global $wp_current_db_version, $wpdb;
@@ -2626,6 +2627,15 @@ function pre_schema_upgrade() {
 		$wpdb->query( "ALTER TABLE $wpdb->commentmeta DROP INDEX meta_key, ADD INDEX meta_key(meta_key(191))" );
 		$wpdb->query( "ALTER TABLE $wpdb->postmeta DROP INDEX meta_key, ADD INDEX meta_key(meta_key(191))" );
 		$wpdb->query( "ALTER TABLE $wpdb->posts DROP INDEX post_name, ADD INDEX post_name(post_name(191))" );
+	}
+
+	// Upgrade versions prior to 4.4.
+	if ( $wp_current_db_version < 34978 ) {
+		// If compatible termmeta table is found, use it, but enforce a proper index and update collation.
+		if ( $wpdb->get_var( "SHOW TABLES LIKE '{$wpdb->termmeta}'" ) && $wpdb->get_results( "SHOW INDEX FROM {$wpdb->termmeta} WHERE Column_name = 'meta_key'" ) ) {
+			$wpdb->query( "ALTER TABLE $wpdb->termmeta DROP INDEX meta_key, ADD INDEX meta_key(meta_key(191))" );
+			maybe_convert_table_to_utf8mb4( $wpdb->termmeta );
+		}
 	}
 }
 

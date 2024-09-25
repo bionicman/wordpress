@@ -97,11 +97,28 @@ if ( isset($_GET['action']) ) {
 
 		include_once( ABSPATH . 'wp-admin/includes/plugin-install.php' ); //for plugins_api..
 
-		check_admin_referer('install-plugin_' . $plugin);
-		$api = plugins_api('plugin_information', array('slug' => $plugin, 'fields' => array('sections' => false) ) ); //Save on a bit of bandwidth.
+		check_admin_referer( 'install-plugin_' . $plugin );
+		$api = plugins_api( 'plugin_information', array(
+			'slug' => $plugin,
+			'fields' => array(
+				'short_description' => false,
+				'sections' => false,
+				'requires' => false,
+				'rating' => false,
+				'ratings' => false,
+				'downloaded' => false,
+				'last_updated' => false,
+				'added' => false,
+				'tags' => false,
+				'compatibility' => false,
+				'homepage' => false,
+				'donate_link' => false,
+			),
+		) );
 
-		if ( is_wp_error($api) )
-	 		wp_die($api);
+		if ( is_wp_error( $api ) ) {
+	 		wp_die( $api );
+		}
 
 		$title = __('Plugin Install');
 		$parent_file = 'plugins.php';
@@ -128,10 +145,6 @@ if ( isset($_GET['action']) ) {
 		}
 
 		check_admin_referer('plugin-upload');
-
-		if ( isset( $_FILES['pluginzip']['name'] ) && ! str_ends_with( strtolower( $_FILES['pluginzip']['name'] ), '.zip' ) ) {
-			wp_die( __( 'Only .zip archives may be uploaded.' ) );
-		}
 
 		$file_upload = new File_Upload_Upgrader('pluginzip', 'package');
 
@@ -237,10 +250,6 @@ if ( isset($_GET['action']) ) {
 		}
 
 		check_admin_referer('theme-upload');
-
-		if ( isset( $_FILES['themezip']['name'] ) && ! str_ends_with( strtolower( $_FILES['themezip']['name'] ), '.zip' ) ) {
-			wp_die( __( 'Only .zip archives may be uploaded.' ) );
-		}
 
 		$file_upload = new File_Upload_Upgrader('themezip', 'package');
 

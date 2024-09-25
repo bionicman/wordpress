@@ -280,7 +280,7 @@ function get_bookmarks( $args = '' ) {
 	$query .= " $exclusions $inclusions $search";
 	$query .= " ORDER BY $orderby $order";
 	if ( $r['limit'] != -1 ) {
-		$query .= ' LIMIT ' . absint( $r['limit'] );
+		$query .= ' LIMIT ' . $r['limit'];
 	}
 
 	$results = $wpdb->get_results( $query );
@@ -378,7 +378,7 @@ function sanitize_bookmark_field($field, $value, $bookmark_id, $context) {
 		return $value;
 
 	if ( 'edit' == $context ) {
-		/** This filter is documented in wp-includes/post.php */
+		/** This filter is documented in wp-includes/post-functions.php */
 		$value = apply_filters( "edit_$field", $value, $bookmark_id );
 
 		if ( 'link_notes' == $field ) {
@@ -387,10 +387,10 @@ function sanitize_bookmark_field($field, $value, $bookmark_id, $context) {
 			$value = esc_attr($value);
 		}
 	} elseif ( 'db' == $context ) {
-		/** This filter is documented in wp-includes/post.php */
+		/** This filter is documented in wp-includes/post-functions.php */
 		$value = apply_filters( "pre_$field", $value );
 	} else {
-		/** This filter is documented in wp-includes/post.php */
+		/** This filter is documented in wp-includes/post-functions.php */
 		$value = apply_filters( $field, $value, $bookmark_id, $context );
 
 		if ( 'attribute' == $context ) {

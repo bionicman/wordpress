@@ -25,15 +25,15 @@ if ( isset( $_REQUEST['post_id'] ) ) {
 }
 
 if ( $_POST ) {
-	$location = 'upload.php';
 	if ( isset($_POST['html-upload']) && !empty($_FILES) ) {
 		check_admin_referer('media-form');
 		// Upload File button was clicked
-		$id = media_handle_upload( 'async-upload', $post_id );
-		if ( is_wp_error( $id ) )
-			$location .= '?message=3';
+		$upload_id = media_handle_upload( 'async-upload', $post_id );
+		if ( is_wp_error( $upload_id ) ) {
+			wp_die( $upload_id );
+		}
 	}
-	wp_redirect( admin_url( $location ) );
+	wp_redirect( admin_url( 'upload.php' ) );
 	exit;
 }
 
@@ -72,9 +72,9 @@ if ( get_user_setting('uploader') || isset( $_GET['browser-uploader'] ) )
 	<?php media_upload_form(); ?>
 
 	<script type="text/javascript">
-	var post_id = <?php echo absint( $post_id ); ?>, shortform = 3;
+	var post_id = <?php echo $post_id; ?>, shortform = 3;
 	</script>
-	<input type="hidden" name="post_id" id="post_id" value="<?php echo absint( $post_id ); ?>" />
+	<input type="hidden" name="post_id" id="post_id" value="<?php echo $post_id; ?>" />
 	<?php wp_nonce_field('media-form'); ?>
 	<div id="media-items" class="hide-if-no-js"></div>
 	</form>

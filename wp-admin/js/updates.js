@@ -46,10 +46,9 @@ window.wp = window.wp || {};
 			connectionType: null
 		},
 		ssh: {
-			publicKey:  '',
-			privateKey: ''
-		},
-		fsNonce: ''
+			publicKey: null,
+			privateKey: null
+		}
 	};
 
 	/**
@@ -94,7 +93,7 @@ window.wp = window.wp || {};
 	 *
 	 * @since 3.9.0
 	 *
-	 * @param {string} updateType
+	 * @param {string} upgradeType
 	 */
 	wp.updates.decrementCount = function( upgradeType ) {
 		var count,
@@ -181,7 +180,6 @@ window.wp = window.wp || {};
 			_ajax_nonce:     wp.updates.ajaxNonce,
 			plugin:          plugin,
 			slug:            slug,
-			_fs_nonce:       wp.updates.filesystemCredentials.fsNonce,
 			username:        wp.updates.filesystemCredentials.ftp.username,
 			password:        wp.updates.filesystemCredentials.ftp.password,
 			hostname:        wp.updates.filesystemCredentials.ftp.hostname,
@@ -456,7 +454,6 @@ window.wp = window.wp || {};
 		// File system credentials form submit noop-er / handler.
 		$( '#request-filesystem-credentials-dialog form' ).on( 'submit', function() {
 			// Persist the credentials input by the user for the duration of the page load.
-			wp.updates.filesystemCredentials.fsNonce = $( '#_fs_nonce' ).val();
 			wp.updates.filesystemCredentials.ftp.hostname = $('#hostname').val();
 			wp.updates.filesystemCredentials.ftp.username = $('#username').val();
 			wp.updates.filesystemCredentials.ftp.password = $('#password').val();
@@ -555,7 +552,7 @@ window.wp = window.wp || {};
 					// trigger the update
 					$( '.plugin-update-tr[data-slug="' + message.slug + '"]' ).find( '.update-link' ).trigger( 'click' );
 				} else if ( 'plugin-install' === pagenow ) {
-					$( '.plugin-card-' + message.slug ).find( 'h4 a' ).focus();
+					$( '.plugin-card-' + message.slug ).find( '.column-name a' ).focus();
 					$( '.plugin-card-' + message.slug ).find( '[data-slug="' + message.slug + '"]' ).trigger( 'click' );
 				}
 				break;

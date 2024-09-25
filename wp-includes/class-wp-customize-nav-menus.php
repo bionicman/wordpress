@@ -464,10 +464,14 @@ final class WP_Customize_Nav_Menus {
 		) ) );
 		$menus = wp_get_nav_menus();
 
-		// Menu loactions.
+		// Menu locations.
 		$locations     = get_registered_nav_menus();
 		$num_locations = count( array_keys( $locations ) );
-		$description   = '<p>' . sprintf( _n( 'Your theme contains %s menu location. Select which menu you would like to use.', 'Your theme contains %s menu locations. Select which menu appears in each location.', $num_locations ), number_format_i18n( $num_locations ) );
+		if ( 1 == $num_locations ) {
+			$description = '<p>' . __( 'Your theme supports one menu. Select which menu you would like to use.' );
+		} else {
+			$description = '<p>' . sprintf( _n( 'Your theme supports %s menu. Select which menu appears in each location.', 'Your theme supports %s menus. Select which menu appears in each location.', $num_locations ), number_format_i18n( $num_locations ) );
+		}
 		$description  .= '</p><p>' . __( 'You can also place menus in widget areas with the Custom Menu widget.' ) . '</p>';
 
 		$this->manager->add_section( 'menu_locations', array(
@@ -611,7 +615,7 @@ final class WP_Customize_Nav_Menus {
 		if ( $post_types ) {
 			foreach ( $post_types as $slug => $post_type ) {
 				$item_types[] = array(
-					'title'  => $post_type->labels->singular_name,
+					'title'  => $post_type->labels->name,
 					'type'   => 'post_type',
 					'object' => $post_type->name,
 				);
@@ -625,7 +629,7 @@ final class WP_Customize_Nav_Menus {
 					continue;
 				}
 				$item_types[] = array(
-					'title'  => $taxonomy->labels->singular_name,
+					'title'  => $taxonomy->labels->name,
 					'type'   => 'taxonomy',
 					'object' => $taxonomy->name,
 				);

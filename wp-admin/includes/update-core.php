@@ -43,7 +43,6 @@ $_old_files = array(
 'wp-admin/link-categories.php',
 'wp-admin/list-manipulation.js',
 'wp-admin/list-manipulation.php',
-'wp-includes/comment-functions.php',
 'wp-includes/feed-functions.php',
 'wp-includes/functions-compat.php',
 'wp-includes/functions-formatting.php',
@@ -700,9 +699,6 @@ $_old_files = array(
 'wp-admin/js/wp-fullscreen.min.js',
 'wp-includes/js/tinymce/wp-mce-help.php',
 'wp-includes/js/tinymce/plugins/wpfullscreen',
-// 4.9.2
-'wp-includes/js/mediaelement/flashmediaelement.swf',
-'wp-includes/js/mediaelement/silverlightmediaelement.xap',
 );
 
 /**
@@ -884,7 +880,7 @@ function update_core($from, $to) {
 		if ( is_array( $checksums ) && isset( $checksums[ $wp_version ] ) )
 			$checksums = $checksums[ $wp_version ]; // Compat code for 3.7-beta2
 		if ( is_array( $checksums ) ) {
-			foreach( $checksums as $file => $checksum ) {
+			foreach ( $checksums as $file => $checksum ) {
 				if ( 'wp-content' == substr( $file, 0, 10 ) )
 					continue;
 				if ( ! file_exists( ABSPATH . $file ) )
@@ -1070,11 +1066,7 @@ function update_core($from, $to) {
 		$old_file = $to . $old_file;
 		if ( !$wp_filesystem->exists($old_file) )
 			continue;
-
-		// If the file isn't deleted, try writing an empty string to the file instead.
-		if ( ! $wp_filesystem->delete( $old_file, true ) && $wp_filesystem->is_file( $old_file ) ) {
-			$wp_filesystem->put_contents( $old_file, '' );
-		}
+		$wp_filesystem->delete($old_file, true);
 	}
 
 	// Remove any Genericons example.html's from the filesystem

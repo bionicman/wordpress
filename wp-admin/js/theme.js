@@ -454,6 +454,8 @@ themes.view.Theme = wp.Backbone.View.extend({
 		var self = this,
 			current, preview;
 
+		event = event || window.event;
+
 		// Bail if the user scrolled on a touch device
 		if ( this.touchDrag === true ) {
 			return this.touchDrag = false;
@@ -764,9 +766,10 @@ themes.view.Preview = themes.view.Details.extend({
 	html: themes.template( 'theme-preview' ),
 
 	render: function() {
-		var data = this.model.toJSON();
+		var self = this,
+			data = this.model.toJSON();
 
-		this.$el.html( this.html( data ) );
+		this.$el.removeClass( 'iframe-ready' ).html( this.html( data ) );
 
 		themes.router.navigate( themes.router.baseUrl( themes.router.themePath + this.model.get( 'id' ) ), { replace: true } );
 
@@ -774,6 +777,14 @@ themes.view.Preview = themes.view.Details.extend({
 			$( 'body' ).addClass( 'theme-installer-active full-overlay-active' );
 			$( '.close-full-overlay' ).focus();
 		});
+
+		this.$el.find( 'iframe' ).one( 'load', function() {
+			self.iframeLoaded();
+		});
+	},
+
+	iframeLoaded: function() {
+		this.$el.addClass( 'iframe-ready' );
 	},
 
 	close: function() {
@@ -784,7 +795,7 @@ themes.view.Preview = themes.view.Details.extend({
 			if ( themes.focusedTheme ) {
 				themes.focusedTheme.focus();
 			}
-		});
+		}).removeClass( 'iframe-ready' );
 
 		themes.router.navigate( themes.router.baseUrl( '' ) );
 		this.trigger( 'preview:close' );
@@ -958,7 +969,7 @@ themes.view.Themes = wp.Backbone.View.extend({
 		}
 
 		// Make sure the add-new stays at the end
-		if ( page >= 1 ) {
+		if ( ! themes.isInstall && page >= 1 ) {
 			$( '.add-new-theme' ).remove();
 		}
 
@@ -980,8 +991,8 @@ themes.view.Themes = wp.Backbone.View.extend({
 		});
 
 		// 'Add new theme' element shown at the end of the grid
-		if ( themes.data.settings.canInstall ) {
-			this.$el.append( '<div class="theme add-new-theme"><a href="' + themes.data.settings.installURI + '"><div class="theme-screenshot"><span></span></div><h3 class="theme-name">' + l10n.addNew + '</h3></a></div>' );
+		if ( ! themes.isInstall && themes.data.settings.canInstall ) {
+			this.$el.append( '<div class="theme add-new-theme"><a href="' + themes.data.settings.installURI + '"><div class="theme-screenshot"><span></span></div><h2 class="theme-name">' + l10n.addNew + '</h2></a></div>' );
 		}
 
 		this.parent.page++;
@@ -1658,6 +1669,9 @@ themes.RunInstaller = {
 		themes.router.on( 'route:preview', function( slug ) {
 			request.theme = slug;
 			self.view.collection.query( request );
+			self.view.collection.once( 'update', function() {
+				self.view.view.theme.preview();
+			});
 		});
 
 		// Handles sorting / browsing routes

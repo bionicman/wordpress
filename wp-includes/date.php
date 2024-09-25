@@ -152,8 +152,8 @@ class WP_Date_Query {
 	 */
 	public function __construct( $date_query, $default_column = 'post_date' ) {
 
-		if ( isset( $date_query['relation'] ) ) {
-			$this->relation = $this->sanitize_relation( $date_query['relation'] );
+		if ( isset( $date_query['relation'] ) && 'OR' === strtoupper( $date_query['relation'] ) ) {
+			$this->relation = 'OR';
 		} else {
 			$this->relation = 'AND';
 		}
@@ -232,9 +232,6 @@ class WP_Date_Query {
 		if ( $this->is_first_order_clause( $queries ) ) {
 			$this->validate_date_values( $queries );
 		}
-
-		// Sanitize the relation parameter.
-		$queries['relation'] = $this->sanitize_relation( $queries['relation'] );
 
 		foreach ( $queries as $key => $q ) {
 			if ( ! is_array( $q ) || in_array( $key, $this->time_keys, true ) ) {
@@ -358,10 +355,11 @@ class WP_Date_Query {
 
 		// Weeks per year.
 		if ( isset( $_year ) ) {
-			// If we have a specific year, use it to calculate number of weeks.
-			$date = new DateTime();
-			$date->setISODate( $_year, 53 );
-			$week_count = $date->format( "W" ) === "53" ? 53 : 52;
+			/*
+			 * If we have a specific year, use it to calculate number of weeks.
+			 * Note: the number of weeks in a year is the date in which Dec 28 appears.
+			 */
+			$week_count = date( 'W', mktime( 0, 0, 0, 12, 28, $_year ) );
 
 		} else {
 			// Otherwise set the week-count to a maximum of 53.
@@ -994,7 +992,7 @@ class WP_Date_Query {
 		$format = $time = '';
 
 		// Hour
-		if ( $hour ) {
+		if ( null !== $hour ) {
 			$format .= '%H.';
 			$time   .= sprintf( '%02d', $hour ) . '.';
 		} else {
@@ -1012,21 +1010,5 @@ class WP_Date_Query {
 		}
 
 		return $wpdb->prepare( "DATE_FORMAT( $column, %s ) $compare %f", $format, $time );
-	}
-
-	/**
-	 * Sanitizes a 'relation' operator.
-	 *
-	 * @since 6.0.3
-	 *
-	 * @param string $relation Raw relation key from the query argument.
-	 * @return string Sanitized relation ('AND' or 'OR').
-	 */
-	public function sanitize_relation( $relation ) {
-		if ( 'OR' === strtoupper( $relation ) ) {
-			return 'OR';
-		} else {
-			return 'AND';
-		}
 	}
 }
