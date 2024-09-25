@@ -661,7 +661,7 @@ function update_core($from, $to) {
 	$versions_file = trailingslashit( $wp_filesystem->wp_content_dir() ) . 'upgrade/version-current.php';
 	if ( ! $wp_filesystem->copy( $from . $distro . 'wp-includes/version.php', $versions_file ) ) {
 		 $wp_filesystem->delete( $from, true );
-		 return new WP_Error( 'copy_failed_for_version_file', __( 'Could not copy file.' ) );
+		 return new WP_Error( 'copy_failed_for_version_file', __( 'The update cannot be installed because we will be unable to copy some files. This is usually due to inconsistent file permissions.' ), 'wp-includes/version.php' );
 	}
 
 	$wp_filesystem->chmod( $versions_file, FS_CHMOD_FILE );
@@ -729,7 +729,7 @@ function update_core($from, $to) {
 			$error_data = version_compare( $old_wp_version, '3.7-beta2', '>' ) ? array_keys( $files_not_writable ) : '';
 
 			if ( $files_not_writable )
-				return new WP_Error( 'files_not_writable', __( 'Could not copy file.' ), $error_data );
+				return new WP_Error( 'files_not_writable', __( 'The update cannot be installed because we will be unable to copy some files. This is usually due to inconsistent file permissions.' ), implode( ', ', $error_data ) );
 		}
 	}
 
@@ -806,6 +806,10 @@ function update_core($from, $to) {
 		}
 	}
 
+	apply_filters( 'update_feedback', __( 'Disabling Maintenance mode&#8230;' ) );
+	// Remove maintenance file, we're done with potential site-breaking changes
+	$wp_filesystem->delete( $maintenance_file );
+
 	// 3.5 -> 3.5+ - an empty twentytwelve directory was created upon upgrade to 3.5 for some users, preventing installation of Twenty Twelve.
 	if ( '3.5' == $old_wp_version ) {
 		if ( is_dir( WP_CONTENT_DIR . '/themes/twentytwelve' ) && ! file_exists( WP_CONTENT_DIR . '/themes/twentytwelve/style.css' )  ) {
@@ -860,7 +864,6 @@ function update_core($from, $to) {
 
 	// Handle $result error from the above blocks
 	if ( is_wp_error($result) ) {
-		$wp_filesystem->delete($maintenance_file);
 		$wp_filesystem->delete($from, true);
 		return $result;
 	}
@@ -886,13 +889,6 @@ function update_core($from, $to) {
 		delete_site_transient('update_core');
 	else
 		delete_option('update_core');
-
-	apply_filters( 'update_feedback', __( 'Disabling Maintenance mode&#8230;' ) );
-	// Remove maintenance file, we're done.
-	$wp_filesystem->delete($maintenance_file);
-
-	// Has to be in here, rather than the Upgrader as the filter below will override and kill the process before themes get updated on major updates
-	do_action( 'upgrader_process_complete', null, array( 'action' => 'update', 'type' => 'core' ) );
 
 	// If we made it this far:
 	do_action( '_core_updated_successfully', $wp_version );
