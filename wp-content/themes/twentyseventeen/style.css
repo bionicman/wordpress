@@ -17,35 +17,37 @@ Use it to make something cool, have fun, and share what you've learned with othe
 /*--------------------------------------------------------------
 >>> TABLE OF CONTENTS:
 ----------------------------------------------------------------
-# Normalize
-# Accessibility
-# Alignments
-# Clearings
-# Typography
-# Forms
-# Formatting
-# Lists
-# Tables
-# Links
-# Featured Image Hover
-# Navigation
-# Layout
-   ## Header
-   ## Front Page
-   ## Regular Content
-   ## Posts
-   ## Pages
-   ## Footer
-# Comments
-# Widgets
-# Media
-	## Galleries
-# Customizer
-# Media Queries
+1.0 Normalize
+2.0 Accessibility
+3.0 Alignments
+4.0 Clearings
+5.0 Typography
+6.0 Forms
+7.0 Formatting
+8.0 Lists
+9.0 Tables
+10.0 Links
+11.0 Featured Image Hover
+12.0 Navigation
+13.0 Layout
+   13.1 Header
+   13.2 Front Page
+   13.3 Regular Content
+   13.4 Posts
+   13.5 Pages
+   13.6 Footer
+14.0 Comments
+15.0 Widgets
+16.0 Media
+   16.1 Galleries
+17.0 Customizer
+18.0 SVGs Fallbacks
+19.0 Media Queries
+20.0 Print
 --------------------------------------------------------------*/
 
 /*--------------------------------------------------------------
-# Normalize
+1.0 Normalize
 Styles based on Normalize v5.0.0 @link https://github.com/necolas/normalize.css
 --------------------------------------------------------------*/
 
@@ -295,7 +297,7 @@ template {
 }
 
 /*--------------------------------------------------------------
-# Accessibility
+2.0 Accessibility
 --------------------------------------------------------------*/
 
 /* Text meant only for screen readers. */
@@ -306,6 +308,7 @@ template {
 	overflow: hidden;
 	position: absolute !important;
 	width: 1px;
+	word-wrap: normal !important; /* Many screen reader and browser combinations announce broken words as they would appear visually. */
 }
 
 .screen-reader-text:focus {
@@ -331,7 +334,7 @@ template {
 }
 
 /*--------------------------------------------------------------
-# Alignments
+3.0 Alignments
 --------------------------------------------------------------*/
 
 .alignleft {
@@ -354,7 +357,7 @@ template {
 }
 
 /*--------------------------------------------------------------
-# Clearings
+4.0 Clearings
 --------------------------------------------------------------*/
 
 .clear:before,
@@ -405,7 +408,7 @@ template {
 }
 
 /*--------------------------------------------------------------
-# Typography
+5.0 Typography
 --------------------------------------------------------------*/
 
 body,
@@ -899,7 +902,7 @@ html[lang="th"] * {
 }
 
 /*--------------------------------------------------------------
-# Forms
+6.0 Forms
 --------------------------------------------------------------*/
 
 label {
@@ -1060,7 +1063,7 @@ input[type="submit"].secondary:focus {
 }
 
 /*--------------------------------------------------------------
-# Formatting
+7.0 Formatting
 --------------------------------------------------------------*/
 
 hr {
@@ -1071,7 +1074,7 @@ hr {
 }
 
 /*--------------------------------------------------------------
-# Lists
+8.0 Lists
 --------------------------------------------------------------*/
 
 ul,
@@ -1103,7 +1106,7 @@ dd {
 }
 
 /*--------------------------------------------------------------
-# Tables
+9.0 Tables
 --------------------------------------------------------------*/
 
 table {
@@ -1141,7 +1144,7 @@ td:last-child {
 }
 
 /*--------------------------------------------------------------
-# Links
+10.0 Links
 --------------------------------------------------------------*/
 
 a {
@@ -1272,7 +1275,7 @@ a:hover .nav-title,
 }
 
 /*--------------------------------------------------------------
-# Featured Image Hover
+11.0 Featured Image Hover
 --------------------------------------------------------------*/
 
 .post-thumbnail {
@@ -1291,7 +1294,7 @@ a:hover .nav-title,
 }
 
 /*--------------------------------------------------------------
-# Navigation
+12.0 Navigation
 --------------------------------------------------------------*/
 
 .navigation-top {
@@ -1482,7 +1485,7 @@ a:hover .nav-title,
 }
 
 /*--------------------------------------------------------------
-# Layout
+13.0 Layout
 --------------------------------------------------------------*/
 
 html {
@@ -1507,7 +1510,6 @@ body {
 
 #page {
 	position: relative;
-	-ms-word-wrap: break-word;
 	word-wrap: break-word;
 }
 
@@ -1526,7 +1528,7 @@ body {
 }
 
 /*--------------------------------------------------------------
-## Header
+13.1 Header
 --------------------------------------------------------------*/
 
 #masthead .wrap {
@@ -1688,8 +1690,10 @@ body:not(.title-tagline-hidden) .site-branding-text {
 	transform: translateX(-50%) translateY(0);
 }
 
+/* Hides div in Customizer preview when header images or videos change. */
+
 body:not(.has-header-image) .custom-header-image {
-	padding: 5% 0;
+	display: none;
 }
 
 .has-header-image.twentyseventeen-front-page .site-branding,
@@ -1700,7 +1704,7 @@ body:not(.has-header-image) .custom-header-image {
 }
 
 /*--------------------------------------------------------------
-## Front Page
+13.2 Front Page
 --------------------------------------------------------------*/
 
 .twentyseventeen-front-page .site-content {
@@ -1789,7 +1793,7 @@ body:not(.has-header-image) .custom-header-image {
 }
 
 /*--------------------------------------------------------------
-## Regular Content
+13.3 Regular Content
 --------------------------------------------------------------*/
 
 .site-content-contain {
@@ -1802,7 +1806,7 @@ body:not(.has-header-image) .custom-header-image {
 }
 
 /*--------------------------------------------------------------
-## Posts
+13.4 Posts
 --------------------------------------------------------------*/
 
 /* Post Landing Page */
@@ -2141,7 +2145,6 @@ body:not(.twentyseventeen-front-page) .entry-header {
 	width: 20px;
 }
 
-
 /* Post Navigation */
 
 .post-navigation {
@@ -2183,7 +2186,7 @@ body:not(.twentyseventeen-front-page) .entry-header {
 }
 
 /*--------------------------------------------------------------
-## Pages
+13.5 Pages
 --------------------------------------------------------------*/
 
 .page-header {
@@ -2217,7 +2220,7 @@ body:not(.twentyseventeen-front-page) .entry-header {
 }
 
 /*--------------------------------------------------------------
-## Footer
+13.6 Footer
 --------------------------------------------------------------*/
 
 .site-footer {
@@ -2299,7 +2302,7 @@ body:not(.twentyseventeen-front-page) .entry-header {
 }
 
 /*--------------------------------------------------------------
-# Comments
+14.0 Comments
 --------------------------------------------------------------*/
 
 #comments {
@@ -2418,7 +2421,7 @@ body:not(.twentyseventeen-front-page) .entry-header {
 }
 
 /*--------------------------------------------------------------
-# Widgets
+15.0 Widgets
 --------------------------------------------------------------*/
 
 #secondary {
@@ -2515,7 +2518,6 @@ h2.widget-title {
 /* Text widget */
 
 .widget_text {
-	-ms-word-wrap: break-word;
 	word-wrap: break-word;
 }
 
@@ -2643,7 +2645,6 @@ h2.widget-title {
 	-webkit-transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, color 0.3s ease-in-out;
 	transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, color 0.3s ease-in-out;
 	width: auto;
-	-ms-word-wrap: break-word;
 	word-wrap: break-word;
 	z-index: 0;
 }
@@ -2672,7 +2673,7 @@ h2.widget-title {
 }
 
 /*--------------------------------------------------------------
-# Media
+16.0 Media
 --------------------------------------------------------------*/
 
 img,
@@ -2881,7 +2882,7 @@ object {
 }
 
 /*--------------------------------------------------------------
-## Galleries
+16.1 Galleries
 --------------------------------------------------------------*/
 
 .gallery-item {
@@ -2934,7 +2935,7 @@ object {
 }
 
 /*--------------------------------------------------------------
-# Customizer
+17.0 Customizer
 --------------------------------------------------------------*/
 
 .highlight-front-sections.twentyseventeen-customizer.twentyseventeen-front-page .twentyseventeen-panel:after {
@@ -2998,9 +2999,8 @@ object {
 	            -1px 0 1px rgba(0,0,0,.2);
 }
 
-
 /*--------------------------------------------------------------
-## SVGs Fallbacks
+18.0 SVGs Fallbacks
 --------------------------------------------------------------*/
 
 .svg-fallback {
@@ -3063,8 +3063,15 @@ object {
 }
 
 /*--------------------------------------------------------------
-## Media Queries
+19.0 Media Queries
 --------------------------------------------------------------*/
+
+/* Adjust positioning of edit shortcuts, override style in customize-preview.css */
+@media screen and (min-width: 20em) {
+	body.customize-partial-edit-shortcuts-shown .site-header .site-title {
+		padding-left: 0;
+	}
+}
 
 @media screen and (min-width: 30em) {
 
@@ -3989,7 +3996,7 @@ object {
 }
 
 /*--------------------------------------------------------------
-# Print
+20.0 Print
 --------------------------------------------------------------*/
 
 @media print {

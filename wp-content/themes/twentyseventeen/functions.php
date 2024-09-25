@@ -108,7 +108,7 @@ function twentyseventeen_setup() {
 			'sidebar-1' => array(
 				'text_business_info',
 				'search',
-				'text_credits',
+				'text_about',
 			),
 
 			'sidebar-2' => array(
@@ -116,14 +116,15 @@ function twentyseventeen_setup() {
 			),
 
 			'sidebar-3' => array(
-				'text_credits',
+				'text_about',
+				'search',
 			),
 		),
 
 		'posts' => array(
 			'home',
-			'about-us',
-			'contact-us',
+			'about',
+			'contact',
 			'blog',
 			'homepage-section',
 		),
@@ -136,9 +137,9 @@ function twentyseventeen_setup() {
 
 		'theme_mods' => array(
 			'panel_1' => '{{homepage-section}}',
-			'panel_2' => '{{about-us}}',
+			'panel_2' => '{{about}}',
 			'panel_3' => '{{blog}}',
-			'panel_4' => '{{contact-us}}',
+			'panel_4' => '{{contact}}',
 		),
 
 		'nav_menus' => array(
@@ -200,10 +201,10 @@ function twentyseventeen_fonts_url() {
 
 	/**
 	 * Translators: If there are characters in your language that are not
-	 * supported by Libre Frankin, translate this to 'off'. Do not translate
+	 * supported by Libre Franklin, translate this to 'off'. Do not translate
 	 * into your own language.
 	 */
-	$libre_franklin = _x( 'on', 'libre_franklin font: on or off', 'twentyseventeen' );
+	$libre_franklin = _x( 'on', 'Libre Franklin font: on or off', 'twentyseventeen' );
 
 	if ( 'off' !== $libre_franklin ) {
 		$font_families = array();
@@ -354,6 +355,12 @@ function twentyseventeen_scripts() {
 	// Load the dark colorscheme.
 	if ( 'dark' === get_theme_mod( 'colorscheme', 'light' ) || is_customize_preview() ) {
 		wp_enqueue_style( 'twentyseventeen-colors-dark', get_theme_file_uri( '/assets/css/colors-dark.css' ), array( 'twentyseventeen-style' ), '1.0' );
+	}
+
+	// Load the Internet Explorer 9 specific stylesheet, to fix display issues in the Customizer.
+	if ( is_customize_preview() ) {
+		wp_enqueue_style( 'twentyseventeen-ie9', get_theme_file_uri( '/assets/css/ie9.css' ), array( 'twentyseventeen-style' ), '1.0' );
+		wp_style_add_data( 'twentyseventeen-ie9', 'conditional', 'IE 9' );
 	}
 
 	// Load the Internet Explorer 8 specific stylesheet.

@@ -1400,7 +1400,7 @@ function get_header_video_settings() {
  * @return bool True if a custom header is set. False if not.
  */
 function has_custom_header() {
-	if ( has_header_image() || ( is_front_page() && has_header_video() ) ) {
+	if ( has_header_image() || ( has_header_video() && is_header_video_active() ) ) {
 		return true;
 	}
 
@@ -1408,15 +1408,49 @@ function has_custom_header() {
 }
 
 /**
- * Retrieve the markup for a custom header.
+ * Checks whether the custom header video is eligible to show on the current page.
  *
  * @since 4.7.0
  *
- * @return string|false The markup for a custom header on success. False if not.
+ * @return bool True if the custom header video should be shown. False if not.
+ */
+function is_header_video_active() {
+	if ( ! get_theme_support( 'custom-header', 'video' ) ) {
+		return false;
+	}
+
+	$video_active_cb = get_theme_support( 'custom-header', 'video-active-callback' );
+
+	if ( empty( $video_active_cb ) || ! is_callable( $video_active_cb ) ) {
+		$show_video = true;
+	} else {
+		$show_video = call_user_func( $video_active_cb );
+	}
+
+	/**
+	 * Modify whether the custom header video is eligible to show on the current page.
+	 *
+	 * @since 4.7.0
+	 *
+	 * @param bool $show_video Whether the custom header video should be shown. Returns the value
+	 *                         of the theme setting for the `custom-header`'s `video-active-callback`.
+	 *                         If no callback is set, the default value is that of `is_front_page()`.
+	 */
+	return apply_filters( 'is_header_video_active', $show_video );
+}
+
+/**
+ * Retrieve the markup for a custom header.
+ *
+ * The container div will always be returned in the Customizer preview.
+ *
+ * @since 4.7.0
+ *
+ * @return string The markup for a custom header on success.
  */
 function get_custom_header_markup() {
-	if ( ! has_custom_header() ) {
-		return false;
+	if ( ! has_custom_header() && ! is_customize_preview() ) {
+		return '';
 	}
 
 	return sprintf(
@@ -1428,15 +1462,19 @@ function get_custom_header_markup() {
 /**
  * Print the markup for a custom header.
  *
+ * A container div will always be printed in the Customizer preview.
+ *
  * @since 4.7.0
  */
 function the_custom_header_markup() {
-	if ( ! $custom_header = get_custom_header_markup() ) {
+	$custom_header = get_custom_header_markup();
+	if ( empty( $custom_header ) ) {
 		return;
 	}
+
 	echo $custom_header;
 
-	if ( has_header_video() && is_front_page() ) {
+	if ( is_header_video_active() && ( has_header_video() || is_customize_preview() ) ) {
 		wp_enqueue_script( 'wp-custom-header' );
 		wp_localize_script( 'wp-custom-header', '_wpCustomHeaderSettings', get_header_video_settings() );
 	}
@@ -1500,8 +1538,12 @@ function _custom_background_cb() {
 		$color = false;
 	}
 
-	if ( ! $background && ! $color )
+	if ( ! $background && ! $color ) {
+		if ( is_customize_preview() ) {
+			echo '<style type="text/css" id="custom-background-css"></style>';
+		}
 		return;
+	}
 
 	$style = $color ? "background-color: #$color;" : '';
 
@@ -1621,7 +1663,7 @@ function wp_get_custom_css_post( $stylesheet = '' ) {
 }
 
 /**
- * Fetch the saved Custom CSS content.
+ * Fetch the saved Custom CSS content for rendering.
  *
  * @since 4.7.0
  * @access public
@@ -1782,26 +1824,44 @@ function get_theme_starter_content() {
 		$config = array();
 	}
 
-	$core_content = array (
+	$core_content = array(
 		'widgets' => array(
-			'text_business_info' => array ( 'text', array (
-				'title' => __( 'Find Us' ),
-				'text' => join( '', array (
-					'<p><strong>' . __( 'Address' ) . '</strong><br />',
-					__( '123 Main Street' ) . '<br />' . __( 'New York, NY 10001' ) . '</p>',
-					'<p><strong>' . __( 'Hours' ) . '</strong><br />',
-					__( 'Monday&mdash;Friday: 9:00AM&ndash;5:00PM' ) . '<br />' . __( 'Saturday &amp; Sunday: 11:00AM&ndash;3:00PM' ) . '</p>'
+			'text_business_info' => array( 'text', array(
+				'title' => _x( 'Find Us', 'Theme starter content' ),
+				'text' => join( '', array(
+					'<p><strong>' . _x( 'Address', 'Theme starter content' ) . '</strong><br />',
+					_x( '123 Main Street', 'Theme starter content' ) . '<br />' . _x( 'New York, NY 10001', 'Theme starter content' ) . '</p>',
+					'<p><strong>' . _x( 'Hours', 'Theme starter content' ) . '</strong><br />',
+					_x( 'Monday&mdash;Friday: 9:00AM&ndash;5:00PM', 'Theme starter content' ) . '<br />' . _x( 'Saturday &amp; Sunday: 11:00AM&ndash;3:00PM', 'Theme starter content' ) . '</p>'
 				) ),
 			) ),
-			'search' => array ( 'search', array (
-				'title' => __( 'Site Search' ),
+			'text_about' => array( 'text', array(
+				'title' => _x( 'About This Site', 'Theme starter content' ),
+				'text' => _x( 'This may be a good place to introduce yourself and your site or include some credits.', 'Theme starter content' ),
 			) ),
-			'text_credits' => array ( 'text', array (
-				'title' => __( 'Site Credits' ),
-				'text' => sprintf( __( 'This site was created on %s' ), get_date_from_gmt( current_time( 'mysql', 1 ), 'c' ) ),
+			'archives' => array( 'archives', array(
+				'title' => _x( 'Archives', 'Theme starter content' ),
+			) ),
+			'calendar' => array( 'calendar', array(
+				'title' => _x( 'Calendar', 'Theme starter content' ),
+			) ),
+			'categories' => array( 'categories', array(
+				'title' => _x( 'Categories', 'Theme starter content' ),
+			) ),
+			'meta' => array( 'meta', array(
+				'title' => _x( 'Meta', 'Theme starter content' ),
+			) ),
+			'recent-comments' => array( 'recent-comments', array(
+				'title' => _x( 'Recent Comments', 'Theme starter content' ),
+			) ),
+			'recent-posts' => array( 'recent-posts', array(
+				'title' => _x( 'Recent Posts', 'Theme starter content' ),
+			) ),
+			'search' => array( 'search', array(
+				'title' => _x( 'Search', 'Theme starter content' ),
 			) ),
 		),
-		'nav_menus' => array (
+		'nav_menus' => array(
 			'page_home' => array(
 				'type' => 'post_type',
 				'object' => 'page',
@@ -1810,65 +1870,94 @@ function get_theme_starter_content() {
 			'page_about' => array(
 				'type' => 'post_type',
 				'object' => 'page',
-				'object_id' => '{{about-us}}',
+				'object_id' => '{{about}}',
 			),
 			'page_blog' => array(
 				'type' => 'post_type',
 				'object' => 'page',
 				'object_id' => '{{blog}}',
 			),
+			'page_news' => array(
+				'type' => 'post_type',
+				'object' => 'page',
+				'object_id' => '{{news}}',
+			),
 			'page_contact' => array(
 				'type' => 'post_type',
 				'object' => 'page',
-				'object_id' => '{{contact-us}}',
+				'object_id' => '{{contact}}',
 			),
 
-			'link_yelp' => array(
-				'title' => __( 'Yelp' ),
-				'url' => 'https://www.yelp.com',
+			'link_email' => array(
+				'title' => _x( 'Email', 'Theme starter content' ),
+				'url' => 'mailto:wordpress@example.com',
 			),
 			'link_facebook' => array(
-				'title' => __( 'Facebook' ),
+				'title' => _x( 'Facebook', 'Theme starter content' ),
 				'url' => 'https://www.facebook.com/wordpress',
 			),
-			'link_twitter' => array(
-				'title' => __( 'Twitter' ),
-				'url' => 'https://twitter.com/wordpress',
+			'link_foursquare' => array(
+				'title' => _x( 'Foursquare', 'Theme starter content' ),
+				'url' => 'https://foursquare.com/',
+			),
+			'link_github' => array(
+				'title' => _x( 'GitHub', 'Theme starter content' ),
+				'url' => 'https://github.com/wordpress/',
 			),
 			'link_instagram' => array(
-				'title' => __( 'Instagram' ),
+				'title' => _x( 'Instagram', 'Theme starter content' ),
 				'url' => 'https://www.instagram.com/explore/tags/wordcamp/',
 			),
-			'link_email' => array(
-				'title' => __( 'Email' ),
-				'url' => 'mailto:wordpress@example.com',
+			'link_linkedin' => array(
+				'title' => _x( 'LinkedIn', 'Theme starter content' ),
+				'url' => 'https://www.linkedin.com/company/1089783',
+			),
+			'link_pinterest' => array(
+				'title' => _x( 'Pinterest', 'Theme starter content' ),
+				'url' => 'https://www.pinterest.com/',
+			),
+			'link_twitter' => array(
+				'title' => _x( 'Twitter', 'Theme starter content' ),
+				'url' => 'https://twitter.com/wordpress',
+			),
+			'link_yelp' => array(
+				'title' => _x( 'Yelp', 'Theme starter content' ),
+				'url' => 'https://www.yelp.com',
+			),
+			'link_youtube' => array(
+				'title' => _x( 'YouTube', 'Theme starter content' ),
+				'url' => 'https://www.youtube.com/channel/UCdof4Ju7amm1chz1gi1T2ZA',
 			),
 		),
 		'posts' => array(
 			'home' => array(
 				'post_type' => 'page',
-				'post_title' => __( 'Homepage' ),
-				'post_content' => __( 'Welcome home.' ),
+				'post_title' => _x( 'Home', 'Theme starter content' ),
+				'post_content' => _x( 'Welcome to your site! This is your homepage, which is what most visitors will see when they come to your site for the first time.', 'Theme starter content' ),
 			),
-			'about-us' => array(
+			'about' => array(
 				'post_type' => 'page',
-				'post_title' => __( 'About Us' ),
-				'post_content' => __( 'More than you ever wanted to know.' ),
+				'post_title' => _x( 'About', 'Theme starter content' ),
+				'post_content' => _x( 'You might be an artist who would like to introduce yourself and your work here or maybe you&rsquo;re a business with a mission to describe.', 'Theme starter content' ),
 			),
-			'contact-us' => array(
+			'contact' => array(
 				'post_type' => 'page',
-				'post_title' => __( 'Contact Us' ),
-				'post_content' => __( 'Call us at 999-999-9999.' ),
+				'post_title' => _x( 'Contact', 'Theme starter content' ),
+				'post_content' => _x( 'This is a page with some basic contact information, such as an address and phone number. You might also try a plugin to add a contact form.', 'Theme starter content' ),
 			),
 			'blog' => array(
 				'post_type' => 'page',
-				'post_title' => __( 'Blog' ),
+				'post_title' => _x( 'Blog', 'Theme starter content' ),
+			),
+			'news' => array(
+				'post_type' => 'page',
+				'post_title' => _x( 'News', 'Theme starter content' ),
 			),
 
 			'homepage-section' => array(
 				'post_type' => 'page',
-				'post_title' => __( 'A homepage section' ),
-				'post_content' => __( 'This is an example of a homepage section, which are managed in theme options.' ),
+				'post_title' => _x( 'A homepage section', 'Theme starter content' ),
+				'post_content' => _x( 'This is an example of a homepage section. Homepage sections can be any page other than the homepage itself, including the page that shows your latest blog posts.', 'Theme starter content' ),
 			),
 		),
 	);
@@ -1877,48 +1966,53 @@ function get_theme_starter_content() {
 
 	foreach ( $config as $type => $args ) {
 		switch( $type ) {
-			// Use options and theme_mods as-is
+			// Use options and theme_mods as-is.
 			case 'options' :
 			case 'theme_mods' :
 				$content[ $type ] = $config[ $type ];
 				break;
 
-			// Widgets are an extra level down due to groupings
+			// Widgets are grouped into sidebars.
 			case 'widgets' :
-				foreach ( $config[ $type ] as $group => $items ) {
-					foreach ( $items as $id ) {
-						if ( ! empty( $core_content[ $type ] ) && ! empty( $core_content[ $type ][ $id ] ) ) {
-							$content[ $type ][ $group ][ $id ] = $core_content[ $type ][ $id ];
+				foreach ( $config[ $type ] as $sidebar_id => $widgets ) {
+					foreach ( $widgets as $widget ) {
+						if ( is_array( $widget ) ) {
+							$content[ $type ][ $sidebar_id ][] = $widget;
+						} elseif ( is_string( $widget ) && ! empty( $core_content[ $type ] ) && ! empty( $core_content[ $type ][ $widget ] ) ) {
+							$content[ $type ][ $sidebar_id ][] = $core_content[ $type ][ $widget ];
 						}
 					}
 				}
 				break;
 
-			// And nav menus are yet another level down
+			// And nav menu items are grouped into nav menus.
 			case 'nav_menus' :
-				foreach ( $config[ $type ] as $group => $args2 ) {
-					// Menu groups need a name
-					if ( empty( $args['name'] ) ) {
-						$args2['name'] = $group;
+				foreach ( $config[ $type ] as $nav_menu_location => $nav_menu ) {
+
+					// Ensure nav menus get a name.
+					if ( empty( $nav_menu['name'] ) ) {
+						$nav_menu['name'] = $nav_menu_location;
 					}
 
-					$content[ $type ][ $group ]['name'] = $args2['name'];
+					$content[ $type ][ $nav_menu_location ]['name'] = $nav_menu['name'];
 
-					// Do we need to check if this is empty?
-					foreach ( $args2['items'] as $id ) {
-						if ( ! empty( $core_content[ $type ] ) && ! empty( $core_content[ $type ][ $id ] ) ) {
-							$content[ $type ][ $group ]['items'][ $id ] = $core_content[ $type ][ $id ];
+					foreach ( $nav_menu['items'] as $nav_menu_item ) {
+						if ( is_array( $nav_menu_item ) ) {
+							$content[ $type ][ $nav_menu_location ]['items'][] = $nav_menu_item;
+						} elseif ( is_string( $nav_menu_item ) && ! empty( $core_content[ $type ] ) && ! empty( $core_content[ $type ][ $nav_menu_item ] ) ) {
+							$content[ $type ][ $nav_menu_location ]['items'][] = $core_content[ $type ][ $nav_menu_item ];
 						}
 					}
 				}
 				break;
 
-
-			// Everything else should map at the next level
+			// Everything else should map at the next level.
 			default :
-				foreach( $config[ $type ] as $id ) {
-					if ( ! empty( $core_content[ $type ] ) && ! empty( $core_content[ $type ][ $id ] ) ) {
-						$content[ $type ][ $id ] = $core_content[ $type ][ $id ];
+				foreach( $config[ $type ] as $i => $item ) {
+					if ( is_array( $item ) ) {
+						$content[ $type ][ $i ] = $item;
+					} elseif ( is_string( $item ) && ! empty( $core_content[ $type ] ) && ! empty( $core_content[ $type ][ $item ] ) ) {
+						$content[ $type ][ $item ] = $core_content[ $type ][ $item ];
 					}
 				}
 				break;
@@ -2048,6 +2142,7 @@ function add_theme_support( $feature ) {
 				'admin-head-callback' => '',
 				'admin-preview-callback' => '',
 				'video' => false,
+				'video-active-callback' => 'is_front_page',
 			);
 
 			$jit = isset( $args[0]['__jit'] );
@@ -2309,10 +2404,13 @@ function _remove_theme_support( $feature ) {
 			if ( ! did_action( 'wp_loaded' ) )
 				break;
 			$support = get_theme_support( 'custom-header' );
-			if ( $support[0]['wp-head-callback'] )
+			if ( isset( $support[0]['wp-head-callback'] ) ) {
 				remove_action( 'wp_head', $support[0]['wp-head-callback'] );
-			remove_action( 'admin_menu', array( $GLOBALS['custom_image_header'], 'init' ) );
-			unset( $GLOBALS['custom_image_header'] );
+			}
+			if ( isset( $GLOBALS['custom_image_header'] ) ) {
+				remove_action( 'admin_menu', array( $GLOBALS['custom_image_header'], 'init' ) );
+				unset( $GLOBALS['custom_image_header'] );
+			}
 			break;
 
 		case 'custom-background' :

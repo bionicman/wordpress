@@ -76,7 +76,7 @@ class WP_REST_Post_Types_Controller extends WP_REST_Controller {
 				}
 			}
 
-			return new WP_Error( 'rest_cannot_view', __( 'Sorry, you cannot view this resource with edit context.' ), array( 'status' => rest_authorization_required_code() ) );
+			return new WP_Error( 'rest_cannot_view', __( 'Sorry, you are not allowed to view this resource with edit context.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
 		return true;
@@ -205,10 +205,7 @@ class WP_REST_Post_Types_Controller extends WP_REST_Controller {
 			'properties'           => array(
 				'capabilities'     => array(
 					'description'  => __( 'All capabilities used by the resource.' ),
-					'type'         => 'array',
-					'items'        => array(
-						'type' => 'string',
-					),
+					'type'         => 'object',
 					'context'      => array( 'edit' ),
 					'readonly'     => true,
 				),

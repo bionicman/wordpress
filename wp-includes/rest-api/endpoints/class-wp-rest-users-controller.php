@@ -89,7 +89,10 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 						'default'     => false,
 						'description' => __( 'Required to be true, as resource does not support trashing.' ),
 					),
-					'reassign' => array(),
+					'reassign' => array(
+						'type'        => 'integer',
+						'description' => __( 'Reassign the deleted user\'s posts and links to this user ID.' ),
+					),
 				),
 			),
 			'schema' => array( $this, 'get_public_item_schema' ),
@@ -100,7 +103,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 				'methods'             => WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'get_current_item' ),
 				'args'                => array(
-					'context'          => array(),
+					'context' => $this->get_context_param( array( 'default' => 'view' ) ),
 				),
 			),
 			array(
@@ -119,7 +122,10 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 						'default'     => false,
 						'description' => __( 'Required to be true, as resource does not support trashing.' ),
 					),
-					'reassign' => array(),
+					'reassign' => array(
+						'type'        => 'integer',
+						'description' => __( 'Reassign the deleted user\'s posts and links to this user ID.' ),
+					),
 				),
 			),
 			'schema' => array( $this, 'get_public_item_schema' ),
@@ -138,15 +144,15 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 	public function get_items_permissions_check( $request ) {
 		// Check if roles is specified in GET request and if user can list users.
 		if ( ! empty( $request['roles'] ) && ! current_user_can( 'list_users' ) ) {
-			return new WP_Error( 'rest_user_cannot_view', __( 'Sorry, you cannot filter by role.' ), array( 'status' => rest_authorization_required_code() ) );
+			return new WP_Error( 'rest_user_cannot_view', __( 'Sorry, you are not allowed to filter by role.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
 		if ( 'edit' === $request['context'] && ! current_user_can( 'list_users' ) ) {
-			return new WP_Error( 'rest_forbidden_context', __( 'Sorry, you cannot view this resource with edit context.' ), array( 'status' => rest_authorization_required_code() ) );
+			return new WP_Error( 'rest_forbidden_context', __( 'Sorry, you are not allowed to view this resource with edit context.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
 		if ( in_array( $request['orderby'], array( 'email', 'registered_date' ), true ) && ! current_user_can( 'list_users' ) ) {
-			return new WP_Error( 'rest_forbidden_orderby', __( 'Sorry, you cannot order by this parameter.' ), array( 'status' => rest_authorization_required_code() ) );
+			return new WP_Error( 'rest_forbidden_orderby', __( 'Sorry, you are not allowed to order by this parameter.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
 		return true;
@@ -314,9 +320,9 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 		}
 
 		if ( 'edit' === $request['context'] && ! current_user_can( 'list_users' ) ) {
-			return new WP_Error( 'rest_user_cannot_view', __( 'Sorry, you cannot view this resource with edit context.' ), array( 'status' => rest_authorization_required_code() ) );
+			return new WP_Error( 'rest_user_cannot_view', __( 'Sorry, you are not allowed to view this resource with edit context.' ), array( 'status' => rest_authorization_required_code() ) );
 		} elseif ( ! count_user_posts( $id, $types ) && ! current_user_can( 'edit_user', $id ) && ! current_user_can( 'list_users' ) ) {
-			return new WP_Error( 'rest_user_cannot_view', __( 'Sorry, you cannot view this resource.' ), array( 'status' => rest_authorization_required_code() ) );
+			return new WP_Error( 'rest_user_cannot_view', __( 'Sorry, you are not allowed to view this resource.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
 		return true;
@@ -417,7 +423,16 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 			$ret = wpmu_validate_user_signup( $user->user_login, $user->user_email );
 
 			if ( is_wp_error( $ret['errors'] ) && ! empty( $ret['errors']->errors ) ) {
-				return $ret['errors'];
+				$error = new WP_Error( 'rest_invalid_param', __( 'Invalid user parameter(s).' ), array( 'status' => 400 ) );
+				foreach ( $ret['errors']->errors as $code => $messages ) {
+					foreach ( $messages as $message ) {
+						$error->add( $code, $message );
+					}
+					if ( $error_data = $error->get_error_data( $code ) ) {
+						$error->add_data( $error_data, $code );
+					}
+				}
+				return $error;
 			}
 		}
 
@@ -429,7 +444,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 			}
 
 			$user->ID = $user_id;
-			$user_id  = wp_update_user( $user );
+			$user_id  = wp_update_user( wp_slash( (array) $user ) );
 
 			if ( is_wp_error( $user_id ) ) {
 				return $user_id;
@@ -437,7 +452,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 
 			add_user_to_blog( get_site()->id, $user_id, '' );
 		} else {
-			$user_id = wp_insert_user( $user );
+			$user_id = wp_insert_user( wp_slash( (array) $user ) );
 
 			if ( is_wp_error( $user_id ) ) {
 				return $user_id;
@@ -552,7 +567,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 		// Ensure we're operating on the same user we already checked.
 		$user->ID = $id;
 
-		$user_id = wp_update_user( $user );
+		$user_id = wp_update_user( wp_slash( (array) $user ) );
 
 		if ( is_wp_error( $user_id ) ) {
 			return $user_id;
@@ -965,6 +980,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 		foreach ( $roles as $role ) {
 
 			if ( ! isset( $wp_roles->role_objects[ $role ] ) ) {
+				/* translators: %s: role key */
 				return new WP_Error( 'rest_user_invalid_role', sprintf( __( 'The role %s does not exist.' ), $role ), array( 'status' => 400 ) );
 			}
 
@@ -979,7 +995,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 				&& get_current_user_id() === $user_id
 				&& ! $potential_role->has_cap( 'edit_users' )
 			) {
-				return new WP_Error( 'rest_user_invalid_role', __( 'You cannot give resource that role.' ), array( 'status' => rest_authorization_required_code() ) );
+				return new WP_Error( 'rest_user_invalid_role', __( 'Sorry, you are not allowed to give resource that role.' ), array( 'status' => rest_authorization_required_code() ) );
 			}
 
 			/** Include admin functions to get access to get_editable_roles() */
@@ -989,11 +1005,66 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 			$editable_roles = get_editable_roles();
 
 			if ( empty( $editable_roles[ $role ] ) ) {
-				return new WP_Error( 'rest_user_invalid_role', __( 'You cannot give resource that role.' ), array( 'status' => 403 ) );
+				return new WP_Error( 'rest_user_invalid_role', __( 'Sorry, you are not allowed to give resource that role.' ), array( 'status' => 403 ) );
 			}
 		}
 
 		return true;
+	}
+
+	/**
+	 * Check a username for the REST API.
+	 *
+	 * Performs a couple of checks like edit_user() in wp-admin/includes/user.php.
+	 *
+	 * @since 4.7.0
+	 *
+	 * @param  mixed            $value   The username submitted in the request.
+	 * @param  WP_REST_Request  $request Full details about the request.
+	 * @param  string           $param   The parameter name.
+	 * @return WP_Error|string The sanitized username, if valid, otherwise an error.
+	 */
+	public function check_username( $value, $request, $param ) {
+		$username = (string) rest_sanitize_value_from_schema( $value, $request, $param );
+
+		if ( ! validate_username( $username ) ) {
+			return new WP_Error( 'rest_user_invalid_username', __( 'Username contains invalid characters.' ), array( 'status' => 400 ) );
+		}
+
+		/** This filter is documented in wp-includes/user.php */
+		$illegal_logins = (array) apply_filters( 'illegal_user_logins', array() );
+
+		if ( in_array( strtolower( $username ), array_map( 'strtolower', $illegal_logins ) ) ) {
+			return new WP_Error( 'rest_user_invalid_username', __( 'Sorry, that username is not allowed.' ), array( 'status' => 400 ) );
+		}
+
+		return $username;
+	}
+
+	/**
+	 * Check a user password for the REST API.
+	 *
+	 * Performs a couple of checks like edit_user() in wp-admin/includes/user.php.
+	 *
+	 * @since 4.7.0
+	 *
+	 * @param  mixed            $value   The password submitted in the request.
+	 * @param  WP_REST_Request  $request Full details about the request.
+	 * @param  string           $param   The parameter name.
+	 * @return WP_Error|string The sanitized password, if valid, otherwise an error.
+	 */
+	public function check_user_password( $value, $request, $param ) {
+		$password = (string) rest_sanitize_value_from_schema( $value, $request, $param );
+
+		if ( empty( $password ) ) {
+			return new WP_Error( 'rest_user_invalid_password', __( 'Passwords cannot be empty.' ), array( 'status' => 400 ) );
+		}
+
+		if ( false !== strpos( $password, "\\" ) ) {
+			return new WP_Error( 'rest_user_invalid_password', __( 'Passwords cannot contain the "\\" character.' ), array( 'status' => 400 ) );
+		}
+
+		return $password;
 	}
 
 	/**
@@ -1022,7 +1093,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 					'context'     => array( 'edit' ),
 					'required'    => true,
 					'arg_options' => array(
-						'sanitize_callback' => 'sanitize_user',
+						'sanitize_callback' => array( $this, 'check_username' ),
 					),
 				),
 				'name'        => array(
@@ -1066,9 +1137,6 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 					'description' => __( 'Description of the resource.' ),
 					'type'        => 'string',
 					'context'     => array( 'embed', 'view', 'edit' ),
-					'arg_options' => array(
-						'sanitize_callback' => 'wp_filter_post_kses',
-					),
 				),
 				'link'        => array(
 					'description' => __( 'Author URL to the resource.' ),
@@ -1119,6 +1187,9 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 					'type'        => 'string',
 					'context'     => array(), // Password is never displayed.
 					'required'    => true,
+					'arg_options' => array(
+						'sanitize_callback' => array( $this, 'check_user_password' ),
+					),
 				),
 				'capabilities'    => array(
 					'description' => __( 'All capabilities assigned to the resource.' ),
@@ -1142,6 +1213,7 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 
 			foreach ( $avatar_sizes as $size ) {
 				$avatar_properties[ $size ] = array(
+					/* translators: %d: avatar image size in pixels */
 					'description' => sprintf( __( 'Avatar URL with image size of %d pixels.' ), $size ),
 					'type'        => 'string',
 					'format'      => 'uri',
@@ -1234,6 +1306,17 @@ class WP_REST_Users_Controller extends WP_REST_Controller {
 			),
 		);
 
-		return $query_params;
+		/**
+		 * Filter collection parameters for the users controller.
+		 *
+		 * This filter registers the collection parameter, but does not map the
+		 * collection parameter to an internal WP_User_Query parameter.  Use the
+		 * `rest_user_query` filter to set WP_User_Query arguments.
+		 *
+		 * @since 4.7.0
+		 *
+		 * @param $params JSON Schema-formatted collection parameters.
+		 */
+		return apply_filters( 'rest_user_collection_params', $query_params );
 	}
 }

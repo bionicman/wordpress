@@ -141,7 +141,7 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 			return false;
 		}
 		if ( 'edit' === $request['context'] && ! current_user_can( $tax_obj->cap->edit_terms ) ) {
-			return new WP_Error( 'rest_forbidden_context', __( 'Sorry, you cannot view this resource with edit context.' ), array( 'status' => rest_authorization_required_code() ) );
+			return new WP_Error( 'rest_forbidden_context', __( 'Sorry, you are not allowed to view this resource with edit context.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 		return true;
 	}
@@ -302,7 +302,7 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 			return false;
 		}
 		if ( 'edit' === $request['context'] && ! current_user_can( $tax_obj->cap->edit_terms ) ) {
-			return new WP_Error( 'rest_forbidden_context', __( 'Sorry, you cannot view this resource with edit context.' ), array( 'status' => rest_authorization_required_code() ) );
+			return new WP_Error( 'rest_forbidden_context', __( 'Sorry, you are not allowed to view this resource with edit context.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 		return true;
 	}
@@ -350,7 +350,7 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 
 		$taxonomy_obj = get_taxonomy( $this->taxonomy );
 		if ( ! current_user_can( $taxonomy_obj->cap->manage_terms ) ) {
-			return new WP_Error( 'rest_cannot_create', __( 'Sorry, you cannot create new resource.' ), array( 'status' => rest_authorization_required_code() ) );
+			return new WP_Error( 'rest_cannot_create', __( 'Sorry, you are not allowed to create new resource.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
 		return true;
@@ -457,7 +457,7 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 		}
 
 		if ( ! current_user_can( 'edit_term', $term->term_id ) ) {
-			return new WP_Error( 'rest_cannot_update', __( 'Sorry, you cannot update resource.' ), array( 'status' => rest_authorization_required_code() ) );
+			return new WP_Error( 'rest_cannot_update', __( 'Sorry, you are not allowed to update resource.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
 		return true;
@@ -546,7 +546,7 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 		}
 
 		if ( ! current_user_can( 'delete_term', $term->term_id ) ) {
-			return new WP_Error( 'rest_cannot_delete', __( 'Sorry, you cannot delete resource.' ), array( 'status' => rest_authorization_required_code() ) );
+			return new WP_Error( 'rest_cannot_delete', __( 'Sorry, you are not allowed to delete resource.' ), array( 'status' => rest_authorization_required_code() ) );
 		}
 
 		return true;
@@ -959,7 +959,22 @@ class WP_REST_Terms_Controller extends WP_REST_Controller {
 			'type'              => 'string',
 		);
 
-		return $query_params;
+		/**
+		 * Filter collection parameters for the terms controller.
+		 *
+		 * The dynamic part of the filter `$this->taxonomy` refers to the taxonomy
+		 * slug for the controller.
+		 *
+		 * This filter registers the collection parameter, but does not map the
+		 * collection parameter to an internal WP_Term_Query parameter.  Use the
+		 * `rest_{$this->taxonomy}_query` filter to set WP_Term_Query parameters.
+		 *
+		 * @since 4.7.0
+		 *
+		 * @param $params JSON Schema-formatted collection parameters.
+		 * @param WP_Taxonomy $taxonomy_obj Taxonomy object.
+		 */
+		return apply_filters( 'rest_{$this->taxonomy}_collection_params', $query_params, $taxonomy );
 	}
 
 	/**
