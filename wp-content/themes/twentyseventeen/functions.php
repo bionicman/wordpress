@@ -57,7 +57,7 @@ function twentyseventeen_setup() {
 
 	// This theme uses wp_nav_menu() in two locations.
 	register_nav_menus( array(
-		'top'    => __( 'Top', 'twentyseventeen' ),
+		'top'    => __( 'Top Menu', 'twentyseventeen' ),
 		'social' => __( 'Social Links Menu', 'twentyseventeen' ),
 	) );
 
@@ -143,7 +143,7 @@ function twentyseventeen_setup() {
 
 		'nav_menus' => array(
 			'top' => array(
-				'name' => __( 'Top' ),
+				'name' => __( 'Top', 'twentyseventeen' ),
 				'items' => array(
 					'page_home',
 					'page_about',
@@ -152,7 +152,7 @@ function twentyseventeen_setup() {
 				),
 			),
 			'social' => array(
-				'name' => __( 'Social' ),
+				'name' => __( 'Social', 'twentyseventeen' ),
 				'items' => array(
 					'link_yelp',
 					'link_facebook',
@@ -284,13 +284,15 @@ add_action( 'widgets_init', 'twentyseventeen_widgets_init' );
  * Replaces "[...]" (appended to automatically generated excerpts) with ... and
  * a 'Continue reading' link.
  *
- * Create your own twentysixteen_excerpt_more() function to override in a child theme.
- *
  * @since Twenty Seventeen 1.0
  *
  * @return string 'Continue reading' link prepended with an ellipsis.
  */
-function twentyseventeen_excerpt_more() {
+function twentyseventeen_excerpt_more( $link ) {
+	if ( is_admin() ) {
+		return $link;
+	}
+
 	$link = sprintf( '<p class="link-more"><a href="%1$s" class="more-link">%2$s</a></p>',
 		esc_url( get_permalink( get_the_ID() ) ),
 		/* translators: %s: Name of current post */
@@ -366,15 +368,13 @@ function twentyseventeen_scripts() {
 
 	$twentyseventeen_l10n = array(
 		'quote'          => twentyseventeen_get_svg( array( 'icon' => 'quote-right' ) ),
-		'has_navigation' => 'false',
 	);
 
 	if ( has_nav_menu( 'top' ) ) {
 		wp_enqueue_script( 'twentyseventeen-navigation', get_theme_file_uri( '/assets/js/navigation.js' ), array(), '1.0', true );
-		$twentyseventeen_l10n['has_navigation'] = 'true';
 		$twentyseventeen_l10n['expand']         = __( 'Expand child menu', 'twentyseventeen' );
 		$twentyseventeen_l10n['collapse']       = __( 'Collapse child menu', 'twentyseventeen' );
-		$twentyseventeen_l10n['icon']           = twentyseventeen_get_svg( array( 'icon' => 'expand', 'fallback' => true ) );
+		$twentyseventeen_l10n['icon']           = twentyseventeen_get_svg( array( 'icon' => 'angle-down', 'fallback' => true ) );
 	}
 
 	wp_enqueue_script( 'twentyseventeen-global', get_theme_file_uri( '/assets/js/global.js' ), array( 'jquery' ), '1.0', true );

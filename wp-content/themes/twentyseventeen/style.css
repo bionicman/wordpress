@@ -330,12 +330,6 @@ template {
 	z-index: 100000; /* Above WP toolbar. */
 }
 
-/* Do not show the outline on the skip link target. */
-
-#content[tabindex="-1"]:focus {
-	outline: 0;
-}
-
 /*--------------------------------------------------------------
 # Alignments
 --------------------------------------------------------------*/
@@ -1091,20 +1085,7 @@ ul {
 }
 
 ol {
-	counter-reset: item;
-}
-
-ol li {
-	display: block;
-	position: relative;
-}
-
-ol li:before {
-	content: counter(item) ".";
-	counter-increment: item;
-	font-weight: 600;
-	left: -1.5em;
-	position: absolute;
+	list-style: decimal;
 }
 
 li > ul,
@@ -1210,6 +1191,7 @@ a:active {
 .comment-reply-link,
 a .nav-title,
 .pagination a,
+.comments-pagination a,
 .site-info a,
 .widget .widget-title a,
 .widget ul li a,
@@ -1256,6 +1238,10 @@ a .nav-title,
 .entry-footer .tags-links a:hover,
 .post-navigation a:focus,
 .post-navigation a:hover,
+.pagination a:not(.prev):not(.next):focus,
+.pagination a:not(.prev):not(.next):hover,
+.comments-pagination a:not(.prev):not(.next):focus,
+.comments-pagination a:not(.prev):not(.next):hover,
 .logged-in-as a:focus,
 .logged-in-as a:hover,
 a:focus .nav-title,
@@ -1360,7 +1346,7 @@ a:hover .nav-title,
 
 .main-navigation > div > ul {
 	border-top: 1px solid #eee;
-	padding: 0.75em 3.375em;
+	padding: 0.75em 1.695em;
 }
 
 .js .main-navigation.toggled-on > div > ul {
@@ -1529,8 +1515,8 @@ body {
 	margin-left: auto;
 	margin-right: auto;
 	max-width: 700px;
-	padding-left: 3em;
-	padding-right: 3em;
+	padding-left: 2em;
+	padding-right: 2em;
 }
 
 .wrap:after {
@@ -1571,11 +1557,6 @@ body {
 .site-branding a:hover,
 .site-branding a:focus {
 	opacity: 0.7;
-}
-
-.has-header-image.twentyseventeen-front-page .site-branding,
-.has-header-image.home.blog .site-branding {
-	align-self: flex-end;
 }
 
 .site-title {
@@ -1647,9 +1628,10 @@ body:not(.title-tagline-hidden) .site-branding-text {
 
 .has-header-image.twentyseventeen-front-page .custom-header,
 .has-header-image.home.blog .custom-header {
-	display: flex;
-	min-height: 300px;
-	min-height: 75vh;
+	display: table;
+	height: 300px;
+	height: 75vh;
+	width: 100%;
 }
 
 .custom-header-image {
@@ -1708,6 +1690,13 @@ body:not(.title-tagline-hidden) .site-branding-text {
 
 body:not(.has-header-image) .custom-header-image {
 	padding: 5% 0;
+}
+
+.has-header-image.twentyseventeen-front-page .site-branding,
+.has-header-image.home.blog .site-branding {
+	display: table-cell;
+	height: 100%;
+	vertical-align: bottom;
 }
 
 /*--------------------------------------------------------------
@@ -1822,19 +1811,16 @@ body:not(.has-header-image) .custom-header-image {
 	position: relative;
 }
 
-.icon-pinned {
+.post:not(.sticky) .icon-thumb-tack {
 	display: none;
 }
 
-.sticky .icon-pinned {
+.sticky .icon-thumb-tack {
 	display: block;
 	height: 18px;
 	left: -1.5em;
 	position: absolute;
 	top: 1.65em;
-	-ms-transform: rotate(-45deg); /* IE 9 */
-	-webkit-transform: rotate(-45deg); /* Chrome, Safari, Opera */
-	transform: rotate(-45deg);
 	width: 20px;
 }
 
@@ -1897,16 +1883,32 @@ body.page:not(.twentyseventeen-front-page) .entry-title {
 	text-align: center;
 }
 
+.pagination .icon,
+.comments-pagination .icon {
+	width: 0.666666666em;
+	height: 0.666666666em;
+}
+
 .comments-pagination {
 	border: 0;
 }
 
 .page-numbers {
-	padding: 0.5em 1em;
+	display: none;
+	padding: 0.5em 0.75em;
 }
 
 .page-numbers.current {
 	color: #767676;
+	display: inline-block;
+}
+
+.page-numbers.current .screen-reader-text {
+	clip: auto;
+	height: auto;
+	overflow: auto;
+	position: relative !important;
+	width: auto;
 }
 
 .prev.page-numbers,
@@ -1914,10 +1916,10 @@ body.page:not(.twentyseventeen-front-page) .entry-title {
 	background-color: #ddd;
 	-webkit-border-radius: 2px;
 	border-radius: 2px;
+	display: inline-block;
 	font-size: 24px;
 	font-size: 1.5rem;
 	line-height: 1;
-	margin-top: -0.3em;
 	padding: 0.25em 0.5em 0.4em;
 }
 
@@ -2005,7 +2007,9 @@ body:not(.twentyseventeen-front-page) .entry-header {
 /* Single Post */
 
 .single-post:not(.has-sidebar) #primary,
-.page.page-one-column:not(.twentyseventeen-front-page) #primary {
+.page.page-one-column:not(.twentyseventeen-front-page) #primary,
+.archive.page-one-column:not(.has-sidebar) .page-header,
+.archive.page-one-column:not(.has-sidebar) #primary {
 	margin-left: auto;
 	margin-right: auto;
 	max-width: 740px;
@@ -2164,15 +2168,6 @@ body:not(.twentyseventeen-front-page) .entry-header {
 	color: #333;
 	font-size: 16px;
 	font-size: 1rem;
-}
-
-.nav-links .nav-next .nav-title .icon,
-.nav-links .nav-previous .nav-title .icon {
-	height: 24px;
-	height: 1.5rem;
-	width: 24px;
-	width: 1.5rem;
-	font-weight: 400;
 }
 
 .post-navigation .nav-next {
@@ -2472,6 +2467,7 @@ h2.widget-title {
 
 .widget ul li li {
 	border: 0;
+	padding-left: 24px;
 	padding-left: 1.5rem;
 }
 
@@ -2611,10 +2607,8 @@ h2.widget-title {
 
 .search-form .search-submit .icon {
 	height: 24px;
-	height: 1.5rem;
 	top: -2px;
 	width: 24px;
-	width: 1.5rem;
 }
 
 /* Tag cloud widget */
@@ -2935,11 +2929,6 @@ object {
 # Customizer
 --------------------------------------------------------------*/
 
-/* Hide placeholders until we're in the front page sections section */
-.panel-placeholder {
-	display: none;
-}
-
 .highlight-front-sections.twentyseventeen-customizer.twentyseventeen-front-page .twentyseventeen-panel:after {
 	border: 2px dashed #0085ba; /* Matches visible edit shortcuts. */
 	bottom: 1em;
@@ -2978,7 +2967,7 @@ object {
 }
 
 /* Add some space around the visual edit shortcut buttons. */
-.twentyseventeen-panel .customize-partial-edit-shortcut:before {
+.twentyseventeen-panel .customize-partial-edit-shortcut button {
 	top: 30px;
 	left: 30px;
 }
@@ -2994,7 +2983,7 @@ object {
 }
 
 /* Prevent icon colors from clashing with color schemes. */
-.colors-custom .customize-partial-edit-shortcut:before {
+.colors-custom .customize-partial-edit-shortcut button {
 	text-shadow: 0 -1px 1px rgba(0,0,0,.2),
 	             1px 0 1px rgba(0,0,0,.2),
 	             0 1px 1px rgba(0,0,0,.2),
@@ -3021,7 +3010,7 @@ object {
 	width: 2em;
 }
 
-.no-svg .dropdown-toggle .svg-fallback.icon-expand {
+.no-svg .dropdown-toggle .svg-fallback.icon-angle-down {
 	font-size: 20px;
 	font-size: 1.25rem;
 	font-weight: normal;
@@ -3031,13 +3020,13 @@ object {
 	transform: rotate(180deg);
 }
 
-.no-svg .dropdown-toggle.toggled-on .svg-fallback.icon-expand {
+.no-svg .dropdown-toggle.toggled-on .svg-fallback.icon-angle-down {
 	-webkit-transform: rotate(0); /* Chrome, Safari, Opera */
 	-ms-transform: rotate(0); /* IE 9 */
 	transform: rotate(0);
 }
 
-.no-svg .dropdown-toggle .svg-fallback.icon-expand:before {
+.no-svg .dropdown-toggle .svg-fallback.icon-angle-down:before {
 	content: "\005E";
 }
 
@@ -3162,6 +3151,10 @@ object {
 		font-size: 0.875rem;
 	}
 
+	.page-numbers.current {
+		font-size: 16px;
+		font-size: 1rem;
+	}
 
 	/* Site Footer */
 
@@ -3217,6 +3210,8 @@ object {
 
 	.wrap {
 		max-width: 1000px;
+		padding-left: 3em;
+		padding-right: 3em;
 	}
 
 	.has-sidebar:not(.error404) #primary {
@@ -3243,6 +3238,9 @@ object {
 	.has-header-image.twentyseventeen-front-page .site-branding,
 	.has-header-image.home.blog .site-branding {
 		bottom: 0;
+		display: block;
+		left: 0;
+		height: auto;
 		padding-top: 0;
 		position: absolute;
 		width: 100%;
@@ -3250,7 +3248,8 @@ object {
 
 	.has-header-image.twentyseventeen-front-page .custom-header,
 	.has-header-image.home.blog .custom-header {
-		min-height: 0;
+		display: block;
+		height: auto;
 	}
 
 	.custom-header-image {
@@ -3471,7 +3470,7 @@ object {
 		display: inline;
 		left: 5px;
 		position: relative;
-		top: -2px;
+		top: -1px;
 	}
 
 	.main-navigation ul ul .menu-item-has-children > a > .icon,
@@ -3503,7 +3502,7 @@ object {
 		display: none;
 	}
 
-	.site-navigation-fixed.site-header.menu-scroll-down {
+	.site-header .site-navigation-fixed .menu-scroll-down {
 		display: none;
 	}
 
@@ -3511,9 +3510,12 @@ object {
 
 	.site-header .menu-scroll-down {
 		display: block;
-		padding: 0.5em 0.5em 0.4em;
+		padding: 1em;
 		position: absolute;
 		right: 0;
+	}
+
+	.site-header .menu-scroll-down .icon {
 		-webkit-transform: rotate(90deg); /* Chrome, Safari, Opera */
 		-ms-transform: rotate(90deg); /* IE 9 */
 		transform: rotate(90deg);
@@ -3526,7 +3528,7 @@ object {
 
 	.site-header .navigation-top .menu-scroll-down {
 		color: #767676;
-		top: 0.9em;
+		top: 0.7em;
 	}
 
 	.menu-scroll-down:focus {
@@ -3534,10 +3536,8 @@ object {
 	}
 
 	.menu-scroll-down .icon {
-		height: 32px;
-		height: 2rem;
-		width: 32px;
-		width: 2rem;
+		height: 18px;
+		width: 18px;
 	}
 
 	/* Front Page */
@@ -3553,7 +3553,6 @@ object {
 		height: 100vh;
 		max-height: 100%;
 		overflow: hidden;
-		/* padding: 10% 0; */
 	}
 
 	.twentyseventeen-front-page.has-header-image .custom-header-image:before,
@@ -3650,26 +3649,27 @@ object {
 
 	/* Blog, archive, search */
 
-	.sticky .icon-pinned {
+	.sticky .icon-thumb-tack {
 		height: 23px;
 		left: -2.5em;
 		top: 1.5em;
 		width: 32px;
 	}
 
-	body:not(.has-sidebar) .page-header,
+	body:not(.has-sidebar):not(.page-one-column) .page-header,
 	body.has-sidebar.error404 #primary .page-header,
-	body.page-two-column #primary .entry-header {
+	body.page-two-column:not(.archive) #primary .entry-header,
+	body.page-two-column.archive:not(.has-sidebar) #primary .page-header {
 		float: left;
 		width: 36%;
 	}
 
 	.blog:not(.has-sidebar) #primary article,
-	.archive:not(.has-sidebar) #primary article,
+	.archive:not(.page-one-column):not(.has-sidebar) #primary article,
 	.search:not(.has-sidebar) #primary article,
 	.error404:not(.has-sidebar) #primary .page-content,
 	.error404.has-sidebar #primary .page-content,
-	body.page-two-column #primary .entry-content,
+	body.page-two-column:not(.archive) #primary .entry-content,
 	body.page-two-column #comments {
 		float: right;
 		width: 58%;
@@ -3687,7 +3687,8 @@ object {
 		width: 58%;
 	}
 
-	.has-sidebar .navigation.pagination {
+	.has-sidebar .navigation.pagination,
+	.archive.page-one-column:not(.has-sidebar) .navigation.pagination {
 		float: none;
 		width: 100%;
 	}
@@ -3771,7 +3772,9 @@ object {
 
 	/* Pages */
 
-	.page-one-column .entry-header {
+	.page.page-one-column .entry-header,
+	.twentyseventeen-front-page.page-one-column .entry-header,
+	.archive.page-one-column:not(.has-sidebar) .page-header {
 		margin-bottom: 4em;
 	}
 
@@ -3920,13 +3923,32 @@ object {
 
 	/* Sticky posts */
 
-	.sticky .icon-pinned {
+	.sticky .icon-thumb-tack {
 		font-size: 32px;
 		font-size: 2rem;
 		height: 22px;
 		left: -1.25em;
 		top: 0.75em;
 		width: 32px;
+	}
+
+	/* Pagination */
+
+	.page-numbers {
+		display: inline-block;
+	}
+
+	.page-numbers.current {
+		font-size: 15px;
+		font-size: 0.9375rem;
+	}
+
+	.page-numbers.current .screen-reader-text {
+		clip: rect(1px, 1px, 1px, 1px);
+		height: 1px;
+		overflow: hidden;
+		position: absolute !important;
+		width: 1px;
 	}
 
 	/* Comments */
@@ -3977,7 +3999,7 @@ object {
 	.content-bottom-widgets,
 	.header-image,
 	.panel-image-prop,
-	.icon-pinned,
+	.icon-thumb-tack,
 	.page-links,
 	.edit-link,
 	.post-navigation,
