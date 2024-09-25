@@ -136,8 +136,8 @@ class WP_Press_This {
 
 		$updated = wp_update_post( $post, true );
 
-		if ( is_wp_error( $updated ) || intval( $updated ) < 1 ) {
-			wp_send_json_error( array( 'errorMessage' => __( 'Error while saving the post. Please try again later.' ) ) );
+		if ( is_wp_error( $updated ) ) {
+			wp_send_json_error( array( 'errorMessage' => $updated->get_error_message() ) );
 		} else {
 			if ( isset( $post['post_format'] ) ) {
 				if ( current_theme_supports( 'post-formats', $post['post_format'] ) ) {
@@ -148,23 +148,28 @@ class WP_Press_This {
 			}
 
 			if ( 'publish' === get_post_status( $post_id ) ) {
-				/**
-				 * Filter the URL to redirect to when Press This saves.
-				 *
-				 * @since 4.2.0
-				 *
-				 * @param string $url     Redirect URL. If `$status` is 'publish', this will be the post permalink.
-				 *                        Otherwise, the post edit URL will be used.
-				 * @param int    $post_id Post ID.
-				 * @param string $status  Post status.
-				 */
-				$redirect = apply_filters( 'press_this_save_redirect', get_post_permalink( $post_id ), $post_id, $post['post_status'] );
+				$redirect = get_post_permalink( $post_id );
 			} else {
-				/** This filter is documented in wp-admin/includes/class-wp-press-this.php */
-				$redirect = apply_filters( 'press_this_save_redirect', get_edit_post_link( $post_id, 'raw' ), $post_id, $post['post_status'] );
+				$redirect = false;
 			}
 
-			wp_send_json_success( array( 'redirect' => $redirect ) );
+			/**
+			 * Filter the URL to redirect to when Press This saves.
+			 *
+			 * @since 4.2.0
+			 *
+			 * @param string $url     Redirect URL. If `$status` is 'publish', this will be the post permalink.
+			 *                        Otherwise, the post edit URL will be used.
+			 * @param int    $post_id Post ID.
+			 * @param string $status  Post status.
+			 */
+			$redirect = apply_filters( 'press_this_save_redirect', $redirect, $post_id, $post['post_status'] );
+
+			if ( $redirect ) {
+				wp_send_json_success( array( 'redirect' => $redirect ) );
+			} else {
+				wp_send_json_success( array( 'postSaved' => true ) );
+			}
 		}
 	}
 
@@ -788,7 +793,7 @@ class WP_Press_This {
 				<span class="dashicons dashicons-search"></span><span class="screen-reader-text"><?php _e( 'Search categories' ); ?></span>
 			</label>
 		</div>
-		<div role="application" aria-label="<?php esc_attr_e( 'Categories' ); ?>">
+		<div aria-label="<?php esc_attr_e( 'Categories' ); ?>">
 			<ul class="categories-select">
 				<?php wp_terms_checklist( $post->ID, array( 'taxonomy' => 'category', 'list_only' => true ) ); ?>
 			</ul>
@@ -1201,10 +1206,12 @@ class WP_Press_This {
 				<span class="current-site-name"><?php bloginfo( 'name' ); ?></span>
 			</a>
 		</h1>
-		<button type="button" class="options-open button-subtle">
-			<span class="dashicons dashicons-tag"></span><span class="screen-reader-text"><?php _e( 'Show post options' ); ?></span>
+		<button type="button" class="options button-subtle closed">
+			<span class="dashicons dashicons-tag on-closed"></span>
+			<span class="screen-reader-text on-closed"><?php _e( 'Show post options' ); ?></span>
+			<span aria-hidden="true" class="on-open"><?php _e( 'Done' ); ?></span>
+			<span class="screen-reader-text on-open"><?php _e( 'Hide post options' ); ?></span>
 		</button>
-		<button type="button" class="options-close button-subtle is-hidden"><?php _e( 'Done' ); ?></button>
 	</div>
 
 	<div id="scanbar" class="scan">
@@ -1279,7 +1286,7 @@ class WP_Press_This {
 				<?php if ( $supports_formats ) : ?>
 					<button type="button" class="button-reset post-option">
 						<span class="dashicons dashicons-admin-post"></span>
-						<span class="post-option-title"><?php _e( 'Format' ); ?></span>
+						<span class="post-option-title"><?php _ex( 'Format', 'post format' ); ?></span>
 						<span class="post-option-contents" id="post-option-post-format"><?php echo esc_html( get_post_format_string( $post_format ) ); ?></span>
 						<span class="dashicons post-option-forward"></span>
 					</button>
@@ -1302,7 +1309,7 @@ class WP_Press_This {
 				<div class="setting-modal is-off-screen is-hidden">
 					<button type="button" class="button-reset modal-close">
 						<span class="dashicons post-option-back"></span>
-						<span class="setting-title" aria-hidden="true"><?php _e( 'Post format' ); ?></span>
+						<span class="setting-title" aria-hidden="true"><?php _ex( 'Format', 'post format' ); ?></span>
 						<span class="screen-reader-text"><?php _e( 'Back to post options' ) ?></span>
 					</button>
 					<?php $this->post_formats_html( $post ); ?>
@@ -1337,6 +1344,7 @@ class WP_Press_This {
 			</button>
 		</div>
 		<div class="post-actions">
+			<span class="spinner">&nbsp;</span>
 			<button type="button" class="button-subtle draft-button"><?php _e( 'Save Draft' ); ?></button>
 			<button type="button" class="button-subtle preview-button"><?php _e( 'Preview' ); ?></button>
 			<button type="button" class="button-primary publish-button"><?php echo ( current_user_can( 'publish_posts' ) ) ? __( 'Publish' ) : __( 'Submit for Review' ); ?></button>

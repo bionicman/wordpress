@@ -373,6 +373,27 @@ $(document).ready( function() {
 	$firstHeading.nextAll( 'div.updated, div.error, div.notice' ).addClass( 'below-h2' );
 	$( 'div.updated, div.error, div.notice' ).not( '.below-h2, .inline' ).insertAfter( $firstHeading );
 
+	// Make notices dismissible
+	$( '.notice.is-dismissible' ).each( function() {
+		var $this = $( this ),
+			$button = $( '<button type="button" class="notice-dismiss"><span class="screen-reader-text"></span></button>' ),
+			btnText = commonL10n.dismiss || '';
+
+		// Ensure plain text
+		$button.find( '.screen-reader-text' ).text( btnText );
+
+		$this.append( $button );
+
+		$button.on( 'click.wp-dismiss-notice', function( event ) {
+			event.preventDefault();
+			$this.fadeTo( 100 , 0, function() {
+				$(this).slideUp( 100, function() {
+					$(this).remove();
+				});
+			});
+		});
+	});
+
 	// Init screen meta
 	screenMeta.init();
 
@@ -470,6 +491,8 @@ $(document).ready( function() {
 		var el = e.target, selStart, selEnd, val, scroll, sel;
 
 		if ( e.keyCode == 27 ) { // escape key
+			// when pressing Escape: Opera 12 and 27 blur form fields, IE 8 clears them
+			e.preventDefault();
 			$(el).data('tab-out', true);
 			return;
 		}
@@ -486,10 +509,6 @@ $(document).ready( function() {
 		selEnd = el.selectionEnd;
 		val = el.value;
 
-		try {
-			this.lastKey = 9; // not a standard DOM property, lastKey is to help stop Opera tab event. See blur handler below.
-		} catch(err) {}
-
 		if ( document.selection ) {
 			el.focus();
 			sel = document.selection.createRange();
@@ -505,11 +524,6 @@ $(document).ready( function() {
 			e.stopPropagation();
 		if ( e.preventDefault )
 			e.preventDefault();
-	});
-
-	$('#newcontent').bind('blur.wpevent_InsertTab', function() {
-		if ( this.lastKey && 9 == this.lastKey )
-			this.focus();
 	});
 
 	if ( pageInput.length ) {
@@ -712,8 +726,7 @@ $(document).ready( function() {
 
 	window.wpResponsive = {
 		init: function() {
-			var self = this,
-				x, y;
+			var self = this;
 
 			// Modify functionality based on custom activate/deactivate event
 			$document.on( 'wp-responsive-activate.wp-responsive', function() {
@@ -728,43 +741,12 @@ $(document).ready( function() {
 			$( '#wp-admin-bar-menu-toggle' ).on( 'click.wp-responsive', function( event ) {
 				event.preventDefault();
 				$wpwrap.toggleClass( 'wp-responsive-open' );
-				if ( self.isOpen() ) {
+				if ( $wpwrap.hasClass( 'wp-responsive-open' ) ) {
 					$(this).find('a').attr( 'aria-expanded', 'true' );
 					$( '#adminmenu a:first' ).focus();
 				} else {
 					$(this).find('a').attr( 'aria-expanded', 'false' );
 				}
-			} );
-
-			$window.on( 'touchstart.wp-responsive', function( event ) {
-				var touches = event.originalEvent.touches;
-
-				if ( 1 !== touches.length ) {
-					return;
-				}
-
-				x = touches[0].clientX;
-				y = touches[0].clientY;
-			} );
-
-			$window.on( 'touchend.wp-responsive', function( event ) {
-				var touches = event.originalEvent.changedTouches,
-					isOpen = self.isOpen(),
-					distanceX;
-
-				if ( 1 === touches.length && x && y ) {
-					if ( ( window.isRtl && isOpen ) || ( ! window.isRtl && ! isOpen ) ) {
-						distanceX = touches[0].clientX - x;
-					} else {
-						distanceX = x - touches[0].clientX;
-					}
-
-					if ( distanceX > 30 && distanceX > Math.abs( touches[0].clientY - y ) ) {
-						$( '#wp-admin-bar-menu-toggle' ).trigger( 'click' );
-					}
-				}
-
-				x = y = 0;
 			} );
 
 			// Add menu events
@@ -788,10 +770,6 @@ $(document).ready( function() {
 					self.disableSortables();
 				}
 			});
-		},
-
-		isOpen: function() {
-			return $wpwrap.hasClass( 'wp-responsive-open' );
 		},
 
 		activate: function() {

@@ -130,8 +130,8 @@ add_thickbox();
 add_screen_option( 'per_page' );
 
 $site_url_no_http = preg_replace( '#^http(s)?://#', '', get_blogaddress_by_id( $id ) );
-$title_site_url_linked = sprintf( __('Edit Site: <a href="%1$s">%2$s</a>'), get_blogaddress_by_id( $id ), $site_url_no_http );
-$title = sprintf( __('Edit Site: %s'), $site_url_no_http );
+$title_site_url_linked = sprintf( __( 'Edit Site: %s' ), '<a href="' . get_blogaddress_by_id( $id ) . '">' . $site_url_no_http . '</a>' );
+$title = sprintf( __( 'Edit Site: %s' ), $site_url_no_http );
 
 $parent_file = 'sites.php';
 $submenu_file = 'sites.php';
@@ -157,12 +157,12 @@ foreach ( $tabs as $tab_id => $tab ) {
 
 if ( isset( $_GET['enabled'] ) ) {
 	$_GET['enabled'] = absint( $_GET['enabled'] );
-	echo '<div id="message" class="updated"><p>' . sprintf( _n( 'Theme enabled.', '%s themes enabled.', $_GET['enabled'] ), number_format_i18n( $_GET['enabled'] ) ) . '</p></div>';
+	echo '<div id="message" class="updated notice is-dismissible"><p>' . sprintf( _n( 'Theme enabled.', '%s themes enabled.', $_GET['enabled'] ), number_format_i18n( $_GET['enabled'] ) ) . '</p></div>';
 } elseif ( isset( $_GET['disabled'] ) ) {
 	$_GET['disabled'] = absint( $_GET['disabled'] );
-	echo '<div id="message" class="updated"><p>' . sprintf( _n( 'Theme disabled.', '%s themes disabled.', $_GET['disabled'] ), number_format_i18n( $_GET['disabled'] ) ) . '</p></div>';
+	echo '<div id="message" class="updated notice is-dismissible"><p>' . sprintf( _n( 'Theme disabled.', '%s themes disabled.', $_GET['disabled'] ), number_format_i18n( $_GET['disabled'] ) ) . '</p></div>';
 } elseif ( isset( $_GET['error'] ) && 'none' == $_GET['error'] ) {
-	echo '<div id="message" class="error"><p>' . __( 'No theme selected.' ) . '</p></div>';
+	echo '<div id="message" class="error notice is-dismissible"><p>' . __( 'No theme selected.' ) . '</p></div>';
 } ?>
 
 <p><?php _e( 'Network enabled themes are not shown on this screen.' ) ?></p>

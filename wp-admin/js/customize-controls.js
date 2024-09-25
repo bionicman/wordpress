@@ -67,8 +67,14 @@
 		construct = this;
 		params = params || {};
 		focus = function () {
-			construct.container.find( ':focusable:first' ).focus();
-			construct.container[0].scrollIntoView( true );
+			var focusContainer;
+			if ( construct.extended( api.Panel ) && construct.expanded() ) {
+				focusContainer = construct.container.find( '.control-panel-content:first' );
+			} else {
+				focusContainer = construct.container;
+			}
+			focusContainer.find( ':focusable:first' ).focus();
+			focusContainer[0].scrollIntoView( true );
 		};
 		if ( params.completeCallback ) {
 			completeCallback = params.completeCallback;
@@ -585,7 +591,7 @@
 			var section = this;
 
 			// Expand/Collapse section/panel.
-			section.container.find( '.accordion-section-title' ).on( 'click keydown', function( event ) {
+			section.container.find( '.change-theme, .customize-theme' ).on( 'click keydown', function( event ) {
 				if ( api.utils.isKeydownButNotEnterEvent( event ) ) {
 					return;
 				}
@@ -596,16 +602,6 @@
 				} else {
 					section.expand();
 				}
-			});
-
-			section.container.find( '.themes-panel-back' ).on( 'click keydown', function( event ) {
-				if ( api.utils.isKeydownButNotEnterEvent( event ) ) {
-					return;
-				}
-
-				event.preventDefault(); // Keep this AFTER the key filter above
-
-				section.collapse();
 			});
 
 			// Theme navigation in details view.
@@ -637,14 +633,6 @@
 				event.preventDefault(); // Keep this AFTER the key filter above
 
 				section.closeDetails();
-			});
-
-			section.container.on( 'click keydown', '.theme-actions .button', function( event ) {
-				if ( api.utils.isKeydownButNotEnterEvent( event ) ) {
-					return;
-				}
-
-				$( '.wp-full-overlay' ).addClass( 'customize-loading' );
 			});
 
 			section.container.on( 'input', '#themes-filter', function( event ) {
@@ -688,11 +676,11 @@
 				panel = this,
 				section = panel.container.closest( '.accordion-section' ),
 				overlay = section.closest( '.wp-full-overlay' ),
-				container = section.closest( '.accordion-container' ),
+				container = section.closest( '.wp-full-overlay-sidebar-content' ),
 				siblings = container.find( '.open' ),
 				topPanel = overlay.find( '#customize-theme-controls > ul > .accordion-section > .accordion-section-title' ).add( '#customize-info > .accordion-section-title' ),
-				backBtn = overlay.find( '.themes-panel-back' ),
-				panelTitle = section.find( '.accordion-section-title' ).first(),
+				customizeBtn = section.find( '.customize-theme' ),
+				changeBtn = section.find( '.change-theme' ),
 				content = section.find( '.control-panel-content' );
 
 			if ( expanded ) {
@@ -712,7 +700,7 @@
 				content.show( 0, function() {
 					position = content.offset().top;
 					scroll = container.scrollTop();
-					content.css( 'margin-top', ( 45 - position - scroll ) );
+					content.css( 'margin-top', ( $( '#customize-header-actions' ).height() - position - scroll ) );
 					section.addClass( 'current-panel' );
 					overlay.addClass( 'in-themes-panel' );
 					container.scrollTop( 0 );
@@ -721,8 +709,7 @@
 					}
 				} );
 				topPanel.attr( 'tabindex', '-1' );
-				backBtn.attr( 'tabindex', '0' );
-				backBtn.focus();
+				customizeBtn.focus();
 			} else {
 				siblings.removeClass( 'open' );
 				section.removeClass( 'current-panel' );
@@ -734,8 +721,7 @@
 					}
 				} );
 				topPanel.attr( 'tabindex', '0' );
-				backBtn.attr( 'tabindex', '-1' );
-				panelTitle.focus();
+				changeBtn.focus();
 				container.scrollTop( 0 );
 			}
 		},
@@ -1014,7 +1000,7 @@
 				panel = this,
 				section = panel.container.closest( '.accordion-section' ),
 				overlay = section.closest( '.wp-full-overlay' ),
-				container = section.closest( '.accordion-container' ),
+				container = section.closest( '.wp-full-overlay-sidebar-content' ),
 				siblings = container.find( '.open' ),
 				topPanel = overlay.find( '#customize-theme-controls > ul > .accordion-section > .accordion-section-title' ).add( '#customize-info > .accordion-section-title' ),
 				backBtn = overlay.find( '.control-panel-back' ),
@@ -1036,9 +1022,10 @@
 				});
 
 				content.show( 0, function() {
+					content.parent().show();
 					position = content.offset().top;
 					scroll = container.scrollTop();
-					content.css( 'margin-top', ( 45 - position - scroll ) );
+					content.css( 'margin-top', ( $( '#customize-header-actions' ).height() - position - scroll ) );
 					section.addClass( 'current-panel' );
 					overlay.addClass( 'in-sub-panel' );
 					container.scrollTop( 0 );
@@ -1847,31 +1834,71 @@
 	 */
 	api.ThemeControl = api.Control.extend({
 
+		touchDrag: false,
+
+		/**
+		 * Defer rendering the theme control until the section is displayed.
+		 *
+		 * @since 4.2.0
+		 */
+		renderContent: function () {
+			var control = this,
+				renderContentArgs = arguments;
+
+			api.section( control.section(), function ( section ) {
+				if ( section.expanded() ) {
+					api.Control.prototype.renderContent.apply( control, renderContentArgs );
+				} else {
+					section.expanded.bind( function ( expanded ) {
+						if ( expanded ) {
+							api.Control.prototype.renderContent.apply( control, renderContentArgs );
+						}
+					} );
+				}
+			} );
+		},
+
 		/**
 		 * @since 4.2.0
 		 */
 		ready: function() {
 			var control = this;
 
-			// Bind details view trigger.
-			control.container.on( 'click keydown', '.theme', function( event ) {
-				if ( api.utils.isKeydownButNotEnterEvent( event ) ) {
-					return;
-				}
-
-				if ( 'button' === event.target.className ) {
-					return;
-				}
-
-				api.section( control.section() ).showDetails( control.params.theme );
+			control.container.on( 'touchmove', '.theme', function() {
+				control.touchDrag = true;
 			});
 
-			control.container.on( 'click keydown', '.theme-actions .button', function( event ) {
+			// Bind details view trigger.
+			control.container.on( 'click keydown touchend', '.theme', function( event ) {
 				if ( api.utils.isKeydownButNotEnterEvent( event ) ) {
 					return;
 				}
 
+				// Bail if the user scrolled on a touch device.
+				if ( control.touchDrag === true ) {
+					return control.touchDrag = false;
+				}
+
+				// Prevent the modal from showing when the user clicks the action button.
+				if ( $( event.target ).is( '.theme-actions .button' ) ) {
+					return;
+				}
+
+				var previewUrl = $( this ).data( 'previewUrl' );
+
 				$( '.wp-full-overlay' ).addClass( 'customize-loading' );
+
+				window.parent.location = previewUrl;
+			});
+
+			control.container.on( 'click keydown', '.theme-actions .theme-details', function( event ) {
+				if ( api.utils.isKeydownButNotEnterEvent( event ) ) {
+					return;
+				}
+
+				event.preventDefault(); // Keep this AFTER the key filter above
+
+				api.section( control.section() ).showDetails( control.params.theme );
 			});
 		},
 

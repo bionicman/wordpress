@@ -231,7 +231,7 @@ switch ( $action ) {
 		check_admin_referer( 'delete-menu_item_' . $menu_item_id );
 
 		if ( is_nav_menu_item( $menu_item_id ) && wp_delete_post( $menu_item_id, true ) )
-			$messages[] = '<div id="message" class="updated"><p>' . __('The menu item has been successfully deleted.') . '</p></div>';
+			$messages[] = '<div id="message" class="updated notice is-dismissible"><p>' . __('The menu item has been successfully deleted.') . '</p></div>';
 		break;
 
 	case 'delete':
@@ -248,9 +248,9 @@ switch ( $action ) {
 			break;
 
 		if ( is_wp_error( $deletion ) )
-			$messages[] = '<div id="message" class="error"><p>' . $deletion->get_error_message() . '</p></div>';
+			$messages[] = '<div id="message" class="error notice is-dismissible"><p>' . $deletion->get_error_message() . '</p></div>';
 		else
-			$messages[] = '<div id="message" class="updated"><p>' . __( 'The menu has been successfully deleted.' ) . '</p></div>';
+			$messages[] = '<div id="message" class="updated notice is-dismissible"><p>' . __( 'The menu has been successfully deleted.' ) . '</p></div>';
 		break;
 
 	case 'delete_menus':
@@ -261,13 +261,13 @@ switch ( $action ) {
 
 			$deletion = wp_delete_nav_menu( $menu_id_to_delete );
 			if ( is_wp_error( $deletion ) ) {
-				$messages[] = '<div id="message" class="error"><p>' . $deletion->get_error_message() . '</p></div>';
+				$messages[] = '<div id="message" class="error notice is-dismissible"><p>' . $deletion->get_error_message() . '</p></div>';
 				$deletion_error = true;
 			}
 		}
 
 		if ( empty( $deletion_error ) )
-			$messages[] = '<div id="message" class="updated"><p>' . __( 'Selected menus have been successfully deleted.' ) . '</p></div>';
+			$messages[] = '<div id="message" class="updated notice is-dismissible"><p>' . __( 'Selected menus have been successfully deleted.' ) . '</p></div>';
 		break;
 
 	case 'update':
@@ -296,7 +296,7 @@ switch ( $action ) {
 				$_nav_menu_selected_id = wp_update_nav_menu_object( 0, array('menu-name' => $new_menu_title) );
 
 				if ( is_wp_error( $_nav_menu_selected_id ) ) {
-					$messages[] = '<div id="message" class="error"><p>' . $_nav_menu_selected_id->get_error_message() . '</p></div>';
+					$messages[] = '<div id="message" class="error notice is-dismissible"><p>' . $_nav_menu_selected_id->get_error_message() . '</p></div>';
 				} else {
 					$_menu_object = wp_get_nav_menu_object( $_nav_menu_selected_id );
 					$nav_menu_selected_id = $_nav_menu_selected_id;
@@ -327,7 +327,7 @@ switch ( $action ) {
 					exit();
 				}
 			} else {
-				$messages[] = '<div id="message" class="error"><p>' . __( 'Please enter a valid menu name.' ) . '</p></div>';
+				$messages[] = '<div id="message" class="error notice is-dismissible"><p>' . __( 'Please enter a valid menu name.' ) . '</p></div>';
 			}
 
 		// Update existing menu.
@@ -337,7 +337,7 @@ switch ( $action ) {
 
 			$menu_title = trim( esc_html( $_POST['menu-name'] ) );
 			if ( ! $menu_title ) {
-				$messages[] = '<div id="message" class="error"><p>' . __( 'Please enter a valid menu name.' ) . '</p></div>';
+				$messages[] = '<div id="message" class="error notice is-dismissible"><p>' . __( 'Please enter a valid menu name.' ) . '</p></div>';
 				$menu_title = $_menu_object->name;
 			}
 
@@ -345,7 +345,7 @@ switch ( $action ) {
 				$_nav_menu_selected_id = wp_update_nav_menu_object( $nav_menu_selected_id, array( 'menu-name' => $menu_title ) );
 				if ( is_wp_error( $_nav_menu_selected_id ) ) {
 					$_menu_object = $_nav_menu_selected_id;
-					$messages[] = '<div id="message" class="error"><p>' . $_nav_menu_selected_id->get_error_message() . '</p></div>';
+					$messages[] = '<div id="message" class="error notice is-dismissible"><p>' . $_nav_menu_selected_id->get_error_message() . '</p></div>';
 				} else {
 					$_menu_object = wp_get_nav_menu_object( $_nav_menu_selected_id );
 					$nav_menu_selected_title = $_menu_object->name;
@@ -374,7 +374,7 @@ switch ( $action ) {
 			// Set menu locations
 			set_theme_mod( 'nav_menu_locations', $menu_locations );
 
-			$messages[] = '<div id="message" class="updated"><p>' . __( 'Menu locations updated.' ) . '</p></div>';
+			$messages[] = '<div id="message" class="updated notice is-dismissible"><p>' . __( 'Menu locations updated.' ) . '</p></div>';
 		}
 		break;
 }
@@ -562,7 +562,11 @@ require_once( ABSPATH . 'wp-admin/admin-header.php' );
 	?>
 	<?php
 	if ( $locations_screen ) :
-		echo '<p>' . sprintf( _n( 'Your theme supports %s menu. Select which menu you would like to use.', 'Your theme supports %s menus. Select which menu appears in each location.', $num_locations ), number_format_i18n( $num_locations ) ) . '</p>';
+		if ( 1 == $num_locations ) {
+			echo '<p>' . __( 'Your theme supports one menu. Select which menu you would like to use.' ) . '</p>';
+		} else {
+			echo '<p>' .  sprintf( _n( 'Your theme supports %s menu. Select which menu appears in each location.', 'Your theme supports %s menus. Select which menu appears in each location.', $num_locations ), number_format_i18n( $num_locations ) ) . '</p>';
+		}
 	?>
 	<div id="menu-locations-wrap">
 		<form method="post" action="<?php echo esc_url( add_query_arg( array( 'action' => 'locations' ), admin_url( 'nav-menus.php' ) ) ); ?>">
@@ -778,7 +782,7 @@ require_once( ABSPATH . 'wp-admin/admin-header.php' );
 							</span><!-- END .delete-action -->
 							<?php endif; ?>
 							<div class="publishing-action">
-								<?php submit_button( empty( $nav_menu_selected_id ) ? __( 'Create Menu' ) : __( 'Save Menu' ), 'button-primary menu-save', 'save_menu', false, array( 'id' => 'save_menu_header' ) ); ?>
+								<?php submit_button( empty( $nav_menu_selected_id ) ? __( 'Create Menu' ) : __( 'Save Menu' ), 'button-primary menu-save', 'save_menu', false, array( 'id' => 'save_menu_footer' ) ); ?>
 							</div><!-- END .publishing-action -->
 						</div><!-- END .major-publishing-actions -->
 					</div><!-- /#nav-menu-footer -->

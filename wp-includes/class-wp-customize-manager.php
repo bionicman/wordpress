@@ -1148,9 +1148,9 @@ final class WP_Customize_Manager {
 		/* Themes */
 
 		$this->add_section( new WP_Customize_Themes_Section( $this, 'themes', array(
-			'title' => sprintf( __( 'Theme: %s' ), $this->theme()->display('Name') ),
+			'title'      => $this->theme()->display( 'Name' ),
 			'capability' => 'switch_themes',
-			'priority' => 0,
+			'priority'   => 0,
 		) ) );
 
 		// Themes Setting (unused - the theme is considerably more fundamental to the Customizer experience).
@@ -1163,18 +1163,17 @@ final class WP_Customize_Manager {
 		// Theme Controls.
 		$themes = wp_prepare_themes_for_js();
 		foreach ( $themes as $theme ) {
+			if ( $theme['active'] ) {
+				continue;
+			}
+
 			$theme_id = 'theme_' . $theme['id'];
 			$this->add_control( new WP_Customize_Theme_Control( $this, $theme_id, array(
-				'theme' => $theme,
-				'section' => 'themes',
+				'theme'    => $theme,
+				'section'  => 'themes',
 				'settings' => 'active_theme',
 			) ) );
 		}
-
-		$this->add_control( new WP_Customize_New_Theme_Control( $this, 'add_theme', array(
-			'section' => 'themes',
-			'settings' => 'active_theme',
-		) ) );
 
 		/* Site Title & Tagline */
 
@@ -1351,11 +1350,17 @@ final class WP_Customize_Manager {
 		$menus          = wp_get_nav_menus();
 		$num_locations  = count( array_keys( $locations ) );
 
+		if ( 1 == $num_locations ) {
+			$description = __( 'Your theme supports one menu. Select which menu you would like to use.' );
+		} else {
+			$description = sprintf( _n( 'Your theme supports %s menu. Select which menu appears in each location.', 'Your theme supports %s menus. Select which menu appears in each location.', $num_locations ), number_format_i18n( $num_locations ) );
+		}
+
 		$this->add_section( 'nav', array(
 			'title'          => __( 'Navigation' ),
 			'theme_supports' => 'menus',
 			'priority'       => 100,
-			'description'    => sprintf( _n('Your theme supports %s menu. Select which menu you would like to use.', 'Your theme supports %s menus. Select which menu appears in each location.', $num_locations ), number_format_i18n( $num_locations ) ) . "\n\n" . __('You can edit your menu content on the Menus screen in the Appearance section.'),
+			'description'    => $description . "\n\n" . __( 'You can edit your menu content on the Menus screen in the Appearance section.' ),
 		) );
 
 		if ( $menus ) {

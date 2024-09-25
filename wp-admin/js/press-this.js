@@ -101,7 +101,7 @@
 		 * Show UX spinner
 		 */
 		function showSpinner() {
-			$( '#spinner' ).addClass( 'show' );
+			$( '.spinner' ).addClass( 'is-active' );
 			$( '.post-actions button' ).each( function() {
 				$( this ).attr( 'disabled', 'disabled' );
 			} );
@@ -111,10 +111,24 @@
 		 * Hide UX spinner
 		 */
 		function hideSpinner() {
-			$( '#spinner' ).removeClass( 'show' );
+			$( '.spinner' ).removeClass( 'is-active' );
 			$( '.post-actions button' ).each( function() {
 				$( this ).removeAttr( 'disabled' );
 			} );
+		}
+
+		/**
+		 * Replace emoji images with chars and sanitize the text content.
+		 */
+		function getTitleText() {
+			var $element = $( '#title-container' );
+
+			$element.find( 'img.emoji' ).each( function() {
+				var $image = $( this );
+				$image.replaceWith( $( '<span>' ).text( $image.attr( 'alt' ) ) );
+			});
+
+			return sanitizeText( $element.text() );
 		}
 
 		/**
@@ -126,7 +140,7 @@
 
 			editor && editor.save();
 
-			$( '#post_title' ).val( sanitizeText( $( '#title-container' ).text() ) );
+			$( '#post_title' ).val( getTitleText() );
 
 			// Make sure to flush out the tags with tagBox before saving
 			if ( window.tagBox ) {
@@ -167,24 +181,28 @@
 			$.ajax( {
 				type: 'post',
 				url: window.ajaxurl,
-				data: data,
-				success: function( response ) {
-					if ( ! response.success ) {
-						renderError( response.data.errorMessage );
-						hideSpinner();
-					} else if ( response.data.redirect ) {
-						if ( window.opener && settings.redirInParent ) {
-							try {
-								window.opener.location.href = response.data.redirect;
-							} catch( er ) {}
+				data: data
+			}).always( function() {
+				hideSpinner();
+			}).done( function( response ) {
+				if ( ! response.success ) {
+					renderError( response.data.errorMessage );
+				} else if ( response.data.redirect ) {
+					if ( window.opener && settings.redirInParent ) {
+						try {
+							window.opener.location.href = response.data.redirect;
+						} catch( er ) {}
 
-							window.self.close();
-						} else {
-							window.location.href = response.data.redirect;
-						}
+						window.self.close();
+					} else {
+						window.location.href = response.data.redirect;
 					}
+				} else if ( response.data.postSaved ) {
+					// show "success" message?
 				}
-			} );
+			}).fail( function() {
+				renderError( __( 'serverError' ) );
+			});
 		}
 
 		/**
@@ -474,11 +492,12 @@
 		function openSidebar() {
 			sidebarIsOpen = true;
 
-			$( '.options-open, .press-this-actions, #scanbar' ).addClass( isHidden );
-			$( '.options-close, .options-panel-back' ).removeClass( isHidden );
+			$( '.options' ).removeClass( 'closed' ).addClass( 'open' );
+			$( '.press-this-actions, #scanbar' ).addClass( isHidden );
+			$( '.options-panel-back' ).removeClass( isHidden );
 
 			$( '.options-panel' ).removeClass( offscreenHidden )
-				.one( 'transitionend', function() {
+				.one( transitionEndEvent, function() {
 					$( '.post-option:first' ).focus();
 				} );
 		}
@@ -486,11 +505,12 @@
 		function closeSidebar() {
 			sidebarIsOpen = false;
 
-			$( '.options-close, .options-panel-back' ).addClass( isHidden );
-			$( '.options-open, .press-this-actions, #scanbar' ).removeClass( isHidden );
+			$( '.options' ).removeClass( 'open' ).addClass( 'closed' );
+			$( '.options-panel-back' ).addClass( isHidden );
+			$( '.press-this-actions, #scanbar' ).removeClass( isHidden );
 
 			$( '.options-panel' ).addClass( isOffScreen )
-				.one( 'transitionend', function() {
+				.one( transitionEndEvent, function() {
 					$( this ).addClass( isHidden );
 					// Reset to options list
 					$( '.post-options' ).removeClass( offscreenHidden );
@@ -502,18 +522,59 @@
 		 * Interactive behavior for the post title's field placeholder
 		 */
 		function monitorPlaceholder() {
-			var $titleField = $( '#title-container'),
-				$placeholder = $('.post-title-placeholder');
+			var $titleField = $( '#title-container' ),
+				$placeholder = $( '.post-title-placeholder' );
 
 			$titleField.on( 'focus', function() {
-				$placeholder.addClass('is-hidden');
+				$placeholder.addClass( 'is-hidden' );
 			}).on( 'blur', function() {
-				if ( ! $titleField.text() ) {
-					$placeholder.removeClass('is-hidden');
+				if ( ! $titleField.text() && ! $titleField.html() ) {
+					$placeholder.removeClass( 'is-hidden' );
 				}
+			}).on( 'keyup', function() {
+				saveAlert = true;
+			}).on( 'paste', function( event ) {
+				var text, range,
+					clipboard = event.originalEvent.clipboardData || window.clipboardData;
+
+				if ( clipboard ) {
+					try{
+						text = clipboard.getData( 'Text' ) || clipboard.getData( 'text/plain' );
+
+						if ( text ) {
+							text = $.trim( text.replace( /\s+/g, ' ' ) );
+
+							if ( window.getSelection ) {
+								range = window.getSelection().getRangeAt(0);
+
+								if ( range ) {
+									if ( ! range.collapsed ) {
+										range.deleteContents();
+									}
+
+									range.insertNode( document.createTextNode( text ) );
+								}
+							} else if ( document.selection ) {
+								range = document.selection.createRange();
+
+								if ( range ) {
+									range.text = text;
+								}
+							}
+						}
+					} catch ( er ) {}
+
+					event.preventDefault();
+				}
+
+				saveAlert = true;
+
+				setTimeout( function() {
+					$titleField.text( getTitleText() );
+				}, 50 );
 			});
 
-			if ( $titleField.text() ) {
+			if ( $titleField.text() || $titleField.html() ) {
 				$placeholder.addClass('is-hidden');
 			}
 		}
@@ -598,8 +659,13 @@
 			monitorPlaceholder();
 			monitorCatList();
 
-			$( '.options-open' ).on( 'click.press-this', openSidebar );
-			$( '.options-close' ).on( 'click.press-this', closeSidebar );
+			$( '.options' ).on( 'click.press-this', function() {
+				if ( $( this ).hasClass( 'open' ) ) {
+					closeSidebar();
+				} else {
+					openSidebar();
+				}
+			});
 
 			// Close the sidebar when focus moves outside of it.
 			$( '.options-panel, .options-panel-back' ).on( 'focusout.press-this', function() {
@@ -610,7 +676,7 @@
 					if ( sidebarIsOpen && node && ! $node.hasClass( 'options-panel-back' ) &&
 						( node.nodeName === 'BODY' ||
 							( ! $node.closest( '.options-panel' ).length &&
-							! $node.closest( '.options-open' ).length ) ) ) {
+							! $node.closest( '.options' ).length ) ) ) {
 
 						closeSidebar();
 					}
