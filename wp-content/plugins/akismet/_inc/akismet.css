@@ -9,6 +9,10 @@
     text-decoration: none;
     color: #999;
 }
+#the-comment-list .author a span.akismet-span-link {
+	text-decoration: inherit;
+	color: inherit;
+}
 #the-comment-list .remove_url {
     margin-left: 3px;
     color: #999;
@@ -334,6 +338,12 @@ h2.ak-header {
 .new-snapshot.settings p.submit {
 	margin: 0;
 	text-align: center;
+}
+
+.akismet-settings span.note{
+	float: left;
+	padding-left: 23px;
+	font-size: 75%;
 }
 
 .clearfix {

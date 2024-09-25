@@ -3221,6 +3221,9 @@ class WP_Query {
 		}
 
 		$split_the_query = ( $old_request == $this->request && "$wpdb->posts.*" == $fields && !empty( $limits ) && $q['posts_per_page'] < 500 );
+		if ( $split_the_query && isset( $q['split_the_query'] ) && empty( $q['split_the_query'] ) ) {
+			$split_the_query = false;
+		}
 
 		/**
 		 * Filter whether to split the query.
@@ -3663,7 +3666,11 @@ class WP_Query {
 					$term = get_term_by( 'slug', $this->get( 'category_name' ), 'category' );
 				}
 			} elseif ( $this->is_tag ) {
-				$term = get_term( $this->get( 'tag_id' ), 'post_tag' );
+				if ( $this->get( 'tag_id' ) ) {
+					$term = get_term( $this->get( 'tag_id' ), 'post_tag' );
+				} elseif ( $this->get( 'tag' ) ) {
+					$term = get_term_by( 'slug', $this->get( 'tag' ), 'post_tag' );
+				}
 			} else {
 				$tax_query_in_and = wp_list_filter( $this->tax_query->queries, array( 'operator' => 'NOT IN' ), 'NOT' );
 				$query = reset( $tax_query_in_and );

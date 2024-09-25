@@ -5,14 +5,6 @@
  * @package WordPress
  * @subpackage List_Table
  * @since 3.1.0
- */
-
-/**
- * Base class for displaying a list of items in an ajaxified HTML table.
- *
- * @package WordPress
- * @subpackage List_Table
- * @since 3.1.0
  * @access private
  */
 class WP_List_Table {
@@ -406,7 +398,7 @@ class WP_List_Table {
 		$m = isset( $_GET['m'] ) ? (int) $_GET['m'] : 0;
 ?>
 		<select name='m'>
-			<option<?php selected( $m, 0 ); ?> value='0'><?php _e( 'Show all dates' ); ?></option>
+			<option<?php selected( $m, 0 ); ?> value='0'><?php _e( 'All dates' ); ?></option>
 <?php
 		foreach ( $months as $arc_row ) {
 			if ( 0 == $arc_row->year )

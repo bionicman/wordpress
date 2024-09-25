@@ -1094,8 +1094,10 @@ function get_sample_permalink_html( $id, $new_title = null, $new_slug = null ) {
 	$return .= '&lrm;'; // Fix bi-directional text display defect in RTL languages.
 	$return .= '<span id="edit-slug-buttons"><a href="#post_name" class="edit-slug button button-small hide-if-no-js" onclick="editPermalink(' . $id . '); return false;">' . __('Edit') . "</a></span>\n";
 	$return .= '<span id="editable-post-name-full">' . $post_name . "</span>\n";
-	if ( isset($view_post) )
-		$return .= "<span id='view-post-btn'><a href='$view_link' class='button button-small'>$view_post</a></span>\n";
+
+	if ( isset( $view_post ) ) {
+		$return .= "<span id='view-post-btn'><a href='" . get_permalink( $post ) . "' class='button button-small'>$view_post</a></span>\n";
+	}
 
 	$return = apply_filters('get_sample_permalink_html', $return, $id, $new_title, $new_slug);
 
@@ -1377,11 +1379,13 @@ function post_preview() {
 	$post_ID = (int) $_POST['post_ID'];
 	$_POST['ID'] = $post_ID;
 
-	if ( ! $post = get_post( $post_ID ) )
-		wp_die( __('You attempted to preview a non existing item.') );
+	if ( ! $post = get_post( $post_ID ) ) {
+		wp_die( __( 'You are not allowed to edit this post.' ) );
+	}
 
-	if ( ! current_user_can( 'edit_post', $post->ID ) )
-		wp_die( __('You are not allowed to preview this item.') );
+	if ( ! current_user_can( 'edit_post', $post->ID ) ) {
+		wp_die( __( 'You are not allowed to edit this post.' ) );
+	}
 
 	$is_autosave = false;
 
@@ -1432,13 +1436,15 @@ function wp_autosave( $post_data ) {
 	$post_id = (int) $post_data['post_id'];
 	$post_data['ID'] = $post_data['post_ID'] = $post_id;
 
-	if ( false === wp_verify_nonce( $post_data['_wpnonce'], 'update-post_' . $post_id ) )
-		return new WP_Error( 'invalid_nonce', __('ERROR: invalid post data.') );
+	if ( false === wp_verify_nonce( $post_data['_wpnonce'], 'update-post_' . $post_id ) ) {
+		return new WP_Error( 'invalid_nonce', __( 'Error while saving.' ) );
+	}
 
 	$post = get_post( $post_id );
 
-	if ( ! current_user_can( 'edit_post', $post->ID ) )
-		return new WP_Error( 'edit_post', __('You are not allowed to edit this item.') );
+	if ( ! current_user_can( 'edit_post', $post->ID ) ) {
+		return new WP_Error( 'edit_posts', __( 'You are not allowed to edit this item.' ) );
+	}
 
 	if ( 'auto-draft' == $post->post_status )
 		$post_data['post_status'] = 'draft';
@@ -1448,9 +1454,9 @@ function wp_autosave( $post_data ) {
 
 	if ( ! wp_check_post_lock( $post->ID ) && get_current_user_id() == $post->post_author && ( 'auto-draft' == $post->post_status || 'draft' == $post->post_status ) ) {
 		// Drafts and auto-drafts are just overwritten by autosave for the same user if the post is not locked
-		return edit_post( $post_data );
+		return edit_post( wp_slash( $post_data ) );
 	} else {
 		// Non drafts or other users drafts are not overwritten. The autosave is stored in a special post revision for each user.
-		return wp_create_post_autosave( $post_data );
+		return wp_create_post_autosave( wp_slash( $post_data ) );
 	}
 }
