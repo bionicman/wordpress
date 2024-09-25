@@ -27,12 +27,12 @@ include( ABSPATH . 'wp-admin/admin-header.php' );
 
 		<div class="wp-badge"><?php printf( __( 'Version %s' ), $display_version ); ?></div>
 
-		<h2 class="nav-tab-wrapper wp-clearfix">
+		<nav class="nav-tab-wrapper wp-clearfix" aria-label="<?php esc_attr_e( 'Secondary menu' ); ?>">
 			<a href="about.php" class="nav-tab nav-tab-active"><?php _e( 'What&#8217;s New' ); ?></a>
 			<a href="credits.php" class="nav-tab"><?php _e( 'Credits' ); ?></a>
 			<a href="freedoms.php" class="nav-tab"><?php _e( 'Freedoms' ); ?></a>
 			<a href="freedoms.php?privacy-notice" class="nav-tab"><?php _e( 'Privacy' ); ?></a>
-		</h2>
+		</nav>
 
 		<h2 class="feature-section-header"><?php _e( 'A Little Better Every Day' ); ?></h2>
 
@@ -47,7 +47,7 @@ include( ABSPATH . 'wp-admin/admin-header.php' );
 
 		<div class="feature-section one-col is-wide wp-clearfix">
 			<div class="col">
-				<h3><?php _e( 'Site Health' ); ?></h2>
+				<h3><?php _e( 'Site Health' ); ?></h3>
 				<div class="inline-svg alignright">
 					<img src="https://s.w.org/images/core/5.1/site-health.svg" alt="">
 				</div>
@@ -68,7 +68,7 @@ include( ABSPATH . 'wp-admin/admin-header.php' );
 
 		<div class="feature-section one-col is-wide wp-clearfix">
 			<div class="col">
-				<h3><?php _e( 'Editor Performance' ); ?></h2>
+				<h3><?php _e( 'Editor Performance' ); ?></h3>
 				<div class="inline-svg alignright">
 					<img src="https://s.w.org/images/core/5.1/editor-performance.svg" alt="">
 				</div>
