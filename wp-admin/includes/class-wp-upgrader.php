@@ -263,8 +263,8 @@ class WP_Upgrader {
 				$wp_filesystem->delete($upgrade_folder . $file['name'], true);
 		}
 
-		//We need a working directory
-		$working_dir = $upgrade_folder . basename($package, '.zip');
+		// We need a working directory - Strip off any .tmp or .zip suffixes
+		$working_dir = $upgrade_folder . basename( basename( $package, '.tmp' ), '.zip' );
 
 		// Clean up working directory
 		if ( $wp_filesystem->is_dir($working_dir) )
@@ -3165,8 +3165,8 @@ class WP_Automatic_Updater {
 
 		$site_title = wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );
 		if ( $failures ) {
-			$body[] = trim( __( "
-BETA TESTING?
+			$body[] = trim( __(
+"BETA TESTING?
 =============
 
 This debugging email is sent when you are using a development version of WordPress.
@@ -3183,8 +3183,8 @@ Thanks! -- The WordPress Team" ) );
 			$subject = sprintf( __( '[%s] Background updates have finished' ), $site_title );
 		}
 
-		$body[] = trim( __( '
-UPDATE LOG
+		$body[] = trim( __(
+'UPDATE LOG
 ==========' ) );
 		$body[] = '';
 

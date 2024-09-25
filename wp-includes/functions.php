@@ -2906,8 +2906,14 @@ function _config_wp_siteurl( $url = '' ) {
 function _mce_set_direction( $input ) {
 	if ( is_rtl() ) {
 		$input['directionality'] = 'rtl';
-		$input['plugins'] .= ',directionality';
-		$input['toolbar1'] .= ',ltr';
+
+		if ( ! empty( $input['plugins'] ) && strpos( $input['plugins'], 'directionality' ) === false ) {
+			$input['plugins'] .= ',directionality';
+		}
+
+		if ( ! empty( $input['toolbar1'] ) && ! preg_match( '/\bltr\b/', $input['toolbar1'] ) ) {
+			$input['toolbar1'] .= ',ltr';
+		}
 	}
 
 	return $input;
@@ -4119,8 +4125,10 @@ function _cleanup_header_comment( $str ) {
 }
 
 /**
- * Permanently delete posts, pages, attachments, and comments which have been
- * in the trash for EMPTY_TRASH_DAYS.
+ * Permanently delete comments or posts of any type that have held a status
+ * of 'trash' for the number of days defined in EMPTY_TRASH_DAYS.
+ *
+ * The default value of `EMPTY_TRASH_DAYS` is 30 (days).
  *
  * @since 2.9.0
  */

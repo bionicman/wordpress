@@ -553,7 +553,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 		_prime_post_caches( $ids );
 
 		if ( ! isset( $GLOBALS['post'] ) ) {
-			$GLOBALS['post'] = array_shift( $ids );
+			$GLOBALS['post'] = reset( $ids );
 		}
 
 		foreach ( $to_display as $page_id => $level ) {
@@ -821,7 +821,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 					$t_time = $h_time = __( 'Unpublished' );
 					$time_diff = 0;
 				} else {
-					$t_time = get_the_time( __( 'Y/m/d g:i:s A' ) );
+					$t_time = get_the_time( __( 'Y/m/d g:i:s a' ) );
 					$m_time = $post->post_date;
 					$time = get_post_time( 'G', true, $post );
 
@@ -1112,7 +1112,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 					<span class="input-text-wrap"><input type="text" name="post_password" class="inline-edit-password-input" value="" /></span>
 				</label>
 
-				<em style="margin:5px 10px 0 0" class="alignleft">
+				<em class="alignleft inline-edit-or">
 					<?php
 					/* translators: Between password field and private checkbox on post quick edit interface */
 					echo __( '&ndash;OR&ndash;' );
