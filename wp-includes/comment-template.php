@@ -224,7 +224,7 @@ function get_comment_author_link( $comment_ID = 0 ) {
 	if ( empty( $url ) || 'http://' == $url ) {
 		$return = $author;
 	} else {
-		$return = "<a href='$url' rel='external nofollow' class='url'>$author</a>";
+		$return = "<a href='$url' rel='external nofollow ugc' class='url'>$author</a>";
 	}
 
 	/**
@@ -1645,6 +1645,10 @@ function get_comment_reply_link( $args = array(), $comment = null, $post = null 
 	}
 
 	$comment = get_comment( $comment );
+
+	if ( empty( $comment ) ) {
+		return;
+	}
 
 	if ( empty( $post ) ) {
 		$post = $comment->comment_post_ID;

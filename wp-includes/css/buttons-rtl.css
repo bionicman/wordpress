@@ -80,7 +80,7 @@ TABLE OF CONTENTS:
 .wp-core-ui .button-group.button-small .button {
 	min-height: 24px;
 	line-height: 2;
-	padding: 0 8px 1px;
+	padding: 0 8px;
 	font-size: 11px;
 }
 
@@ -90,14 +90,6 @@ TABLE OF CONTENTS:
 	min-height: 46px;
 	line-height: 3.14285714;
 	padding: 0 36px;
-}
-
-/* Only visible in Windows High Contrast mode */
-.wp-core-ui .button:active,
-.wp-core-ui .button:focus {
-	outline: 2px solid transparent;
-	/* Reset inherited offset from Gutenberg */
-	outline-offset: 0;
 }
 
 .wp-core-ui .button.hidden {
@@ -123,9 +115,9 @@ TABLE OF CONTENTS:
 
 .wp-core-ui .button,
 .wp-core-ui .button-secondary {
-	color: #555;
-	border-color: #7e8993;
-	background: #f1f1f1;
+	color: #0071a1;
+	border-color: #0071a1;
+	background: #f3f5f6;
 	vertical-align: top;
 }
 
@@ -135,13 +127,10 @@ TABLE OF CONTENTS:
 
 .wp-core-ui .button.hover,
 .wp-core-ui .button:hover,
-.wp-core-ui .button-secondary:hover,
-.wp-core-ui .button.focus,
-.wp-core-ui .button:focus,
-.wp-core-ui .button-secondary:focus {
-	background: #f3f5f6;
-	border-color: #7e8993;
-	color: #007cba;
+.wp-core-ui .button-secondary:hover{
+	background: #f1f1f1;
+	border-color: #016087;
+	color: #016087;
 }
 
 .wp-core-ui .button.focus,
@@ -151,21 +140,24 @@ TABLE OF CONTENTS:
 	border-color: #007cba;
 	color: #016087;
 	box-shadow: 0 0 0 1px #007cba;
+	/* Only visible in Windows High Contrast mode */
+	outline: 2px solid transparent;
+	/* Reset inherited offset from Gutenberg */
+	outline-offset: 0;
 }
 
 .wp-core-ui .button.active,
 .wp-core-ui .button.active:hover,
 .wp-core-ui .button:active,
 .wp-core-ui .button-secondary:active {
-	background: #eee;
-	border-color: #999;
-	transform: translateY(1px);
+	background: #f3f5f6;
+	border-color: #7e8993;
 	box-shadow: none;
 }
 
 .wp-core-ui .button.active:focus {
-	border-color: #999;
-	box-shadow: 0 0 0 1px #999;
+	border-color: #7e8993;
+	box-shadow: 0 0 0 1px #7e8993;
 }
 
 .wp-core-ui .button[disabled],
@@ -265,7 +257,6 @@ TABLE OF CONTENTS:
 .wp-core-ui .button-primary:active {
 	background: #00669b;
 	border-color: #00669b;
-	transform: translateY(1px);
 	box-shadow: none;
 }
 
@@ -319,11 +310,7 @@ TABLE OF CONTENTS:
 .wp-core-ui .button-group > .button.active {
 	background-color: #e2e4e7;
 	box-shadow: inset 0 1px 0 0 #999;
-}
-
-.wp-core-ui .button-group > .button:active,
-.wp-core-ui .button-group > .button.active {
-	transform: translateY(0);
+	border-color: #016087;
 }
 
 /* ----------------------------------------------------------------------------
@@ -338,8 +325,8 @@ TABLE OF CONTENTS:
 	input#publish,
 	input#save-post,
 	a.preview {
-		padding: 6px 14px;
-		line-height: normal;
+		padding: 1px 14px;
+		line-height: 2;
 		font-size: 14px;
 		vertical-align: middle;
 		height: auto;

@@ -32,9 +32,7 @@ a:active {
 
 a:focus {
 	color: #124964;
-	box-shadow:
-		0 0 0 1px #5b9dd9,
-		0 0 2px 1px rgba(30, 140, 190, 0.8);
+	outline: 1px dotted #555d66;
 }
 
 p {
@@ -128,7 +126,8 @@ p {
 	font-weight: 400;
 	overflow: hidden;
 	background: #fff;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.13);
+	border: 1px solid #ccd0d4;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .login-action-confirm_admin_email #login {
@@ -274,6 +273,7 @@ p {
 .login input[type="text"],
 .login input[type="password"] {
 	font-size: 24px;
+	line-height: 1.16666666; /* 28px */
 	width: 100%;
 	padding: 5px;
 	margin: 3px 6px 16px 0;
