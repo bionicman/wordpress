@@ -325,6 +325,7 @@ add_action( 'welcome_panel',              'wp_welcome_panel'                    
 add_action( 'delete_post',                '_wp_delete_post_menu_item'         );
 add_action( 'delete_term',                '_wp_delete_tax_menu_item',   10, 3 );
 add_action( 'transition_post_status',     '_wp_auto_add_pages_to_menu', 10, 3 );
+add_action( 'delete_post',                '_wp_delete_customize_changeset_dependent_auto_drafts' );
 
 // Post Thumbnail CSS class filtering
 add_action( 'begin_fetch_post_thumbnail_html', '_wp_post_thumbnail_class_filter_add'    );
@@ -400,6 +401,7 @@ add_action( 'plugins_loaded', '_wp_customize_include' );
 add_action( 'transition_post_status', '_wp_customize_publish_changeset', 10, 3 );
 add_action( 'admin_enqueue_scripts', '_wp_customize_loader_settings' );
 add_action( 'delete_attachment', '_delete_attachment_theme_mod' );
+add_action( 'transition_post_status', '_wp_keep_alive_customize_changeset_dependent_auto_drafts', 20, 3 );
 
 // Calendar widget cache
 add_action( 'save_post', 'delete_get_calendar_cache' );
@@ -432,6 +434,7 @@ add_action( 'set_current_user', 'kses_init' );
 add_action( 'wp_default_scripts', 'wp_default_scripts' );
 add_action( 'wp_enqueue_scripts', 'wp_localize_jquery_ui_datepicker', 1000 );
 add_action( 'admin_enqueue_scripts', 'wp_localize_jquery_ui_datepicker', 1000 );
+add_action( 'admin_print_scripts-index.php', 'wp_localize_community_events' );
 add_filter( 'wp_print_scripts', 'wp_just_in_time_script_localization' );
 add_filter( 'print_scripts_array', 'wp_prototype_before_jquery' );
 add_filter( 'customize_controls_print_styles', 'wp_resource_hints', 1 );
