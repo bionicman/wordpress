@@ -243,13 +243,28 @@ class WP_REST_Server {
 		$this->send_header( 'Access-Control-Allow-Headers', 'Authorization' );
 
 		/**
-		 * Filters whether the REST API is enabled.
+		 * Send nocache headers on authenticated requests.
 		 *
 		 * @since 4.4.0
 		 *
+		 * @param bool $rest_send_nocache_headers Whether to send no-cache headers.
+		 */
+		$send_no_cache_headers = apply_filters( 'rest_send_nocache_headers', is_user_logged_in() );
+		if ( $send_no_cache_headers ) {
+			foreach ( wp_get_nocache_headers() as $header => $header_value ) {
+				$this->send_header( $header, $header_value );
+			}
+		}
+
+		/**
+		 * Filters whether the REST API is enabled.
+		 *
+		 * @since 4.4.0
+		 * @deprecated 4.7.0 Use the rest_authentication_errors filter to restrict access to the API
+		 *
 		 * @param bool $rest_enabled Whether the REST API is enabled. Default true.
 		 */
-		$enabled = apply_filters( 'rest_enabled', true );
+		apply_filters_deprecated( 'rest_enabled', array( true ), '4.7.0', 'rest_authentication_errors', __( 'The REST API can no longer be completely disabled, the rest_authentication_errors can be used to restrict access to the API, instead.' ) );
 
 		/**
 		 * Filters whether jsonp is enabled.
@@ -262,10 +277,6 @@ class WP_REST_Server {
 
 		$jsonp_callback = null;
 
-		if ( ! $enabled ) {
-			echo $this->json_error( 'rest_disabled', __( 'The REST API is disabled on this site.' ), 404 );
-			return false;
-		}
 		if ( isset( $_GET['_jsonp'] ) ) {
 			if ( ! $jsonp_enabled ) {
 				echo $this->json_error( 'rest_callback_disabled', __( 'JSONP support is disabled on this site.' ), 400 );
@@ -300,12 +311,10 @@ class WP_REST_Server {
 		 * $_GET['_method']. If that is not set, we check for the HTTP_X_HTTP_METHOD_OVERRIDE
 		 * header.
 		 */
-		$method_overridden = false;
 		if ( isset( $_GET['_method'] ) ) {
 			$request->set_method( $_GET['_method'] );
 		} elseif ( isset( $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'] ) ) {
 			$request->set_method( $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'] );
-			$method_overridden = true;
 		}
 
 		$result = $this->check_authentication();
@@ -363,24 +372,6 @@ class WP_REST_Server {
 		 * @param WP_REST_Server   $this    Server instance.
 		 */
 		$served = apply_filters( 'rest_pre_serve_request', false, $result, $request, $this );
-
-		/**
-		 * Filters whether to send nocache headers on a REST API request.
-		 *
-		 * @since 4.4.0
-		 * @since 6.x.x Moved the block to catch the filter added on rest_cookie_check_errors() from rest-api.php
-		 *
-		 * @param bool $rest_send_nocache_headers Whether to send no-cache headers.
-		 */
-		$send_no_cache_headers = apply_filters( 'rest_send_nocache_headers', is_user_logged_in() );
-
-		// send no cache headers if the $send_no_cache_headers is true
-		// OR if the HTTP_X_HTTP_METHOD_OVERRIDE is used but resulted a 4xx response code.
-		if ( $send_no_cache_headers || ( true === $method_overridden && strpos( $code, '4' ) === 0 ) ) {
-			foreach ( wp_get_nocache_headers() as $header => $header_value ) {
-				$this->send_header( $header, $header_value );
-			}
-		}
 
 		if ( ! $served ) {
 			if ( 'HEAD' === $request->get_method() ) {
@@ -872,10 +863,31 @@ class WP_REST_Server {
 					$check_required = $request->has_valid_params();
 					if ( is_wp_error( $check_required ) ) {
 						$response = $check_required;
+					} else {
+						$check_sanitized = $request->sanitize_params();
+						if ( is_wp_error( $check_sanitized ) ) {
+							$response = $check_sanitized;
+						}
 					}
-
-					$request->sanitize_params();
 				}
+
+				/**
+				 * Filters the response before executing any REST API callbacks.
+				 *
+				 * Allows plugins to perform additional validation after a
+				 * request is initialized and matched to a registered route,
+				 * but before it is executed.
+				 *
+				 * Note that this filter will not be called for requests that
+				 * fail to authenticate or match to a registered route.
+				 *
+				 * @since 4.7.0
+				 *
+				 * @param WP_HTTP_Response $response Result to send to the client. Usually a WP_REST_Response.
+				 * @param WP_REST_Server   $handler  ResponseHandler instance (usually WP_REST_Server).
+				 * @param WP_REST_Request  $request  Request used to generate the response.
+				 */
+				$response = apply_filters( 'rest_request_before_callbacks', $response, $handler, $request );
 
 				if ( ! is_wp_error( $response ) ) {
 					// Check permission specified on the route.
@@ -913,6 +925,28 @@ class WP_REST_Server {
 						$response = call_user_func( $callback, $request );
 					}
 				}
+
+				/**
+				 * Filters the response immediately after executing any REST API
+				 * callbacks.
+				 *
+				 * Allows plugins to perform any needed cleanup, for example,
+				 * to undo changes made during the {@see 'rest_request_before_callbacks'}
+				 * filter.
+				 *
+				 * Note that this filter will not be called for requests that
+				 * fail to authenticate or match to a registered route.
+				 *
+				 * Note that an endpoint's `permission_callback` can still be
+				 * called after this filter - see `rest_send_allow_header()`.
+				 *
+				 * @since 4.7.0
+				 *
+				 * @param WP_HTTP_Response $response Result to send to the client. Usually a WP_REST_Response.
+				 * @param WP_REST_Server   $handler  ResponseHandler instance (usually WP_REST_Server).
+				 * @param WP_REST_Request  $request  Request used to generate the response.
+				 */
+				$response = apply_filters( 'rest_request_after_callbacks', $response, $handler, $request );
 
 				if ( is_wp_error( $response ) ) {
 					$response = $this->error_to_response( $response );

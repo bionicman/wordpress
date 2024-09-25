@@ -18,17 +18,18 @@
  * Dashboard blog functionality was removed in WordPress 3.1, replaced by the user admin.
  *
  * @since MU
- * @deprecated 3.1.0 Use get_blog_details()
- * @see get_blog_details()
+ * @deprecated 3.1.0 Use get_site()
+ * @see get_site()
  *
- * @return int Current site ID.
+ * @return WP_Site Current site object.
  */
 function get_dashboard_blog() {
     _deprecated_function( __FUNCTION__, '3.1.0' );
-    if ( $blog = get_site_option( 'dashboard_blog' ) )
-        return get_blog_details( $blog );
+    if ( $blog = get_site_option( 'dashboard_blog' ) ) {
+	    return get_site( $blog );
+    }
 
-    return get_blog_details( $GLOBALS['current_site']->blog_id );
+    return get_site( get_network()->site_id );
 }
 
 /**
@@ -270,13 +271,10 @@ function wpmu_admin_do_redirect( $url = '' ) {
 	_deprecated_function( __FUNCTION__, '3.3.0' );
 
 	$ref = '';
-	if ( isset( $_GET['ref'] ) && isset( $_POST['ref'] ) && $_GET['ref'] !== $_POST['ref'] ) {
-		wp_die( __( 'A variable mismatch has been detected.' ), __( 'Sorry, you are not allowed to view this item.' ), 400 );
-	} elseif ( isset( $_POST['ref'] ) ) {
-		$ref = $_POST[ 'ref' ];
-	} elseif ( isset( $_GET['ref'] ) ) {
-		$ref = $_GET[ 'ref' ];
-	}
+	if ( isset( $_GET['ref'] ) )
+		$ref = $_GET['ref'];
+	if ( isset( $_POST['ref'] ) )
+		$ref = $_POST['ref'];
 
 	if ( $ref ) {
 		$ref = wpmu_admin_redirect_add_updated_param( $ref );
@@ -289,9 +287,7 @@ function wpmu_admin_do_redirect( $url = '' ) {
 	}
 
 	$url = wpmu_admin_redirect_add_updated_param( $url );
-	if ( isset( $_GET['redirect'] ) && isset( $_POST['redirect'] ) && $_GET['redirect'] !== $_POST['redirect'] ) {
-		wp_die( __( 'A variable mismatch has been detected.' ), __( 'Sorry, you are not allowed to view this item.' ), 400 );
-	} elseif ( isset( $_GET['redirect'] ) ) {
+	if ( isset( $_GET['redirect'] ) ) {
 		if ( substr( $_GET['redirect'], 0, 2 ) == 's_' )
 			$url .= '&action=blogs&s='. esc_html( substr( $_GET['redirect'], 2 ) );
 	} elseif ( isset( $_POST['redirect'] ) ) {

@@ -364,11 +364,12 @@ function delete_metadata($meta_type, $object_id, $meta_key, $meta_value = '', $d
 		return false;
 
 	if ( $delete_all ) {
+		$value_clause = '';
 		if ( '' !== $meta_value && null !== $meta_value && false !== $meta_value ) {
-			$object_ids = $wpdb->get_col( $wpdb->prepare( "SELECT $type_column FROM $table WHERE meta_key = %s AND meta_value = %s", $meta_key, $meta_value ) );
-		} else {
-			$object_ids = $wpdb->get_col( $wpdb->prepare( "SELECT $type_column FROM $table WHERE meta_key = %s", $meta_key ) );
+			$value_clause = $wpdb->prepare( " AND meta_value = %s", $meta_value );
 		}
+
+		$object_ids = $wpdb->get_col( $wpdb->prepare( "SELECT $type_column FROM $table WHERE meta_key = %s $value_clause", $meta_key ) );
 	}
 
 	/**
@@ -566,12 +567,12 @@ function metadata_exists( $meta_type, $object_id, $meta_key ) {
 function get_metadata_by_mid( $meta_type, $meta_id ) {
 	global $wpdb;
 
-	if ( ! $meta_type || ! is_numeric( $meta_id ) ) {
+	if ( ! $meta_type || ! is_numeric( $meta_id ) || floor( $meta_id ) != $meta_id ) {
 		return false;
 	}
 
-	$meta_id = absint( $meta_id );
-	if ( ! $meta_id ) {
+	$meta_id = intval( $meta_id );
+	if ( $meta_id <= 0 ) {
 		return false;
 	}
 
@@ -610,12 +611,12 @@ function update_metadata_by_mid( $meta_type, $meta_id, $meta_value, $meta_key = 
 	global $wpdb;
 
 	// Make sure everything is valid.
-	if ( ! $meta_type || ! is_numeric( $meta_id ) ) {
+	if ( ! $meta_type || ! is_numeric( $meta_id ) || floor( $meta_id ) != $meta_id ) {
 		return false;
 	}
 
-	$meta_id = absint( $meta_id );
-	if ( ! $meta_id ) {
+	$meta_id = intval( $meta_id );
+	if ( $meta_id <= 0 ) {
 		return false;
 	}
 
@@ -701,12 +702,12 @@ function delete_metadata_by_mid( $meta_type, $meta_id ) {
 	global $wpdb;
 
 	// Make sure everything is valid.
-	if ( ! $meta_type || ! is_numeric( $meta_id ) ) {
+	if ( ! $meta_type || ! is_numeric( $meta_id ) || floor( $meta_id ) != $meta_id ) {
 		return false;
 	}
 
-	$meta_id = absint( $meta_id );
-	if ( ! $meta_id ) {
+	$meta_id = intval( $meta_id );
+	if ( $meta_id <= 0 ) {
 		return false;
 	}
 
@@ -916,9 +917,8 @@ function _get_meta_table($type) {
  * @param string|null $meta_type
  * @return bool True if the key is protected, false otherwise.
  */
-function is_protected_meta( $meta_key, $meta_type = '' ) {
-	$sanitized_key = preg_replace( "/[^\x20-\x7E\p{L}]/", '', $meta_key );
-	$protected     = strlen( $sanitized_key ) > 0 && ( '_' === $sanitized_key[0] );
+function is_protected_meta( $meta_key, $meta_type = null ) {
+	$protected = ( '_' == $meta_key[0] );
 
 	/**
 	 * Filters whether a meta key is protected.

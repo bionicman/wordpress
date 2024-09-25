@@ -202,7 +202,8 @@ $document.ready( function() {
 			wpwrap: $wpwrap.height(),
 			adminbar: $adminbar.height(),
 			menu: $adminMenuWrap.height()
-		};
+		},
+		$headerEnd = $( '.wp-header-end' );
 
 
 	// when the menu is folded, make the fly-out submenu header clickable
@@ -396,8 +397,13 @@ $document.ready( function() {
 	/*
 	 * The `.below-h2` class is here just for backward compatibility with plugins
 	 * that are (incorrectly) using it. Do not use. Use `.inline` instead. See #34570.
+	 * If '.wp-header-end' is found, append the notices after it otherwise
+	 * after the first h1 or h2 heading found within the main content.
 	 */
-	$( 'div.updated, div.error, div.notice' ).not( '.inline, .below-h2' ).insertAfter( $( '.wrap h1, .wrap h2' ).first() );
+	if ( ! $headerEnd.length ) {
+		$headerEnd = $( '.wrap h1, .wrap h2' ).first();
+	}
+	$( 'div.updated, div.error, div.notice' ).not( '.inline, .below-h2' ).insertAfter( $headerEnd );
 
 	// Make notices dismissible
 	function makeNoticesDismissible() {
@@ -426,10 +432,11 @@ $document.ready( function() {
 	// Init screen meta
 	screenMeta.init();
 
-	// check all checkboxes
-	$('tbody').children().children('.check-column').find(':checkbox').click( function(e) {
-		if ( 'undefined' == e.shiftKey ) { return true; }
-		if ( e.shiftKey ) {
+	// This event needs to be delegated. Ticket #37973.
+	$body.on( 'click', 'tbody .check-column :checkbox', function( event ) {
+		// Shift click to select a range of checkboxes.
+		if ( 'undefined' == event.shiftKey ) { return true; }
+		if ( event.shiftKey ) {
 			if ( !lastClicked ) { return true; }
 			checks = $( lastClicked ).closest( 'form' ).find( ':checkbox' ).filter( ':visible:enabled' );
 			first = checks.index( lastClicked );
@@ -447,7 +454,7 @@ $document.ready( function() {
 		}
 		lastClicked = this;
 
-		// toggle "check all" checkboxes
+		// Toggle the "Select all" checkboxes depending if the other ones are all checked or not.
 		var unchecked = $(this).closest('tbody').find(':checkbox').filter(':visible:enabled').not(':checked');
 		$(this).closest('table').children('thead, tfoot').find(':checkbox').prop('checked', function() {
 			return ( 0 === unchecked.length );
@@ -456,7 +463,8 @@ $document.ready( function() {
 		return true;
 	});
 
-	$('thead, tfoot').find('.check-column :checkbox').on( 'click.wp-toggle-checkboxes', function( event ) {
+	// This event needs to be delegated. Ticket #37973.
+	$body.on( 'click.wp-toggle-checkboxes', 'thead .check-column :checkbox, tfoot .check-column :checkbox', function( event ) {
 		var $this = $(this),
 			$table = $this.closest( 'table' ),
 			controlChecked = $this.prop('checked'),

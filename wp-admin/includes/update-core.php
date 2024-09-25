@@ -705,9 +705,11 @@ $_old_files = array(
 'wp-includes/theme-compat/comments-popup.php',
 // 4.6
 'wp-admin/includes/class-wp-automatic-upgrader.php', // Wrong file name, see #37628.
-// 4.9.2
-'wp-includes/js/mediaelement/flashmediaelement.swf',
-'wp-includes/js/mediaelement/silverlightmediaelement.xap',
+// 4.7
+'wp-admin/includes/class-wp-upgrader-skins.php',
+'wp-includes/class-feed.php',
+'wp-includes/locale.php',
+'wp-includes/session.php',
 );
 
 /**
@@ -733,14 +735,15 @@ $_old_files = array(
 global $_new_bundled_files;
 
 $_new_bundled_files = array(
-	'plugins/akismet/'       => '2.0',
-	'themes/twentyten/'      => '3.0',
-	'themes/twentyeleven/'   => '3.2',
-	'themes/twentytwelve/'   => '3.5',
-	'themes/twentythirteen/' => '3.6',
-	'themes/twentyfourteen/' => '3.8',
-	'themes/twentyfifteen/'  => '4.1',
-	'themes/twentysixteen/'  => '4.4',
+	'plugins/akismet/'        => '2.0',
+	'themes/twentyten/'       => '3.0',
+	'themes/twentyeleven/'    => '3.2',
+	'themes/twentytwelve/'    => '3.5',
+	'themes/twentythirteen/'  => '3.6',
+	'themes/twentyfourteen/'  => '3.8',
+	'themes/twentyfifteen/'   => '4.1',
+	'themes/twentysixteen/'   => '4.4',
+	'themes/twentyseventeen/' => '4.7',
 );
 
 // If not explicitly defined as false, don't install new default themes.
@@ -905,6 +908,8 @@ function update_core($from, $to) {
 					continue;
 				if ( ! file_exists( $working_dir_local . $file ) )
 					continue;
+				if ( '.' === dirname( $file ) && in_array( pathinfo( $file, PATHINFO_EXTENSION ), array( 'html', 'txt' ) ) )
+					continue;
 				if ( md5_file( ABSPATH . $file ) === $checksum )
 					$skip[] = $file;
 				else
@@ -966,6 +971,10 @@ function update_core($from, $to) {
 				continue;
 			if ( ! file_exists( $working_dir_local . $file ) )
 				continue;
+			if ( '.' === dirname( $file ) && in_array( pathinfo( $file, PATHINFO_EXTENSION ), array( 'html', 'txt' ) ) ) {
+				$skip[] = $file;
+				continue;
+			}
 			if ( file_exists( ABSPATH . $file ) && md5_file( ABSPATH . $file ) == $checksum )
 				$skip[] = $file;
 			else
@@ -1084,11 +1093,7 @@ function update_core($from, $to) {
 		$old_file = $to . $old_file;
 		if ( !$wp_filesystem->exists($old_file) )
 			continue;
-
-		// If the file isn't deleted, try writing an empty string to the file instead.
-		if ( ! $wp_filesystem->delete( $old_file, true ) && $wp_filesystem->is_file( $old_file ) ) {
-			$wp_filesystem->put_contents( $old_file, '' );
-		}
+		$wp_filesystem->delete($old_file, true);
 	}
 
 	// Remove any Genericons example.html's from the filesystem

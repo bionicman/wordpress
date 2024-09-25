@@ -165,7 +165,7 @@ CREATE TABLE $wpdb->posts (
   post_status varchar(20) NOT NULL default 'publish',
   comment_status varchar(20) NOT NULL default 'open',
   ping_status varchar(20) NOT NULL default 'open',
-  post_password varchar(20) NOT NULL default '',
+  post_password varchar(255) NOT NULL default '',
   post_name varchar(200) NOT NULL default '',
   to_ping text NOT NULL,
   pinged text NOT NULL,
@@ -516,6 +516,9 @@ function populate_options() {
 	// 4.4.0
 	'medium_large_size_w' => 768,
 	'medium_large_size_h' => 0,
+
+	// 4.7.0
+	'fresh_site' => 1,
 	);
 
 	// 3.3
@@ -527,7 +530,7 @@ function populate_options() {
 	// 3.0 multisite
 	if ( is_multisite() ) {
 		/* translators: site tagline */
-		$options[ 'blogdescription' ] = sprintf(__('Just another %s site'), get_current_site()->site_name );
+		$options[ 'blogdescription' ] = sprintf(__('Just another %s site'), get_network()->site_name );
 		$options[ 'permalink_structure' ] = '/%year%/%monthnum%/%day%/%postname%/';
 	}
 
@@ -546,11 +549,10 @@ function populate_options() {
 		else
 			$autoload = 'yes';
 
+		if ( is_array($value) )
+			$value = serialize($value);
 		if ( !empty($insert) )
 			$insert .= ', ';
-
-		$value = maybe_serialize( sanitize_option( $option, $value ) );
-
 		$insert .= $wpdb->prepare( "(%s, %s, %s)", $option, $value, $autoload );
 	}
 

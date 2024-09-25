@@ -13,12 +13,20 @@
 			}
 		});
 
-		$('input[name="background-position-x"]').change(function() {
-			bgImage.css('background-position', $(this).val() + ' top');
+		$( 'select[name="background-size"]' ).change( function() {
+			bgImage.css( 'background-size', $( this ).val() );
 		});
 
-		$('input[name="background-repeat"]').change(function() {
-			bgImage.css('background-repeat', $(this).val());
+		$( 'input[name="background-position"]' ).change( function() {
+			bgImage.css( 'background-position', $( this ).val() );
+		});
+
+		$( 'input[name="background-repeat"]' ).change( function() {
+			bgImage.css( 'background-repeat', $( this ).is( ':checked' ) ? 'repeat' : 'no-repeat' );
+		});
+
+		$( 'input[name="background-attachment"]' ).change( function() {
+			bgImage.css( 'background-attachment', $( this ).is( ':checked' ) ? 'scroll' : 'fixed' );
 		});
 
 		$('#choose-from-library-link').click( function( event ) {
@@ -56,13 +64,11 @@
 			frame.on( 'select', function() {
 				// Grab the selected attachment.
 				var attachment = frame.state().get('selection').first();
-				var nonceValue = $( '#_wpnonce' ).val() || '';
 
 				// Run an AJAX request to set the background image.
 				$.post( ajaxurl, {
 					action: 'set-background-image',
 					attachment_id: attachment.id,
-					_ajax_nonce: nonceValue,
 					size: 'full'
 				}).done( function() {
 					// When the request completes, reload the window.

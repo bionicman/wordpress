@@ -74,12 +74,7 @@ do_action( "{$taxonomy}_pre_edit_form", $tag, $taxonomy ); ?>
 <div id="message" class="updated">
 	<p><strong><?php echo $message; ?></strong></p>
 	<?php if ( $wp_http_referer ) { ?>
-	<p><a href="<?php echo esc_url( wp_validate_redirect( esc_url_raw( $wp_http_referer ), admin_url( 'term.php?taxonomy=' . $taxonomy ) ) ); ?>"><?php
-		/* translators: %s: taxonomy name */
-		printf( _x( '&larr; Back to %s', 'admin screen' ), $tax->labels->name );
-	?></a></p>
-	<?php } else { ?>
-	<p><a href="<?php echo esc_url( wp_validate_redirect( esc_url_raw( wp_get_referer() ) ) ); ?>"><?php
+	<p><a href="<?php echo esc_url( $wp_http_referer ); ?>"><?php
 		/* translators: %s: taxonomy name */
 		printf( _x( '&larr; Back to %s', 'admin screen' ), $tax->labels->name );
 	?></a></p>
@@ -89,13 +84,11 @@ do_action( "{$taxonomy}_pre_edit_form", $tag, $taxonomy ); ?>
 
 <div id="ajax-response"></div>
 
-<form name="edittag" id="edittag" method="post" action="edit-tags.php" class="validate"
-<?php
+<form name="edittag" id="edittag" method="post" action="edit-tags.php" class="validate"<?php
 /**
  * Fires inside the Edit Term form tag.
  *
- * The dynamic portion of the hook name, `$taxonomy`, refers to
- * the taxonomy slug.
+ * The dynamic portion of the hook name, `$taxonomy`, refers to the taxonomy slug.
  *
  * @since 3.7.0
  */

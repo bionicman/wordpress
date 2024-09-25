@@ -308,8 +308,6 @@ function wp_mail( $to, $subject, $message, $headers = '', $attachments = array()
 	$phpmailer->ClearAttachments();
 	$phpmailer->ClearCustomHeaders();
 	$phpmailer->ClearReplyTos();
-	$phpmailer->Body    = '';
-	$phpmailer->AltBody = '';
 
 	// From email and name
 	// If we don't have a name from the input headers
@@ -605,7 +603,7 @@ function wp_validate_auth_cookie($cookie = '', $scheme = '') {
 	$expired = $expiration = $cookie_elements['expiration'];
 
 	// Allow a grace period for POST and Ajax requests
-	if ( defined('DOING_AJAX') || 'POST' == $_SERVER['REQUEST_METHOD'] ) {
+	if ( wp_doing_ajax() || 'POST' == $_SERVER['REQUEST_METHOD'] ) {
 		$expired += HOUR_IN_SECONDS;
 	}
 
@@ -1040,7 +1038,7 @@ if ( !function_exists('check_admin_referer') ) :
  *                   0-12 hours ago, 2 if the nonce is valid and generated between 12-24 hours ago.
  */
 function check_admin_referer( $action = -1, $query_arg = '_wpnonce' ) {
-	if ( -1 === $action )
+	if ( -1 == $action )
 		_doing_it_wrong( __FUNCTION__, __( 'You should specify a nonce action to be verified by using the first parameter.' ), '3.2.0' );
 
 	$adminurl = strtolower(admin_url());
@@ -1058,7 +1056,7 @@ function check_admin_referer( $action = -1, $query_arg = '_wpnonce' ) {
 	 */
 	do_action( 'check_admin_referer', $action, $result );
 
-	if ( ! $result && ! ( -1 === $action && strpos( $referer, $adminurl ) === 0 ) ) {
+	if ( ! $result && ! ( -1 == $action && strpos( $referer, $adminurl ) === 0 ) ) {
 		wp_nonce_ays( $action );
 		die();
 	}
@@ -1083,8 +1081,9 @@ if ( !function_exists('check_ajax_referer') ) :
  *                   0-12 hours ago, 2 if the nonce is valid and generated between 12-24 hours ago.
  */
 function check_ajax_referer( $action = -1, $query_arg = false, $die = true ) {
-	if ( -1 === $action )
-		_doing_it_wrong( __FUNCTION__, __( 'You should specify a nonce action to be verified by using the first parameter.' ), '3.2.0' );
+	if ( -1 == $action ) {
+		_doing_it_wrong( __FUNCTION__, __( 'You should specify a nonce action to be verified by using the first parameter.' ), '4.7' );
+	}
 
 	$nonce = '';
 
@@ -1109,8 +1108,8 @@ function check_ajax_referer( $action = -1, $query_arg = false, $die = true ) {
 	do_action( 'check_ajax_referer', $action, $result );
 
 	if ( $die && false === $result ) {
-		if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
-			wp_die( -1 );
+		if ( wp_doing_ajax() ) {
+			wp_die( -1, 403 );
 		} else {
 			die( '-1' );
 		}
@@ -1133,7 +1132,7 @@ if ( !function_exists('wp_redirect') ) :
  * Exiting can also be selectively manipulated by using wp_redirect() as a conditional
  * in conjunction with the {@see 'wp_redirect'} and {@see 'wp_redirect_location'} hooks:
  *
- *     if ( wp_redirect( $url ) {
+ *     if ( wp_redirect( $url ) ) {
  *         exit;
  *     }
  *
@@ -1283,7 +1282,7 @@ if ( !function_exists('wp_validate_redirect') ) :
  * @return string redirect-sanitized URL
  **/
 function wp_validate_redirect($location, $default = '') {
-	$location = wp_sanitize_redirect( trim( $location, " \t\n\r\0\x08\x0B" ) );
+	$location = trim( $location );
 	// browsers will assume 'http' is your protocol, and will obey a redirect to a URL starting with '//'
 	if ( substr($location, 0, 2) == '//' )
 		$location = 'http:' . $location;
@@ -1301,14 +1300,6 @@ function wp_validate_redirect($location, $default = '') {
 	// Allow only http and https schemes. No data:, etc.
 	if ( isset($lp['scheme']) && !('http' == $lp['scheme'] || 'https' == $lp['scheme']) )
 		return $default;
-
-	if ( ! isset( $lp['host'] ) && ! empty( $lp['path'] ) && '/' !== $lp['path'][0] ) {
-		$path = '';
-		if ( ! empty( $_SERVER['REQUEST_URI'] ) ) {
-			$path = dirname( parse_url( 'http://placeholder' . $_SERVER['REQUEST_URI'], PHP_URL_PATH ) . '?' );
-		}
-		$location = '/' . ltrim( $path . '/', '/' ) . $location;
-	}
 
 	// Reject if certain components are set but host is not. This catches urls like https:host.com for which parse_url does not set the host field.
 	if ( ! isset( $lp['host'] ) && ( isset( $lp['scheme'] ) || isset( $lp['user'] ) || isset( $lp['pass'] ) || isset( $lp['port'] ) ) ) {
@@ -1427,6 +1418,8 @@ function wp_notify_postauthor( $comment_id, $deprecated = null ) {
 		$emails = array_flip( $emails );
 	}
 
+	$switched_locale = switch_to_locale( get_locale() );
+
 	$comment_author_domain = @gethostbyaddr($comment->comment_author_IP);
 
 	// The blogname option is escaped with esc_html on the way into the database in sanitize_option
@@ -1531,6 +1524,10 @@ function wp_notify_postauthor( $comment_id, $deprecated = null ) {
 		@wp_mail( $email, wp_specialchars_decode( $subject ), $notify_message, $message_headers );
 	}
 
+	if ( $switched_locale ) {
+		restore_previous_locale();
+	}
+
 	return true;
 }
 endif;
@@ -1577,6 +1574,8 @@ function wp_notify_moderator($comment_id) {
 		if ( 0 !== strcasecmp( $user->user_email, get_option( 'admin_email' ) ) )
 			$emails[] = $user->user_email;
 	}
+
+	$switched_locale = switch_to_locale( get_locale() );
 
 	$comment_author_domain = @gethostbyaddr($comment->comment_author_IP);
 	$comments_waiting = $wpdb->get_var("SELECT count(comment_ID) FROM $wpdb->comments WHERE comment_approved = '0'");
@@ -1673,6 +1672,10 @@ function wp_notify_moderator($comment_id) {
 		@wp_mail( $email, wp_specialchars_decode( $subject ), $notify_message, $message_headers );
 	}
 
+	if ( $switched_locale ) {
+		restore_previous_locale();
+	}
+
 	return true;
 }
 endif;
@@ -1732,11 +1735,16 @@ function wp_new_user_notification( $user_id, $deprecated = null, $notify = '' ) 
 	$blogname = wp_specialchars_decode(get_option('blogname'), ENT_QUOTES);
 
 	if ( 'user' !== $notify ) {
+		$switched_locale = switch_to_locale( get_locale() );
 		$message  = sprintf( __( 'New user registration on your site %s:' ), $blogname ) . "\r\n\r\n";
 		$message .= sprintf( __( 'Username: %s' ), $user->user_login ) . "\r\n\r\n";
 		$message .= sprintf( __( 'Email: %s' ), $user->user_email ) . "\r\n";
 
 		@wp_mail( get_option( 'admin_email' ), sprintf( __( '[%s] New User Registration' ), $blogname ), $message );
+
+		if ( $switched_locale ) {
+			restore_previous_locale();
+		}
 	}
 
 	// `$deprecated was pre-4.3 `$plaintext_pass`. An empty `$plaintext_pass` didn't sent a user notifcation.
@@ -1752,11 +1760,12 @@ function wp_new_user_notification( $user_id, $deprecated = null, $notify = '' ) 
 
 	// Now insert the key, hashed, into the DB.
 	if ( empty( $wp_hasher ) ) {
-		require_once ABSPATH . WPINC . '/class-phpass.php';
 		$wp_hasher = new PasswordHash( 8, true );
 	}
 	$hashed = time() . ':' . $wp_hasher->HashPassword( $key );
 	$wpdb->update( $wpdb->users, array( 'user_activation_key' => $hashed ), array( 'user_login' => $user->user_login ) );
+
+	$switched_locale = switch_to_locale( get_user_locale( $user ) );
 
 	$message = sprintf(__('Username: %s'), $user->user_login) . "\r\n\r\n";
 	$message .= __('To set your password, visit the following address:') . "\r\n\r\n";
@@ -1765,6 +1774,10 @@ function wp_new_user_notification( $user_id, $deprecated = null, $notify = '' ) 
 	$message .= wp_login_url() . "\r\n";
 
 	wp_mail($user->user_email, sprintf(__('[%s] Your username and password info'), $blogname), $message);
+
+	if ( $switched_locale ) {
+		restore_previous_locale();
+	}
 }
 endif;
 
@@ -2027,7 +2040,6 @@ function wp_hash_password($password) {
 	global $wp_hasher;
 
 	if ( empty($wp_hasher) ) {
-		require_once( ABSPATH . WPINC . '/class-phpass.php');
 		// By default, use the portable hash from phpass
 		$wp_hasher = new PasswordHash(8, true);
 	}
@@ -2087,7 +2099,6 @@ function wp_check_password($password, $hash, $user_id = '') {
 	// If the stored hash is longer than an MD5, presume the
 	// new style phpass portable hash.
 	if ( empty($wp_hasher) ) {
-		require_once( ABSPATH . WPINC . '/class-phpass.php');
 		// By default, use the portable hash from phpass
 		$wp_hasher = new PasswordHash(8, true);
 	}
@@ -2464,3 +2475,4 @@ function wp_text_diff( $left_string, $right_string, $args = null ) {
 	return $r;
 }
 endif;
+

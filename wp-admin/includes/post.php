@@ -176,27 +176,6 @@ function _wp_translate_postdata( $update = false, $post_data = null ) {
 }
 
 /**
- * Returns only allowed post data fields
- *
- * @since 4.9.9
- *
- * @param array $post_data Array of post data. Defaults to the contents of $_POST.
- * @return object|bool WP_Error on failure, true on success.
- */
-function _wp_get_allowed_postdata( $post_data = null ) {
-	if ( empty( $post_data ) ) {
-		$post_data = $_POST;
-	}
-
-	// Pass through errors
-	if ( is_wp_error( $post_data ) ) {
-		return $post_data;
-	}
-
-	return array_diff_key( $post_data, array_flip( array( 'meta_input', 'file', 'guid' ) ) );
-}
-
-/**
  * Update an existing post with values provided in $_POST.
  *
  * @since 1.5.0
@@ -264,7 +243,6 @@ function edit_post( $post_data = null ) {
 	$post_data = _wp_translate_postdata( true, $post_data );
 	if ( is_wp_error($post_data) )
 		wp_die( $post_data->get_error_message() );
-	$translated = _wp_get_allowed_postdata( $post_data );
 
 	// Post Formats
 	if ( isset( $post_data['post_format'] ) )
@@ -342,7 +320,7 @@ function edit_post( $post_data = null ) {
 		$attachment_data = isset( $post_data['attachments'][ $post_ID ] ) ? $post_data['attachments'][ $post_ID ] : array();
 
 		/** This filter is documented in wp-admin/includes/media.php */
-		$translated = apply_filters( 'attachment_fields_to_save', $translated, $attachment_data );
+		$post_data = apply_filters( 'attachment_fields_to_save', $post_data, $attachment_data );
 	}
 
 	// Convert taxonomy input to term IDs, to avoid ambiguity.
@@ -387,7 +365,7 @@ function edit_post( $post_data = null ) {
 				}
 			}
 
-			$translated['tax_input'][ $taxonomy ] = $clean_terms;
+			$post_data['tax_input'][ $taxonomy ] = $clean_terms;
 		}
 	}
 
@@ -395,18 +373,18 @@ function edit_post( $post_data = null ) {
 
 	update_post_meta( $post_ID, '_edit_last', get_current_user_id() );
 
-	$success = wp_update_post( $translated );
+	$success = wp_update_post( $post_data );
 	// If the save failed, see if we can sanity check the main fields and try again
 	if ( ! $success && is_callable( array( $wpdb, 'strip_invalid_text_for_column' ) ) ) {
 		$fields = array( 'post_title', 'post_content', 'post_excerpt' );
 
 		foreach ( $fields as $field ) {
-			if ( isset( $translated[ $field ] ) ) {
-				$translated[ $field ] = $wpdb->strip_invalid_text_for_column( $wpdb->posts, $field, $translated[ $field ] );
+			if ( isset( $post_data[ $field ] ) ) {
+				$post_data[ $field ] = $wpdb->strip_invalid_text_for_column( $wpdb->posts, $field, $post_data[ $field ] );
 			}
 		}
 
-		wp_update_post( $translated );
+		wp_update_post( $post_data );
 	}
 
 	// Now that we have an ID we can fix any attachment anchor hrefs
@@ -566,9 +544,9 @@ function bulk_edit_posts( $post_data = null ) {
 			unset( $post_data['tax_input']['category'] );
 		}
 
-		$post_data['post_ID']        = $post_ID;
 		$post_data['post_type'] = $post->post_type;
 		$post_data['post_mime_type'] = $post->post_mime_type;
+		$post_data['guid'] = $post->guid;
 
 		foreach ( array( 'comment_status', 'ping_status', 'post_author' ) as $field ) {
 			if ( ! isset( $post_data[ $field ] ) ) {
@@ -576,12 +554,14 @@ function bulk_edit_posts( $post_data = null ) {
 			}
 		}
 
+		$post_data['ID'] = $post_ID;
+		$post_data['post_ID'] = $post_ID;
+
 		$post_data = _wp_translate_postdata( true, $post_data );
 		if ( is_wp_error( $post_data ) ) {
 			$skipped[] = $post_ID;
 			continue;
 		}
-		$post_data = _wp_get_allowed_postdata( $post_data );
 
 		$updated[] = wp_update_post( $post_data );
 
@@ -592,8 +572,8 @@ function bulk_edit_posts( $post_data = null ) {
 				unstick_post( $post_ID );
 		}
 
-		if ( isset( $shared_post_data['post_format'] ) )
-			set_post_format( $post_ID, $shared_post_data['post_format'] );
+		if ( isset( $post_data['post_format'] ) )
+			set_post_format( $post_ID, $post_data['post_format'] );
 	}
 
 	return array( 'updated' => $updated, 'skipped' => $skipped, 'locked' => $locked );
@@ -774,10 +754,9 @@ function wp_write_post() {
 	$translated = _wp_translate_postdata( false );
 	if ( is_wp_error($translated) )
 		return $translated;
-	$translated = _wp_get_allowed_postdata( $translated );
 
 	// Create the post.
-	$post_ID = wp_insert_post( $translated );
+	$post_ID = wp_insert_post( $_POST );
 	if ( is_wp_error( $post_ID ) )
 		return $post_ID;
 
@@ -1165,7 +1144,39 @@ function wp_edit_attachments_query_vars( $q = false ) {
 		$q['post_parent'] = 0;
 	}
 
+	// Filter query clauses to include filenames.
+	if ( isset( $q['s'] ) ) {
+		add_filter( 'posts_clauses', '_filter_query_attachment_filenames' );
+	}
+
 	return $q;
+}
+
+/**
+ * Filter the SQL clauses of an attachment query to include filenames.
+ *
+ * @since 4.7.0
+ * @access private
+ *
+ * @param array $clauses An array including WHERE, GROUP BY, JOIN, ORDER BY,
+ *                       DISTINCT, fields (SELECT), and LIMITS clauses.
+ * @return array The modified clauses.
+ */
+function _filter_query_attachment_filenames( $clauses ) {
+	global $wpdb;
+	remove_filter( 'posts_clauses', __FUNCTION__ );
+
+	// Add a LEFT JOIN of the postmeta table so we don't trample existing JOINs.
+	$clauses['join'] .= " LEFT JOIN {$wpdb->postmeta} AS sq1 ON ( {$wpdb->posts}.ID = sq1.post_id AND sq1.meta_key = '_wp_attached_file' )";
+
+	$clauses['groupby'] = "{$wpdb->posts}.ID";
+
+	$clauses['where'] = preg_replace(
+		"/\({$wpdb->posts}.post_content (NOT LIKE|LIKE) (\'[^']+\')\)/",
+		"$0 OR ( sq1.meta_value $1 $2 )",
+		$clauses['where'] );
+
+	return $clauses;
 }
 
 /**
@@ -1228,9 +1239,9 @@ function postbox_classes( $id, $page ) {
  * @since 2.5.0
  *
  * @param int    $id    Post ID or post object.
- * @param string $title Optional. Title. Default null.
- * @param string $name  Optional. Name. Default null.
- * @return array Array with two entries of type string.
+ * @param string $title Optional. Title to override the post's current title when generating the post name. Default null.
+ * @param string $name  Optional. Name to override the post name. Default null.
+ * @return array Array containing the sample permalink with placeholder for the post name, and the post name.
  */
 function get_sample_permalink($id, $title = null, $name = null) {
 	$post = get_post( $id );
@@ -1291,7 +1302,7 @@ function get_sample_permalink($id, $title = null, $name = null) {
 	 *
 	 * @since 4.4.0
 	 *
-	 * @param string  $permalink Sample permalink.
+	 * @param array   $permalink Array containing the sample permalink with placeholder for the post name, and the post name.
 	 * @param int     $post_id   Post ID.
 	 * @param string  $title     Post title.
 	 * @param string  $name      Post name (slug).
@@ -1321,14 +1332,14 @@ function get_sample_permalink_html( $id, $new_title = null, $new_slug = null ) {
 	$preview_target = '';
 
 	if ( current_user_can( 'read_post', $post->ID ) ) {
-		if ( 'draft' === $post->post_status ) {
+		if ( 'draft' === $post->post_status || empty( $post->post_name ) ) {
 			$view_link = get_preview_post_link( $post );
 			$preview_target = " target='wp-preview-{$post->ID}'";
 		} else {
 			if ( 'publish' === $post->post_status || 'attachment' === $post->post_type ) {
 				$view_link = get_permalink( $post );
 			} else {
-				// Allow non-published (private, future) to be viewed at a pretty permalink.
+				// Allow non-published (private, future) to be viewed at a pretty permalink, in case $post->post_name is set
 				$view_link = str_replace( array( '%pagename%', '%postname%' ), $post->post_name, $permalink );
 			}
 		}
@@ -1388,14 +1399,12 @@ function get_sample_permalink_html( $id, $new_title = null, $new_slug = null ) {
  *
  * @since 2.9.0
  *
- * @global array $_wp_additional_image_sizes
- *
  * @param int $thumbnail_id ID of the attachment used for thumbnail
  * @param mixed $post The post ID or object associated with the thumbnail, defaults to global $post.
  * @return string html
  */
 function _wp_post_thumbnail_html( $thumbnail_id = null, $post = null ) {
-	global $_wp_additional_image_sizes;
+	$_wp_additional_image_sizes = wp_get_additional_image_sizes();
 
 	$post               = get_post( $post );
 	$post_type_object   = get_post_type_object( $post->post_type );
@@ -1680,7 +1689,6 @@ function wp_create_post_autosave( $post_data ) {
 	$post_data = _wp_translate_postdata( true, $post_data );
 	if ( is_wp_error( $post_data ) )
 		return $post_data;
-	$post_data = _wp_get_allowed_postdata( $post_data );
 
 	$post_author = get_current_user_id();
 

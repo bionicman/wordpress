@@ -4,7 +4,7 @@
 		renderHtml: function() {
 			return (
 				'<div id="' + this._id + '" class="wp-link-preview">' +
-					'<a href="' + this.url + '" target="_blank" rel="noopener" tabindex="-1">' + this.url + '</a>' +
+					'<a href="' + this.url + '" target="_blank" tabindex="-1">' + this.url + '</a>' +
 				'</div>'
 			);
 		},
@@ -248,13 +248,6 @@
 				href = inputInstance.getURL();
 				text = inputInstance.getLinkText();
 				editor.focus();
-
-				var parser = document.createElement( 'a' );
-				parser.href = href;
-
-				if ( 'javascript:' === parser.protocol || 'data:' === parser.protocol ) { // jshint ignore:line
-					href = '';
-				}
 
 				if ( ! href ) {
 					editor.dom.remove( linkNode, true );
@@ -567,8 +560,8 @@
 		} );
 
 		editor.addButton( 'wp_link_remove', {
-			tooltip: 'Remove',
-			icon: 'dashicon dashicons-no',
+			tooltip: 'Remove link',
+			icon: 'dashicon dashicons-editor-unlink',
 			cmd: 'wp_unlink'
 		} );
 
