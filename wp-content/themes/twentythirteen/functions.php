@@ -32,13 +32,24 @@ if ( ! isset( $content_width ) )
 	$content_width = 604;
 
 /**
+ * Adds support for a custom header image.
+ */
+require( get_template_directory() . '/inc/custom-header.php' );
+
+/**
+ * Twenty Thirteen only works in WordPress 3.6 or later.
+ */
+if ( version_compare( $GLOBALS['wp_version'], '3.6-alpha', '<' ) )
+	require( get_template_directory() . '/inc/back-compat.php' );
+
+/**
  * Sets up theme defaults and registers the various WordPress features that
  * Twenty Thirteen supports.
  *
  * @uses load_theme_textdomain() For translation/localization support.
  * @uses add_editor_style() To add a Visual Editor stylesheet.
  * @uses add_theme_support() To add support for automatic feed links, post
- * formats, admin bar, and post thumbnails.
+ * formats, and post thumbnails.
  * @uses register_nav_menu() To add support for a navigation menu.
  * @uses set_post_thumbnail_size() To set a custom post thumbnail size.
  *
@@ -78,16 +89,6 @@ function twentythirteen_setup() {
 	) );
 	add_theme_support( 'post-formats', array(
 		'aside', 'audio', 'chat', 'gallery', 'image', 'quote', 'status'
-	) );
-
-	/*
-	 * Custom callback to make it easier for our fixed navbar to coexist with
-	 * the WordPress toolbar. See `.wp-toolbar` in style.css.
-	 *
-	 * @see WP_Admin_Bar::initialize()
-	 */
-	add_theme_support( 'admin-bar', array(
-		'callback' => '__return_false'
 	) );
 
 	// This theme uses wp_nav_menu() in one location.
@@ -223,7 +224,7 @@ function twentythirteen_scripts_styles() {
 		wp_enqueue_script( 'jquery-masonry' );
 
 	// Loads JavaScript file with functionality specific to Twenty Thirteen.
-	wp_enqueue_script( 'twentythirteen-script', get_template_directory_uri() . '/js/functions.js', array( 'jquery' ), '20130211', true );
+	wp_enqueue_script( 'twentythirteen-script', get_template_directory_uri() . '/js/functions.js', array( 'jquery' ), '20130423', true );
 
 	// Loads our main stylesheet.
 	wp_enqueue_style( 'twentythirteen-style', get_stylesheet_uri() );
@@ -374,7 +375,7 @@ function twentythirteen_entry_meta() {
 	if ( is_sticky() && is_home() && ! is_paged() )
 		echo '<span class="featured-post">' . __( 'Sticky', 'twentythirteen' ) . '</span>';
 
-	if ( ! has_post_format( 'aside' ) && ! has_post_format( 'link' ) && 'post' == get_post_type() )
+	if ( ! has_post_format( 'link' ) && 'post' == get_post_type() )
 		twentythirteen_entry_date();
 
 	// Translators: used between list items, there is a space after the comma.
@@ -445,29 +446,8 @@ function twentythirteen_get_link_url() {
 	return ( $has_url ) ? $has_url : apply_filters( 'the_permalink', get_permalink() );
 }
 
-if ( ! function_exists( 'twentythirteen_featured_gallery' ) ) :
-/**
- * Displays first gallery from post content. Changes image size from thumbnail
- * to large, to display a larger first image.
- *
- * @since Twenty Thirteen 1.0
- *
- * @return void
- */
-function twentythirteen_featured_gallery() {
-	$pattern = get_shortcode_regex();
-
-	if ( preg_match( "/$pattern/s", get_the_content(), $match ) && 'gallery' == $match[2] ) {
-		add_filter( 'shortcode_atts_gallery', 'twentythirteen_gallery_atts' );
-		echo do_shortcode_tag( $match );
-	}
-}
-endif;
-
 /**
  * Sets the image size in featured galleries to large.
- *
- * @see twentythirteen_featured_gallery()
  *
  * @since Twenty Thirteen 1.0
  *
@@ -475,15 +455,19 @@ endif;
  * @return array
  */
 function twentythirteen_gallery_atts( $atts ) {
-	$atts['size'] = 'large';
+	if ( has_post_format( 'gallery' ) && ! is_single() )
+		$atts['size'] = 'large';
+
 	return $atts;
 }
+add_filter( 'shortcode_atts_gallery', 'twentythirteen_gallery_atts' );
 
 /**
  * Extends the default WordPress body class to denote:
  * 1. Custom fonts enabled.
  * 2. Single or multiple authors.
  * 3. Active widgets in the sidebar to change the layout and spacing.
+ * 4. When avatars are disabled in discussion settings.
  *
  * @since Twenty Thirteen 1.0
  *
@@ -493,7 +477,7 @@ function twentythirteen_gallery_atts( $atts ) {
 function twentythirteen_body_class( $classes ) {
 
 	// Enable custom font class only if the font CSS is queued to load.
-	if ( wp_style_is( 'twentythirteen-fonts', 'queue' ) )
+	if ( wp_style_is( 'twentythirteen-fonts', 'enqueued' ) )
 		$classes[] = 'custom-font';
 
 	if ( ! is_multi_author() )
@@ -502,32 +486,19 @@ function twentythirteen_body_class( $classes ) {
 	if ( is_active_sidebar( 'sidebar-2' ) && ! is_attachment() && ! is_404() )
 		$classes[] = 'sidebar';
 
+	if ( ! get_option( 'show_avatars' ) )
+		$classes[] = 'no-avatars';
+
 	return $classes;
 }
 add_filter( 'body_class', 'twentythirteen_body_class' );
 
 /**
- * Extends the default WordPress comment class to add 'no-avatars' class
- * if avatars are disabled in discussion settings.
+ * Adjusts content_width value for video post formats and attachment templates.
  *
  * @since Twenty Thirteen 1.0
  *
- * @param array $classes Existing class values.
- * @return array Filtered class values.
- */
-function twentythirteen_comment_class( $classes ) {
-	if ( ! get_option ( 'show_avatars' ) )
-		$classes[] = 'no-avatars';
-
-	return $classes;
-}
-add_filter( 'comment_class', 'twentythirteen_comment_class' );
-
-/**
- * Adjusts content_width value for image post formats, video post formats, and
- * image attachment templates.
- *
- * @since Twenty Thirteen 1.0
+ * @return void
  */
 function twentythirteen_content_width() {
 	if ( has_post_format( 'video' ) || is_attachment() ) {
@@ -538,21 +509,24 @@ function twentythirteen_content_width() {
 add_action( 'template_redirect', 'twentythirteen_content_width' );
 
 /**
- * Adds entry date to aside posts after the content.
- *
+ * Adjusts content_width value for video shortcodes in video post formats.
  *
  * @since Twenty Thirteen 1.0
  *
- * @param string $content Post content.
- * @return string Post content.
+ * @param array $atts Attribute list.
+ * @return array Filtered attribute list.
  */
-function twentythirteen_aside_date( $content ) {
-	if ( ! is_feed() && has_post_format( 'aside' ) ) {
-		$content .= twentythirteen_entry_date( false );
+function twentythirteen_video_width( $atts ) {
+	if ( ! is_admin() && has_post_format( 'video' ) ) {
+		$new_width = 724;
+		$atts['height'] = round( ( $atts['height'] * $new_width ) / $atts['width'] );
+		$atts['width'] = $new_width;
 	}
-	return $content;
+
+	return $atts;
 }
-add_filter( 'the_content', 'twentythirteen_aside_date', 8 ); // After embeds, before everything else.
+add_action( 'embed_defaults',       'twentythirteen_video_width' );
+add_action( 'shortcode_atts_video', 'twentythirteen_video_width' );
 
 /**
  * Switches default core markup for search form to output valid HTML5.
@@ -560,10 +534,10 @@ add_filter( 'the_content', 'twentythirteen_aside_date', 8 ); // After embeds, be
  * @param string $format Expected markup format, default is `xhtml`
  * @return string Twenty Thirteen loves HTML5.
  */
-function twentythirteen_searchform_format( $format ) {
+function twentythirteen_search_form_format( $format ) {
 	return 'html5';
 }
-add_filter( 'search_form_format', 'twentythirteen_searchform_format' );
+add_filter( 'search_form_format', 'twentythirteen_search_form_format' );
 
 /**
  * Add postMessage support for site title and description for the Customizer.
@@ -590,14 +564,3 @@ function twentythirteen_customize_preview_js() {
 	wp_enqueue_script( 'twentythirteen-customizer', get_template_directory_uri() . '/js/theme-customizer.js', array( 'customize-preview' ), '20130226', true );
 }
 add_action( 'customize_preview_init', 'twentythirteen_customize_preview_js' );
-
-/**
- * Adds support for a custom header image.
- */
-require( get_template_directory() . '/inc/custom-header.php' );
-
-/**
- * Adds back compat handling for WP versions pre-3.6.
- */
-if ( version_compare( $GLOBALS['wp_version'], '3.6-alpha', '<' ) )
-	require( get_template_directory() . '/inc/back-compat.php' );

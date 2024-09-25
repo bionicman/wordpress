@@ -724,14 +724,16 @@ function wp_ajax_replyto_comment( $action ) {
 	check_ajax_referer( $action, '_ajax_nonce-replyto-comment' );
 
 	$comment_post_ID = (int) $_POST['comment_post_ID'];
+	$post = get_post( $comment_post_ID );
+	if ( ! $post )
+		wp_die( -1 );
+
 	if ( !current_user_can( 'edit_post', $comment_post_ID ) )
 		wp_die( -1 );
 
-	$status = $wpdb->get_var( $wpdb->prepare("SELECT post_status FROM $wpdb->posts WHERE ID = %d", $comment_post_ID) );
-
-	if ( empty($status) )
+	if ( empty( $post->post_status ) )
 		wp_die( 1 );
-	elseif ( in_array($status, array('draft', 'pending', 'trash') ) )
+	elseif ( in_array($post->post_status, array('draft', 'pending', 'trash') ) )
 		wp_die( __('ERROR: you are replying to a comment on a draft post.') );
 
 	$user = wp_get_current_user();
@@ -1061,10 +1063,11 @@ function wp_ajax_autosave() {
 	}
 
 	if ( ! empty( $_POST['autosave'] ) ) {
-		// Drafts and auto-drafts are just overwritten by autosave for the same user
-		if ( get_current_user_id() == $post->post_author && ( 'auto-draft' == $post->post_status || 'draft' == $post->post_status ) ) {
+		if ( ! wp_check_post_lock( $post->ID ) && get_current_user_id() == $post->post_author && ( 'auto-draft' == $post->post_status || 'draft' == $post->post_status ) ) {
+			// Drafts and auto-drafts are just overwritten by autosave for the same user if the post is not locked
 			$id = edit_post();
-		} else { // Non drafts are not overwritten. The autosave is stored in a special post revision for each user.
+		} else {
+			// Non drafts or other users drafts are not overwritten. The autosave is stored in a special post revision for each user.
 			$revision_id = wp_create_post_autosave( $post->ID );
 			if ( is_wp_error($revision_id) )
 				$id = $revision_id;
@@ -1072,12 +1075,9 @@ function wp_ajax_autosave() {
 				$id = $post->ID;
 		}
 
-		if ( is_wp_error($id) ) {
-			// is_wp_error($id) overwrites $data in WP_Ajax_Response but no point in doing wp_create_nonce('update-post_' . $id) below
-			// todo: Needs review. The errors generated in WP_Ajax_Response and parsed with wpAjax.parseAjaxResponse() haven't been used for many years.
-			$data = $id;
-			$id = 0;
-		} else {
+		// When is_wp_error($id), $id overwrites $data in WP_Ajax_Response
+		// todo: Needs review. The errors generated in WP_Ajax_Response and parsed with wpAjax.parseAjaxResponse() haven't been used for years.
+		if ( ! is_wp_error($id) ) {
 			/* translators: draft saved date format, see http://php.net/date */
 			$draft_saved_date_format = __('g:i:s a');
 			/* translators: %s: date and time */
@@ -1096,14 +1096,13 @@ function wp_ajax_autosave() {
 		$supplemental['replace-samplepermalinknonce'] = wp_create_nonce('samplepermalink');
 		$supplemental['replace-closedpostboxesnonce'] = wp_create_nonce('closedpostboxes');
 		$supplemental['replace-_ajax_linking_nonce'] = wp_create_nonce( 'internal-linking' );
-		if ( $id )
-			$supplemental['replace-_wpnonce'] = wp_create_nonce('update-post_' . $id);
+		$supplemental['replace-_wpnonce'] = wp_create_nonce( 'update-post_' . $post->ID );
 	}
 
 	$x = new WP_Ajax_Response( array(
 		'what' => 'autosave',
 		'id' => $id,
-		'data' => $id ? $data : '',
+		'data' => $data,
 		'supplemental' => $supplemental
 	) );
 	$x->send();
@@ -1132,6 +1131,25 @@ function wp_ajax_closed_postboxes() {
 		$hidden = array_diff( $hidden, array('submitdiv', 'linksubmitdiv', 'manage-menu', 'create-menu') ); // postboxes that are always shown
 		update_user_option($user->ID, "metaboxhidden_$page", $hidden, true);
 	}
+
+	wp_die( 1 );
+}
+
+function wp_ajax_show_post_format_ui() {
+	error_log( serialize( $_REQUEST ) );
+
+	if ( empty( $_POST['post_type'] ) )
+		wp_die( 0 );
+
+	check_ajax_referer( 'show-post-format-ui_' . $_POST['post_type'], 'nonce' );
+
+	if ( ! $post_type_object = get_post_type_object( $_POST['post_type'] ) )
+		wp_die( 0 );
+
+	if ( ! current_user_can( $post_type_object->cap->edit_posts ) )
+		wp_die( -1 );
+
+	update_user_option( get_current_user_id(), 'post_formats_' . $post_type_object->name, empty( $_POST['show'] ) ? 0 : 1 );
 
 	wp_die( 1 );
 }
@@ -1397,7 +1415,7 @@ function wp_ajax_inline_save_tax() {
 		$parent = $parent_tag->parent;
 		$level++;
 	}
-	echo $wp_list_table->single_row( $tag, $level );
+	$wp_list_table->single_row( $tag, $level );
 	wp_die();
 }
 
@@ -2127,7 +2145,7 @@ function wp_ajax_revisions_data() {
 			$left_revision = get_post( $post_id );
 
 		// make sure the right revision is the most recent
-		if ( $compare_two_mode && $right_revision->ID < $left_revision->ID ) {
+		if ( $compare_two_mode && $right_revision->post_date < $left_revision->post_date ) {
 			$temp = $left_revision;
 			$left_revision = $right_revision;
 			$right_revision = $temp;
@@ -2136,7 +2154,7 @@ function wp_ajax_revisions_data() {
 		$lines_added = $lines_deleted = 0;
 		$content = '';
 		//compare from left to right, passed from application
-		foreach ( array_keys( _wp_post_revision_fields() ) as $field ) {
+		foreach ( _wp_post_revision_fields() as $field => $field_value ) {
 			$left_content = apply_filters( "_wp_post_revision_field_$field", $left_revision->$field, $field, $left_revision, 'left' );
 			$right_content = apply_filters( "_wp_post_revision_field_$field", $right_revision->$field, $field, $right_revision, 'right' );
 
@@ -2150,8 +2168,10 @@ function wp_ajax_revisions_data() {
 			// compare_to == 0 means first revision, so compare to a blank field to show whats changed
 			$diff = wp_text_diff_with_count( ( 0 == $compare_to ) ? '' : $left_content, $right_content, $args );
 
-			if ( isset( $diff[ 'html' ] ) )
+			if ( isset( $diff[ 'html' ] ) ) {
+				$content .= sprintf( '<div class="diff-label">%s</div>', $field_value );
 				$content .= $diff[ 'html' ];
+			}
 
 			if ( isset( $diff[ 'lines_added' ] ) )
 				$lines_added = $lines_added + $diff[ 'lines_added' ];
@@ -2163,8 +2183,8 @@ function wp_ajax_revisions_data() {
 
 		$all_the_revisions = array (
 			'diff'          => $content,
-			'lines_deleted' => $lines_deleted,
-			'lines_added'   => $lines_added
+			'linesDeleted' => $lines_deleted,
+			'linesAdded'   => $lines_added
 		);
 
 		echo json_encode( $all_the_revisions );
@@ -2272,14 +2292,13 @@ function wp_ajax_revisions_data() {
 
 		if ( ( $compare_two_mode || -1 !== $previous_revision_id ) ) {
 			$all_the_revisions[] = array (
-				'ID'                   => $revision->ID,
-				'titleTo'              => $revision_date_author,
-				'titleFrom'            => $revision_from_date_author,
-				'titleTooltip'         => $revision_date_author_short,
-				'restoreLink'          => urldecode( $restore_link ),
-				'revision_toload'      => true,
-				'previous_revision_id' => $previous_revision_id,
-				'is_current_revision'  => $is_current_revision,
+				'ID'           => $revision->ID,
+				'titleTo'      => $revision_date_author,
+				'titleFrom'    => $revision_from_date_author,
+				'titleTooltip' => $revision_date_author_short,
+				'restoreLink'  => urldecode( $restore_link ),
+				'previousID'   => $previous_revision_id,
+				'isCurrent'    => $is_current_revision,
 			);
 		}
 		$previous_revision_id = $revision->ID;

@@ -128,24 +128,39 @@ foreach ( get_object_taxonomies( $post ) as $tax_name ) {
 
 // post format
 $format_class = '';
-if ( post_type_supports( $post_type, 'post-formats' ) ) {
+$post_format = '';
+$post_format_options = '';
+if ( post_type_supports( $post_type, 'post-formats' ) && apply_filters( 'enable_post_format_ui', true, $post ) ) {
 	wp_enqueue_script( 'post-formats' );
 	wp_enqueue_script( 'wp-mediaelement' );
 	wp_enqueue_style( 'wp-mediaelement' );
 	$post_format = get_post_format();
 
-	if ( ! $post_format )
+	if ( ! $post_format ) {
 		$post_format = 'standard';
+
+		if ( ! empty( $_REQUEST['format'] ) && in_array( $_REQUEST['format'], get_post_format_slugs() ) )
+			$post_format = $_REQUEST['format'];
+	}
+
+	$user_wants = get_user_option( 'post_formats_' . $post_type );
+	if ( false !== $user_wants ) {
+		// User wants what user gets.
+		$show_post_format_ui = (bool) $user_wants;
+	} else {
+		// UI is shown when the theme supports formats, or if the site has formats assigned to posts.
+		$show_post_format_ui = current_theme_supports( 'post-formats' ) || get_terms( 'post_format', array( 'number' => 1 ) );
+	}
 
 	$format_class = " class='wp-format-{$post_format}'";
 
 
 	$all_post_formats = array(
 		'standard' => array (
-			'description' => __( 'Add a title and use the editor to compose your post.' )
+			'description' => __( 'Use the editor below to compose your post.' )
 		),
 		'image' => array (
-			'description' => __( 'Select or upload an image to use for your post.' )
+			'description' => __( 'Select or upload an image for your post.' )
 		),
 		'gallery' => array (
 			'description' => __( 'Use the Add Media button to select or upload images for your gallery.' )
@@ -166,24 +181,21 @@ if ( post_type_supports( $post_type, 'post-formats' ) ) {
 			'description' => __( 'Use the editor to compose a status update. What&#8217;s new?' )
 		),
 		'quote' => array (
-			'description' => __( 'Copy a quotation into the box. Also add the source and URL if you have them.' )
+			'description' => __( 'Add a source and URL if you have them. Use the editor to compose the quote.' )
 		),
 		'aside' => array (
-			'description' => __( 'An aside is a quick thought or side topic. Use the editor to compose one.' )
+			'description' => __( 'Use the editor to share a quick thought or side topic.' )
 		)
 	);
-	$post_format_options = '';
 
 	foreach ( $all_post_formats as $slug => $attr ) {
 		$class = '';
 		if ( $post_format == $slug ) {
 			$class = 'class="active"';
 			$active_post_type_slug = $slug;
-			$active_post_type_label = ucfirst( $slug );
-			$active_post_format_description = $attr['description'];
 		}
 
-		$post_format_options .= '<a ' . $class . ' href="?format=' . $slug . '" data-description="' . $attr['description'] . '" data-wp-format="' . $slug . '" title="' . ucfirst( sprintf( __( '%s Post' ), $slug ) ) . '"><div class="' . $slug . '"></div></a>';
+		$post_format_options .= '<a ' . $class . ' href="?format=' . $slug . '" data-description="' . $attr['description'] . '" data-wp-format="' . $slug . '" title="' . ucfirst( $slug ) . '"><div class="' . $slug . '"></div><span class="post-format-title">' . ucfirst( $slug ) . '</span></a>';
 	}
 
 	$current_post_format = array( 'currentPostFormat' => esc_html( $active_post_type_slug ) );
@@ -227,9 +239,17 @@ if ( post_type_supports($post_type, 'author') ) {
 		add_meta_box('authordiv', __('Author'), 'post_author_meta_box', null, 'normal', 'core');
 }
 
-// We should aim to show the revisions metabox only when there are revisions.
-if ( post_type_supports($post_type, 'revisions') && 'auto-draft' != $post->post_status && count( wp_get_post_revisions( $post_ID ) ) > 1 )
-	add_meta_box('revisionsdiv', __('Revisions'), 'post_revisions_meta_box', null, 'normal', 'core');
+if ( post_type_supports($post_type, 'revisions') && 'auto-draft' != $post->post_status ) {
+	$revisions = wp_get_post_revisions( $post_ID );
+
+	// Check if the revisions have been upgraded
+	if ( ! empty( $revisions ) && _wp_get_post_revision_version( end( $revisions ) ) < 1 )
+		_wp_upgrade_revisions_of_post( $post, $revisions );
+
+	// We should aim to show the revisions metabox only when there are revisions.
+	if ( count( $revisions ) > 1 )
+		add_meta_box('revisionsdiv', __('Revisions'), 'post_revisions_meta_box', null, 'normal', 'core');
+}
 
 do_action('add_meta_boxes', $post_type, $post);
 do_action('add_meta_boxes_' . $post_type, $post);
@@ -368,6 +388,13 @@ if ( isset( $post_new_file ) && current_user_can( $post_type_object->cap->create
 <div id="lost-connection-notice" class="error hidden">
 	<p><?php _e("You have lost your connection with the server, and saving has been disabled. This message will vanish once you've reconnected."); ?></p>
 </div>
+<?php if ( ! empty( $post_format_options ) ) : ?>
+<div class="wp-post-format-ui<?php if ( ! $show_post_format_ui ) echo ' no-ui' ?>">
+	<div class="post-format-options">
+		<?php echo $post_format_options; ?>
+	</div>
+</div>
+<?php endif; ?>
 <form name="post" action="post.php" method="post" id="post"<?php do_action('post_edit_form_tag'); ?>>
 <?php wp_nonce_field($nonce_action); ?>
 <input type="hidden" id="user-id" name="user_ID" value="<?php echo (int) $user_ID ?>" />
@@ -394,14 +421,9 @@ wp_nonce_field( 'closedpostboxes', 'closedpostboxesnonce', false );
 <div id="poststuff">
 <div id="post-body" class="metabox-holder columns-<?php echo 1 == get_current_screen()->get_columns() ? '1' : '2'; ?>">
 <div id="post-body-content"<?php echo $format_class; ?>>
-
-<?php if ( ! empty( $post_format_options ) ) : ?>
-<div class="post-format-options">
-	<span class="post-format-tip">Standard Post</span>
-	<?php echo $post_format_options; ?>
+<div class="wp-post-format-ui<?php if ( ! $show_post_format_ui ) echo ' no-ui' ?>">
+	<div class="post-format-change"><span class="icon <?php echo esc_attr( 'wp-format-' . $post_format ); ?>"></span> <span class="post-format-description"><?php echo $all_post_formats[$post_format]['description']; ?></span></div>
 </div>
-<?php endif; ?>
-
 <?php if ( post_type_supports($post_type, 'title') ) { ?>
 <div id="titlediv">
 <div id="titlewrap">
@@ -418,7 +440,7 @@ if ( !empty($shortlink) )
 if ( $post_type_object->public && ! ( 'pending' == get_post_status( $post ) && !current_user_can( $post_type_object->cap->publish_posts ) ) ) {
 	$has_sample_permalink = $sample_permalink_html && 'auto-draft' != $post->post_status;
 ?>
-	<div id="edit-slug-box" class="hide-if-no-js<?php if ( ! $has_sample_permalink ) echo ' hidden' ?>">
+	<div id="edit-slug-box" class="hide-if-no-js">
 	<?php
 		if ( $has_sample_permalink )
 			echo $sample_permalink_html;
@@ -442,15 +464,18 @@ if ( has_action( 'edit_form_after_title' ) ) {
 }
 
 // post format fields
-if ( post_type_supports( $post_type, 'post-formats' ) )
+if ( post_type_supports( $post_type, 'post-formats' ) && apply_filters( 'enable_post_format_ui', true, $post ) )
 	require_once( './includes/post-formats.php' );
 
 if ( post_type_supports($post_type, 'editor') ) {
 ?>
 <div id="postdivrich" class="postarea edit-form-section">
 
-<?php wp_editor($post->post_content, 'content', array('dfw' => true, 'tabfocus_elements' => 'insert-media-button,save-post', 'editor_height' => 360) ); ?>
-
+<?php wp_editor( $post->post_content, 'content', array(
+	'dfw' => true,
+	'tabfocus_elements' => 'insert-media-button,save-post',
+	'editor_height' => in_array( $post_format, array( 'status', 'aside' ) ) ? 120 : 360
+) ); ?>
 <table id="post-status-info" cellspacing="0"><tbody><tr>
 	<td id="wp-word-count"><?php printf( __( 'Word count: %s' ), '<span class="word-count">0</span>' ); ?></td>
 	<td class="autosave-info">

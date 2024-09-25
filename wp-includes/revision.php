@@ -55,7 +55,6 @@ function _wp_post_revision_fields( $post = null, $autosave = false ) {
 	$return['post_name']     = $autosave ? "$post[ID]-autosave-v1" : "$post[ID]-revision-v1"; // "1" is the revisioning system version
 	$return['post_date']     = isset($post['post_modified']) ? $post['post_modified'] : '';
 	$return['post_date_gmt'] = isset($post['post_modified_gmt']) ? $post['post_modified_gmt'] : '';
-	$return['post_author']   = get_post_meta( $post['ID'], '_edit_last', true );
 
 	return $return;
 }
@@ -69,13 +68,14 @@ function _wp_post_revision_fields( $post = null, $autosave = false ) {
  */
 function _wp_post_revision_meta_keys() {
 	return array(
-		'_wp_format_url',
-		'_wp_format_quote',
-		'_wp_format_quote_source',
-		'_wp_format_image',
-		'_wp_format_gallery',
-		'_wp_format_audio',
-		'_wp_format_video',
+		'_format_url',
+		'_format_link_url',
+		'_format_quote_source_url',
+		'_format_quote_source_name',
+		'_format_image',
+		'_format_gallery',
+		'_format_audio_embed',
+		'_format_video_embed',
 	);
 }
 
@@ -134,11 +134,15 @@ function wp_save_post_revision( $post_id ) {
 
 			// Check whether revisioned meta fields have changed.
 			foreach ( _wp_post_revision_meta_keys() as $meta_key ) {
-				if ( get_post_meta( $post->ID, $meta_key ) != get_post_meta( $last_revision->ID, $meta_key ) ) {
+				if ( get_post_meta( $post->ID, $meta_key, true ) != get_post_meta( $last_revision->ID, $meta_key, true ) ) {
 					$post_has_changed = true;
 					break;
 				}
 			}
+
+			// Check whether the post format has changed
+			if ( get_post_format( $post->ID ) != get_post_meta( $last_revision->ID, '_revision_post_format', true ) )
+				$post_has_changed = true;
 
 			//don't save revision if post unchanged
 			if( ! $post_has_changed )
@@ -280,15 +284,18 @@ function _wp_put_post_revision( $post = null, $autosave = false ) {
 
 	// Save revisioned meta fields.
 	foreach ( _wp_post_revision_meta_keys() as $meta_key ) {
-		$meta_values = get_post_meta( $post_id, $meta_key );
-		if ( false === $meta_values )
+		$meta_value = get_post_meta( $post_id, $meta_key, true );
+		if ( empty( $meta_value ) )
 			continue;
 
 		// Use the underlying add_metadata vs add_post_meta to make sure
 		// metadata is added to the revision post and not its parent.
-		foreach ( $meta_values as $meta_value )
-			add_metadata( 'post', $revision_id, $meta_key, $meta_value );
+		add_metadata( 'post', $revision_id, $meta_key, wp_slash( $meta_value ) );
 	}
+
+	// Save the post format
+	if ( $post_format = get_post_format( $post_id ) )
+		add_metadata( 'post', $revision_id, '_revision_post_format', $post_format );
 
 	return $revision_id;
 }
@@ -366,14 +373,15 @@ function wp_restore_post_revision( $revision_id, $fields = null ) {
 
 	// Restore revisioned meta fields.
 	foreach ( _wp_post_revision_meta_keys() as $meta_key ) {
-		delete_post_meta( $update['ID'], $meta_key );
-		$meta_values = get_post_meta( $revision['ID'], $meta_key );
-		if ( false === $meta_values )
-			continue;
-
-		foreach ( $meta_values as $meta_value )
-			add_post_meta( $update['ID'], $meta_key, $meta_value );
+		$meta_value = get_post_meta( $revision['ID'], $meta_key, true );
+		if ( empty( $meta_value ) )
+			$meta_value = '';
+		// Add slashes to data pulled from the db
+		update_post_meta( $update['ID'], $meta_key, wp_slash( $meta_value ) );
 	}
+
+	// Restore post format
+	set_post_format( $update['ID'], get_post_meta( $revision['ID'], '_revision_post_format', true ) );
 
 	$post_id = wp_update_post( $update );
 	if ( is_wp_error( $post_id ) )
@@ -505,6 +513,7 @@ function _set_preview($post) {
 	$post->post_excerpt = $preview->post_excerpt;
 
 	add_filter( 'get_post_metadata', '_wp_preview_meta_filter', 10, 4 );
+	add_filter( 'get_the_terms', '_wp_preview_terms_filter', 10, 3 );
 
 	return $post;
 }
@@ -525,7 +534,7 @@ function _show_post_preview() {
  * Filters post meta retrieval to get values from the actual autosave post,
  * and not its parent. Filters revisioned meta keys only.
  *
- * @since 3.6
+ * @since 3.6.0
  * @access private
  */
 function _wp_preview_meta_filter( $value, $object_id, $meta_key, $single ) {
@@ -541,6 +550,29 @@ function _wp_preview_meta_filter( $value, $object_id, $meta_key, $single ) {
 	return get_post_meta( $preview->ID, $meta_key, $single );
 }
 
+/**
+ * Filters terms lookup to get the post format saved with the preview revision.
+ *
+ * @since 3.6.0
+ * @access private
+ */
+function _wp_preview_terms_filter( $terms, $post_id, $taxonomy ) {
+	$post = get_post();
+
+	if ( $post->ID != $post_id || 'post_format' != $taxonomy || 'revision' == $post->post_type )
+		return $terms;
+
+	if ( ! $preview = wp_get_post_autosave( $post->ID ) )
+		return $terms;
+
+	if ( $post_format = get_post_meta( $preview->ID, '_revision_post_format', true ) ) {
+		if ( $term = get_term_by( 'slug', 'post-format-' . sanitize_key( $post_format ), 'post_format' ) )
+			$terms = array( $term ); // Can only have one post format
+	}
+
+	return $terms;
+}
+
 function _wp_get_post_revision_version( $revision ) {
 	if ( is_object( $revision ) )
 		$revision = get_object_vars( $revision );
@@ -554,37 +586,20 @@ function _wp_get_post_revision_version( $revision ) {
 }
 
 /**
- * Upgrade the data
+ * Upgrade the revisions author, add the current post as a revision and set the revisions version to 1
  *
  * @package WordPress
  * @subpackage Post_Revisions
  * @since 3.6.0
  *
- * @uses get_post()
- * @uses post_type_supports()
  * @uses wp_get_post_revisions()
  *
- * @param int|object $post_id Post ID or post object
- * @return true if success, false if problems
+ * @param object $post Post object
+ * @param array $revisions Current revisions of the post
+ * @return bool true if the revisions were upgraded, false if problems
  */
-function _wp_upgrade_revisions_of_post( $post ) {
+function _wp_upgrade_revisions_of_post( $post, $revisions ) {
 	global $wpdb;
-
-	$post = get_post( $post );
-	if ( ! $post )
-		return false;
-
-	if ( ! post_type_supports( $post->post_type, 'revisions' ) )
-		return false;
-
-	$revisions = wp_get_post_revisions( $post->ID ); // array( 'order' => 'DESC', 'orderby' => 'date' ); // Always work from most recent to oldest
-
-	if ( ! $first = reset( $revisions ) )
-		return true;
-
-	// Check if the revisions have already been updated
-	if ( preg_match( '/^\d+-(?:autosave|revision)-v\d+$/', $first->post_name ) )
-		return true;
 
 	// Add post option exclusively
 	$lock = "revision-upgrade-{$post->ID}";
@@ -611,6 +626,7 @@ function _wp_upgrade_revisions_of_post( $post ) {
 	update_option( $lock, $now );
 
 	reset( $revisions );
+	$add_last = true;
 
 	do {
 		$this_revision = current( $revisions );
@@ -622,9 +638,12 @@ function _wp_upgrade_revisions_of_post( $post ) {
 		if ( false === $this_revision_version )
 			continue;
 
-		// 1 is the latest revision version, so we're already up to date
-		if ( 0 < $this_revision_version )
+		// 1 is the latest revision version, so we're already up to date.
+		// No need to add a copy of the post as latest revision.
+		if ( 0 < $this_revision_version ) {
+			$add_last = false;
 			continue;
+		}
 
 		// Always update the revision version
 		$update = array(
@@ -653,7 +672,9 @@ function _wp_upgrade_revisions_of_post( $post ) {
 	delete_option( $lock );
 
 	// Add a copy of the post as latest revision.
-	wp_save_post_revision( $post->ID );
+	if ( $add_last )
+		wp_save_post_revision( $post->ID );
+
 	return true;
 }
 
@@ -661,7 +682,7 @@ function _wp_upgrade_revisions_of_post( $post ) {
  * Displays a human readable HTML representation of the difference between two strings.
  * similar to wp_text_diff, but tracks and returns could of lines added and removed
  *
- * @since 3.6
+ * @since 3.6.0
  * @see wp_parse_args() Used to change defaults to user defined settings.
  * @uses Text_Diff
  * @uses WP_Text_Diff_Renderer_Table

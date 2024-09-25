@@ -59,9 +59,9 @@ window.wp = window.wp || {};
 			}
 		},
 
-		reloadToLoadRevisions: function( models, reverse_direction ) {
+		loadDiffs: function( models ) {
 			var self = this,
-				revisionsToLoad = models.where( { revision_toload: true } ),
+				revisionsToLoad = models.where( { completed: false } ),
 				delay = 0;
 
 			// match slider to passed revision_id
@@ -77,29 +77,29 @@ window.wp = window.wp || {};
 							add: false,
 							remove: false,
 							success: function( model ) {
-								model.set( 'revision_toload', 'false' );
+								model.set( 'completed', true );
 
 								// stop spinner when all models are loaded
-								if ( 0 === models.where( { revision_toload: true } ).length )
+								if ( 0 === models.where( { completed: false } ).length )
 									self.stopModelLoadingSpinner();
 
 								self.tickmarkView.render();
 
-								var total_changes = model.get( 'lines_added' ) + model.get( 'lines_deleted'),
-									scope_of_changes = 'vsmall';
+								var totalChanges = model.get( 'linesAdded' ) + model.get( 'linesDeleted' ),
+									scopeOfChanges = 'vsmall';
 
 								// Note: hard coded scope of changes
 								// TODO change to dynamic based on range of values
-								if  ( total_changes > 1 && total_changes <= 3 ) {
-									scope_of_changes = 'small';
-								} else if( total_changes > 3 && total_changes <= 5 ) {
-									scope_of_changes = 'med';
-								} else if( total_changes > 5 && total_changes <= 10 ) {
-									scope_of_changes = 'large';
-								} else if( total_changes > 10 ) {
-									scope_of_changes = 'vlarge';
+								if ( totalChanges > 1 && totalChanges <= 3 ) {
+									scopeOfChanges = 'small';
+								} else if ( totalChanges > 3 && totalChanges <= 5 ) {
+									scopeOfChanges = 'med';
+								} else if ( totalChanges > 5 && totalChanges <= 10 ) {
+									scopeOfChanges = 'large';
+								} else if ( totalChanges > 10 ) {
+									scopeOfChanges = 'vlarge';
 								}
-								model.set( 'scope_of_changes', scope_of_changes );
+								model.set( 'scopeOfChanges', scopeOfChanges );
 								if ( 0 !== self.rightDiff &&
 									model.get( 'ID' ) === self.revisions.at( self.rightDiff - 1 ).get( 'ID' ) ) {
 									// reload if current model refreshed
@@ -149,19 +149,19 @@ window.wp = window.wp || {};
 		reloadModelSingle: function() {
 			var self = this;
 
-			// TODO: Only updates the query args yet
+			self.startRightModelLoading();
+
 			self.revisions.reload({
+				options: {
 				'showAutosaves': self.autosaves,
 				'showSplitView': self.showSplitView
-			});
+				},
 
-			self.startRightModelLoading();
-			self.revisions.fetch({ // reload revision data
 				success: function() {
 					var revisionCount = self.revisions.length;
 					self.revisionView.model = self.revisions;
 					self.revisionView.render();
-					self.reloadToLoadRevisions( self.revisions );
+					self.loadDiffs( self.revisions );
 					self.tickmarkView.model = self.revisions;
 					self.tickmarkView.render();
 					self.slider.refresh({
@@ -173,7 +173,6 @@ window.wp = window.wp || {};
 				error: function() {
 					self.stopRightModelLoading();
 				}
-
 			});
 		},
 
@@ -191,7 +190,7 @@ window.wp = window.wp || {};
 			self.leftHandleRevisions.fetch({
 				success: function(){
 					self.stopLeftModelLoading();
-					self.reloadToLoadRevisions( self.leftHandleRevisions );
+					self.loadDiffs( self.leftHandleRevisions );
 					self.tickmarkView.model = self.leftHandleRevisions;
 					self.slider.refresh({
 						'max': self.revisions.length
@@ -213,7 +212,7 @@ window.wp = window.wp || {};
 			var self = this;
 			self.startRightModelLoading();
 			self.rightHandleRevisions = new Revisions( {}, {
-				'compareTo': self.revisions.at( self.leftDiff ).get( 'ID' ) - 1,
+				'compareTo': self.revisions.at( self.leftDiff - 1 ).get( 'ID' ),
 				'showAutosaves': self.autosaves,
 				'showSplitView': self.showSplitView,
 				'leftHandleAt': self.leftDiff
@@ -222,7 +221,7 @@ window.wp = window.wp || {};
 			self.rightHandleRevisions.fetch({
 				success: function(){
 					self.stopRightModelLoading();
-					self.reloadToLoadRevisions( self.rightHandleRevisions );
+					self.loadDiffs( self.rightHandleRevisions );
 					self.tickmarkView.model = self.rightHandleRevisions;
 					self.slider.refresh({
 						'max': self.revisions.length,
@@ -244,13 +243,31 @@ window.wp = window.wp || {};
 			this.reloadRight();
 		},
 
+		disabledButtonCheck: function( val ) {
+			var maxVal = this.revisions.length - 1,
+				next = $( '#next' ),
+				prev = $( '#previous' );
+
+			// Disable "Next" button if you're on the last node
+			if ( maxVal === val )
+				next.prop( 'disabled', true );
+			else
+				next.prop( 'disabled', false );
+
+			// Disable "Previous" button if you're on the 0 node
+			if ( 0 === val )
+				prev.prop( 'disabled', true );
+			else
+				prev.prop( 'disabled', false );
+		},
+
 		completeApplicationSetup: function() {
 			this.revisionView = new revisions.view.Diff({
 				model: this.revisions
 			});
 			this.revisionView.render();
 
-			this.reloadToLoadRevisions( this.revisions );
+			this.loadDiffs( this.revisions );
 
 			this.revisionsInteractions = new revisions.view.Interact({
 				model: this.revisions
@@ -262,7 +279,6 @@ window.wp = window.wp || {};
 			});
 			this.tickmarkView.render();
 			this.tickmarkView.resetTicks();
-
 		}
 	});
 
@@ -295,6 +311,7 @@ window.wp = window.wp || {};
 			if ( this.singleRevision ) {
 				Diff.rightDiff = ( ui.value + 1 );
 				Diff.revisionView.render();
+				Diff.disabledButtonCheck( ui.value );
 			} else {
 				if ( ui.values[0] === ui.values[1] ) // prevent compare to self
 					return false;
@@ -314,9 +331,9 @@ window.wp = window.wp || {};
 				}
 
 				if ( 0 === Diff.leftDiff ) {
-					$( '#revision-diff-container' ).addClass( 'currentversion' );
+					$( '#revision-diff-container' ).addClass( 'current-version' );
 				} else {
-					$( '#revision-diff-container' ).removeClass( 'currentversion' );
+					$( '#revision-diff-container' ).removeClass( 'current-version' );
 				}
 
 				Diff.revisionView.render();
@@ -380,28 +397,7 @@ window.wp = window.wp || {};
 		},
 
 		addTooltip: function( handle, message ) {
-			handle.attr( 'title', '' ).tooltip({
-				track: false,
-
-				position: {
-					my: "left-30 top-66",
-					at: "top left",
-					using: function( position, feedback ) {
-						$( this ).css( position );
-						$( "<div>" )
-						.addClass( "arrow" )
-						.addClass( feedback.vertical )
-						.addClass( feedback.horizontal )
-						.appendTo( $( this ) );
-					}
-				},
-				show: false,
-				hide: false,
-				content:  function() {
-					return message;
-				}
-
-			} );
+			handle.find( '.ui-slider-tooltip' ).html( message );
 		},
 
 		width: function() {
@@ -409,15 +405,21 @@ window.wp = window.wp || {};
 		},
 
 		setWidth: function( width ) {
-			return $( '#diff-slider' ).width( width );
+			$( '#diff-slider' ).width( width );
 		},
 
 		refresh: function( options, slide ) {
 			$( '#diff-slider' ).slider( 'option', options );
 
+			// reset all of the slider tooltips during a refresh, but not on prev/next button actions
+			if ( ! slide )
+				$( 'a.ui-slider-handle' ).html( '<span class="ui-slider-tooltip ui-widget-content ui-corner-all"></span>' );
+
 			// Triggers the slide event
 			if ( slide )
 				$( '#diff-slider' ).trigger( 'slide' );
+
+			Diff.disabledButtonCheck( options.value );
 		},
 
 		option: function( key ) {
@@ -449,10 +451,10 @@ window.wp = window.wp || {};
 		model: Revision,
 
 		resetTicks: function() {
-			var sliderMax = Diff.slider.option( 'max' );
+			var sliderMax   = Diff.slider.option( 'max' );
 			var sliderWidth = Diff.slider.width();
-			var adjustMax = Diff.singleRevision ? 0 : 1;
-			var tickWidth = Math.floor( sliderWidth / ( sliderMax - adjustMax ) );
+			var adjustMax   = Diff.singleRevision ? 0 : 1;
+			var tickWidth   = Math.floor( sliderWidth / ( sliderMax - adjustMax ) );
 
 			// TODO: adjust right margins for wider ticks so they stay centered on handle stop point
 
@@ -473,9 +475,6 @@ window.wp = window.wp || {};
 					$(this).css( 'margin-right', tickWidth - 1 + 'px'); // space the ticks out using right margin
 				});
 
-				if( ! Diff.singleRevision ) {
-					$( '.revision-tick' ).first().remove(); // TODO - remove the check
-				}
 				$( '.revision-tick' ).last().css( 'margin-right', '0' ); // last tick gets no right margin
 			}
 
@@ -630,18 +629,18 @@ window.wp = window.wp || {};
 					( Diff.rightDiff > Diff.revisions.length ) ? '' : Diff.revisions.at( Diff.rightDiff - 1 ).get( 'titleTooltip' ) );
 			}
 
-			this.toogleCompareTwoCheckbox();
+			this.toggleCompareTwoCheckbox();
 
 			// hide the restore button when on the last sport/current post data
-			$( '#restore-revision' ).toggle( ! Diff.revisions.at( Diff.rightDiff - 1 ).get( 'is_current_revision' ) );
+			$( '#restore-revision' ).toggle( ! Diff.revisions.at( Diff.rightDiff - 1 ).get( 'isCurrent' ) );
 
 			return this;
 		},
 
-		toogleCompareTwoCheckbox: function() {
+		toggleCompareTwoCheckbox: function() {
 			// don't allow compare two if fewer than three revisions
 			if ( this.model.length < 3 )
-				$( '#toogle-revision-compare-mode' ).hide();
+				$( '#toggle-revision-compare-mode' ).hide();
 
 			$( '#compare-two-revisions' ).prop( 'checked', ! Diff.singleRevision );
 		},
@@ -670,7 +669,7 @@ window.wp = window.wp || {};
 		},
 
 		restore: function() {
-			document.location = $( '#restore' ).data( 'restoreLink' );
+			document.location = $( '#restore-revision' ).data( 'restoreLink' );
 		}
 	});
 
@@ -686,8 +685,7 @@ window.wp = window.wp || {};
 	 */
 	Revision = revisions.model.Revision = Backbone.Model.extend({
 		idAttribute: 'ID',
-		urlRoot: ajaxurl +	'?action=revisions-data' +
-			'&show_autosaves=true&show_split_view=true&nonce=' + revisions.model.settings.nonce,
+
 		defaults: {
 			ID: 0,
 			titleTo: '',
@@ -695,19 +693,23 @@ window.wp = window.wp || {};
 			titleFrom: '',
 			diff: '<div class="diff-loading"><div class="spinner"></div></div>',
 			restoreLink: '',
-			revision_toload: false,
-			lines_added: 0,
-			lines_deleted: 0,
-			scope_of_changes: 'none',
-			previous_revision_id: 0,
-			is_current_revision: false
+			completed: false,
+			linesAdded: 0,
+			linesDeleted: 0,
+			scopeOfChanges: 'none',
+			previousID: 0,
+			isCurrent: false
 		},
 
 		url: function() {
 			if ( Diff.singleRevision ) {
-				return this.urlRoot +
+				return ajaxurl +
+					'?action=revisions-data' +
+					'&show_autosaves=true' +
+					'&show_split_view=true' +
+					'&nonce=' + revisions.model.settings.nonce +
 					'&single_revision_id=' + this.id +
-					'&compare_to=' + this.get( 'previous_revision_id' ) +
+					'&compare_to=' + this.get( 'previousID' ) +
 					'&post_id=' + revisions.model.settings.post_id;
 			} else {
 				return this.collection.url() + '&single_revision_id=' + this.id;
@@ -721,7 +723,6 @@ window.wp = window.wp || {};
 	 */
 	Revisions = revisions.Revisions = Backbone.Collection.extend({
 		model: Revision,
-		urlRoot: ajaxurl + '?action=revisions-data',
 
 		initialize: function( models, options ) {
 			this.options = _.defaults( options || {}, {
@@ -736,7 +737,8 @@ window.wp = window.wp || {};
 		},
 
 		url: function() {
-			return this.urlRoot +
+			return ajaxurl +
+				'?action=revisions-data' +
 				'&compare_to=' + this.options.compareTo +
 				'&post_id=' + this.options.post_id +
 				'&show_autosaves=' + this.options.showAutosaves +
@@ -747,10 +749,12 @@ window.wp = window.wp || {};
 		},
 
 		reload: function( options ) {
-			this.options = _.defaults( options || {}, this.options );
+			this.options = _.defaults( options.options || {}, this.options );
 
-			// TODO
-			//this.fetch();
+			this.fetch({
+				success: options.success || null,
+				error: options.error || null
+			});
 		}
 
 	} );

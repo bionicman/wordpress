@@ -153,16 +153,9 @@ function get_template_part( $slug, $name = null ) {
  * @return string|null String when retrieving, null when displaying or if searchform.php exists.
  */
 function get_search_form( $echo = true ) {
-	static $search_form_counter = 0;
-
 	do_action( 'pre_get_search_form' );
 
 	$format = apply_filters( 'search_form_format', 'xhtml' );
-
-	// Initialize the values
-	$form_id   = $search_form_counter ? '' : ' id="searchform"';
-	$submit_id = $search_form_counter ? '' : ' id="searchsubmit"';
-	$text_id   = $search_form_counter ? 's-' . $search_form_counter : 's';
 
 	$search_form_template = locate_template( 'searchform.php' );
 	if ( '' != $search_form_template ) {
@@ -171,21 +164,19 @@ function get_search_form( $echo = true ) {
 		$form = ob_get_clean();
 	} else {
 		if ( 'html5' == $format ) {
-			$form = '<form role="search" method="get" class="searchform" action="' . esc_url( home_url( '/' ) ) . '"> 
-				<div> 
-					<label><span class="screen-reader-text">' . _x( 'Search for:', 'label' ) . '</span> 
-						<input type="search" placeholder="' . esc_attr_x( 'Search &hellip;', 'placeholder' ) . '" value="' . get_search_query() . '" name="s" title="' . _x( 'Search for:', 'label' ) . '" /> 
-					</label> 
-					<input type="submit" class="searchsubmit" value="'. esc_attr_x( 'Search', 'submit button' ) .'" /> 
-				</div> 
-			</form>'; 
-		} else { 
-			$form = '<form role="search" method="get"' . $form_id . ' class="searchform" action="' . esc_url( home_url( '/' ) ) . '"> 
-				<div> 
-					<label class="screen-reader-text" for="' . $text_id . '">' . _x( 'Search for:', 'label' ) . '</label> 
-					<input type="text" value="' . get_search_query() . '" name="s" id="' . $text_id . '" /> 
-					<input type="submit"' . $submit_id . ' value="'. esc_attr_x( 'Search', 'submit button' ) .'" /> 
-				</div> 
+			$form = '<form role="search" method="get" class="searchform" action="' . esc_url( home_url( '/' ) ) . '">
+				<label><span class="screen-reader-text">' . _x( 'Search for:', 'label' ) . '</span>
+					<input type="search" placeholder="' . esc_attr_x( 'Search &hellip;', 'placeholder' ) . '" value="' . get_search_query() . '" name="s" title="' . _x( 'Search for:', 'label' ) . '" />
+				</label>
+				<input type="submit" class="searchsubmit" value="'. esc_attr_x( 'Search', 'submit button' ) .'" />
+			</form>';
+		} else {
+			$form = '<form role="search" method="get" id="searchform" class="searchform" action="' . esc_url( home_url( '/' ) ) . '">
+				<div>
+					<label class="screen-reader-text" for="s">' . _x( 'Search for:', 'label' ) . '</label>
+					<input type="text" value="' . get_search_query() . '" name="s" id="s" />
+					<input type="submit" id="searchsubmit" value="'. esc_attr_x( 'Search', 'submit button' ) .'" />
+				</div>
 			</form>';
 		}
 	}
@@ -193,8 +184,6 @@ function get_search_form( $echo = true ) {
 	$result = apply_filters( 'get_search_form', $form );
 	if ( null === $result )
 		$result = $form;
-
-	$search_form_counter++;
 
 	if ( $echo )
 		echo $result;
@@ -230,12 +219,12 @@ function wp_loginout($redirect = '', $echo = true) {
 /**
  * Returns the Log Out URL.
  *
- * Returns the URL that allows the user to log out of the site
+ * Returns the URL that allows the user to log out of the site.
  *
  * @since 2.7.0
- * @uses wp_nonce_url() To protect against CSRF
- * @uses site_url() To generate the log in URL
- * @uses apply_filters() calls 'logout_url' hook on final logout url
+ * @uses wp_nonce_url() To protect against CSRF.
+ * @uses site_url() To generate the log out URL.
+ * @uses apply_filters() calls 'logout_url' hook on final logout URL.
  *
  * @param string $redirect Path to redirect to on logout.
  * @return string A log out URL.
@@ -255,11 +244,11 @@ function wp_logout_url($redirect = '') {
 /**
  * Returns the Log In URL.
  *
- * Returns the URL that allows the user to log in to the site
+ * Returns the URL that allows the user to log in to the site.
  *
  * @since 2.7.0
- * @uses site_url() To generate the log in URL
- * @uses apply_filters() calls 'login_url' hook on final login url
+ * @uses site_url() To generate the log in URL.
+ * @uses apply_filters() calls 'login_url' hook on final login URL.
  *
  * @param string $redirect Path to redirect to on login.
  * @param bool $force_reauth Whether to force reauthorization, even if a cookie is present. Default is false.
@@ -275,6 +264,21 @@ function wp_login_url($redirect = '', $force_reauth = false) {
 		$login_url = add_query_arg('reauth', '1', $login_url);
 
 	return apply_filters('login_url', $login_url, $redirect);
+}
+
+/**
+ * Returns the user registration URL.
+ *
+ * Returns the URL that allows the user to register on the site.
+ *
+ * @since 3.6.0
+ * @uses site_url() To generate the registration URL.
+ * @uses apply_filters() calls 'register_url' hook on final URL.
+ *
+ * @return string
+ */
+function wp_registration_url() {
+	return apply_filters( 'register_url', site_url( 'wp-login.php?action=register', 'login' ) );
 }
 
 /**
@@ -370,7 +374,7 @@ function wp_register( $before = '<li>', $after = '</li>', $echo = true ) {
 
 	if ( ! is_user_logged_in() ) {
 		if ( get_option('users_can_register') )
-			$link = $before . '<a href="' . site_url('wp-login.php?action=register', 'login') . '">' . __('Register') . '</a>' . $after;
+			$link = $before . '<a href="' . esc_url( wp_registration_url() ) . '">' . __('Register') . '</a>' . $after;
 		else
 			$link = '';
 	} else {

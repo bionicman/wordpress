@@ -144,6 +144,12 @@
 
 			shortcode = {};
 
+			if ( attachment.width )
+				shortcode.width = attachment.width;
+
+			if ( attachment.height )
+				shortcode.height = attachment.height;
+
 			if ( props.mime ) {
 				switch ( props.mime ) {
 				case 'video/mp4':
@@ -165,7 +171,7 @@
 					break;
 				case 'video/flv':
 				case 'video/x-flv':
-					shortcode.flv = attachment.url
+					shortcode.flv = attachment.url;
 					break;
 				}
 			}
@@ -185,7 +191,7 @@
 			props = wp.media.string.props( props, attachment );
 			classes = props.classes || [];
 
-			img.src = props.url;
+			img.src = typeof attachment !== 'undefined' ? attachment.url : props.url;
 			_.extend( img, _.pick( props, 'width', 'height', 'alt' ) );
 
 			// Only assign the align class to the image if we're not printing
@@ -532,9 +538,6 @@
 		add: function( id, options ) {
 			var workflow = this.get( id );
 
-			if ( workflow )
-				return workflow;
-
 			workflow = workflows[ id ] = wp.media( _.defaults( options || {}, {
 				frame:    'post',
 				state:    'insert',
@@ -686,8 +689,10 @@
 			}
 		},
 
-		open: function( id ) {
+		open: function( id, options ) {
 			var workflow, editor;
+
+			options = options || {};
 
 			id = this.id( id );
 
@@ -703,9 +708,9 @@
 
 			workflow = this.get( id );
 
-			// Initialize the editor's workflow if we haven't yet.
-			if ( ! workflow )
-				workflow = this.add( id );
+			// Redo workflow if state has changed
+			if ( ! workflow || ( workflow.options && options.state !== workflow.options.state ) )
+				workflow = this.add( id, options );
 
 			return workflow.open();
 		},
@@ -713,7 +718,13 @@
 		init: function() {
 			$(document.body).on( 'click', '.insert-media', function( event ) {
 				var $this = $(this),
-					editor = $this.data('editor');
+					editor = $this.data('editor'),
+					options = {
+						frame:    'post',
+						state:    'insert',
+						title:    wp.media.view.l10n.addMedia,
+						multiple: true
+					};
 
 				event.preventDefault();
 
@@ -724,7 +735,12 @@
 				// See: http://core.trac.wordpress.org/ticket/22445
 				$this.blur();
 
-				wp.media.editor.open( editor );
+				if ( $this.hasClass( 'gallery' ) ) {
+					options.state = 'gallery';
+					options.title = wp.media.view.l10n.createGalleryTitle;
+				}
+
+				wp.media.editor.open( editor, options );
 			});
 		}
 	};

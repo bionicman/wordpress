@@ -276,15 +276,27 @@ $(document).on( 'heartbeat-tick.refresh-lock', function( e, data ) {
 			// show "editing taken over" message
 			wrap = $('#notification-dialog-wrap');
 
-			if ( ! wrap.is(':visible') ) {
-				autosave();
+			if ( wrap.length && ! wrap.is(':visible') ) {
+				if ( typeof autosave == 'function' ) {
+					$(document).on('autosave-disable-buttons.post-lock', function() {
+						wrap.addClass('saving');
+					}).on('autosave-enable-buttons.post-lock', function() {
+						wrap.removeClass('saving').addClass('saved');
+						window.onbeforeunload = null;
+					});
+
+					// Save the latest changes and disable
+					autosave();
+					autosave = function(){};
+				}
 
 				if ( received.lock_error.avatar_src ) {
 					avatar = $('<img class="avatar avatar-64 photo" width="64" height="64" />').attr( 'src', received.lock_error.avatar_src.replace(/&amp;/g, '&') );
 					wrap.find('div.post-locked-avatar').empty().append( avatar );
 				}
 
-				wrap.show().find('p.currently-editing').text( received.lock_error.text ).focus();
+				wrap.show().find('.currently-editing').text( received.lock_error.text );
+				wrap.find('.wp-tab-first').focus();
 			}
 		} else if ( received.new_lock ) {
 			$('#active_post_lock').val( received.new_lock );
@@ -359,8 +371,8 @@ jQuery(document).ready( function($) {
 
 		$('#new' + taxonomy).keypress( function(event){
 			if( 13 === event.keyCode ) {
-				 event.preventDefault();
-				 $('#' + taxonomy + '-add-submit').click();
+				event.preventDefault();
+				$('#' + taxonomy + '-add-submit').click();
 			}
 		});
 		$('#' + taxonomy + '-add-submit').click( function(){ $('#new' + taxonomy).focus(); });
@@ -397,7 +409,7 @@ jQuery(document).ready( function($) {
 			return false;
 		});
 
-		$('#' + taxonomy + 'checklist, #' + taxonomy + 'checklist-pop').on( 'click', 'input[type="checkbox"]', function() {
+		$('#' + taxonomy + 'checklist, #' + taxonomy + 'checklist-pop').on( 'click', 'li.popular-category > label input[type="checkbox"]', function() {
 			var t = $(this), c = t.is(':checked'), id = t.val();
 			if ( id && t.parents('#taxonomy-'+taxonomy).length )
 				$('#in-' + taxonomy + '-' + id + ', #in-popular-' + taxonomy + '-' + id).prop( 'checked', c );
@@ -471,11 +483,12 @@ jQuery(document).ready( function($) {
 			} else {
 				$('#timestamp').html(
 					publishOn + ' <b>' +
-					$('option[value="' + $('#mm').val() + '"]', '#mm').text() + ' ' +
-					jj + ', ' +
-					aa + ' @ ' +
-					hh + ':' +
-					mn + '</b> '
+					postL10n.dateFormat.replace( '%1$s', $('option[value="' + $('#mm').val() + '"]', '#mm').text() )
+						.replace( '%2$s', jj )
+						.replace( '%3$s', aa )
+						.replace( '%4$s', hh )
+						.replace( '%5$s', mn )
+					+ '</b> '
 				);
 			}
 
@@ -670,7 +683,7 @@ jQuery(document).ready( function($) {
 			}
 
 			slug_value = ( c > full.length / 4 ) ? '' : full;
-			e.html('<input type="text" id="new-post-slug" value="'+slug_value+'" />').children('input').keypress(function(e){
+			e.html('<input type="text" id="new-post-slug" value="'+slug_value+'" />').children('input').keypress(function(e) {
 				var key = e.keyCode || 0;
 				// on enter, just save the new slug, don't save the post
 				if ( 13 == key ) {
@@ -681,6 +694,7 @@ jQuery(document).ready( function($) {
 					b.children('.cancel').click();
 					return false;
 				}
+			}).keyup(function(e) {
 				real_slug.val(this.value);
 			}).focus();
 		}

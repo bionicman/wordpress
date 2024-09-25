@@ -1369,9 +1369,9 @@ function zeroise($number, $threshold) {
  * @return string String with backslashes inserted.
  */
 function backslashit($string) {
-	$string = preg_replace('/^([0-9])/', '\\\\\\\\\1', $string);
-	$string = preg_replace('/([a-z])/i', '\\\\\1', $string);
-	return $string;
+	if ( isset( $string[0] ) && $string[0] >= '0' && $string[0] <= '9' )
+		$string = '\\\\' . $string;
+	return addcslashes( $string, 'A..Za..z' );
 }
 
 /**
@@ -2246,7 +2246,6 @@ function ent2ncr($text) {
 	$to_ncr = array(
 		'&quot;' => '&#34;',
 		'&amp;' => '&#38;',
-		'&frasl;' => '&#47;',
 		'&lt;' => '&#60;',
 		'&gt;' => '&#62;',
 		'|' => '&#124;',
@@ -3265,7 +3264,6 @@ function sanitize_text_field($str) {
 		$filtered = trim( preg_replace('/[\r\n\t ]+/', ' ', $filtered) );
 	}
 
-	$match = array();
 	$found = false;
 	while ( preg_match('/%[a-f0-9]{2}/i', $filtered, $match) ) {
 		$filtered = str_replace($match[0], '', $filtered);

@@ -2656,7 +2656,9 @@ function wp_insert_post($postarr, $wp_error = false) {
 	}
 
 	$maybe_empty = ! $post_content && ! $post_title && ! $post_excerpt && post_type_supports( $post_type, 'editor' )
-		&& post_type_supports( $post_type, 'title' ) && post_type_supports( $post_type, 'excerpt' );
+		&& post_type_supports( $post_type, 'title' ) && post_type_supports( $post_type, 'excerpt' )
+		&& ! in_array( get_post_format( $post_ID ), array( 'audio', 'video', 'quote', 'image' ) );
+
 	if ( apply_filters( 'wp_insert_post_empty_content', $maybe_empty, $postarr ) ) {
 		if ( $wp_error )
 			return new WP_Error( 'empty_content', __( 'Content, title, and excerpt are empty.' ) );
@@ -4784,7 +4786,7 @@ function _transition_post_status($new_status, $old_status, $post) {
  *   wp_transition_post_status() and the default filter for _future_post_hook().
  * @param object $post Object type containing the post information
  */
-function _future_post_hook( $deprecated = '', $post ) {
+function _future_post_hook( $deprecated, $post ) {
 	wp_clear_scheduled_hook( 'publish_future_post', array( $post->ID ) );
 	wp_schedule_single_event( strtotime( get_gmt_from_date( $post->post_date ) . ' GMT') , 'publish_future_post', array( $post->ID ) );
 }

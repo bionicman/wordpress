@@ -1,9 +1,11 @@
 /*
 Styles for older IE versions (previous to IE9).
 */
+
 .site {
 	min-width: 1040px;
 }
+
 .genericon:before:hover,
 .menu-toggle:after:hover,
 .date a:before:hover,
@@ -32,11 +34,12 @@ Styles for older IE versions (previous to IE9).
 	left: 100%;
 }
 
-.site-header hgroup {
+.site-header .home-link {
 	max-width: 1040px;
 }
 
-.site-header .searchform [type="search"] {
+.site-header .searchform [type="search"],
+.site-header .searchform [type="text"] {
 	padding-top: 6px;
 }
 
@@ -60,6 +63,26 @@ img.alignleft {
 	max-width: 604px;
 	margin: 0;
 }
+
+.gallery-columns-1 .gallery-item,
+.gallery-columns-2 .gallery-item,
+.gallery-columns-3 .gallery-item {
+	max-width: none;
+}
+
+.gallery img {
+	width: auto;
+}
+
+.gallery-caption {
+	background: #000;
+	filter: alpha(opacity=0);
+}
+
+.gallery-item:hover .gallery-caption {
+	filter: alpha(opacity=70);
+}
+
 .comment {
 	clear: both;
 }
@@ -207,12 +230,14 @@ img.alignleft {
 	left: 100%;
 }
 
-.ie7 .site-header .searchform [type="search"] {
+.ie7 .site-header .searchform [type="search"],
+.ie7 .site-header .searchform [type="text"] {
 	background-color: #fff;
 	border: 2px solid #c3c0ab;
 	cursor: text;
 	outline: 0;
 	width: 150px;
+	height: 28px;
 }
 
 .ie7 .entry-header,

@@ -276,11 +276,6 @@ function update_user_option( $user_id, $option_name, $newvalue, $global = false 
 	if ( !$global )
 		$option_name = $wpdb->prefix . $option_name;
 
-	// For backward compatibility. See differences between update_user_meta() and deprecated update_usermeta().
-	// http://core.trac.wordpress.org/ticket/13088
-	if ( is_null( $newvalue ) || is_scalar( $newvalue ) && empty( $newvalue ) )
-		return delete_user_meta( $user_id, $option_name );
-
 	return update_user_meta( $user_id, $option_name, $newvalue );
 }
 
@@ -479,6 +474,8 @@ class WP_User_Query {
 				else
 					$search_columns = array('user_login', 'user_nicename');
 			}
+
+			$search_columns = apply_filters( 'user_search_columns', $search_columns, $search, $this );
 
 			$this->query_where .= $this->get_search_sql( $search, $search_columns, $wild );
 		}

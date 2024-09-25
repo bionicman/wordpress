@@ -227,6 +227,7 @@ function autosave_loading() {
 }
 
 function autosave_enable_buttons() {
+	jQuery(document).trigger('autosave-enable-buttons');
 	if ( ! wp.heartbeat.connectionLost ) {
 		// delay that a bit to avoid some rare collisions while the DOM is being updated.
 		setTimeout(function(){
@@ -238,6 +239,7 @@ function autosave_enable_buttons() {
 }
 
 function autosave_disable_buttons() {
+	jQuery(document).trigger('autosave-disable-buttons');
 	jQuery('#submitpost').find(':button, :submit').prop('disabled', true);
 	// Re-enable 5 sec later. Just gives autosave a head start to avoid collisions.
 	setTimeout( autosave_enable_buttons, 5000 );
@@ -305,7 +307,7 @@ wp.autosave = wp.autosave || {};
 (function($){
 // Returns the data for saving in both localStorage and autosaves to the server
 wp.autosave.getPostData = function() {
-	var ed = typeof tinymce != 'undefined' ? tinymce.activeEditor : null, post_name, parent_id, cats = [],
+	var ed = typeof tinymce != 'undefined' ? tinymce.activeEditor : null, post_name, parent_id, post_format, cats = [],
 		data = {
 			action: 'autosave',
 			autosave: true,
@@ -363,6 +365,13 @@ wp.autosave.getPostData = function() {
 
 	if ( $('#auto_draft').val() == '1' )
 		data['auto_draft'] = '1';
+
+	post_format = $('#post_format').val() || '';
+	data['post_format'] = post_format == 'standard' ? '' : post_format;
+
+	$('.post-formats-fields').find('input[name^="_format_"], textarea[name^="_format_"]').each( function(i, field) {
+		data[ field.name ] = field.value || '';
+	});
 
 	return data;
 }

@@ -99,6 +99,7 @@ td {
 .bypostauthor .fn:after,
 .error404 .page-title:after {
 	-webkit-font-smoothing: antialiased;
+	display: inline-block;
 	font: normal 16px/1 Genericons;
 	vertical-align: text-bottom;
 }
@@ -154,7 +155,8 @@ div.nav-menu > ul {
 	right: auto;
 }
 
-.site-header .searchform [type="search"] {
+.site-header .searchform [type="search"],
+.site-header .searchform [type="text"] {
 	background-position: 98% center;
 	padding: 0 34px 0 0;
 }
@@ -176,6 +178,11 @@ div.nav-menu > ul {
  * 5.0 Content
  * ----------------------------------------------------------------------------
  */
+
+.sidebar .entry-media {
+	padding-left: 316px;
+	padding-right: 0;
+}
 
 .sidebar .entry-header,
 .sidebar .entry-content,
@@ -316,19 +323,6 @@ div.nav-menu > ul {
  * ----------------------------------------------------------------------------
  */
 
-.format-aside .entry-content .date {
-	margin-left: auto;
-	margin-right: 20px;
-}
-
-.format-aside .entry-content .date a:before {
-	content: normal;
-}
-
-.format-aside .entry-content .date a:after {
-	content: "\f303";
-}
-
 .format-aside cite:before {
 	content: normal;
 	margin-right: auto;
@@ -347,6 +341,12 @@ div.nav-menu > ul {
 	-moz-transform:    scaleX(-1);
 	-o-transform:      scaleX(-1);
 	transform:         scaleX(-1);
+}
+
+.format-audio .entry-media,
+.sidebar .format-audio .entry-media {
+	padding-left: 374px;
+	padding-right: 60px;
 }
 
 .format-audio .audio-content {
@@ -519,6 +519,7 @@ div.nav-menu > ul {
 
 .post-navigation a[rel="next"] {
 	float: left;
+	text-align: left;
 }
 
 
@@ -536,7 +537,7 @@ div.nav-menu > ul {
 	padding-right: 60px;
 }
 
-.author-avatar {
+.author-avatar .avatar {
 	float: right;
 	margin: 0 0 30px 30px;
 }
@@ -588,12 +589,10 @@ div.nav-menu > ul {
 }
 
 .comment-author {
+	float: right;
 	margin-left: 50px;
 	margin-right: auto;
-	left: auto;
-	right: 0;
 }
-
 
 .bypostauthor .fn:before {
 	content: normal;
@@ -610,7 +609,7 @@ div.nav-menu > ul {
 	margin-right: 20px;
 }
 
-.comment-meta,
+.comment-metadata,
 .comment-content,
 .reply {
 	float: left;
@@ -650,7 +649,10 @@ div.nav-menu > ul {
 	content: normal;
 }
 
-#commentform label {
+#commentform [for="author"],
+#commentform [for="email"],
+#commentform [for="url"],
+#commentform [for="comment"] {
 	float: right;
 }
 
@@ -719,9 +721,6 @@ div.nav-menu > ul {
 	margin-left: 0;
 	margin-right: auto;
 }
-.site-info {
-	text-align: right;
-}
 
 
 /**
@@ -730,6 +729,13 @@ div.nav-menu > ul {
  */
 
 @media (max-width: 1069px) {
+	.sidebar .entry-media,
+	.format-audio .entry-media,
+	.sidebar .format-audio .entry-media {
+		padding-left: 376px;
+		padding-right: 60px;
+	}
+
 	ul.nav-menu,
 	div.nav-menu > ul {
 		margin-left: auto;
@@ -767,6 +773,13 @@ div.nav-menu > ul {
 	.author.sidebar .author-info,
 	.sidebar .format-image .entry-content {
 		max-width: 604px;
+		padding-left: 0;
+		padding-right: 0;
+	}
+
+	.sidebar .entry-media,
+	.format-audio .entry-media,
+	.sidebar .format-audio .entry-media {
 		padding-left: 0;
 		padding-right: 0;
 	}
@@ -876,6 +889,8 @@ div.nav-menu > ul {
 	}
 
 	.format-audio .audio-content {
+		background: none;
+		float: none;
 		padding-left: auto;
 		padding-right: 0;
 	}

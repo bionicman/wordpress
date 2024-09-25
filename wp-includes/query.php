@@ -2,8 +2,8 @@
 /**
  * WordPress Query API
  *
- * The query API attempts to get which part of WordPress to the user is on. It
- * also provides functionality to getting URL query information.
+ * The query API attempts to get which part of WordPress the user is on. It
+ * also provides functionality for getting URL query information.
  *
  * @link http://codex.wordpress.org/The_Loop More information on The Loop.
  *
@@ -2237,6 +2237,8 @@ class WP_Query {
 				}
 				if ( ! $post_type )
 					$post_type = 'any';
+				elseif ( count( $post_type ) == 1 )
+					$post_type = $post_type[0];
 
 				$post_status_join = true;
 			} elseif ( in_array('attachment', (array) $post_type) ) {
@@ -2403,9 +2405,11 @@ class WP_Query {
 				$orderby .= " {$q['order']}";
 		}
 
-		if ( is_array( $post_type ) ) {
+		if ( is_array( $post_type ) && count( $post_type ) > 1 ) {
 			$post_type_cap = 'multiple_post_type';
 		} else {
+			if ( is_array( $post_type ) )
+				$post_type = reset( $post_type );
 			$post_type_object = get_post_type_object( $post_type );
 			if ( empty( $post_type_object ) )
 				$post_type_cap = $post_type;
@@ -2809,7 +2813,7 @@ class WP_Query {
 	function set_found_posts( $q, $limits ) {
 		global $wpdb;
 
-		// Bail if posts is an empty array. Continue if posts is an empty string
+		// Bail if posts is an empty array. Continue if posts is an empty string,
 		// null, or false to accommodate caching plugins that fill posts later.
 		if ( $q['no_found_rows'] || ( is_array( $this->posts ) && ! $this->posts ) )
 			return;
@@ -3694,7 +3698,7 @@ function setup_postdata($post) {
 		$more = 1;
 	$split_content = $content = $post->post_content;
 	$format = get_post_format( $post );
-	if ( $format && in_array( $format, array( 'image', 'audio', 'video' ) ) ) {
+	if ( $format && in_array( $format, array( 'image', 'audio', 'video', 'quote' ) ) ) {
 		switch ( $format ) {
 		case 'image':
 			get_the_post_format_image( 'full', $post );
@@ -3702,12 +3706,17 @@ function setup_postdata($post) {
 				$split_content = $post->split_content;
 			break;
 		case 'audio':
-			get_the_post_format_media( 'audio', $post );
+			get_the_post_format_media( 'audio', $post, 1 );
 			if ( isset( $post->split_content ) )
 				$split_content = $post->split_content;
 			break;
 		case 'video':
-			get_the_post_format_media( 'video', $post );
+			get_the_post_format_media( 'video', $post, 1 );
+			if ( isset( $post->split_content ) )
+				$split_content = $post->split_content;
+			break;
+		case 'quote':
+			get_the_post_format_quote( $post );
 			if ( isset( $post->split_content ) )
 				$split_content = $post->split_content;
 			break;

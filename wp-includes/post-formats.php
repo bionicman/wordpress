@@ -11,12 +11,12 @@
  *
  * @since 3.1.0
  *
- * @param int|object $post A post
- *
- * @return mixed The format if successful. False if no format is set. WP_Error if errors.
+ * @param int|object $post Post ID or post object. Optional, default is the current post from the loop.
+ * @return mixed The format if successful. False otherwise.
  */
 function get_post_format( $post = null ) {
-	$post = get_post($post);
+	if ( ! $post = get_post( $post ) )
+		return false;
 
 	if ( ! post_type_supports( $post->post_type, 'post-formats' ) )
 		return false;
@@ -28,17 +28,18 @@ function get_post_format( $post = null ) {
 
 	$format = array_shift( $_format );
 
-	return ( str_replace('post-format-', '', $format->slug ) );
+	return str_replace('post-format-', '', $format->slug );
 }
 
 /**
  * Check if a post has a particular format
  *
  * @since 3.1.0
+ *
  * @uses has_term()
  *
- * @param string $format The format to check for
- * @param object|id $post The post to check. If not supplied, defaults to the current post if used in the loop.
+ * @param string $format The format to check for.
+ * @param object|int $post The post to check. If not supplied, defaults to the current post if used in the loop.
  * @return bool True if the post has the format, false otherwise.
  */
 function has_post_format( $format, $post = null ) {
@@ -50,25 +51,25 @@ function has_post_format( $format, $post = null ) {
  *
  * @since 3.1.0
  *
- * @param int|object $post The post for which to assign a format
- * @param string $format  A format to assign. Use an empty string or array to remove all formats from the post.
+ * @param int|object $post The post for which to assign a format.
+ * @param string $format A format to assign. Use an empty string or array to remove all formats from the post.
  * @return mixed WP_Error on error. Array of affected term IDs on success.
  */
 function set_post_format( $post, $format ) {
-	$post = get_post($post);
+	$post = get_post( $post );
 
-	if ( empty($post) )
-		return new WP_Error('invalid_post', __('Invalid post'));
+	if ( empty( $post ) )
+		return new WP_Error( 'invalid_post', __( 'Invalid post' ) );
 
-	if ( !empty($format) ) {
-		$format = sanitize_key($format);
-		if ( 'standard' == $format || !in_array( $format, array_keys( get_post_format_slugs() ) ) )
+	if ( ! empty( $format ) ) {
+		$format = sanitize_key( $format );
+		if ( 'standard' === $format || ! in_array( $format, get_post_format_slugs() ) )
 			$format = '';
 		else
 			$format = 'post-format-' . $format;
 	}
 
-	return wp_set_post_terms($post->ID, $format, 'post_format');
+	return wp_set_post_terms( $post->ID, $format, 'post_format' );
 }
 
 /**
@@ -76,24 +77,50 @@ function set_post_format( $post, $format ) {
  *
  * @since 3.6.0
  *
- * @param int $post_id
- * @return null
+ * @param int $post_id (optional) The post ID.
+ * @return array The array of post format metadata.
  */
 function get_post_format_meta( $post_id = 0 ) {
-	$values = array(
-		'quote'        => '',
-		'quote_source' => '',
-		'url'          => '',
-		'image'        => '',
-		'gallery'      => '',
-		'audio'        => '',
-		'video'        => '',
+	$meta = get_post_meta( $post_id );
+	$keys = array( 'quote', 'quote_source_name', 'quote_source_url', 'link_url', 'gallery', 'audio_embed', 'video_embed', 'url', 'image' );
+
+	if ( empty( $meta ) )
+		return array_fill_keys( $keys, '' );
+
+	$upgrade = array(
+		'_wp_format_quote_source' => 'quote_source_name',
+		'_wp_format_audio' => 'audio_embed',
+		'_wp_format_video' => 'video_embed'
 	);
 
-	foreach ( $values as $key => $value )
-		$values[$key] = get_post_meta( $post_id, '_wp_format_' . $key, true );
+	$format = get_post_format( $post_id );
+	if ( ! empty( $format ) ) {
+		switch ( $format ) {
+		case 'link':
+			$upgrade['_wp_format_url'] = 'link_url';
+			break;
+		case 'quote':
+			$upgrade['_wp_format_url'] = 'quote_source_url';
+			break;
+		}
+	}
 
-	return $values;
+	$upgrade_keys = array_keys( $upgrade );
+	foreach ( $meta as $key => $values ) {
+		if ( ! in_array( $key, $upgrade_keys ) )
+			continue;
+		update_post_meta( $post_id, '_format_' . $upgrade[$key], reset( $values ) );
+		delete_post_meta( $post_id, $key );
+	}
+
+	$values = array();
+
+	foreach ( $keys as $key ) {
+		$value = get_post_meta( $post_id, '_format_' . $key, true );
+		$values[$key] = empty( $value ) ? '' : $value;
+	}
+
+	return apply_filters( 'post_format_meta', $values );
 }
 
 /**
@@ -101,7 +128,7 @@ function get_post_format_meta( $post_id = 0 ) {
  *
  * @since 3.1.0
  *
- * @return array The array of translations
+ * @return array The array of translated post format names.
  */
 function get_post_format_strings() {
 	$strings = array(
@@ -124,6 +151,8 @@ function get_post_format_strings() {
  *
  * @since 3.1.0
  *
+ * @uses get_post_format_strings()
+ *
  * @return array The array of post format slugs.
  */
 function get_post_format_slugs() {
@@ -136,8 +165,10 @@ function get_post_format_slugs() {
  *
  * @since 3.1.0
  *
- * @param string $slug A post format slug
- * @return string The translated post format name
+ * @uses get_post_format_strings()
+ *
+ * @param string $slug A post format slug.
+ * @return string The translated post format name.
  */
 function get_post_format_string( $slug ) {
 	$strings = get_post_format_strings();
@@ -152,8 +183,8 @@ function get_post_format_string( $slug ) {
  *
  * @since 3.1.0
  *
- * @param string $format Post format
- * @return string Link
+ * @param string $format The post format slug.
+ * @return string The post format term link.
  */
 function get_post_format_link( $format ) {
 	$term = get_term_by('slug', 'post-format-' . $format, 'post_format' );
@@ -259,18 +290,19 @@ add_filter( 'wp_get_object_terms', '_post_format_wp_get_object_terms' );
  *
  * @since 3.6.0
  *
- * @param string $format
+ * @param string $format The post format slug, such as status, quote, image, gallery, etc.
+ * @return string Filtered post format content class.
  */
 function get_post_format_content_class( $format ) {
 	return apply_filters( 'post_format_content_class', 'post-format-content', $format );
 }
 
 /**
- * Ouput the class for a post format content wrapper
+ * Output the class for a post format content wrapper
  *
  * @since 3.6.0
  *
- * @param string $format
+ * @param string $format The post format slug, such as status, quote, image, gallery, etc.
  */
 function post_format_content_class( $format ) {
 	echo get_post_format_content_class( $format );
@@ -281,7 +313,11 @@ function post_format_content_class( $format ) {
  *
  * @since 3.6.0
  *
- * @param string $content
+ * @uses get_post_format_meta()
+ *
+ * @param string $content The post content.
+ * @param int $id (optional) The post ID.
+ * @return string Formatted output based on associated post format.
  */
 function post_formats_compat( $content, $id = 0 ) {
 	$post = empty( $id ) ? get_post() : get_post( $id );
@@ -311,14 +347,11 @@ function post_formats_compat( $content, $id = 0 ) {
 
 	switch ( $format ) {
 		case 'link':
-			$compat['tag'] = '';
-			$compat['position'] = 'before';
-
-			if ( ! empty( $meta['url'] ) ) {
-				$esc_url = preg_quote( $meta['url'], '#' );
+			if ( ! empty( $meta['link_url'] ) ) {
+				$esc_url = preg_quote( $meta['link_url'], '#' );
 				// Make sure the same URL isn't in the post (modified/extended versions allowed)
 				if ( ! preg_match( '#' . $esc_url . '[^/&\?]?#', $content ) ) {
-					$url = $meta['url'];
+					$url = $meta['link_url'];
 				} else {
 					$url = get_content_url( $content, true );
 				}
@@ -334,58 +367,75 @@ function post_formats_compat( $content, $id = 0 ) {
 					'<a %shref="%s">%s</a>',
 					empty( $compat['link_class'] ) ? '' : sprintf( 'class="%s" ', esc_attr( $compat['link_class'] ) ),
 					esc_url( $url ),
-					empty( $post->post_title ) ? esc_url( $meta['url'] ) : apply_filters( 'the_title', $post->post_title )
+					empty( $post->post_title ) ? esc_url( $meta['link_url'] ) : apply_filters( 'the_title', $post->post_title, $post->ID )
 				);
  			}
 			break;
 
 		case 'image':
 			if ( ! empty( $meta['image'] ) ) {
-				$image = is_numeric( $meta['image'] ) ? wp_get_attachment_url( $meta['image'] ) : $meta['image'];
 
-				if ( ! empty( $image ) && ! stristr( $content, $image ) ) {
-					$image_html = sprintf(
-						'<img %ssrc="%s" alt="" />',
-						empty( $compat['image_class'] ) ? '' : sprintf( 'class="%s" ', esc_attr( $compat['image_class'] ) ),
-						$image
-					);
-					if ( empty( $meta['url'] ) ) {
-						$format_output .= $image_html;
+				if ( has_shortcode( $meta['image'], 'caption' ) ) {
+					// wrap <img> in <a>
+					if ( ! empty( $meta['url'] ) && false === strpos( $meta['image'], '<a ' ) ) {
+						$meta['image'] = preg_replace(
+							'#(<img[^>]+>)#',
+							sprintf( '<a href="%s">$1</a>', esc_url( $meta['url'] ) ),
+							$meta['image']
+						);
+					}
+					$format_output .= do_shortcode( $meta['image'] );
+				} else {
+
+					if ( is_numeric( $meta['image'] ) ) {
+						$image = wp_get_attachment_image( absint( $meta['image'] ), 'full' );
+					} elseif ( ! preg_match( '#<[^>]+>#', $meta['image'] ) ) {
+						// not HTML, assume URL
+						$image = sprintf(
+							'<img %ssrc="%s" alt="" />',
+							empty( $compat['image_class'] ) ? '' : sprintf( 'class="%s" ', esc_attr( $compat['image_class'] ) ),
+							esc_url( $meta['image'] )
+						);
 					} else {
+						// assume HTML
+						$image = $meta['image'];
+					}
+
+					if ( ! empty( $meta['url'] ) && false === strpos( $image, '<a ' ) ) {
 						$format_output .= sprintf(
 							'<a href="%s">%s</a>',
 							esc_url( $meta['url'] ),
-							$image_html
+							$image
 						);
+					} else {
+						$format_output .= $image;
 					}
 				}
 			}
 			break;
 
 		case 'quote':
-			if ( ! empty( $meta['quote'] ) && ! stristr( $content, $meta['quote'] ) ) {
-				$quote = sprintf( '<blockquote>%s</blockquote>', wpautop( $meta['quote'] ) );
-				if ( ! empty( $meta['quote_source'] ) ) {
-					$source = ( empty( $meta['url'] ) ) ? $meta['quote_source'] : sprintf( '<a href="%s">%s</a>', esc_url( $meta['url'] ), $meta['quote_source'] );
-					$quote .= sprintf( '<figcaption class="quote-caption">%s</figcaption>', $source );
-				}
-				$format_output .= sprintf( '<figure class="quote">%s</figure>', $quote );
-			}
+			$quote = get_the_post_format_quote( $post );
+
+			// Replace the existing quote in-place.
+			if ( ! empty( $quote ) )
+				get_content_quote( $content, true, $quote );
 			break;
 
 		case 'video':
 		case 'audio':
-			if ( ! has_shortcode( $post->post_content, $format ) && ! empty( $meta[$format] ) ) {
+			if ( ! has_shortcode( $post->post_content, $format ) && ! empty( $meta[$format . '_embed'] ) ) {
+				$value = $meta[$format . '_embed'];
 				// the metadata is an attachment ID
-				if ( is_numeric( $meta[$format] ) ) {
-					$url = wp_get_attachment_url( $meta[$format] );
+				if ( is_numeric( $value ) ) {
+					$url = wp_get_attachment_url( $value );
 					$format_output .= sprintf( '[%s src="%s"]', $format, $url );
 				// the metadata is a shortcode or an embed code
-				} elseif ( preg_match( '/' . get_shortcode_regex() . '/s', $meta[$format] ) || preg_match( '#<[^>]+>#', $meta[$format] ) ) {
-					$format_output .= $meta[$format];
-				} elseif ( ! stristr( $content, $meta[$format] ) ) {
+				} elseif ( preg_match( '/' . get_shortcode_regex() . '/s', $value ) || preg_match( '#<[^>]+>#', $value ) ) {
+					$format_output .= $value;
+				} elseif ( ! stristr( $content, $value ) ) {
 					// attempt to embed the URL
-					$format_output .= sprintf( '[embed]%s[/embed]', $meta[$format] );
+					$format_output .= sprintf( '[embed]%s[/embed]', $value );
 				}
 			}
 			break;
@@ -422,6 +472,7 @@ function post_formats_compat( $content, $id = 0 ) {
  * @since 3.6.0
  *
  * @global array $_wp_chat_parsers
+ *
  * @param string $name Unique identifier for chat format. Example: IRC
  * @param string $newline_regex RegEx to match the start of a new line, typically when a new "username:" appears
  *	The parser will handle up to 3 matched expressions
@@ -442,7 +493,7 @@ function add_chat_detection_format( $name, $newline_regex, $delimiter_regex ) {
 	$_wp_chat_parsers = array( $name => array( $newline_regex, $delimiter_regex ) ) + $_wp_chat_parsers;
 }
 add_chat_detection_format( 'IM', '#^([^:]+):#', '#[:]#' );
-add_chat_detection_format( 'Skype', '#^(\[.+?\])\s([^:]+):#', '#[:]#' );
+add_chat_detection_format( 'Skype', '#(\[.+?\])\s([^:]+):#', '#[:]#' );
 
 /**
  * Deliberately interpret passed content as a chat transcript that is optionally
@@ -450,8 +501,6 @@ add_chat_detection_format( 'Skype', '#^(\[.+?\])\s([^:]+):#', '#[:]#' );
  *
  * If the content does not contain username syntax, assume that it does not contain
  * chat logs and return
- *
- * @since 3.6.0
  *
  * Example:
  *
@@ -473,14 +522,17 @@ add_chat_detection_format( 'Skype', '#^(\[.+?\])\s([^:]+):#', '#[:]#' );
  *         )
  *     )
  * )
- * @param string $content A string which might contain chat data.
+ *
+ * @since 3.6.0
+ *
+ * @param string $content A string which might contain chat data, passed by reference.
  * @param boolean $remove Whether to remove the found data from the passed content.
  * @return array A chat log as structured data
  */
 function get_content_chat( &$content, $remove = false ) {
 	global $_wp_chat_parsers;
 
-	$trimmed = trim( $content );
+	$trimmed = strip_tags( trim( $content ) );
 	if ( empty( $trimmed ) )
 		return array();
 
@@ -500,12 +552,16 @@ function get_content_chat( &$content, $remove = false ) {
 	$stanzas = $data = $stanza = array();
 	$author = $time = '';
 	$lines = explode( "\n", make_clickable( $trimmed ) );
-
+	$found = false;
+	$found_index = 0;
 
 	foreach ( $lines as $index => $line ) {
+		if ( ! $found )
+			$found_index = $index;
+
 		$line = trim( $line );
 
-		if ( empty( $line ) ) {
+		if ( empty( $line ) && $found ) {
 			if ( ! empty( $author ) ) {
 				$stanza[] = array(
 					'time'    => $time,
@@ -515,7 +571,7 @@ function get_content_chat( &$content, $remove = false ) {
 			}
 
 			$stanzas[] = $stanza;
-			$last_index = $index;
+
 			$stanza = $data = array();
 			$author = $time = '';
 			if ( ! empty( $lines[$index + 1] ) && ! preg_match( $delimiter_regex, $lines[$index + 1] ) )
@@ -524,13 +580,17 @@ function get_content_chat( &$content, $remove = false ) {
 				continue;
 		}
 
-		$matches = array();
 		$matched = preg_match( $newline_regex, $line, $matches );
+		if ( ! $matched )
+			continue;
+
+		$found = true;
+		$last_index = $index;
 		$author_match = empty( $matches[2] ) ? $matches[1] : $matches[2];
 		// assume username syntax if no whitespace is present
-		$no_ws = $matched && ! preg_match( '#\s#', $author_match );
+		$no_ws = $matched && ! preg_match( '#[\r\n\t ]#', $author_match );
 		// allow script-like stanzas
-		$has_ws = $matched && preg_match( '#\s#', $author_match ) && empty( $lines[$index + 1] ) && empty( $lines[$index - 1] );
+		$has_ws = $matched && preg_match( '#[\r\n\t ]#', $author_match ) && empty( $lines[$index + 1] ) && empty( $lines[$index - 1] );
 		if ( $matched && ( ! empty( $matches[2] ) || ( $no_ws || $has_ws ) ) ) {
 			if ( ! empty( $author ) ) {
 				$stanza[] = array(
@@ -560,8 +620,16 @@ function get_content_chat( &$content, $remove = false ) {
 	if ( ! empty( $stanza ) )
 		$stanzas[] = $stanza;
 
-	if ( $remove )
-		$content = trim( join( "\n", array_slice( $lines, $last_index ) ) );
+	if ( $remove ) {
+		if ( 0 === $found_index ) {
+			$removed = array_slice( $lines, $last_index );
+		} else {
+			$before = array_slice( $lines, 0, $found_index );
+			$after = array_slice( $lines, $last_index + 1 );
+			$removed = array_filter( array_merge( $before, $after ) );
+		}
+		$content = trim( join( "\n", $removed ) );
+	}
 
 	return $stanzas;
 }
@@ -571,8 +639,8 @@ function get_content_chat( &$content, $remove = false ) {
  *
  * @since 3.6.0
  *
- * @param int $id Optional. Post ID
- * @return array
+ * @param int $id (optional) The post ID.
+ * @return array The chat content.
  */
 function get_the_post_format_chat( $id = 0 ) {
 	$post = empty( $id ) ? clone get_post() : get_post( $id );
@@ -624,20 +692,94 @@ function the_post_format_chat() {
 }
 
 /**
+ * Get the first <blockquote> from the $content string passed by reference.
+ *
+ * If $content does not have a blockquote, assume the whole string
+ * is the quote.
+ *
+ * @since 3.6.0
+ *
+ * @param string $content A string which might contain chat data, passed by reference.
+ * @param bool $remove (optional) Whether to remove the quote from the content.
+ * @param string $replace (optional) Content to replace the quote content with.
+ * @return string The quote content.
+ */
+function get_content_quote( &$content, $remove = false, $replace = '' ) {
+	if ( empty( $content ) )
+		return '';
+
+	if ( ! preg_match( '/<blockquote[^>]*>(.+?)<\/blockquote>/is', $content, $matches ) ) {
+		$quote = $content;
+		if ( $remove || ! empty( $replace ) )
+			$content = $replace;
+		return $quote;
+	}
+
+	if ( $remove || ! empty( $replace ) )
+		$content = preg_replace( '/<blockquote[^>]*>(.+?)<\/blockquote>/is', addcslashes( $replace, '\\$' ), $content, 1 );
+
+	return $matches[1];
+}
+
+/**
+ * Get a quote from the post content and set split_content for future use.
+ *
+ * @since 3.6.0
+ *
+ * @uses get_content_quote()
+ *
+ * @param object $post (optional) A reference to the post object, falls back to get_post().
+ * @return string The quote html.
+ */
+function get_the_post_format_quote( &$post = null ) {
+	if ( empty( $post ) )
+		$post = get_post();
+
+	if ( empty( $post ) )
+		return '';
+
+	$content = $post->post_content;
+	$quote = get_content_quote( $content, true );
+	$post->split_content = $content;
+
+	if ( ! empty( $quote ) )
+		$quote = sprintf( '<blockquote>%s</blockquote>', wpautop( $quote ) );
+
+	$meta = get_post_format_meta( $post->ID );
+
+	if ( ! empty( $meta['quote_source_name'] ) ) {
+		$source = ( empty( $meta['quote_source_url'] ) ) ? $meta['quote_source_name'] : sprintf( '<a href="%s">%s</a>', esc_url( $meta['quote_source_url'] ), $meta['quote_source_name'] );
+		$quote .= sprintf( '<figcaption class="quote-caption">%s</figcaption>', $source );
+	}
+
+	if ( ! empty( $quote ) )
+		$quote = sprintf( '<figure class="quote">%s</figure>', $quote );
+
+	return $quote;
+}
+
+/**
+ * Outputs the post format quote.
+ *
+ * @since 3.6.0
+ */
+function the_post_format_quote() {
+	echo get_the_post_format_quote();
+}
+
+/**
  * Extract a URL from passed content, if possible
  * Checks for a URL on the first line of the content or the first encountered href attribute.
  *
  * @since 3.6.0
  *
- * @param string $content A string which might contain a URL.
+ * @param string $content A string which might contain a URL, passed by reference.
  * @param boolean $remove Whether to remove the found URL from the passed content.
  * @return string The found URL.
  */
 function get_content_url( &$content, $remove = false ) {
 	if ( empty( $content ) )
 		return '';
-
-	$matches = array();
 
 	// the content is a URL
 	$trimmed = trim( $content );
@@ -670,7 +812,7 @@ function get_content_url( &$content, $remove = false ) {
  *
  * @since 3.6.0
  *
- * @param int $id Optional. Post ID.
+ * @param int $id (optional) The post ID.
  * @return string A URL, if found.
  */
 function get_the_post_format_url( $id = 0 ) {
@@ -678,10 +820,28 @@ function get_the_post_format_url( $id = 0 ) {
 	if ( empty( $post ) )
 		return '';
 
-	if ( in_array( get_post_format( $post->ID ), array( 'link', 'quote' ) ) ) {
+	$format = get_post_format( $post->ID );
+	if ( in_array( $format, array( 'image', 'link', 'quote' ) ) ) {
 		$meta = get_post_format_meta( $post->ID );
-		if ( ! empty( $meta['url'] ) )
-			return apply_filters( 'get_the_post_format_url', esc_url_raw( $meta['url'] ), $post );
+		$meta_link = '';
+
+		switch ( $format ) {
+		case 'link':
+			if ( ! empty( $meta['link_url'] ) )
+				$meta_link = $meta['link_url'];
+			break;
+		case 'image':
+			if ( ! empty( $meta['url'] ) )
+				$meta_link = $meta['url'];
+			break;
+		case 'quote':
+			if ( ! empty( $meta['quote_source_url'] ) )
+				$meta_link = $meta['quote_source_url'];
+			break;
+		}
+
+		if ( ! empty( $meta_link ) )
+			return apply_filters( 'get_the_post_format_url', esc_url_raw( $meta_link ), $post );
 	}
 
 	if ( ! empty( $post->post_content ) )
@@ -707,7 +867,7 @@ function the_post_format_url() {
  *
  * @param string $more_link_text Optional. Content for when there is more text.
  * @param bool $strip_teaser Optional. Strip teaser content before the more text. Default is false.
- * @return string
+ * @return string The content minus the extracted post format content.
  */
 function get_the_remaining_content( $more_link_text = null, $strip_teaser = false ) {
 	global $more, $page, $format_pages, $multipage, $preview;
@@ -719,7 +879,6 @@ function get_the_remaining_content( $more_link_text = null, $strip_teaser = fals
 
 	$output = '';
 	$has_teaser = false;
-	$matches = array();
 
 	// If post password required and it doesn't match the cookie.
 	if ( post_password_required() )
@@ -782,4 +941,73 @@ function the_remaining_content( $more_link_text = null, $strip_teaser = false ) 
 	add_filter( 'the_content', 'post_formats_compat', 7 );
 
 	echo str_replace( ']]>', ']]&gt;', $content );
+}
+
+/**
+ * Don't display post titles for asides and status posts on the front end.
+ *
+ * @since 3.6.0
+ * @access private
+ */
+function _post_formats_title( $title, $post_id ) {
+	if ( is_admin() || is_feed() || ! in_array( get_post_format( $post_id ), array( 'aside', 'status' ) ) )
+		return $title;
+
+	// Return an empty string only if the title is auto-generated.
+	$post = get_post( $post_id );
+	if ( $title == _post_formats_generate_title( $post->post_content, get_post_format( $post_id ) ) )
+		$title = '';
+
+	return $title;
+}
+
+/**
+ * Generate a title from the post content or format.
+ *
+ * @since 3.6.0
+ * @access private
+ */
+function _post_formats_generate_title( $content, $post_format = '' ) {
+	$title = wp_trim_words( strip_shortcodes( $content ), 8, '' );
+
+	if ( empty( $title ) )
+		$title = get_post_format_string( $post_format );
+
+	return $title;
+}
+
+/**
+ * Runs during save_post, fixes empty titles for asides and statuses.
+ *
+ * @since 3.6.0
+ * @access private
+ */
+function _post_formats_fix_empty_title( $data, $postarr ) {
+	if ( 'auto-draft' == $data['post_status'] || ! post_type_supports( $data['post_type'], 'post-formats' ) )
+		return $data;
+
+	$post_id = ( isset( $postarr['ID'] ) ) ? absint( $postarr['ID'] ) : 0;
+	$post_format = '';
+
+	if ( $post_id )
+		$post_format = get_post_format( $post_id );
+
+	if ( isset( $postarr['post_format'] ) )
+		$post_format = ( in_array( $postarr['post_format'], get_post_format_slugs() ) ) ? $postarr['post_format'] : '';
+
+	if ( ! in_array( $post_format, array( 'aside', 'status' ) ) )
+		return $data;
+
+	if ( $data['post_title'] == _post_formats_generate_title( $data['post_content'], $post_format ) )
+		return $data;
+
+	// If updating an existing post, check whether the title was auto-generated.
+	if ( $post_id && $post = get_post( $post_id ) )
+		if ( $post->post_title == $data['post_title'] && $post->post_title == _post_formats_generate_title( $post->post_content, get_post_format( $post->ID ) ) )
+			$data['post_title'] = '';
+
+	if ( empty( $data['post_title'] ) )
+		$data['post_title'] = _post_formats_generate_title( $data['post_content'], $post_format );
+
+	return $data;
 }

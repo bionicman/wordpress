@@ -192,19 +192,26 @@ function edit_post( $post_data = null ) {
 	}
 
 	// Post Formats
-	if ( isset( $post_data['post_format'] ) ) {
+	if ( isset( $post_data['post_format'] ) )
 		set_post_format( $post_ID, $post_data['post_format'] );
+
+	$format_meta_urls = array( 'url', 'link_url', 'quote_source_url' );
+	foreach ( $format_meta_urls as $format_meta_url ) {
+		$keyed = '_format_' . $format_meta_url;
+		if ( isset( $post_data[ $keyed ] ) )
+			update_post_meta( $post_ID, $keyed, wp_slash( esc_url_raw( wp_unslash( $post_data[ $keyed ] ) ) ) );
 	}
 
-	if ( isset( $post_data[ '_wp_format_url' ] ) ) {
-		update_post_meta( $post_ID, '_wp_format_url', wp_slash( esc_url_raw( wp_unslash( $post_data['_wp_format_url'] ) ) ) );
-	}
-
-	$format_keys = array( 'quote', 'quote_source', 'image', 'gallery', 'audio', 'video' );
+	$format_keys = array( 'quote', 'quote_source_name', 'image', 'gallery', 'audio_embed', 'video_embed' );
 
 	foreach ( $format_keys as $key ) {
-		if ( isset( $post_data[ '_wp_format_' . $key ] ) )
-		 	update_post_meta( $post_ID, '_wp_format_' . $key, wp_filter_post_kses( $post_data[ '_wp_format_' . $key ] ) );
+		$keyed = '_format_' . $key;
+		if ( isset( $post_data[ $keyed ] ) ) {
+			if ( current_user_can( 'unfiltered_html' ) )
+				update_post_meta( $post_ID, $keyed, $post_data[ $keyed ] );
+			else
+				update_post_meta( $post_ID, $keyed, wp_filter_post_kses( $post_data[ $keyed ] ) );
+		}
 	}
 
 	// Meta Stuff
@@ -1190,8 +1197,7 @@ function _admin_notice_post_locked() {
 	if ( ! $post = get_post() )
 		return;
 
-	if ( $user = wp_check_post_lock( $post->ID ) ) {
-		$user = get_userdata( $user );
+	if ( ( $user_id = wp_check_post_lock( $post->ID ) ) && ( $user = get_userdata( $user_id ) ) ) {
 		$locked = apply_filters( 'show_post_locked_dialog', true, $post, $user );
 	} else {
 		$locked = false;
@@ -1222,6 +1228,7 @@ function _admin_notice_post_locked() {
 		<div class="post-locked-message">
 		<div class="post-locked-avatar"><?php echo get_avatar( $user->ID, 64 ); ?></div>
 		<p class="currently-editing wp-tab-first" tabindex="0"><?php esc_html_e( sprintf( __( 'This content is currently locked. If you take over, %s will be blocked from continuing to edit.' ), $user->display_name ) ); ?></p>
+		<?php do_action( 'post_lock_text', $post ); ?>
 		<p>
 		<a class="button" href="<?php echo esc_url( wp_get_referer() ); ?>"><?php _e('Go back'); ?></a>
 		<a class="button<?php echo $tab_last; ?>" href="<?php echo esc_url( $preview_link ); ?>"><?php _e('Preview'); ?></a>
@@ -1242,7 +1249,12 @@ function _admin_notice_post_locked() {
 		?>
 		<div class="post-taken-over">
 			<div class="post-locked-avatar"></div>
-			<p class="currently-editing wp-tab-first" tabindex="0"></p>
+			<p class="wp-tab-first" tabindex="0">
+			<span class="currently-editing"></span><br>
+			<span class="locked-saving hidden"><img src="images/wpspin_light-2x.gif" width="16" height="16" /> <?php _e('Saving revision...'); ?></span>
+			<span class="locked-saved hidden"><?php _e('Your latest changes were saved as a revision.'); ?></span>
+			</p>
+			<?php do_action( 'post_lock_text', $post ); ?>
 			<p><a class="button button-primary wp-tab-last" href="<?php echo esc_url( admin_url('edit.php') ); ?>"><?php _e('Go to All Posts'); ?></a></p>
 		</div>
 		<?php
@@ -1279,15 +1291,24 @@ function wp_create_post_autosave( $post_id ) {
 		$new_autosave['ID'] = $old_autosave->ID;
 		$new_autosave['post_author'] = $post_author;
 
-		// Auto-save revisioned meta fields too.
+		// Auto-save revisioned meta fields.
 		foreach ( _wp_post_revision_meta_keys() as $meta_key ) {
-			if ( ! isset( $_POST[ $meta_key ] ) )
-				continue;
+			if ( isset( $_POST[ $meta_key ] ) && get_post_meta( $new_autosave['ID'], $meta_key, true ) != $_POST[ $meta_key ] ) {
+				// Use the underlying delete_metadata and add_metadata vs delete_post_meta
+				// and add_post_meta to make sure we're working with the actual revision meta.
+				delete_metadata( 'post', $new_autosave['ID'], $meta_key );
 
-			// Use the underlying delete_metadata and add_metadata vs delete_post_meta
-			// and add_post_meta to make sure we're working with the actual revision meta.
-			delete_metadata( 'post', $new_autosave['ID'], $meta_key );
-			add_metadata( 'post', $new_autosave['ID'], $meta_key, $_POST[ $meta_key ] );
+				if ( ! empty( $_POST[ $meta_key ] ) )
+					add_metadata( 'post', $new_autosave['ID'], $meta_key, $_POST[ $meta_key ] );
+			}
+		}
+
+		// Save the post format if different
+		if ( isset( $_POST['post_format'] ) && get_post_meta( $new_autosave['ID'], '_revision_post_format', true ) != $_POST['post_format'] ) {
+			delete_metadata( 'post', $new_autosave['ID'], '_revision_post_format' );
+
+			if ( ! empty( $_POST['post_format'] ) )
+				add_metadata( 'post', $new_autosave['ID'], '_revision_post_format', $_POST['post_format'] );
 		}
 
 		return wp_update_post( $new_autosave );
