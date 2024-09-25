@@ -42,6 +42,7 @@ TABLE OF CONTENTS:
 24.0 - Dead
 25.0 - TinyMCE tweaks
 26.0 - Full Overlay w/ Sidebar
+27.0 - Customize Loader
 
 
 ------------------------------------------------------------------------------*/
@@ -114,6 +115,18 @@ p.search-box {
 
 input[type=password] {
 	direction: ltr;
+}
+
+input[type="text"].ui-autocomplete-loading {
+	background: transparent url('../images/loading.gif') no-repeat left center;
+}
+
+ul#add-to-blog-users {
+	margin: 0 14px 0 0;
+}
+
+.ui-autocomplete li {
+	text-align: right;
 }
 
 /*------------------------------------------------------------------------------
@@ -818,17 +831,6 @@ th.sorted a span {
 	margin-left: -1px;
 }
 
-/* positioning etc. */
-
-#posts-filter fieldset {
-	float: right;
-	margin: 0 0 1em 1.5ex;
-}
-
-#posts-filter fieldset legend {
-	padding: 0 1px .2em 0;
-}
-
 /* Global classes */
 
 #post-body .tagsdiv #newtag {
@@ -1267,8 +1269,8 @@ h2 .nav-tab {
 ------------------------------------------------------------------------------*/
 
 .pressthis a span {
-	background-position: -20px 5px ;
-	padding: 8px 32px 8px 0;
+	background-position: right 5px;
+	padding: 8px 27px 8px 11px;
 }
 
 .pressthis a:after {
@@ -1552,7 +1554,7 @@ table .column-rating {
 .wp-full-overlay.collapsed,
 .wp-full-overlay.collapsed div.wp-full-overlay-header,
 .wp-full-overlay.collapsed div.wp-full-overlay-footer {
-	left: 0;
+	left: auto;
 	right: -302px;
 }
 
@@ -1568,7 +1570,6 @@ table .column-rating {
 }
 
 .wp-full-overlay.collapsed .wp-full-overlay-main {
-	left: auto;
 	right: 0;
 }
 
@@ -1604,7 +1605,7 @@ table .column-rating {
 
 .wp-full-overlay.collapsed .collapse-sidebar {
 	left: auto;
-	right: 315px;
+	right: 325px;
 }
 
 .wp-full-overlay .collapse-sidebar-arrow {
@@ -1630,6 +1631,25 @@ table .column-rating {
 	display: none;
 }
 
+/*------------------------------------------------------------------------------
+  27.0 - Customize Loader
+------------------------------------------------------------------------------*/
+.install-theme-info .theme-version,
+.install-theme-info .theme-install {
+	float: left;
+}
+
+.install-theme-info .theme-rating {
+	float: right;
+	background: url('../images/stars.png?ver=20120307') repeat-x bottom right;
+	width: 105px;
+	margin-right: -5px;
+}
+
+.install-theme-info .theme-rating div {
+	float: right;
+	background: url('../images/stars.png?ver=20120307') repeat-x top right;
+}
 
 /* MERGED */
 
@@ -2264,7 +2284,7 @@ div.star {
 	direction: rtl;
 }
 
-#section-description {
+#plugin-information #section-holder .section {
 	direction: ltr;
 }
 

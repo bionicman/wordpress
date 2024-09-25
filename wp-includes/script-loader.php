@@ -167,7 +167,7 @@ function wp_default_scripts( &$scripts ) {
 	$scripts->add( 'jquery-serialize-object', "/wp-includes/js/jquery/jquery.serialize-object.js", array('jquery'), '0.2', 1 );
 	$scripts->add( 'jquery-hotkeys', "/wp-includes/js/jquery/jquery.hotkeys$suffix.js", array('jquery'), '0.0.2m', 1 );
 	$scripts->add( 'jquery-table-hotkeys', "/wp-includes/js/jquery/jquery.table-hotkeys$suffix.js", array('jquery', 'jquery-hotkeys'), false, 1 );
-	$scripts->add( 'jquery-touch-punch', "/wp-includes/js/jquery/jquery.ui.touch-punch$suffix.js", array('jquery-ui-widget', 'jquery-ui-mouse'), '0.2.2', 1 );
+	$scripts->add( 'jquery-touch-punch', "/wp-includes/js/jquery/jquery.ui.touch-punch.js", array('jquery-ui-widget', 'jquery-ui-mouse'), '0.2.2', 1 );
 
 	$scripts->add( 'thickbox', "/wp-includes/js/thickbox/thickbox.js", array('jquery'), '3.1-20111117', 1 );
 	$scripts->localize( 'thickbox', 'thickboxL10n', array(
@@ -252,7 +252,7 @@ function wp_default_scripts( &$scripts ) {
 
 	$scripts->add( 'json2', "/wp-includes/js/json2$suffix.js", array(), '2011-02-23');
 
-	$scripts->add( 'imgareaselect', "/wp-includes/js/imgareaselect/jquery.imgareaselect$suffix.js", array('jquery'), '0.9.6-20110515', 1 );
+	$scripts->add( 'imgareaselect', "/wp-includes/js/imgareaselect/jquery.imgareaselect$suffix.js", array('jquery'), '0.9.8', 1 );
 
 	$scripts->add( 'password-strength-meter', "/wp-admin/js/password-strength-meter$suffix.js", array('jquery'), false, 1 );
 	$scripts->localize( 'password-strength-meter', 'pwsL10n', array(
@@ -474,7 +474,7 @@ function wp_default_styles( &$styles ) {
 	$styles->add( 'thickbox', '/wp-includes/js/thickbox/thickbox.css' );
 	$styles->add( 'farbtastic', '/wp-admin/css/farbtastic.css', array(), '1.3u1' );
 	$styles->add( 'jcrop', '/wp-includes/js/jcrop/jquery.Jcrop.css', array(), '0.9.8' );
-	$styles->add( 'imgareaselect', '/wp-includes/js/imgareaselect/imgareaselect.css', array(), '0.9.1' );
+	$styles->add( 'imgareaselect', '/wp-includes/js/imgareaselect/imgareaselect.css', array(), '0.9.8' );
 	$styles->add( 'admin-bar', "/wp-includes/css/admin-bar$suffix.css" );
 	$styles->add( 'wp-jquery-ui-dialog', "/wp-includes/css/jquery-ui-dialog$suffix.css" );
 	$styles->add( 'editor-buttons', "/wp-includes/css/editor$suffix.css" );

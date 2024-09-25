@@ -17,6 +17,10 @@ final class WP_Customize {
 	protected $sections = array();
 	protected $controls = array();
 
+	protected $customized;
+
+	private $_post_values;
+
 	/**
 	 * Constructor.
 	 *
@@ -27,9 +31,11 @@ final class WP_Customize {
 		require( ABSPATH . WPINC . '/class-wp-customize-section.php' );
 		require( ABSPATH . WPINC . '/class-wp-customize-control.php' );
 
-		add_action( 'setup_theme',  array( $this, 'customize_previewing' ) );
+		add_action( 'setup_theme',  array( $this, 'setup_theme' ) );
 		add_action( 'admin_init',   array( $this, 'admin_init' ) );
 		add_action( 'wp_loaded',    array( $this, 'wp_loaded' ) );
+
+		add_action( 'wp_ajax_customize_save', array( $this, 'save' ) );
 
 		add_action( 'customize_register',                 array( $this, 'register_controls' ) );
 		add_action( 'customize_controls_init',            array( $this, 'prepare_controls' ) );
@@ -61,18 +67,37 @@ final class WP_Customize {
 	 *
 	 * @since 3.4.0
 	 */
-	public function customize_previewing() {
+	public function setup_theme() {
 		if ( ! isset( $_REQUEST['customize'] ) || 'on' != $_REQUEST['customize'] )
 			return;
 
-		if ( ! $this->set_theme() || isset( $_REQUEST['save_customize_controls'] ) )
+		$this->start_previewing_theme();
+		show_admin_bar( false );
+	}
+
+	/**
+	 * Start previewing the selected theme.
+	 *
+	 * Adds filters to change the current theme.
+	 *
+	 * @since 3.4.0
+	 */
+	public function start_previewing_theme() {
+		if ( $this->is_preview() || false === $this->theme || ( $this->theme && ! $this->theme->exists() ) )
 			return;
 
-		$this->previewing = true;
-
-		show_admin_bar( false );
+		// Initialize $theme and $original_stylesheet if they do not yet exist.
+		if ( ! isset( $this->theme ) ) {
+			$this->theme = wp_get_theme( $_REQUEST['theme'] );
+			if ( ! $this->theme->exists() ) {
+				$this->theme = false;
+				return;
+			}
+		}
 
 		$this->original_stylesheet = get_stylesheet();
+
+		$this->previewing = true;
 
 		add_filter( 'template', array( $this, 'get_template' ) );
 		add_filter( 'stylesheet', array( $this, 'get_stylesheet' ) );
@@ -86,7 +111,35 @@ final class WP_Customize {
 		add_filter( 'pre_option_stylesheet_root', array( $this, 'get_stylesheet_root' ) );
 		add_filter( 'pre_option_template_root', array( $this, 'get_template_root' ) );
 
-		do_action( 'customize_previewing' );
+		do_action( 'start_previewing_theme', $this );
+	}
+
+	/**
+	 * Stop previewing the selected theme.
+	 *
+	 * Removes filters to change the current theme.
+	 *
+	 * @since 3.4.0
+	 */
+	public function stop_previewing_theme() {
+		if ( ! $this->is_preview() )
+			return;
+
+		$this->previewing = false;
+
+		remove_filter( 'template', array( $this, 'get_template' ) );
+		remove_filter( 'stylesheet', array( $this, 'get_stylesheet' ) );
+		remove_filter( 'pre_option_current_theme', array( $this, 'current_theme' ) );
+
+		// @link: http://core.trac.wordpress.org/ticket/20027
+		remove_filter( 'pre_option_stylesheet', array( $this, 'get_stylesheet' ) );
+		remove_filter( 'pre_option_template', array( $this, 'get_template' ) );
+
+		// Handle custom theme roots.
+		remove_filter( 'pre_option_stylesheet_root', array( $this, 'get_stylesheet_root' ) );
+		remove_filter( 'pre_option_template_root', array( $this, 'get_template_root' ) );
+
+		do_action( 'stop_previewing_theme', $this );
 	}
 
 	/**
@@ -95,11 +148,29 @@ final class WP_Customize {
 	 * @since 3.4.0
 	 */
 	public function wp_loaded() {
-		do_action( 'customize_register' );
+		do_action( 'customize_register', $this );
 
 		if ( $this->is_preview() && ! is_admin() )
 			$this->customize_preview_init();
 	}
+
+	/**
+	 * Decode the $_POST attribute used to override the WP_Customize_Setting values.
+	 *
+	 * @since 3.4.0
+	 */
+	public function post_value( $setting ) {
+		if ( ! isset( $this->_post_values ) ) {
+			if ( isset( $_POST['customized'] ) )
+				$this->_post_values = json_decode( stripslashes( $_POST['customized'] ), true );
+			else
+				$this->_post_values = false;
+		}
+
+		if ( isset( $this->_post_values[ $setting->id ] ) )
+			return $setting->sanitize( $this->_post_values[ $setting->id ] );
+	}
+
 
 	/**
 	 * Print javascript settings.
@@ -116,7 +187,7 @@ final class WP_Customize {
 			$setting->preview();
 		}
 
-		do_action( 'customize_preview_init' );
+		do_action( 'customize_preview_init', $this );
 	}
 
 
@@ -157,24 +228,6 @@ final class WP_Customize {
 	 */
 	public function is_preview() {
 		return (bool) $this->previewing;
-	}
-
-	/**
-	 * Set the stylesheet name of the previewed theme.
-	 *
-	 * @since 3.4.0
-	 *
-	 * @return bool|string Stylesheet name.
-	 */
-	public function set_theme() {
-		if ( isset( $this->theme ) )
-			return $this->theme;
-
-		$this->theme = wp_get_theme( $_REQUEST['theme'] );
-		if ( ! $this->theme->exists() )
-			$this->theme = false;
-
-		return $this->theme;
 	}
 
 	/**
@@ -238,9 +291,6 @@ final class WP_Customize {
 	 * @since 3.4.0
 	 */
 	public function admin_init() {
-		if ( isset( $_REQUEST['save_customize_controls'] ) )
-			$this->save();
-
 		if ( ( defined( 'DOING_AJAX' ) && DOING_AJAX ) )
 			return;
 
@@ -267,32 +317,32 @@ final class WP_Customize {
 	 * @since 3.4.0
 	 */
 	public function save() {
-		if ( $this->is_preview() )
-			return;
+		if ( ! $this->is_preview() )
+			die;
 
-		check_admin_referer( 'customize_controls' );
-
-		if ( ! $this->set_theme() )
-			return;
-
-		$active_template   = get_template();
-		$active_stylesheet = get_stylesheet();
+		check_ajax_referer( 'customize_controls', 'nonce' );
 
 		// Do we have to switch themes?
-		if ( $this->get_template() != $active_template || $this->get_stylesheet() != $active_stylesheet ) {
+		if ( $this->get_stylesheet() != $this->original_stylesheet ) {
 			if ( ! current_user_can( 'switch_themes' ) )
-				return;
+				die;
 
+			// Temporarily stop previewing the theme to allow switch_themes()
+			// to operate properly.
+			$this->stop_previewing_theme();
 			switch_theme( $this->get_template(), $this->get_stylesheet() );
+			$this->start_previewing_theme();
 		}
 
-		do_action( 'customize_save' );
+		do_action( 'customize_save', $this );
 
 		foreach ( $this->settings as $setting ) {
 			$setting->save();
 		}
 
 		add_action( 'admin_notices', array( $this, '_save_feedback' ) );
+
+		die;
 	}
 
 	/**
@@ -512,7 +562,6 @@ final class WP_Customize {
 		$this->add_setting( 'header_textcolor', array(
 			// @todo: replace with a new accept() setting method
 			// 'sanitize_callback' => 'sanitize_hexcolor',
-			'control'        => 'color',
 			'theme_supports' => array( 'custom-header', 'header-text' ),
 			'default'        => get_theme_support( 'custom-header', 'default-text-color' ),
 		) );
@@ -524,11 +573,10 @@ final class WP_Customize {
 			'type'     => 'checkbox',
 		) );
 
-		$this->add_control( 'header_textcolor', array(
+		$this->add_control( new WP_Customize_Color_Control( $this, 'header_textcolor', array(
 			'label'   => __( 'Text Color' ),
 			'section' => 'header',
-			'type'    => 'color',
-		) );
+		) ) );
 
 		// Input type: checkbox
 		// With custom value
@@ -553,23 +601,22 @@ final class WP_Customize {
 			'default'           => get_theme_support( 'custom-background', 'default-color' ),
 			'sanitize_callback' => 'sanitize_hexcolor',
 			'theme_supports'    => 'custom-background',
+			'transport'         => 'postMessage',
 		) );
 
-		$this->add_control( 'background_color', array(
+		$this->add_control( new WP_Customize_Color_Control( $this, 'background_color', array(
 			'label'   => __( 'Background Color' ),
 			'section' => 'background',
-			'type'    => 'color',
-		) );
+		) ) );
 
 		$this->add_setting( 'background_image', array(
 			'default'        => get_theme_support( 'custom-background', 'default-image' ),
 			'theme_supports' => 'custom-background',
 		) );
 
-		$this->add_control( new WP_Customize_Upload_Control( $this, 'background_image', array(
+		$this->add_control( new WP_Customize_Image_Control( $this, 'background_image', array(
 			'label'          => __( 'Background Image' ),
 			'section'        => 'background',
-			'type'           => 'upload',
 			'context'        => 'custom-background',
 		) ) );
 
@@ -632,30 +679,32 @@ final class WP_Customize {
 			'title'          => __( 'Navigation' ),
 			'theme_supports' => 'menus',
 			'priority'       => 40,
-			'description'    => sprintf( _n('Your theme supports %s menu. Select which menu you would like to use.', 'Your theme supports %s menus. Select which menu appears in each location.', $num_locations ), number_format_i18n( $num_locations ) ),
+			'description'    => sprintf( _n('Your theme supports %s menu. Select which menu you would like to use.', 'Your theme supports %s menus. Select which menu appears in each location.', $num_locations ), number_format_i18n( $num_locations ) ) . "\n\n" . __('You can edit your menu content on the Menus screen in the Appearance section.'),
 		) );
 
-		foreach ( $locations as $location => $description ) {
-			$choices = array( 0 => '' );
+		if ( $menus ) {
+			$choices = array( 0 => __( '&mdash; Select &mdash;' ) );
 			foreach ( $menus as $menu ) {
 				$truncated_name = wp_html_excerpt( $menu->name, 40 );
-				$truncated_name == $menu->name ? $menu->name : trim( $truncated_name ) . '&hellip;';
+				$truncated_name = ( $truncated_name == $menu->name ) ? $menu->name : trim( $truncated_name ) . '&hellip;';
 				$choices[ $menu->term_id ] = $truncated_name;
 			}
 
-			$menu_setting_id = "nav_menu_locations[{$location}]";
+			foreach ( $locations as $location => $description ) {
+				$menu_setting_id = "nav_menu_locations[{$location}]";
 
-			$this->add_setting( $menu_setting_id, array(
-				'sanitize_callback' => 'absint',
-				'theme_supports'    => 'menus',
-			) );
+				$this->add_setting( $menu_setting_id, array(
+					'sanitize_callback' => 'absint',
+					'theme_supports'    => 'menus',
+				) );
 
-			$this->add_control( $menu_setting_id, array(
-				'label'   => $description,
-				'section' => 'nav',
-				'type'    => 'select',
-				'choices' => $choices,
-			) );
+				$this->add_control( $menu_setting_id, array(
+					'label'   => $description,
+					'section' => 'nav',
+					'type'    => 'select',
+					'choices' => $choices,
+				) );
+			}
 		}
 
 		/* Static Front Page */

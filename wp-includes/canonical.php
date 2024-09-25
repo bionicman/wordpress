@@ -277,6 +277,15 @@ function redirect_canonical( $requested_url = null, $do_redirect = true ) {
 				$redirect['path'] = trailingslashit($redirect['path']) . $addl_path;
 			$redirect_url = $redirect['scheme'] . '://' . $redirect['host'] . $redirect['path'];
 		}
+
+		if ( 'wp-register.php' == basename( $redirect['path'] ) ) {
+			if ( is_multisite() )
+				$redirect_url = apply_filters( 'wp_signup_location', site_url( 'wp-signup.php' ) );
+			else
+				$redirect_url = site_url( 'wp-login.php?action=register' );
+			wp_redirect( $redirect_url, 301 );
+			die();
+		}
 	}
 
 	// tack on any additional query vars
@@ -292,7 +301,7 @@ function redirect_canonical( $requested_url = null, $do_redirect = true ) {
 				unset( $_parsed_query['name'] );
 		}
 
-		$_parsed_query = array_map( 'rawurlencode', $_parsed_query );
+		$_parsed_query = rawurlencode_deep( $_parsed_query );
 		$redirect_url = add_query_arg( $_parsed_query, $redirect_url );
 	}
 
@@ -439,10 +448,14 @@ function redirect_canonical( $requested_url = null, $do_redirect = true ) {
  */
 function _remove_qs_args_if_not_in_url( $query_string, Array $args_to_check, $url ) {
 	$parsed_url = @parse_url( $url );
-	parse_str( $parsed_url['query'], $parsed_query );
-	foreach ( $args_to_check as $qv ) {
-		if ( !isset( $parsed_query[$qv] ) )
-			$query_string = remove_query_arg( $qv, $query_string );
+	if ( ! empty( $parsed_url['query'] ) ) {
+		parse_str( $parsed_url['query'], $parsed_query );
+		foreach ( $args_to_check as $qv ) {
+			if ( !isset( $parsed_query[$qv] ) )
+				$query_string = remove_query_arg( $qv, $query_string );
+		}
+	} else {
+		$query_string = remove_query_arg( $args_to_check, $query_string );
 	}
 	return $query_string;
 }
@@ -479,6 +492,9 @@ function redirect_guess_404_permalink( $current_url = '' ) {
 		// if any of post_type, year, monthnum, or day are set, use them to refine the query
 		if ( get_query_var('post_type') )
 			$where .= $wpdb->prepare(" AND post_type = %s", get_query_var('post_type'));
+		else
+			$where .= " AND post_type IN ('" . implode( "', '", get_post_types( array( 'public' => true ) ) ) . "')";
+
 		if ( get_query_var('year') )
 			$where .= $wpdb->prepare(" AND YEAR(post_date) = %d", get_query_var('year'));
 		if ( get_query_var('monthnum') )

@@ -327,6 +327,8 @@ function wp_constrain_dimensions( $current_width, $current_height, $max_width=0,
  * portion of the image will be cropped out and resized to the required size.
  *
  * @since 2.5.0
+ * @uses apply_filters() Calls 'image_resize_dimensions' on $orig_w, $orig_h, $dest_w, $dest_h and
+ *		$crop to provide custom resize dimensions.
  *
  * @param int $orig_w Original width.
  * @param int $orig_h Original height.
@@ -342,6 +344,11 @@ function image_resize_dimensions($orig_w, $orig_h, $dest_w, $dest_h, $crop = fal
 	// at least one of dest_w or dest_h must be specific
 	if ($dest_w <= 0 && $dest_h <= 0)
 		return false;
+
+	// plugins can use this to provide custom resize dimensions
+	$output = apply_filters( 'image_resize_dimensions', null, $orig_w, $orig_h, $dest_w, $dest_h, $crop );
+	if ( null !== $output )
+		return $output;
 
 	if ( $crop ) {
 		// crop the largest possible portion of the original image that we can size to $dest_w x $dest_h
@@ -455,7 +462,8 @@ function image_resize( $file, $max_w, $max_h, $crop = false, $suffix = null, $de
 			return new WP_Error('resize_path_invalid', __( 'Resize path invalid' ));
 	} else {
 		// all other formats are converted to jpg
-		$destfilename = "{$dir}/{$name}-{$suffix}.jpg";
+		if ( 'jpg' != $ext && 'jpeg' != $ext )
+			$destfilename = "{$dir}/{$name}-{$suffix}.jpg";
 		if ( !imagejpeg( $newimage, $destfilename, apply_filters( 'jpeg_quality', $jpeg_quality, 'image_resize' ) ) )
 			return new WP_Error('resize_path_invalid', __( 'Resize path invalid' ));
 	}
@@ -724,6 +732,13 @@ add_shortcode('caption', 'img_caption_shortcode');
  * @return string
  */
 function img_caption_shortcode($attr, $content = null) {
+	// New-style shortcode with the caption inside the shortcode with the link and image tags.
+	if ( ! isset( $attr['caption'] ) ) {
+		if ( preg_match( '#((?:<a [^>]+>\s*)?<img [^>]+>(?:\s*</a>)?)(.*)#is', $content, $matches ) ) {
+			$content = $matches[1];
+			$attr['caption'] = trim( $matches[2] );
+		}
+	}
 
 	// Allow plugins/themes to override the default caption template.
 	$output = apply_filters('img_caption_shortcode', '', $attr, $content);
@@ -1378,7 +1393,7 @@ function wp_expand_dimensions( $example_width, $example_height, $max_width, $max
  *
  * @param string $url The URL that should be embedded.
  * @param array $args Additional arguments and parameters.
- * @return string The original URL on failure or the embed HTML on success.
+ * @return bool|string False on failure or the embed HTML on success.
  */
 function wp_oembed_get( $url, $args = '' ) {
 	require_once( ABSPATH . WPINC . '/class-oembed.php' );

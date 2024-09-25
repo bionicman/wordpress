@@ -243,7 +243,7 @@ if ( 'post' == $post_type ) {
 require_once('./admin-header.php');
 ?>
 
-<div class="wrap columns-<?php echo (int) $screen_layout_columns ? (int) $screen_layout_columns : 'auto'; ?>">
+<div class="wrap">
 <?php screen_icon(); ?>
 <h2><?php echo esc_html( $title ); ?><?php if ( isset( $post_new_file ) ) : ?> <a href="<?php echo esc_url( $post_new_file ) ?>" class="add-new-h2"><?php echo esc_html($post_type_object->labels->add_new); ?></a><?php endif; ?></h2>
 <?php if ( $notice ) : ?>
@@ -277,7 +277,7 @@ wp_nonce_field( 'closedpostboxes', 'closedpostboxesnonce', false );
 
 <div id="poststuff">
 
-<div id="post-body" class="metabox-holder columns-<?php echo 1 == $screen_layout_columns ? '1' : '2'; ?>">
+<div id="post-body" class="metabox-holder columns-<?php echo 1 == get_current_screen()->get_columns() ? '1' : '2'; ?>">
 <div id="post-body-content">
 <?php if ( post_type_supports($post_type, 'title') ) { ?>
 <div id="titlediv">

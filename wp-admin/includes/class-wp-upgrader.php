@@ -1021,6 +1021,7 @@ class Core_Upgrader extends WP_Upgrader {
 		$this->strings['downloading_package'] = __('Downloading update from <span class="code">%s</span>&#8230;');
 		$this->strings['unpack_package'] = __('Unpacking the update&#8230;');
 		$this->strings['copy_failed'] = __('Could not copy files.');
+		$this->strings['copy_failed_space'] = __('Could not copy files. You may have run out of disk space.' );
 	}
 
 	function upgrade($current) {
@@ -1072,6 +1073,9 @@ class Core_Upgrader extends WP_Upgrader {
 		$wp_filesystem->chmod($wp_dir . 'wp-admin/includes/update-core.php', FS_CHMOD_FILE);
 
 		require(ABSPATH . 'wp-admin/includes/update-core.php');
+
+		if ( ! function_exists( 'update_core' ) )
+			return new WP_Error( 'copy_failed_space', $this->strings['copy_failed_space'] );
 
 		return update_core($working_dir, $wp_dir);
 	}
@@ -1516,7 +1520,7 @@ class Theme_Installer_Skin extends WP_Upgrader_Skin {
 
 		$install_actions = array();
 		$install_actions['preview']  = '<a href="' . esc_url( $preview_link ) . '" class="hide-if-customize" title="' . esc_attr(sprintf(__('Preview &#8220;%s&#8221;'), $name ) ) . '">' . __('Preview') . '</a>';
-		$install_actions['preview'] .= '<a href="' . wp_customize_url( $stylesheet ) . '" class="hide-if-no-customize load-customize>' . __('Customize') . '</a>';
+		$install_actions['preview'] .= '<a href="' . wp_customize_url( $stylesheet ) . '" class="hide-if-no-customize load-customize">' . __('Customize') . '</a>';
 		$install_actions['activate'] = '<a href="' . esc_url( $activate_link ) . '" class="activatelink" title="' . esc_attr( sprintf( __('Activate &#8220;%s&#8221;'), $name ) ) . '">' . __('Activate') . '</a>';
 
 		if ( is_network_admin() && current_user_can( 'manage_network_themes' ) )

@@ -1325,8 +1325,6 @@ if ( !function_exists('wp_salt') ) :
  * @return string Salt value
  */
 function wp_salt( $scheme = 'auth' ) {
-	global $wp_secret_key_default; // This is set for localized builds for versions > 3.4.0.
-
 	static $cached_salts = array();
 	if ( isset( $cached_salts[ $scheme ] ) )
 		return apply_filters( 'salt', $cached_salts[ $scheme ], $scheme );
@@ -1342,8 +1340,6 @@ function wp_salt( $scheme = 'auth' ) {
 				$duplicated_keys[ $value ] = isset( $duplicated_keys[ $value ] );
 			}
 		}
-		if ( ! empty( $wp_secret_key_default ) )
-			$duplicated_keys[ $wp_secret_key_default ] = true;
 	}
 
 	$key = $salt = '';
@@ -1647,7 +1643,7 @@ function get_avatar( $id_or_email, $size = '96', $default = '', $alt = false ) {
 	elseif ( !empty($email) && 'gravatar_default' == $default )
 		$default = '';
 	elseif ( 'gravatar_default' == $default )
-		$default = "$host/avatar/s={$size}";
+		$default = "$host/avatar/?s={$size}";
 	elseif ( empty($email) )
 		$default = "$host/avatar/?d=$default&amp;s={$size}";
 	elseif ( strpos($default, 'http://') === 0 )

@@ -84,8 +84,7 @@ function install_dashboard() {
 	<p><?php printf( __( 'Plugins extend and expand the functionality of WordPress. You may automatically install plugins from the <a href="http://wordpress.org/extend/plugins/">WordPress Plugin Directory</a> or upload a plugin in .zip format via <a href="%s">this page</a>.' ), self_admin_url( 'plugin-install.php?tab=upload' ) ); ?></p>
 
 	<h4><?php _e('Search') ?></h4>
-	<p class="install-help"><?php _e('Search for plugins by keyword, author, or tag.') ?></p>
-	<?php install_search_form(); ?>
+	<?php install_search_form( false ); ?>
 
 	<h4><?php _e('Popular tags') ?></h4>
 	<p class="install-help"><?php _e('You may also browse based on the most popular tags in the Plugin Directory:') ?></p>
@@ -116,17 +115,19 @@ add_action('install_plugins_dashboard', 'install_dashboard');
  *
  * @since 2.7.0
  */
-function install_search_form(){
-	$type = isset($_REQUEST['type']) ? stripslashes( $_REQUEST['type'] ) : '';
+function install_search_form( $type_selector = true ) {
+	$type = isset($_REQUEST['type']) ? stripslashes( $_REQUEST['type'] ) : 'term';
 	$term = isset($_REQUEST['s']) ? stripslashes( $_REQUEST['s'] ) : '';
 
 	?><form id="search-plugins" method="get" action="">
 		<input type="hidden" name="tab" value="search" />
+		<?php if ( $type_selector ) : ?>
 		<select name="type" id="typeselector">
 			<option value="term"<?php selected('term', $type) ?>><?php _e('Keyword'); ?></option>
 			<option value="author"<?php selected('author', $type) ?>><?php _e('Author'); ?></option>
 			<option value="tag"<?php selected('tag', $type) ?>><?php _ex('Tag', 'Plugin Installer'); ?></option>
 		</select>
+		<?php endif; ?>
 		<input type="search" name="s" value="<?php echo esc_attr($term) ?>" />
 		<label class="screen-reader-text" for="plugin-search-input"><?php _e('Search Plugins'); ?></label>
 		<?php submit_button( __( 'Search Plugins' ), 'button', 'plugin-search-input', false ); ?>
@@ -341,7 +342,7 @@ function install_plugin_information() {
 		<?php if ( ! empty($api->rating) ) : ?>
 		<h2><?php _e('Average Rating') ?></h2>
 		<div class="star-holder" title="<?php printf(_n('(based on %s rating)', '(based on %s ratings)', $api->num_ratings), number_format_i18n($api->num_ratings)); ?>">
-			<div class="star star-rating" style="width: <?php echo esc_attr($api->rating) ?>px"></div>
+			<div class="star star-rating" style="width: <?php echo esc_attr( str_replace( ',', '.', $api->rating ) ); ?>px"></div>
 			<div class="star star5"><img src="<?php echo admin_url('images/star.png?v=20110615'); ?>" alt="<?php esc_attr_e('5 stars') ?>" /></div>
 			<div class="star star4"><img src="<?php echo admin_url('images/star.png?v=20110615'); ?>" alt="<?php esc_attr_e('4 stars') ?>" /></div>
 			<div class="star star3"><img src="<?php echo admin_url('images/star.png?v=20110615'); ?>" alt="<?php esc_attr_e('3 stars') ?>" /></div>

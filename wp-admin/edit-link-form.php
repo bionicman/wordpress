@@ -57,7 +57,7 @@ get_current_screen()->set_help_sidebar(
 require_once ('admin-header.php');
 ?>
 
-<div class="wrap columns-<?php echo (int) $screen_layout_columns ? (int) $screen_layout_columns : 'auto'; ?>">
+<div class="wrap">
 <?php screen_icon(); ?>
 <h2><?php echo esc_html( $title ); ?>  <a href="link-add.php" class="add-new-h2"><?php echo esc_html_x('Add New', 'link'); ?></a></h2>
 
@@ -77,7 +77,7 @@ wp_nonce_field( 'meta-box-order', 'meta-box-order-nonce', false ); ?>
 
 <div id="poststuff">
 
-<div id="post-body" class="metabox-holder columns-<?php echo 1 == $screen_layout_columns ? '1' : '2'; ?>">
+<div id="post-body" class="metabox-holder columns-<?php echo 1 == get_current_screen()->get_columns() ? '1' : '2'; ?>">
 <div id="post-body-content">
 <div id="namediv" class="stuffbox">
 <h3><label for="link_name"><?php _ex('Name', 'link name') ?></label></h3>
