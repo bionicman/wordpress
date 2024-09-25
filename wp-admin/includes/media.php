@@ -221,7 +221,7 @@ function media_handle_upload($file_id, $post_id, $post_data = array(), $override
 	$url = $file['url'];
 	$type = $file['type'];
 	$file = $file['file'];
-	$title = sanitize_text_field( $name );
+	$title = $name;
 	$content = '';
 
 	if ( preg_match( '#^audio#', $type ) ) {
@@ -392,7 +392,7 @@ wp_enqueue_style( 'ie' );
 <script type="text/javascript">
 //<![CDATA[
 addLoadEvent = function(func){if(typeof jQuery!="undefined")jQuery(document).ready(func);else if(typeof wpOnload!='function'){wpOnload=func;}else{var oldonload=wpOnload;wpOnload=function(){oldonload();func();}}};
-var ajaxurl = '<?php echo esc_js( admin_url( 'admin-ajax.php', 'relative' ) ); ?>', pagenow = 'media-upload-popup', adminpage = 'media-upload-popup',
+var ajaxurl = '<?php echo admin_url( 'admin-ajax.php', 'relative' ); ?>', pagenow = 'media-upload-popup', adminpage = 'media-upload-popup',
 isRtl = <?php echo (int) is_rtl(); ?>;
 //]]>
 </script>
@@ -1558,7 +1558,7 @@ $post_params = array(
 $post_params = apply_filters( 'upload_post_params', $post_params ); // hook change! old name: 'swfupload_post_params'
 
 $plupload_init = array(
-	'runtimes' => 'html5,silverlight,html4',
+	'runtimes' => 'html5,silverlight,flash,html4',
 	'browse_button' => 'plupload-browse-button',
 	'container' => 'plupload-upload-ui',
 	'drop_element' => 'drag-drop-area',
@@ -2407,7 +2407,7 @@ function edit_form_image_editor( $post ) {
 	?>
 
 	<label for="content"><strong><?php _e( 'Description' ); ?></strong></label>
-	<?php wp_editor( format_to_edit( $post->post_content ), 'attachment_content', $editor_args ); ?>
+	<?php wp_editor( $post->post_content, 'attachment_content', $editor_args ); ?>
 
 	</div>
 	<?php
@@ -2581,7 +2581,7 @@ function wp_add_id3_tag_data( &$metadata, $data ) {
 		if ( ! empty( $data[$version]['comments'] ) ) {
 			foreach ( $data[$version]['comments'] as $key => $list ) {
 				if ( ! empty( $list ) ) {
-					$metadata[$key] = wp_kses_post( reset( $list ) );
+					$metadata[$key] = reset( $list );
 					// fix bug in byte stream analysis
 					if ( 'terms_of_use' === $key && 0 === strpos( $metadata[$key], 'yright notice.' ) )
 						$metadata[$key] = 'Cop' . $metadata[$key];

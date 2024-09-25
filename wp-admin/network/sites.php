@@ -49,7 +49,8 @@ get_current_screen()->set_help_sidebar(
 $id = isset( $_REQUEST['id'] ) ? intval( $_REQUEST['id'] ) : 0;
 
 if ( isset( $_GET['action'] ) ) {
-	do_action( 'wpmuadminedit' , '' );
+	/** This action is documented in wp-admin/network/edit.php */
+	do_action( 'wpmuadminedit' );
 
 	if ( 'confirm' === $_GET['action'] ) {
 		check_admin_referer( 'confirm' );
@@ -64,6 +65,7 @@ if ( isset( $_GET['action'] ) ) {
 		<!DOCTYPE html>
 		<html xmlns="http://www.w3.org/1999/xhtml" <?php language_attributes(); ?>>
 			<head>
+				<meta name="viewport" content="width=device-width" />
 				<title><?php _e( 'WordPress &rsaquo; Confirm your action' ); ?></title>
 
 				<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />

@@ -147,7 +147,7 @@ if ( current_theme_supports( 'post-formats' ) && post_type_supports( $post_type,
 // all taxonomies
 foreach ( get_object_taxonomies( $post ) as $tax_name ) {
 	$taxonomy = get_taxonomy( $tax_name );
-	if ( ! $taxonomy->show_ui )
+	if ( ! $taxonomy->show_ui || false === $taxonomy->meta_box_cb )
 		continue;
 
 	$label = $taxonomy->labels->name;
@@ -557,7 +557,7 @@ if ( 'page' == $post_type ) {
 	/**
 	 * Fires after 'normal' context meta boxes have been output for the 'page' post type.
 	 *
-	 * @since 1.5.2
+	 * @since 1.5.0
 	 *
 	 * @param WP_Post $post Post object.
 	 */
@@ -567,7 +567,7 @@ else {
 	/**
 	 * Fires after 'normal' context meta boxes have been output for all post types other than 'page'.
 	 *
-	 * @since 1.5.2
+	 * @since 1.5.0
 	 *
 	 * @param WP_Post $post Post object.
 	 */

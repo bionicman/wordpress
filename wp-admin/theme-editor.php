@@ -68,7 +68,7 @@ if ( empty( $file ) ) {
 	$relative_file = 'style.css';
 	$file = $allowed_files['style.css'];
 } else {
-	$relative_file = wp_unslash( $file );
+	$relative_file = $file;
 	$file = $theme->get_stylesheet_directory() . '/' . $relative_file;
 }
 
@@ -127,12 +127,10 @@ default:
  <div id="message" class="updated"><p><?php _e( 'File edited successfully.' ) ?></p></div>
 <?php endif;
 
-$file_description = get_file_description( $relative_file );
+$description = get_file_description( $file );
 $file_show = array_search( $file, array_filter( $allowed_files ) );
-$description = esc_html( $file_description );
-if ( $file_description != $file_show ) {
-	$description .= ' <span>(' . esc_html( $file_show ) . ')</span>';
-}
+if ( $description != $file_show )
+	$description .= ' <span>(' . $file_show . ')</span>';
 ?>
 <div class="wrap">
 <?php screen_icon(); ?>
@@ -182,9 +180,9 @@ if ( $allowed_files ) :
 		if ( 'style.css' == $filename )
 			echo "\t</ul>\n\t<h3>" . _x( 'Styles', 'Theme stylesheets in theme editor' ) . "</h3>\n\t<ul>\n";
 
-		$file_description = esc_html( get_file_description( $filename ) );
+		$file_description = get_file_description( $absolute_filename );
 		if ( $file_description != basename( $filename ) )
-			$file_description .= '<br /><span class="nonessential">(' . esc_html( $filename ) . ')</span>';
+			$file_description .= '<br /><span class="nonessential">(' . $filename . ')</span>';
 
 		if ( $absolute_filename == $file )
 			$file_description = '<span class="highlight">' . $file_description . '</span>';

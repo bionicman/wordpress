@@ -2527,11 +2527,10 @@ function wp_untrash_post_comments($post = null) {
 
 	foreach ( $group_by_status as $status => $comments ) {
 		// Sanity check. This shouldn't happen.
-		if ( 'post-trashed' == $status ) {
+		if ( 'post-trashed' == $status )
 			$status = '0';
-		}
-		$comments_in = implode( ', ', array_map( 'intval', $comments ) );
-		$wpdb->query( $wpdb->prepare( "UPDATE $wpdb->comments SET comment_approved = %s WHERE comment_ID IN ($comments_in)", $status ) );
+		$comments_in = implode( "', '", $comments );
+		$wpdb->query( "UPDATE $wpdb->comments SET comment_approved = '$status' WHERE comment_ID IN ('" . $comments_in . "')" );
 	}
 
 	clean_comment_cache( array_keys($statuses) );
@@ -3175,7 +3174,7 @@ function _truncate_post_slug( $slug, $length = 200 ) {
 		if ( $decoded_slug === $slug )
 			$slug = substr( $slug, 0, $length );
 		else
-			$slug = utf8_uri_encode( $decoded_slug, $length, true );
+			$slug = utf8_uri_encode( $decoded_slug, $length );
 	}
 
 	return rtrim( $slug, '-' );
@@ -3494,10 +3493,10 @@ function get_page_by_path($page_path, $output = OBJECT, $post_type = 'page') {
 	$page_path = str_replace('%2F', '/', $page_path);
 	$page_path = str_replace('%20', ' ', $page_path);
 	$parts = explode( '/', trim( $page_path, '/' ) );
+	$parts = esc_sql( $parts );
 	$parts = array_map( 'sanitize_title_for_query', $parts );
-	$escaped_parts = esc_sql( $parts );
 
-	$in_string = "'". implode( "','", $escaped_parts ) . "'";
+	$in_string = "'". implode( "','", $parts ) . "'";
 	$post_type_sql = esc_sql( $post_type );
 	$pages = $wpdb->get_results( "SELECT ID, post_name, post_parent, post_type FROM $wpdb->posts WHERE post_name IN ($in_string) AND (post_type = '$post_type_sql' OR post_type = 'attachment')", OBJECT_K );
 
@@ -4157,6 +4156,12 @@ function wp_delete_attachment( $post_id, $force_delete = false ) {
 	$backup_sizes = get_post_meta( $post->ID, '_wp_attachment_backup_sizes', true );
 	$file = get_attached_file( $post_id );
 
+	$intermediate_sizes = array();
+	foreach ( get_intermediate_image_sizes() as $size ) {
+		if ( $intermediate = image_get_intermediate_size( $post_id, $size ) )
+			$intermediate_sizes[] = $intermediate;
+	}
+
 	if ( is_multisite() )
 		delete_transient( 'dirsize_cache' );
 
@@ -4179,79 +4184,43 @@ function wp_delete_attachment( $post_id, $force_delete = false ) {
 	$wpdb->delete( $wpdb->posts, array( 'ID' => $post_id ) );
 	do_action( 'deleted_post', $post_id );
 
-	wp_delete_attachment_files( $post_id, $meta, $backup_sizes, $file );
-
-	clean_post_cache( $post );
-
-	return $post;
-}
-
-/**
- * Deletes all files that belong to the given attachment.
- *
- * @since 4.9.7
- *
- * @param int    $post_id      Attachment ID.
- * @param array  $meta         The attachment's meta data.
- * @param array  $backup_sizes The meta data for the attachment's backup images.
- * @param string $file         Absolute path to the attachment's file.
- * @return bool True on success, false on failure.
- */
-function wp_delete_attachment_files( $post_id, $meta, $backup_sizes, $file ) {
-	global $wpdb;
-
 	$uploadpath = wp_upload_dir();
-	$deleted    = true;
 
 	if ( ! empty($meta['thumb']) ) {
 		// Don't delete the thumb if another attachment uses it
 		if (! $wpdb->get_row( $wpdb->prepare( "SELECT meta_id FROM $wpdb->postmeta WHERE meta_key = '_wp_attachment_metadata' AND meta_value LIKE %s AND post_id <> %d", '%' . $meta['thumb'] . '%', $post_id)) ) {
 			$thumbfile = str_replace(basename($file), $meta['thumb'], $file);
-			if ( ! empty( $thumbfile ) ) {
-				$thumbfile = path_join( $uploadpath['basedir'], $thumbfile );
-				$thumbdir  = path_join( $uploadpath['basedir'], dirname( $file ) );
-
-				if ( ! wp_delete_file_from_directory( $thumbfile, $thumbdir ) ) {
-					$deleted = false;
-				}
-			}
+			/** This filter is documented in wp-admin/custom-header.php */
+			$thumbfile = apply_filters('wp_delete_file', $thumbfile);
+			@ unlink( path_join($uploadpath['basedir'], $thumbfile) );
 		}
 	}
 
 	// remove intermediate and backup images if there are any
-	if ( isset( $meta['sizes'] ) && is_array( $meta['sizes'] ) ) {
-		$intermediate_dir = path_join( $uploadpath['basedir'], dirname( $file ) );
-		foreach ( $meta['sizes'] as $size => $sizeinfo ) {
-			$intermediate_file = str_replace( basename( $file ), $sizeinfo['file'], $file );
-			if ( ! empty( $intermediate_file ) ) {
-				$intermediate_file = path_join( $uploadpath['basedir'], $intermediate_file );
-
-				if ( ! wp_delete_file_from_directory( $intermediate_file, $intermediate_dir ) ) {
-					$deleted = false;
-				}
-			}
-		}
+	foreach ( $intermediate_sizes as $intermediate ) {
+		/** This filter is documented in wp-admin/custom-header.php */
+		$intermediate_file = apply_filters( 'wp_delete_file', $intermediate['path'] );
+		@ unlink( path_join($uploadpath['basedir'], $intermediate_file) );
 	}
 
 	if ( is_array($backup_sizes) ) {
-		$del_dir = path_join( $uploadpath['basedir'], dirname( $meta['file'] ) );
 		foreach ( $backup_sizes as $size ) {
-			$del_file = path_join( dirname( $meta['file'] ), $size['file'] );
-			if ( ! empty( $del_file ) ) {
-				$del_file = path_join( $uploadpath['basedir'], $del_file );
-
-				if ( ! wp_delete_file_from_directory( $del_file, $del_dir ) ) {
-					$deleted = false;
-				}
-			}
+			$del_file = path_join( dirname($meta['file']), $size['file'] );
+			/** This filter is documented in wp-admin/custom-header.php */
+			$del_file = apply_filters('wp_delete_file', $del_file);
+			@ unlink( path_join($uploadpath['basedir'], $del_file) );
 		}
 	}
 
-	if ( ! wp_delete_file_from_directory( $file, $uploadpath['basedir'] ) ) {
-		$deleted = false;
-	}
+	/** This filter is documented in wp-admin/custom-header.php */
+	$file = apply_filters('wp_delete_file', $file);
 
-	return $deleted;
+	if ( ! empty($file) )
+		@ unlink($file);
+
+	clean_post_cache( $post );
+
+	return $post;
 }
 
 /**

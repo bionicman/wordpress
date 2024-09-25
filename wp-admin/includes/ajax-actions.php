@@ -233,18 +233,14 @@ function wp_ajax_autocomplete_user() {
 function wp_ajax_dashboard_widgets() {
 	require_once ABSPATH . 'wp-admin/includes/dashboard.php';
 
+	$pagenow = $_GET['pagenow'];
+	if ( $pagenow === 'dashboard-user' || $pagenow === 'dashboard-network' || $pagenow === 'dashboard' ) {
+		set_current_screen( $pagenow );
+	}
+
 	switch ( $_GET['widget'] ) {
-		case 'dashboard_incoming_links' :
-			wp_dashboard_incoming_links();
-			break;
 		case 'dashboard_primary' :
 			wp_dashboard_primary();
-			break;
-		case 'dashboard_secondary' :
-			wp_dashboard_secondary();
-			break;
-		case 'dashboard_plugins' :
-			wp_dashboard_plugins();
 			break;
 	}
 	wp_die();
@@ -794,8 +790,6 @@ function wp_ajax_replyto_comment( $action ) {
 			if ( wp_create_nonce( 'unfiltered-html-comment' ) != $_POST['_wp_unfiltered_html_comment'] ) {
 				kses_remove_filters(); // start with a clean slate
 				kses_init_filters(); // set up the filters
-				remove_filter( 'pre_comment_content', 'wp_filter_post_kses' );
-				add_filter( 'pre_comment_content', 'wp_filter_kses' );
 			}
 		}
 	} else {
@@ -1379,13 +1373,11 @@ function wp_ajax_inline_save() {
 	if ( isset($data['post_parent']) )
 		$data['parent_id'] = $data['post_parent'];
 
-	// Status.
-	if ( isset( $data['keep_private'] ) && 'private' == $data['keep_private'] ) {
-		$data['visibility']  = 'private';
+	// status
+	if ( isset($data['keep_private']) && 'private' == $data['keep_private'] )
 		$data['post_status'] = 'private';
-	} else {
+	else
 		$data['post_status'] = $data['_status'];
-	}
 
 	if ( empty($data['comment_status']) )
 		$data['comment_status'] = 'closed';
@@ -1661,11 +1653,7 @@ function wp_ajax_upload_attachment() {
 		$post_id = null;
 	}
 
-	$post_data = ! empty( $_REQUEST['post_data'] ) ? _wp_get_allowed_postdata( _wp_translate_postdata( false, (array) $_REQUEST['post_data'] ) ) : array();
-
-	if ( is_wp_error( $post_data ) ) {
-		wp_die( $post_data->get_error_message() );
-	}
+	$post_data = isset( $_REQUEST['post_data'] ) ? $_REQUEST['post_data'] : array();
 
 	// If the context is custom header or background, make sure the uploaded file is an image.
 	if ( isset( $post_data['context'] ) && in_array( $post_data['context'], array( 'custom-header', 'custom-background' ) ) ) {
@@ -1675,7 +1663,7 @@ function wp_ajax_upload_attachment() {
 				'success' => false,
 				'data'    => array(
 					'message'  => __( 'The uploaded file is not a valid image. Please try again.' ),
-					'filename' => esc_html( $_FILES['async-upload']['name'] ),
+					'filename' => $_FILES['async-upload']['name'],
 				)
 			) );
 
@@ -1690,7 +1678,7 @@ function wp_ajax_upload_attachment() {
 			'success' => false,
 			'data'    => array(
 				'message'  => $attachment_id->get_error_message(),
-				'filename' => esc_html( $_FILES['async-upload']['name'] ),
+				'filename' => $_FILES['async-upload']['name'],
 			)
 		) );
 
@@ -2232,7 +2220,7 @@ function wp_ajax_get_revision_diffs() {
 	if ( ! $post = get_post( (int) $_REQUEST['post_id'] ) )
 		wp_send_json_error();
 
-	if ( ! current_user_can( 'edit_post', $post->ID ) )
+	if ( ! current_user_can( 'read_post', $post->ID ) )
 		wp_send_json_error();
 
 	// Really just pre-loading the cache here.
@@ -2251,4 +2239,28 @@ function wp_ajax_get_revision_diffs() {
 		);
 	}
 	wp_send_json_success( $return );
+}
+
+/**
+ * Auto-save the selected color scheme for a user's own profile.
+ *
+ * @since  3.8.0
+ */
+function wp_ajax_save_user_color_scheme() {
+	global $_wp_admin_css_colors;
+
+	$user_id = intval( $_POST['user_id'] );
+	$color_scheme = sanitize_key( $_POST['color_scheme'] );
+
+	if ( get_current_user_id() !== $user_id )
+		wp_send_json_error();
+
+	if ( ! get_user_by( 'id', $user_id ) )
+		wp_send_json_error();
+
+	if ( ! isset( $_wp_admin_css_colors[ $color_scheme ] ) )
+		wp_send_json_error();
+
+	update_user_option( $user_id, 'admin_color', $color_scheme, true );
+	wp_send_json_success();
 }

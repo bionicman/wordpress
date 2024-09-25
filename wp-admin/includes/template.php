@@ -686,7 +686,7 @@ function touch_time( $edit = 1, $for_post = 1, $tab_index = 0, $multi = 0 ) {
 
 <p>
 <a href="#edit_timestamp" class="save-timestamp hide-if-no-js button"><?php _e('OK'); ?></a>
-<a href="#edit_timestamp" class="cancel-timestamp hide-if-no-js"><?php _e('Cancel'); ?></a>
+<a href="#edit_timestamp" class="cancel-timestamp hide-if-no-js button-cancel"><?php _e('Cancel'); ?></a>
 </p>
 <?php
 }
@@ -706,7 +706,7 @@ function page_template_dropdown( $default = '' ) {
 			$selected = " selected='selected'";
 		else
 			$selected = '';
-	echo "\n\t<option value='" . esc_attr( $templates[$template] ) ."' $selected>" . esc_html( $template ) . "</option>";
+	echo "\n\t<option value='".$templates[$template]."' $selected>$template</option>";
 	endforeach;
 }
 
@@ -1373,7 +1373,7 @@ function _draft_or_post_title( $post = 0 ) {
 	$title = get_the_title( $post );
 	if ( empty( $title ) )
 		$title = __( '(no title)' );
-	return esc_html( $title );
+	return $title;
 }
 
 /**
@@ -1416,12 +1416,12 @@ wp_enqueue_style( 'colors' );
 //<![CDATA[
 addLoadEvent = function(func){if(typeof jQuery!="undefined")jQuery(document).ready(func);else if(typeof wpOnload!='function'){wpOnload=func;}else{var oldonload=wpOnload;wpOnload=function(){oldonload();func();}}};
 function tb_close(){var win=window.dialogArguments||opener||parent||top;win.tb_remove();}
-var ajaxurl = '<?php echo esc_js( admin_url( 'admin-ajax.php', 'relative' ) ); ?>',
-	pagenow = '<?php echo esc_js( $current_screen->id ); ?>',
-	typenow = '<?php echo esc_js( $current_screen->post_type ); ?>',
-	adminpage = '<?php echo esc_js( $admin_body_class ); ?>',
-	thousandsSeparator = '<?php echo esc_js( $wp_locale->number_format['thousands_sep'] ); ?>',
-	decimalPoint = '<?php echo esc_js( $wp_locale->number_format['decimal_point'] ); ?>',
+var ajaxurl = '<?php echo admin_url( 'admin-ajax.php', 'relative' ); ?>',
+	pagenow = '<?php echo $current_screen->id; ?>',
+	typenow = '<?php echo $current_screen->post_type; ?>',
+	adminpage = '<?php echo $admin_body_class; ?>',
+	thousandsSeparator = '<?php echo addslashes( $wp_locale->number_format['thousands_sep'] ); ?>',
+	decimalPoint = '<?php echo addslashes( $wp_locale->number_format['decimal_point'] ); ?>',
 	isRtl = <?php echo (int) is_rtl(); ?>;
 //]]>
 </script>
@@ -1685,7 +1685,13 @@ function get_submit_button( $text = null, $type = 'primary large', $name = 'subm
 }
 
 function _wp_admin_html_begin() {
+	global $is_IE;
+
 	$admin_html_class = ( is_admin_bar_showing() ) ? 'wp-toolbar' : '';
+
+	if ( $is_IE )
+		@header('X-UA-Compatible: IE=edge');
+
 ?>
 <!DOCTYPE html>
 <!--[if IE 8]>

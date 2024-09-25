@@ -100,10 +100,6 @@ function _wp_translate_postdata( $update = false, $post_data = null ) {
 		$post_id = false;
 	$previous_status = $post_id ? get_post_field( 'post_status', $post_id ) : false;
 
-	if ( isset( $post_data['post_status'] ) && 'private' == $post_data['post_status'] && ! current_user_can( $ptype->cap->publish_posts ) ) {
-		$post_data['post_status'] = $previous_status ? $previous_status : 'pending';
-	}
-
 	$published_statuses = array( 'publish', 'future' );
 
 	// Posts 'submitted for approval' present are submitted to $_POST the same as if they were being published.
@@ -114,10 +110,6 @@ function _wp_translate_postdata( $update = false, $post_data = null ) {
 
 	if ( ! isset($post_data['post_status']) )
 		$post_data['post_status'] = $previous_status;
-
-	if ( isset( $post_data['post_password'] ) && ! current_user_can( $ptype->cap->publish_posts ) ) {
-		unset( $post_data['post_password'] );
-	}
 
 	if (!isset( $post_data['comment_status'] ))
 		$post_data['comment_status'] = 'closed';
@@ -154,35 +146,7 @@ function _wp_translate_postdata( $update = false, $post_data = null ) {
 		$post_data['post_date_gmt'] = get_gmt_from_date( $post_data['post_date'] );
 	}
 
-	if ( isset( $post_data['post_category'] ) ) {
-		$category_object = get_taxonomy( 'category' );
-		if ( ! current_user_can( $category_object->cap->assign_terms ) ) {
-			unset( $post_data['post_category'] );
-		}
-	}
-
 	return $post_data;
-}
-
-/**
- * Returns only allowed post data fields
- *
- * @since 4.9.9
- *
- * @param array $post_data Array of post data. Defaults to the contents of $_POST.
- * @return object|bool WP_Error on failure, true on success.
- */
-function _wp_get_allowed_postdata( $post_data = null ) {
-	if ( empty( $post_data ) ) {
-		$post_data = $_POST;
-	}
-
-	// Pass through errors
-	if ( is_wp_error( $post_data ) ) {
-		return $post_data;
-	}
-
-	return array_diff_key( $post_data, array_flip( array( 'meta_input', 'file', 'guid' ) ) );
 }
 
 /**
@@ -194,7 +158,6 @@ function _wp_get_allowed_postdata( $post_data = null ) {
  * @return int Post ID.
  */
 function edit_post( $post_data = null ) {
-	global $wpdb;
 
 	if ( empty($post_data) )
 		$post_data = &$_POST;
@@ -206,14 +169,6 @@ function edit_post( $post_data = null ) {
 	$post = get_post( $post_ID );
 	$post_data['post_type'] = $post->post_type;
 	$post_data['post_mime_type'] = $post->post_mime_type;
-
-	if ( ! empty( $post_data['post_status'] ) ) {
-		$post_data['post_status'] = sanitize_key( $post_data['post_status'] );
-
-		if ( 'inherit' == $post_data['post_status'] ) {
-			unset( $post_data['post_status'] );
-		}
-	}
 
 	$ptype = get_post_type_object($post_data['post_type']);
 	if ( !current_user_can( 'edit_post', $post_ID ) ) {
@@ -232,6 +187,13 @@ function edit_post( $post_data = null ) {
 			_wp_upgrade_revisions_of_post( $post, wp_get_post_revisions( $post_ID ) );
 	}
 
+	$post_data = _wp_translate_postdata( true, $post_data );
+	if ( is_wp_error($post_data) )
+		wp_die( $post_data->get_error_message() );
+	if ( ( empty( $post_data['action'] ) || 'autosave' != $post_data['action'] ) && 'auto-draft' == $post_data['post_status'] ) {
+		$post_data['post_status'] = 'draft';
+	}
+
 	if ( isset($post_data['visibility']) ) {
 		switch ( $post_data['visibility'] ) {
 			case 'public' :
@@ -247,16 +209,6 @@ function edit_post( $post_data = null ) {
 				break;
 		}
 	}
-
-	$post_data = _wp_translate_postdata( true, $post_data );
-	if ( is_wp_error($post_data) )
-		wp_die( $post_data->get_error_message() );
-
-	if ( ( empty( $post_data['action'] ) || 'autosave' != $post_data['action'] ) && 'auto-draft' == $post_data['post_status'] ) {
-		$post_data['post_status'] = 'draft';
-	}
-
-	$translated = _wp_get_allowed_postdata( $post_data );
 
 	// Post Formats
 	if ( isset( $post_data['post_format'] ) )
@@ -319,26 +271,14 @@ function edit_post( $post_data = null ) {
 
 		$attachment_data = isset( $post_data['attachments'][ $post_ID ] ) ? $post_data['attachments'][ $post_ID ] : array();
 		/** This filter is documented in wp-admin/includes/media.php */
-		$translated = apply_filters( 'attachment_fields_to_save', $translated, $attachment_data );
+		$post_data = apply_filters( 'attachment_fields_to_save', $post_data, $attachment_data );
 	}
 
 	add_meta( $post_ID );
 
 	update_post_meta( $post_ID, '_edit_last', get_current_user_id() );
 
-	$success = wp_update_post( $translated );
-	// If the save failed, see if we can sanity check the main fields and try again
-	if ( ! $success && is_callable( array( $wpdb, 'strip_invalid_text_for_column' ) ) ) {
-		$fields = array( 'post_title', 'post_content', 'post_excerpt' );
-
-		foreach( $fields as $field ) {
-			if ( isset( $translated[ $field ] ) ) {
-				$translated[ $field ] = $wpdb->strip_invalid_text_for_column( $wpdb->posts, $field, $translated[ $field ] );
-			}
-		}
-
-		wp_update_post( $translated );
-	}
+	wp_update_post( $post_data );
 
 	// Now that we have an ID we can fix any attachment anchor hrefs
 	_fix_attachment_links( $post_ID );
@@ -391,14 +331,6 @@ function bulk_edit_posts( $post_data = null ) {
 		$post_data['post_status'] = $post_data['_status'];
 	}
 	unset($post_data['_status']);
-
-	if ( ! empty( $post_data['post_status'] ) ) {
-		$post_data['post_status'] = sanitize_key( $post_data['post_status'] );
-
-		if ( 'inherit' == $post_data['post_status'] ) {
-			unset( $post_data['post_status'] );
-		}
-	}
 
 	$post_IDs = array_map( 'intval', (array) $post_data['post'] );
 
@@ -454,12 +386,7 @@ function bulk_edit_posts( $post_data = null ) {
 	}
 
 	$updated = $skipped = $locked = array();
-	$shared_post_data = $post_data;
-
 	foreach ( $post_IDs as $post_ID ) {
-		// Start with fresh post data with each iteration.
-		$post_data = $shared_post_data;
-
 		$post_type_object = get_post_type_object( get_post_type( $post_ID ) );
 
 		if ( !isset( $post_type_object ) || ( isset($children) && in_array($post_ID, $children) ) || !current_user_can( 'edit_post', $post_ID ) ) {
@@ -495,23 +422,10 @@ function bulk_edit_posts( $post_data = null ) {
 			unset( $post_data['tax_input']['category'] );
 		}
 
-		$post_data['post_ID']        = $post_ID;
-		$post_data['post_type'] = $post->post_type;
 		$post_data['post_mime_type'] = $post->post_mime_type;
+		$post_data['guid'] = $post->guid;
 
-		foreach ( array( 'comment_status', 'ping_status', 'post_author' ) as $field ) {
-			if ( ! isset( $post_data[ $field ] ) ) {
-				$post_data[ $field ] = $post->$field;
-			}
-		}
-
-		$post_data = _wp_translate_postdata( true, $post_data );
-		if ( is_wp_error( $post_data ) ) {
-			$skipped[] = $post_ID;
-			continue;
-		}
-		$post_data = _wp_get_allowed_postdata( $post_data );
-
+		$post_data['ID'] = $post_ID;
 		$updated[] = wp_update_post( $post_data );
 
 		if ( isset( $post_data['sticky'] ) && current_user_can( $ptype->cap->edit_others_posts ) ) {
@@ -521,8 +435,8 @@ function bulk_edit_posts( $post_data = null ) {
 				unstick_post( $post_ID );
 		}
 
-		if ( isset( $shared_post_data['post_format'] ) )
-			set_post_format( $post_ID, $shared_post_data['post_format'] );
+		if ( isset( $post_data['post_format'] ) )
+			set_post_format( $post_ID, $post_data['post_format'] );
 	}
 
 	return array( 'updated' => $updated, 'skipped' => $skipped, 'locked' => $locked );
@@ -655,6 +569,10 @@ function wp_write_post() {
 	if ( isset( $_POST['post_ID'] ) )
 		return edit_post();
 
+	$translated = _wp_translate_postdata( false );
+	if ( is_wp_error($translated) )
+		return $translated;
+
 	if ( isset($_POST['visibility']) ) {
 		switch ( $_POST['visibility'] ) {
 			case 'public' :
@@ -671,13 +589,8 @@ function wp_write_post() {
 		}
 	}
 
-	$translated = _wp_translate_postdata( false );
-	if ( is_wp_error($translated) )
-		return $translated;
-	$translated = _wp_get_allowed_postdata( $translated );
-
 	// Create the post.
-	$post_ID = wp_insert_post( $translated );
+	$post_ID = wp_insert_post( $_POST );
 	if ( is_wp_error( $post_ID ) )
 		return $post_ID;
 
@@ -1176,11 +1089,11 @@ function get_sample_permalink_html( $id, $new_title = null, $new_slug = null ) {
 	}
 
 	if ( false === strpos($permalink, '%postname%') && false === strpos($permalink, '%pagename%') ) {
-		$return = '<strong>' . __('Permalink:') . "</strong>\n" . '<span id="sample-permalink" tabindex="-1">' . esc_html( $permalink ) . "</span>\n";
+		$return = '<strong>' . __('Permalink:') . "</strong>\n" . '<span id="sample-permalink" tabindex="-1">' . $permalink . "</span>\n";
 		if ( '' == get_option( 'permalink_structure' ) && current_user_can( 'manage_options' ) && !( 'page' == get_option('show_on_front') && $id == get_option('page_on_front') ) )
 			$return .= '<span id="change-permalinks"><a href="options-permalink.php" class="button button-small" target="_blank">' . __('Change Permalinks') . "</a></span>\n";
 		if ( isset( $view_post ) )
-			$return .= "<span id='view-post-btn'><a href='" . esc_url( $permalink ) . "' class='button button-small'>$view_post</a></span>\n";
+			$return .= "<span id='view-post-btn'><a href='$permalink' class='button button-small'>$view_post</a></span>\n";
 
 		$return = apply_filters('get_sample_permalink_html', $return, $id, $new_title, $new_slug);
 
@@ -1201,16 +1114,16 @@ function get_sample_permalink_html( $id, $new_title = null, $new_slug = null ) {
 		}
 	}
 
-	$post_name_html = '<span id="editable-post-name" title="' . $title . '">' . esc_html( $post_name_abridged ) . '</span>';
-	$display_link = str_replace(array('%pagename%','%postname%'), $post_name_html, esc_html( $permalink ) );
+	$post_name_html = '<span id="editable-post-name" title="' . $title . '">' . $post_name_abridged . '</span>';
+	$display_link = str_replace(array('%pagename%','%postname%'), $post_name_html, $permalink);
 	$view_link = str_replace(array('%pagename%','%postname%'), $post_name, $permalink);
 	$return =  '<strong>' . __('Permalink:') . "</strong>\n";
 	$return .= '<span id="sample-permalink" tabindex="-1">' . $display_link . "</span>\n";
 	$return .= '&lrm;'; // Fix bi-directional text display defect in RTL languages.
 	$return .= '<span id="edit-slug-buttons"><a href="#post_name" class="edit-slug button button-small hide-if-no-js" onclick="editPermalink(' . $id . '); return false;">' . __('Edit') . "</a></span>\n";
-	$return .= '<span id="editable-post-name-full">' . esc_html( $post_name ) . "</span>\n";
+	$return .= '<span id="editable-post-name-full">' . $post_name . "</span>\n";
 	if ( isset($view_post) )
-		$return .= "<span id='view-post-btn'><a href='" . esc_url( $view_link ) . "' class='button button-small'>$view_post</a></span>\n";
+		$return .= "<span id='view-post-btn'><a href='$view_link' class='button button-small'>$view_post</a></span>\n";
 
 	$return = apply_filters('get_sample_permalink_html', $return, $id, $new_title, $new_slug);
 
@@ -1272,7 +1185,7 @@ function wp_check_post_lock( $post_id ) {
 	$time = $lock[0];
 	$user = isset( $lock[1] ) ? $lock[1] : get_post_meta( $post->ID, '_edit_last', true );
 
-	$time_window = apply_filters( 'wp_check_post_lock_window', 120 );
+	$time_window = apply_filters( 'wp_check_post_lock_window', 150 );
 
 	if ( $time && $time > time() - $time_window && $user != get_current_user_id() )
 		return $user;
@@ -1383,7 +1296,7 @@ function _admin_notice_post_locked() {
 		// Allow plugins to prevent some users overriding the post lock
 		if ( $override ) {
 			?>
-			<a class="button button-primary wp-tab-last" href="<?php echo esc_url( add_query_arg( 'get-post-lock', '1', wp_nonce_url( get_edit_post_link( $post->ID, 'url' ), 'lock-post_' . $post->ID ) ) ); ?>"><?php _e('Take over'); ?></a>
+			<a class="button button-primary wp-tab-last" href="<?php echo esc_url( add_query_arg( 'get-post-lock', '1', get_edit_post_link( $post->ID, 'url' ) ) ); ?>"><?php _e('Take over'); ?></a>
 			<?php
 		}
 
@@ -1428,13 +1341,12 @@ function wp_create_post_autosave( $post_id ) {
 	$translated = _wp_translate_postdata( true );
 	if ( is_wp_error( $translated ) )
 		return $translated;
-	$translated = _wp_get_allowed_postdata( $translated );
 
 	$post_author = get_current_user_id();
 
 	// Store one autosave per author. If there is already an autosave, overwrite it.
 	if ( $old_autosave = wp_get_post_autosave( $post_id, $post_author ) ) {
-		$new_autosave = _wp_post_revision_fields( $translated, true );
+		$new_autosave = _wp_post_revision_fields( $_POST, true );
 		$new_autosave['ID'] = $old_autosave->ID;
 		$new_autosave['post_author'] = $post_author;
 
@@ -1457,7 +1369,7 @@ function wp_create_post_autosave( $post_id ) {
 	}
 
 	// _wp_put_post_revision() expects unescaped.
-	$post_data = wp_unslash( $translated );
+	$post_data = wp_unslash( $_POST );
 
 	// Otherwise create the new autosave as a special post revision
 	return _wp_put_post_revision( $post_data, true );

@@ -463,9 +463,7 @@ final class WP_Screen {
 
 			switch ( $base ) {
 				case 'post' :
-					if ( isset( $_GET['post'] ) && isset( $_POST['post_ID'] ) && (int) $_GET['post'] !== (int) $_POST['post_ID'] )
-						wp_die( __( 'A post ID mismatch has been detected.' ), __( 'Sorry, you are not allowed to edit this item.' ), 400 );
-					elseif ( isset( $_GET['post'] ) )
+					if ( isset( $_GET['post'] ) )
 						$post_id = (int) $_GET['post'];
 					elseif ( isset( $_POST['post_ID'] ) )
 						$post_id = (int) $_POST['post_ID'];
@@ -903,8 +901,7 @@ final class WP_Screen {
 
 		switch ( $this->id ) {
 			case 'widgets':
-				$nonce = wp_create_nonce( 'widgets-access' );
-				$this->_screen_settings = '<p><a id="access-on" href="widgets.php?widgets-access=on&_wpnonce=' . urlencode( $nonce ) . '">' . __('Enable accessibility mode') . '</a><a id="access-off" href="widgets.php?widgets-access=off&_wpnonce=' . urlencode( $nonce ) . '">' . __('Disable accessibility mode') . "</a></p>\n";
+				$this->_screen_settings = '<p><a id="access-on" href="widgets.php?widgets-access=on">' . __('Enable accessibility mode') . '</a><a id="access-off" href="widgets.php?widgets-access=off">' . __('Disable accessibility mode') . "</a></p>\n";
 				break;
 			default:
 				$this->_screen_settings = '';

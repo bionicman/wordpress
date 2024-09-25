@@ -289,8 +289,10 @@ function is_taxonomy_hierarchical($taxonomy) {
  *     * If not set, the default is inherited from public.
  * - show_tagcloud - Whether to list the taxonomy in the Tag Cloud Widget.
  *     * If not set, the default is inherited from show_ui.
- * - meta_box_cb - Provide a callback function for the meta box display. Defaults to
- *     post_categories_meta_box for hierarchical taxonomies and post_tags_meta_box for non-hierarchical.
+ * - meta_box_cb - Provide a callback function for the meta box display.
+ *     * If not set, defaults to post_categories_meta_box for hierarchical taxonomies
+ *     and post_tags_meta_box for non-hierarchical.
+ *     * If false, no meta box is shown.
  * - capabilities - Array of capabilities for this taxonomy.
  *     * You can see accepted values in this function.
  * - rewrite - Triggers the handling of rewrites for this taxonomy. Defaults to true, using $taxonomy as slug.
@@ -587,7 +589,7 @@ function get_objects_in_term( $term_ids, $taxonomies, $args = array() ) {
 
 	$term_ids = array_map('intval', $term_ids );
 
-	$taxonomies = "'" . implode( "', '", array_map( 'esc_sql', $taxonomies ) ) . "'";
+	$taxonomies = "'" . implode( "', '", $taxonomies ) . "'";
 	$term_ids = "'" . implode( "', '", $term_ids ) . "'";
 
 	$object_ids = $wpdb->get_col("SELECT tr.object_id FROM $wpdb->term_relationships AS tr INNER JOIN $wpdb->term_taxonomy AS tt ON tr.term_taxonomy_id = tt.term_taxonomy_id WHERE tt.taxonomy IN ($taxonomies) AND tt.term_id IN ($term_ids) ORDER BY tr.object_id $order");
@@ -810,11 +812,7 @@ class WP_Tax_Query {
 			return;
 		}
 
-		if ( 'slug' === $query['field'] || 'name' === $query['field'] ) {
-			$query['terms'] = array_unique( (array) $query['terms'] );
-		} else {
-			$query['terms'] = wp_parse_id_list( $query['terms'] );
-		}
+		$query['terms'] = array_unique( (array) $query['terms'] );
 
 		if ( is_taxonomy_hierarchical( $query['taxonomy'] ) && $query['include_children'] ) {
 			$this->transform_query( $query, 'term_id' );
@@ -1350,7 +1348,7 @@ function get_terms($taxonomies, $args = '') {
 	if ( '' !== $order && !in_array( $order, array( 'ASC', 'DESC' ) ) )
 		$order = 'ASC';
 
-	$where = "tt.taxonomy IN ('" . implode("', '", array_map( 'esc_sql', $taxonomies ) ) . "')";
+	$where = "tt.taxonomy IN ('" . implode("', '", $taxonomies) . "')";
 	$inclusions = '';
 	if ( ! empty( $include ) ) {
 		$exclude = '';
@@ -1660,14 +1658,9 @@ function term_is_ancestor_of( $term1, $term2, $taxonomy ) {
  */
 function sanitize_term($term, $taxonomy, $context = 'display') {
 
-	if ( 'raw' == $context )
-		return $term;
+	$fields = array( 'term_id', 'name', 'description', 'slug', 'count', 'parent', 'term_group', 'term_taxonomy_id', 'object_id' );
 
-	$fields = array('term_id', 'name', 'description', 'slug', 'count', 'parent', 'term_group');
-
-	$do_object = false;
-	if ( is_object($term) )
-		$do_object = true;
+	$do_object = is_object( $term );
 
 	$term_id = $do_object ? $term->term_id : (isset($term['term_id']) ? $term['term_id'] : 0);
 
@@ -1716,7 +1709,8 @@ function sanitize_term($term, $taxonomy, $context = 'display') {
  * @return mixed sanitized field
  */
 function sanitize_term_field($field, $value, $term_id, $taxonomy, $context) {
-	if ( 'parent' == $field  || 'term_id' == $field || 'count' == $field || 'term_group' == $field ) {
+	$int_fields = array( 'parent', 'term_id', 'count', 'term_group', 'term_taxonomy_id', 'object_id' );
+	if ( in_array( $field, $int_fields ) ) {
 		$value = (int) $value;
 		if ( $value < 0 )
 			$value = 0;
@@ -2033,7 +2027,7 @@ function wp_get_object_terms($object_ids, $taxonomies, $args = array()) {
 	if ( '' !== $order && ! in_array( $order, array( 'ASC', 'DESC' ) ) )
 		$order = 'ASC';
 
-	$taxonomies = "'" . implode("', '", array_map( 'esc_sql', $taxonomies ) ) . "'";
+	$taxonomies = "'" . implode("', '", $taxonomies) . "'";
 	$object_ids = implode(', ', $object_ids);
 
 	$select_this = '';
@@ -2051,12 +2045,21 @@ function wp_get_object_terms($object_ids, $taxonomies, $args = array()) {
 	$query = "SELECT $select_this FROM $wpdb->terms AS t INNER JOIN $wpdb->term_taxonomy AS tt ON tt.term_id = t.term_id INNER JOIN $wpdb->term_relationships AS tr ON tr.term_taxonomy_id = tt.term_taxonomy_id WHERE tt.taxonomy IN ($taxonomies) AND tr.object_id IN ($object_ids) $orderby $order";
 
 	if ( 'all' == $fields || 'all_with_object_id' == $fields ) {
-		$terms = array_merge($terms, $wpdb->get_results($query));
-		update_term_cache($terms);
+		$_terms = $wpdb->get_results( $query );
+		foreach ( $_terms as &$term )
+			$term = sanitize_term( $term, $taxonomy, 'raw' );
+		$terms = array_merge( $terms, $_terms );
+		update_term_cache( $terms );
 	} else if ( 'ids' == $fields || 'names' == $fields || 'slugs' == $fields ) {
-		$terms = array_merge($terms, $wpdb->get_col($query));
+		$_terms = $wpdb->get_col( $query );
+		$_field = ( 'ids' == $fields ) ? 'term_id' : 'name';
+		foreach ( $_terms as &$term )
+			$term = sanitize_term_field( $_field, $term, $term, $taxonomy, 'raw' );
+		$terms = array_merge( $terms, $_terms );
 	} else if ( 'tt_ids' == $fields ) {
 		$terms = $wpdb->get_col("SELECT tr.term_taxonomy_id FROM $wpdb->term_relationships AS tr INNER JOIN $wpdb->term_taxonomy AS tt ON tr.term_taxonomy_id = tt.term_taxonomy_id WHERE tr.object_id IN ($object_ids) AND tt.taxonomy IN ($taxonomies) $orderby $order");
+		foreach ( $terms as &$tt_id )
+			$tt_id = sanitize_term_field( 'term_taxonomy_id', $tt_id, 0, $taxonomy, 'raw' ); // 0 should be the term id, however is not needed when using raw context.
 	}
 
 	if ( ! $terms )

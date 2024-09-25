@@ -1,3 +1,5 @@
+/* global plugininstallL10n, tb_click, confirm */
+
 /* Plugin Browser Thickbox related JS*/
 var tb_position;
 jQuery(document).ready(function($) {
@@ -13,7 +15,7 @@ jQuery(document).ready(function($) {
 			tbWindow.css({'margin-left': '-' + parseInt((( W - 50 ) / 2),10) + 'px'});
 			if ( typeof document.body.style.maxWidth != 'undefined' )
 				tbWindow.css({'top': 20 + adminbar_height + 'px','margin-top':'0'});
-		};
+		}
 
 		return $('a.thickbox').each( function() {
 			var href = $(this).attr('href');
@@ -27,7 +29,7 @@ jQuery(document).ready(function($) {
 
 	$(window).resize(function(){ tb_position(); });
 
-	$('#dashboard_plugins, .plugins').on( 'click', 'a.thickbox', function() {
+	$('.plugins').on( 'click', 'a.thickbox', function() {
 		tb_click.call(this);
 
 		$('#TB_title').css({'background-color':'#222','color':'#cfcfcf'});

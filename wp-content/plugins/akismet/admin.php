@@ -39,20 +39,13 @@ function akismet_load_js_and_css() {
 		'plugins_page_akismet-key-config', 
 		'jetpack_page_akismet-key-config',
 	) ) ) {
-		wp_register_style( 'akismet.css', AKISMET_PLUGIN_URL . 'akismet.css', array(), AKISMET_VERSION );
+		wp_register_style( 'akismet.css', AKISMET_PLUGIN_URL . 'akismet.css', array(), '2.5.9' );
 		wp_enqueue_style( 'akismet.css');
 	
-		wp_register_script( 'akismet.js', AKISMET_PLUGIN_URL . 'akismet.js', array('jquery'), AKISMET_VERSION );
+		wp_register_script( 'akismet.js', AKISMET_PLUGIN_URL . 'akismet.js', array('jquery'), '2.5.9' );
 		wp_enqueue_script( 'akismet.js' );
 		wp_localize_script( 'akismet.js', 'WPAkismet', array(
-			'comment_author_url_nonce' => wp_create_nonce( 'comment_author_url_nonce' ),
-			'strings' => array(
-				'Remove this URL' => __( 'Remove this URL' ),
-				'Removing...' => __( 'Removing...' ),
-				'URL removed' => __( 'URL removed' ),
-				'(undo)' => __( '(undo)' ),
-				'Re-adding...' => __( 'Re-adding...' ),
-			)
+			'comment_author_url_nonce' => wp_create_nonce( 'comment_author_url_nonce' )
 		) );
 	}
 }
@@ -342,7 +335,11 @@ function akismet_stats() {
 	$path = plugin_basename(__FILE__);
 	echo '<h3>' . _x( 'Spam', 'comments' ) . '</h3>';
 	global $submenu;
-	echo '<p>'.sprintf( _n( '<a href="%1$s">Akismet</a> has protected your site from <a href="%2$s">%3$s spam comments</a>.', '<a href="%1$s">Akismet</a> has protected your site from <a href="%2$s">%3$s spam comments</a>.', $count ), 'http://akismet.com/?return=true', esc_url( add_query_arg( array( 'page' => 'akismet-admin' ), admin_url( isset( $submenu['edit-comments.php'] ) ? 'edit-comments.php' : 'edit.php' ) ) ), number_format_i18n($count) ).'</p>';
+	if ( isset( $submenu['edit-comments.php'] ) )
+		$link = 'edit-comments.php';
+	else
+		$link = 'edit.php';
+	echo '<p>'.sprintf( _n( '<a href="%1$s">Akismet</a> has protected your site from <a href="%2$s">%3$s spam comments</a>.', '<a href="%1$s">Akismet</a> has protected your site from <a href="%2$s">%3$s spam comments</a>.', $count ), 'http://akismet.com/?return=true', clean_url("$link?page=akismet-admin"), number_format_i18n($count) ).'</p>';
 }
 add_action('activity_box_end', 'akismet_stats');
 
@@ -528,16 +525,32 @@ function akismet_comment_column_row( $column, $comment_id ) {
 
 // END FIXME
 
+// call out URLS in comments
+function akismet_text_add_link_callback( $m ) {	
+	// bare link?
+	if ( $m[4] == $m[2] )
+		return '<a '.$m[1].' href="'.$m[2].'" '.$m[3].' class="comment-link">'.$m[4].'</a>';
+	else
+	    return '<span title="'.$m[2].'" class="comment-link"><a '.$m[1].' href="'.$m[2].'" '.$m[3].' class="comment-link">'.$m[4].'</a></span>';
+}
+
+function akismet_text_add_link_class( $comment_text ) {
+	return preg_replace_callback( '#<a ([^>]*)href="([^"]+)"([^>]*)>(.*?)</a>#i', 'akismet_text_add_link_callback', $comment_text );
+}
+
+add_filter('comment_text', 'akismet_text_add_link_class');
+
+
 // WP 2.5+
 function akismet_rightnow() {
 	global $submenu, $wp_db_version;
 
 	if ( 8645 < $wp_db_version  ) // 2.7
-		$link = add_query_arg( array( 'comment_status' => 'spam' ), admin_url( 'edit-comments.php' ) );
+		$link = 'edit-comments.php?comment_status=spam';
 	elseif ( isset( $submenu['edit-comments.php'] ) )
-		$link = add_query_arg( array( 'page' => 'akismet-admin' ), admin_url( 'edit-comments.php' ) );
+		$link = 'edit-comments.php?page=akismet-admin';
 	else
-		$link = add_query_arg( array( 'page' => 'akismet-admin' ), admin_url( 'edit.php' ) );
+		$link = 'edit.php?page=akismet-admin';
 
 	if ( $count = get_option('akismet_spam_count') ) {
 		$intro = sprintf( _n(
@@ -568,17 +581,14 @@ add_action('rightnow_end', 'akismet_rightnow');
 
 
 // For WP >= 2.5
-function akismet_check_for_spam_button( $comment_status ) {
+function akismet_check_for_spam_button($comment_status) {
 	if ( 'approved' == $comment_status )
 		return;
-		
 	if ( function_exists('plugins_url') )
-		$link = add_query_arg( array( 'action' => 'akismet_recheck_queue' ), admin_url( 'admin.php' ) );
+		$link = 'admin.php?action=akismet_recheck_queue';
 	else
-		$link = add_query_arg( array( 'page' => 'akismet-admin', 'recheckqueue' => 'true', 'noheader' => 'true' ), admin_url( 'edit-comments.php' ) );	
-		
-	echo '</div><div class="alignleft"><a class="button-secondary checkforspam" href="' . $link . '">' . esc_html__('Check for Spam') . '</a>';
-	echo '<img src="' . esc_url( admin_url( 'images/wpspin_light.gif' ) ) . '" class="checkforspam-spinner" />';
+		$link = 'edit-comments.php?page=akismet-admin&amp;recheckqueue=true&amp;noheader=true';
+	echo "</div><div class='alignleft'><a class='button-secondary checkforspam' href='$link'>" . __('Check for Spam') . "</a>";
 }
 add_action('manage_comments_nav', 'akismet_check_for_spam_button');
 
@@ -761,12 +771,8 @@ function akismet_recheck_queue() {
 
 	if ( ! ( isset( $_GET['recheckqueue'] ) || ( isset( $_REQUEST['action'] ) && 'akismet_recheck_queue' == $_REQUEST['action'] ) ) )
 		return;
-					
-	$paginate = ''; 
-	if ( isset( $_POST['limit'] ) && isset( $_POST['offset'] ) ) { 
-		$paginate = $wpdb->prepare( " LIMIT %d OFFSET %d", array( $_POST['limit'], $_POST['offset'] ) ); 
- 	} 
- 	$moderation = $wpdb->get_results( "SELECT * FROM {$wpdb->comments} WHERE comment_approved = '0'{$paginate}", ARRAY_A );
+		
+	$moderation = $wpdb->get_results( "SELECT * FROM $wpdb->comments WHERE comment_approved = '0'", ARRAY_A );
 	foreach ( (array) $moderation as $c ) {
 		$c['user_ip']    = $c['comment_author_IP'];
 		$c['user_agent'] = $c['comment_agent'];
@@ -774,7 +780,7 @@ function akismet_recheck_queue() {
 		$c['blog']       = get_bloginfo('url');
 		$c['blog_lang']  = get_locale();
 		$c['blog_charset'] = get_option('blog_charset');
-		$c['permalink']    = get_permalink($c['comment_post_ID']);
+		$c['permalink']  = get_permalink($c['comment_post_ID']);
 
 		$c['user_role'] = '';
 		if ( isset( $c['user_ID'] ) )
@@ -809,20 +815,12 @@ function akismet_recheck_queue() {
 
 		delete_comment_meta( $c['comment_ID'], 'akismet_rechecking' );
 	}
-	if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) { 
- 		wp_send_json( array( 
- 			'processed' => count((array) $moderation), 
- 		)); 
- 	} 
- 	else { 
- 		$redirect_to = isset( $_SERVER['HTTP_REFERER'] ) ? $_SERVER['HTTP_REFERER'] : admin_url( 'edit-comments.php' ); 
- 		wp_safe_redirect( $redirect_to ); 
- 		exit; 
- 	}
+	$redirect_to = isset( $_SERVER['HTTP_REFERER'] ) ? $_SERVER['HTTP_REFERER'] : admin_url( 'edit-comments.php' );
+	wp_safe_redirect( $redirect_to );
+	exit;
 }
 
 add_action('admin_action_akismet_recheck_queue', 'akismet_recheck_queue');
-add_action('wp_ajax_akismet_recheck_queue', 'akismet_recheck_queue');
 
 // Adds an 'x' link next to author URLs, clicking will remove the author URL and show an undo link
 function akismet_remove_comment_author_url() {

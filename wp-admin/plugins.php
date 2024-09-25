@@ -17,7 +17,7 @@ $pagenum = $wp_list_table->get_pagenum();
 
 $action = $wp_list_table->current_action();
 
-$plugin = isset($_REQUEST['plugin']) ? wp_unslash( $_REQUEST['plugin'] ) : '';
+$plugin = isset($_REQUEST['plugin']) ? $_REQUEST['plugin'] : '';
 $s = isset($_REQUEST['s']) ? urlencode($_REQUEST['s']) : '';
 
 // Clean up request URI from temporary args for screen options/paging uri's to work as expected.
@@ -37,10 +37,10 @@ if ( $action ) {
 
 			check_admin_referer('activate-plugin_' . $plugin);
 
-			$result = activate_plugin($plugin, self_admin_url('plugins.php?error=true&plugin=' . urlencode( $plugin ) ), is_network_admin() );
+			$result = activate_plugin($plugin, self_admin_url('plugins.php?error=true&plugin=' . $plugin), is_network_admin() );
 			if ( is_wp_error( $result ) ) {
 				if ( 'unexpected_output' == $result->get_error_code() ) {
-					$redirect = self_admin_url('plugins.php?error=true&charsout=' . strlen($result->get_error_data()) . '&plugin=' . urlencode( $plugin ) . "&plugin_status=$status&paged=$page&s=$s");
+					$redirect = self_admin_url('plugins.php?error=true&charsout=' . strlen($result->get_error_data()) . '&plugin=' . $plugin . "&plugin_status=$status&paged=$page&s=$s");
 					wp_redirect(add_query_arg('_error_nonce', wp_create_nonce('plugin-activation-error_' . $plugin), $redirect));
 					exit;
 				} else {
@@ -67,7 +67,7 @@ if ( $action ) {
 
 			check_admin_referer('bulk-plugins');
 
-			$plugins = isset( $_POST['checked'] ) ? (array) wp_unslash( $_POST['checked'] ) : array();
+			$plugins = isset( $_POST['checked'] ) ? (array) $_POST['checked'] : array();
 
 			// Only activate plugins which are not already active.
 			if ( is_network_admin() ) {
@@ -104,9 +104,9 @@ if ( $action ) {
 			check_admin_referer( 'bulk-plugins' );
 
 			if ( isset( $_GET['plugins'] ) )
-				$plugins = explode( ',', wp_unslash( $_GET['plugins'] ) );
+				$plugins = explode( ',', $_GET['plugins'] );
 			elseif ( isset( $_POST['checked'] ) )
-				$plugins = (array) wp_unslash( $_POST['checked'] );
+				$plugins = (array) $_POST['checked'];
 			else
 				$plugins = array();
 
@@ -176,7 +176,7 @@ if ( $action ) {
 
 			check_admin_referer('bulk-plugins');
 
-			$plugins = isset( $_POST['checked'] ) ? (array) wp_unslash( $_POST['checked'] ) : array();
+			$plugins = isset( $_POST['checked'] ) ? (array) $_POST['checked'] : array();
 			// Do not deactivate plugins which are already deactivated.
 			if ( is_network_admin() ) {
 				$plugins = array_filter( $plugins, 'is_plugin_active_for_network' );
@@ -208,7 +208,7 @@ if ( $action ) {
 			check_admin_referer('bulk-plugins');
 
 			//$_POST = from the plugin form; $_GET = from the FTP details screen.
-			$plugins = isset( $_REQUEST['checked'] ) ? (array) wp_unslash( $_REQUEST['checked'] ) : array();
+			$plugins = isset( $_REQUEST['checked'] ) ? (array) $_REQUEST['checked'] : array();
 			if ( empty( $plugins ) ) {
 				wp_redirect( self_admin_url("plugins.php?plugin_status=$status&paged=$page&s=$s") );
 				exit;
@@ -217,14 +217,6 @@ if ( $action ) {
 			$plugins = array_filter($plugins, 'is_plugin_inactive'); // Do not allow to delete Activated plugins.
 			if ( empty( $plugins ) ) {
 				wp_redirect( self_admin_url( "plugins.php?error=true&main=true&plugin_status=$status&paged=$page&s=$s" ) );
-				exit;
-			}
-
-			// Bail on all if any paths are invalid.
-			// validate_file() returns truthy for invalid files
-			$invalid_plugin_files = array_filter( $plugins, 'validate_file' );
-			if ( $invalid_plugin_files ) {
-				wp_redirect( self_admin_url("plugins.php?plugin_status=$status&paged=$page&s=$s") );
 				exit;
 			}
 
@@ -372,7 +364,7 @@ require_once(ABSPATH . 'wp-admin/admin-header.php');
 $invalid = validate_active_plugins();
 if ( !empty($invalid) )
 	foreach ( $invalid as $plugin_file => $error )
-		echo '<div id="message" class="error"><p>' . sprintf(__('The plugin <code>%s</code> has been <strong>deactivated</strong> due to an error: %s'), esc_html($plugin_file), esc_html( $error->get_error_message() ) ) . '</p></div>';
+		echo '<div id="message" class="error"><p>' . sprintf(__('The plugin <code>%s</code> has been <strong>deactivated</strong> due to an error: %s'), esc_html($plugin_file), $error->get_error_message()) . '</p></div>';
 ?>
 
 <?php if ( isset($_GET['error']) ) :
@@ -393,11 +385,12 @@ if ( !empty($invalid) )
 	?>
 	</div>
 <?php elseif ( isset($_GET['deleted']) ) :
-		$delete_result = get_transient('plugins_delete_result_'.$user_ID);
-		delete_transient('plugins_delete_result'); //Delete it once we're done.
+		$delete_result = get_transient( 'plugins_delete_result_' . $user_ID );
+		// Delete it once we're done.
+		delete_transient( 'plugins_delete_result_' . $user_ID );
 
 		if ( is_wp_error($delete_result) ) : ?>
-		<div id="message" class="updated"><p><?php printf( __('Plugin could not be deleted due to an error: %s'), esc_html( $delete_result->get_error_message() ) ); ?></p></div>
+		<div id="message" class="updated"><p><?php printf( __('Plugin could not be deleted due to an error: %s'), $delete_result->get_error_message() ); ?></p></div>
 		<?php else : ?>
 		<div id="message" class="updated"><p><?php _e('The selected plugins have been <strong>deleted</strong>.'); ?></p></div>
 		<?php endif; ?>

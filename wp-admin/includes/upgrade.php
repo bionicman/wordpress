@@ -100,8 +100,8 @@ if ( !function_exists('wp_install_defaults') ) :
  *
  * @param int $user_id User ID.
  */
-function wp_install_defaults($user_id) {
-	global $wpdb, $wp_rewrite, $current_site, $table_prefix;
+function wp_install_defaults( $user_id ) {
+	global $wpdb, $wp_rewrite, $table_prefix;
 
 	// Default category
 	$cat_name = __('Uncategorized');
@@ -135,7 +135,7 @@ function wp_install_defaults($user_id) {
 			$first_post = __( 'Welcome to <a href="SITE_URL">SITE_NAME</a>. This is your first post. Edit or delete it, then start blogging!' );
 
 		$first_post = str_replace( "SITE_URL", esc_url( network_home_url() ), $first_post );
-		$first_post = str_replace( "SITE_NAME", $current_site->site_name, $first_post );
+		$first_post = str_replace( "SITE_NAME", get_current_site()->site_name, $first_post );
 	} else {
 		$first_post = __('Welcome to WordPress. This is your first post. Edit or delete it, then start blogging!');
 	}
@@ -218,7 +218,7 @@ As a new WordPress user, you should go to <a href=\"%s\">your dashboard</a> to d
 	update_option( 'widget_archives', array ( 2 => array ( 'title' => '', 'count' => 0, 'dropdown' => 0 ), '_multiwidget' => 1 ) );
 	update_option( 'widget_categories', array ( 2 => array ( 'title' => '', 'count' => 0, 'hierarchical' => 0, 'dropdown' => 0 ), '_multiwidget' => 1 ) );
 	update_option( 'widget_meta', array ( 2 => array ( 'title' => '' ), '_multiwidget' => 1 ) );
-	update_option( 'sidebars_widgets', array ( 'wp_inactive_widgets' => array (), 'sidebar-1' => array ( 0 => 'search-2', 1 => 'recent-posts-2', 2 => 'recent-comments-2', 3 => 'archives-2', 4 => 'categories-2', 5 => 'meta-2', ), 'sidebar-2' => array (),'array_version' => 3 ) );
+	update_option( 'sidebars_widgets', array ( 'wp_inactive_widgets' => array (), 'sidebar-1' => array ( 0 => 'search-2', 1 => 'recent-posts-2', 2 => 'recent-comments-2', 3 => 'archives-2', 4 => 'categories-2', 5 => 'meta-2', ), 'sidebar-2' => array (), 'sidebar-3' => array (), 'array_version' => 3 ) );
 
 	if ( ! is_multisite() )
 		update_user_meta( $user_id, 'show_welcome_panel', 1 );
@@ -407,12 +407,6 @@ function upgrade_all() {
 
 	if ( $wp_current_db_version < 26148 )
 		upgrade_372();
-
-	if ( $wp_current_db_version < 26149 )
-		upgrade_373();
-
-	if ( $wp_current_db_version < 26151 )
-		upgrade_379();
 
 	maybe_disable_link_manager();
 
@@ -1038,8 +1032,8 @@ function upgrade_280() {
 		$start = 0;
 		while( $rows = $wpdb->get_results( "SELECT option_name, option_value FROM $wpdb->options ORDER BY option_id LIMIT $start, 20" ) ) {
 			foreach( $rows as $row ) {
-				$value = maybe_unserialize( $row->option_value );
-				if ( $value === $row->option_value )
+				$value = $row->option_value;
+				if ( !@unserialize( $value ) )
 					$value = stripslashes( $value );
 				if ( $value !== $row->option_value ) {
 					update_option( $row->option_name, $value );
@@ -1241,91 +1235,6 @@ function upgrade_372() {
 	global $wp_current_db_version;
 	if ( $wp_current_db_version < 26148 )
 		wp_clear_scheduled_hook( 'wp_maybe_auto_update' );
-}
-
-/**
- * Execute changes made in WordPress 3.7.3.
- *
- * @since 3.7.3
- */
-function upgrade_373() {
-	global $wp_current_db_version, $wpdb;
-	if ( $wp_current_db_version < 26149 ) {
-		// Find all lost Quick Draft auto-drafts and promote them to proper drafts.
-		$posts = $wpdb->get_results( "SELECT ID, post_title, post_content FROM $wpdb->posts WHERE post_type = 'post'
-			AND post_status = 'auto-draft' AND post_date >= '2014-04-08 00:00:00'" );
-
-		foreach ( $posts as $post ) {
-			// A regular auto-draft should never have content as that would mean it should have been promoted.
-			// If an auto-draft has content, it's from Quick Draft and it should be recovered.
-			if ( '' === $post->post_content ) {
-				// If it does not have content, we must evaluate whether the title should be recovered.
-				if ( 'Auto Draft' === $post->post_title || __( 'Auto Draft' ) === $post->post_title ) {
-					// This a plain old auto draft. Ignore it.
-					continue;
-				}
-			}
-
-			$wpdb->update( $wpdb->posts, array( 'post_status' => 'draft' ), array( 'ID' => $post->ID ) );
-			clean_post_cache( $post->ID );
-		}
-	}
-}
-
-/**
- * Execute changes made in WordPress 3.7.8.
- *
- * @since 3.7.8
- */
-function upgrade_378() {
-}
-
-/**
- * Execute changes made in WordPress 3.7.9.
- *
- * @since 3.7.9
- */
-function upgrade_379() {
-	global $wp_current_db_version, $wpdb;
-
-	if ( $wp_current_db_version < 26151 ) {
-		$content_length = $wpdb->get_col_length( $wpdb->comments, 'comment_content' );
-
-		if ( is_wp_error( $content_length ) ) {
-			return;
-		}
-
-		if ( false === $content_length ) {
-			$content_length = array(
-				'type'   => 'byte',
-				'length' => 65535,
-			);
-		} elseif ( ! is_array( $content_length ) ) {
-			$length = (int) $content_length > 0 ? (int) $content_length : 65535;
-			$content_length = array(
-				'type'	 => 'byte',
-				'length' => $length
-			);
-		}
-
-		if ( 'byte' !== $content_length['type'] || 0 === $content_length['length'] ) {
-			// Sites with malformed DB schemas are on their own.
-			return;
-		}
-
-		$allowed_length = intval( $content_length['length'] ) - 10;
-
-		$comments = $wpdb->get_results(
-			"SELECT `comment_ID` FROM `{$wpdb->comments}`
-				WHERE `comment_date_gmt` > '2015-04-26'
-				AND LENGTH( `comment_content` ) >= {$allowed_length}
-				AND ( `comment_content` LIKE '%<%' OR `comment_content` LIKE '%>%' )"
-		);
-
-		foreach ( $comments as $comment ) {
-			wp_delete_comment( $comment->comment_ID, true );
-		}
-	}
 }
 
 /**
@@ -2098,7 +2007,7 @@ function maybe_disable_link_manager() {
  * @since 2.9.0
  */
 function pre_schema_upgrade() {
-	global $wp_current_db_version, $wp_db_version, $wpdb;
+	global $wp_current_db_version, $wpdb;
 
 	// Upgrade versions prior to 2.9
 	if ( $wp_current_db_version < 11557 ) {

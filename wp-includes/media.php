@@ -634,8 +634,6 @@ function img_caption_shortcode($attr, $content = null) {
 			$content = $matches[1];
 			$attr['caption'] = trim( $matches[2] );
 		}
-	} elseif ( strpos( $attr['caption'], '<' ) !== false ) {
-		$attr['caption'] = wp_kses( $attr['caption'], 'post' );
 	}
 
 	// Allow plugins/themes to override the default caption template.
@@ -1639,7 +1637,7 @@ function wp_plupload_default_settings() {
 	$max_upload_size = wp_max_upload_size();
 
 	$defaults = array(
-		'runtimes'            => 'html5,silverlight,html4',
+		'runtimes'            => 'html5,silverlight,flash,html4',
 		'file_data_name'      => 'async-upload', // key passed to $_FILE.
 		'multiple_queues'     => true,
 		'max_file_size'       => $max_upload_size . 'b',

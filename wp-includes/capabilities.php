@@ -378,6 +378,15 @@ class WP_Role {
 	 * @return bool True, if user has capability. False, if doesn't have capability.
 	 */
 	function has_cap( $cap ) {
+		/**
+		 * Filter which capabilities a role has.
+		 *
+		 * @since 2.0.0
+		 *
+		 * @param array  $capabilities Array of role capabilities.
+		 * @param string $cap          Capability name.
+		 * @param string $name         Role name.
+		 */
 		$capabilities = apply_filters( 'role_has_cap', $this->capabilities, $cap, $this->name );
 		if ( !empty( $capabilities[$cap] ) )
 			return $capabilities[$cap];
@@ -684,7 +693,7 @@ class WP_User {
 		return $this->__isset( $key );
 	}
 
-	/*
+	/**
 	 * Return an array representation.
 	 *
 	 * @since 3.5.0
@@ -822,6 +831,17 @@ class WP_User {
 		update_user_meta( $this->ID, $this->cap_key, $this->caps );
 		$this->get_role_caps();
 		$this->update_user_level_from_caps();
+
+		/**
+		 * Fires after the user's role has changed.
+		 *
+		 * @since 2.9.0
+		 * @since 3.6.0 Added $old_roles to include an array of the user's previous roles.
+		 *
+		 * @param int    $user_id   The user ID.
+		 * @param string $role      The new role.
+		 * @param array  $old_roles An array of the user's previous roles.
+		 */
 		do_action( 'set_user_role', $this->ID, $role, $old_roles );
 	}
 
@@ -942,6 +962,17 @@ class WP_User {
 			return true;
 		}
 
+		/**
+		 * Dynamically filter a user's capabilities.
+		 *
+		 * @since 2.0.0
+		 * @since 3.7.0 Added the user object.
+		 *
+		 * @param array   $allcaps An array of all the role's capabilities.
+		 * @param array   $caps    Actual capabilities for meta capability.
+		 * @param array   $args    Optional parameters passed to has_cap(), typically object ID.
+		 * @param WP_User $user    The user object.
+		 */
 		// Must have ALL requested caps
 		$capabilities = apply_filters( 'user_has_cap', $this->allcaps, $caps, $args, $this );
 		$capabilities['exist'] = true; // Everyone is allowed to exist
@@ -1073,10 +1104,8 @@ function map_meta_cap( $cap, $user_id ) {
 	case 'edit_post':
 	case 'edit_page':
 		$post = get_post( $args[0] );
-		if ( empty( $post ) ) {
-			$caps[] = 'do_not_allow';
+		if ( empty( $post ) )
 			break;
-		}
 
 		if ( 'revision' == $post->post_type ) {
 			$post = get_post( $post->post_parent );
@@ -1172,6 +1201,21 @@ function map_meta_cap( $cap, $user_id ) {
 		$meta_key = isset( $args[ 1 ] ) ? $args[ 1 ] : false;
 
 		if ( $meta_key && has_filter( "auth_post_meta_{$meta_key}" ) ) {
+			/**
+			 * Filter whether the user is allowed to add post meta to a post.
+			 *
+			 * The dynamic portion of the hook name, $meta_key, refers to the
+			 * meta key passed to map_meta_cap().
+			 *
+			 * @since 3.3.0
+			 *
+			 * @param bool   $allowed  Whether the user can add the post meta. Default false.
+			 * @param string $meta_key The meta key.
+			 * @param int    $post_id  Post ID.
+			 * @param int    $user_id  User ID.
+			 * @param string $cap      Capability name.
+			 * @param array  $caps     User capabilities.
+			 */
 			$allowed = apply_filters( "auth_post_meta_{$meta_key}", false, $meta_key, $post->ID, $user_id, $cap, $caps );
 			if ( ! $allowed )
 				$caps[] = $cap;
@@ -1184,16 +1228,7 @@ function map_meta_cap( $cap, $user_id ) {
 		if ( empty( $comment ) )
 			break;
 		$post = get_post( $comment->comment_post_ID );
-
-		/*
-		 * If the post doesn't exist, we have an orphaned comment.
-		 * Fall back to the edit_posts capability, instead.
-		 */
-		if ( $post ) {
-			$caps = map_meta_cap( 'edit_post', $user_id, $post->ID );
-		} else {
-			$caps = map_meta_cap( 'edit_posts', $user_id );
-		}
+		$caps = map_meta_cap( 'edit_post', $user_id, $post->ID );
 		break;
 	case 'unfiltered_upload':
 		if ( defined('ALLOW_UNFILTERED_UPLOADS') && ALLOW_UNFILTERED_UPLOADS && ( !is_multisite() || is_super_admin( $user_id ) )  )
@@ -1282,7 +1317,17 @@ function map_meta_cap( $cap, $user_id ) {
 		$caps[] = $cap;
 	}
 
-	return apply_filters('map_meta_cap', $caps, $cap, $user_id, $args);
+	/**
+	 * Filter a user's capabilities depending on specific context and/or privilege.
+	 *
+	 * @since 2.8.0
+	 *
+	 * @param array  $caps    Returns the user's actual capabilities.
+	 * @param string $cap     Capability name.
+	 * @param int    $user_id The user ID.
+	 * @param array  $args    Adds the context to the cap. Typically the object ID.
+	 */
+	return apply_filters( 'map_meta_cap', $caps, $cap, $user_id, $args );
 }
 
 /**
@@ -1315,25 +1360,21 @@ function current_user_can( $capability ) {
  * @return bool
  */
 function current_user_can_for_blog( $blog_id, $capability ) {
-	$switched = is_multisite() ? switch_to_blog( $blog_id ) : false;
+	if ( is_multisite() )
+		switch_to_blog( $blog_id );
 
 	$current_user = wp_get_current_user();
 
-	if ( empty( $current_user ) ) {
-		if ( $switched ) {
-			restore_current_blog();
-		}
+	if ( empty( $current_user ) )
 		return false;
-	}
 
 	$args = array_slice( func_get_args(), 2 );
 	$args = array_merge( array( $capability ), $args );
 
 	$can = call_user_func_array( array( $current_user, 'has_cap' ), $args );
 
-	if ( $switched ) {
+	if ( is_multisite() )
 		restore_current_blog();
-	}
 
 	return $can;
 }

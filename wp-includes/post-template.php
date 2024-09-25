@@ -226,7 +226,22 @@ function get_the_content( $more_link_text = null, $strip_teaser = false ) {
 		}
 	}
 
+	if ( $preview ) // preview fix for javascript bug with foreign languages
+		$output =	preg_replace_callback( '/\%u([0-9A-F]{4})/', '_convert_urlencoded_to_entities', $output );
+
 	return $output;
+}
+
+/**
+ * Preview fix for javascript bug with foreign languages
+ *
+ * @since 3.1.0
+ * @access private
+ * @param array $match Match array from preg_replace_callback
+ * @return string
+ */
+function _convert_urlencoded_to_entities( $match ) {
+	return '&#' . base_convert( $match[1], 16, 10 ) . ';';
 }
 
 /**
@@ -731,12 +746,11 @@ function post_custom( $key = '' ) {
 /**
  * Display list of post custom fields.
  *
+ * @internal This will probably change at some point...
  * @since 1.2.0
- *
- * @deprecated 6.0.2 Use get_post_meta() to retrieve post meta and render manually.
+ * @uses apply_filters() Calls 'the_meta_key' on list item HTML content, with key and value as separate parameters.
  */
 function the_meta() {
-	_deprecated_function( __FUNCTION__, '6.0.2', 'get_post_meta()' );
 	if ( $keys = get_post_custom_keys() ) {
 		echo "<ul class='post-meta'>\n";
 		foreach ( (array) $keys as $key ) {
@@ -745,7 +759,7 @@ function the_meta() {
 				continue;
 			$values = array_map('trim', get_post_custom_values($key));
 			$value = implode($values,', ');
-			echo apply_filters('the_meta_key', "<li><span class='post-meta-key'>" . esc_html( $key ) . ":</span> " . esc_html( $value ) . "</li>\n", $key, $value);
+			echo apply_filters('the_meta_key', "<li><span class='post-meta-key'>$key:</span> $value</li>\n", $key, $value);
 		}
 		echo "</ul>\n";
 	}
@@ -1190,7 +1204,7 @@ function wp_get_attachment_link( $id = 0, $size = 'thumbnail', $permalink = fals
 	if ( trim( $link_text ) == '' )
 		$link_text = $_post->post_title;
 
-	return apply_filters( 'wp_get_attachment_link', "<a href='" . esc_url( $url ) . "'>$link_text</a>", $id, $size, $permalink, $icon, $text );
+	return apply_filters( 'wp_get_attachment_link', "<a href='$url'>$link_text</a>", $id, $size, $permalink, $icon, $text );
 }
 
 /**

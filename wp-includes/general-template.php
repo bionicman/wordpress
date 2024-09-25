@@ -1785,25 +1785,7 @@ function noindex() {
  * @since 3.3.0
  */
 function wp_no_robots() {
-	echo "<meta name='robots' content='noindex,nofollow' />\n";
-}
-
-/**
- * Display a noindex,noarchive meta tag and referrer origin-when-cross-origin meta tag.
- *
- * Outputs a noindex,noarchive meta tag that tells web robots not to index or cache the page content.
- * Outputs a referrer origin-when-cross-origin meta tag that tells the browser not to send the full
- * url as a referrer to other sites when cross-origin assets are loaded.
- *
- * Typical usage is as a wp_head callback. add_action( 'wp_head', 'wp_sensitive_page_meta' );
- *
- * @since 5.0.0
- */
-function wp_sensitive_page_meta() {
-	?>
-	<meta name='robots' content='noindex,noarchive' />
-	<meta name='referrer' content='strict-origin-when-cross-origin' />
-	<?php
+	echo "<meta name='robots' content='noindex,follow' />\n";
 }
 
 /**
@@ -1945,14 +1927,12 @@ function language_attributes($doctype = 'html') {
 	if ( function_exists( 'is_rtl' ) && is_rtl() )
 		$attributes[] = 'dir="rtl"';
 
-	if ( $lang = get_bloginfo( 'language' ) ) {
-		if ( get_option( 'html_type' ) == 'text/html' || $doctype == 'html' ) {
-			$attributes[] = 'lang="' . esc_attr( $lang ) . '"';
-		}
+	if ( $lang = get_bloginfo('language') ) {
+		if ( get_option('html_type') == 'text/html' || $doctype == 'html' )
+			$attributes[] = "lang=\"$lang\"";
 
-		if ( get_option( 'html_type' ) != 'text/html' || $doctype == 'xhtml' ) {
-			$attributes[] = 'xml:lang="' . esc_attr( $lang ) . '"';
-		}
+		if ( get_option('html_type') != 'text/html' || $doctype == 'xhtml' )
+			$attributes[] = "xml:lang=\"$lang\"";
 	}
 
 	$output = implode(' ', $attributes);
@@ -2105,14 +2085,20 @@ function paginate_links( $args = '' ) {
  * @param string $name The name of the theme.
  * @param string $url The url of the css file containing the colour scheme.
  * @param array $colors Optional An array of CSS color definitions which are used to give the user a feel for the theme.
+ * @param array $icons Optional An array of CSS color definitions used to color any SVG icons
  */
-function wp_admin_css_color($key, $name, $url, $colors = array()) {
+function wp_admin_css_color( $key, $name, $url, $colors = array(), $icons = array() ) {
 	global $_wp_admin_css_colors;
 
 	if ( !isset($_wp_admin_css_colors) )
 		$_wp_admin_css_colors = array();
 
-	$_wp_admin_css_colors[$key] = (object) array('name' => $name, 'url' => $url, 'colors' => $colors);
+	$_wp_admin_css_colors[$key] = (object) array(
+		'name' => $name,
+		'url' => $url,
+		'colors' => $colors,
+		'icon_colors' => $icons,
+	);
 }
 
 /**
@@ -2121,10 +2107,32 @@ function wp_admin_css_color($key, $name, $url, $colors = array()) {
  * @since 3.0.0
  */
 function register_admin_color_schemes() {
-	wp_admin_css_color( 'classic', _x( 'Blue', 'admin color scheme' ), admin_url( 'css/colors-classic.min.css' ),
-		array( '#5589aa', '#cfdfe9', '#d1e5ee', '#eff8ff' ) );
-	wp_admin_css_color( 'fresh', _x( 'Gray', 'admin color scheme' ), admin_url( 'css/colors-fresh.min.css' ),
-		array( '#555', '#a0a0a0', '#ccc', '#f1f1f1' ) );
+	wp_admin_css_color( 'fresh', _x( 'Default', 'admin color scheme' ),
+		admin_url( 'css/colors-fresh.min.css' ),
+		array( '#222', '#333', '#0074a2', '#2ea2cc' )
+	);
+
+	// Other color schemes are not available when running out of src
+	if ( false !== strpos( $GLOBALS['wp_version'], '-src' ) )
+		return;
+
+	wp_admin_css_color( 'light', _x( 'Light', 'admin color scheme' ),
+		admin_url( 'css/color-schemes/light/colors.min.css' ),
+		array( '#e5e5e5', '#999', '#d64e07', '#04a4cc' ),
+		array( 'base' => '#999', 'focus' => '#ccc', 'current' => '#ccc' )
+	);
+
+	wp_admin_css_color( 'blue', _x( 'Blue', 'admin color scheme' ),
+		admin_url( 'css/color-schemes/blue/colors.min.css' ),
+		array( '#096484', '#4796b3', '#52accc', '#74B6CE' ),
+		array( 'base' => '#e5f8ff', 'focus' => '#fff', 'current' => '#fff' )
+	);
+
+	wp_admin_css_color( 'midnight', _x( 'Midnight', 'admin color scheme' ),
+		admin_url( 'css/color-schemes/midnight/colors.min.css' ),
+		array( '#25282b', '#363b3f', '#69a8bb', '#e14d43' ),
+		array( 'base' => '#f1f2f3', 'focus' => '#fff', 'current' => '#fff' )
+	);
 }
 
 /**
@@ -2273,25 +2281,25 @@ function get_the_generator( $type = '' ) {
 
 	switch ( $type ) {
 		case 'html':
-			$gen = '<meta name="generator" content="WordPress ' . esc_attr( get_bloginfo( 'version' ) ) . '">';
+			$gen = '<meta name="generator" content="WordPress ' . get_bloginfo( 'version' ) . '">';
 			break;
 		case 'xhtml':
-			$gen = '<meta name="generator" content="WordPress ' . esc_attr( get_bloginfo( 'version' ) ) . '" />';
+			$gen = '<meta name="generator" content="WordPress ' . get_bloginfo( 'version' ) . '" />';
 			break;
 		case 'atom':
-			$gen = '<generator uri="https://wordpress.org/" version="' . esc_attr( get_bloginfo_rss( 'version' ) ) . '">WordPress</generator>';
+			$gen = '<generator uri="http://wordpress.org/" version="' . get_bloginfo_rss( 'version' ) . '">WordPress</generator>';
 			break;
 		case 'rss2':
-			$gen = '<generator>' . esc_url_raw( 'https://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) ) . '</generator>';
+			$gen = '<generator>http://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) . '</generator>';
 			break;
 		case 'rdf':
-			$gen = '<admin:generatorAgent rdf:resource="' . esc_url_raw( 'https://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) ) . '" />';
+			$gen = '<admin:generatorAgent rdf:resource="http://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) . '" />';
 			break;
 		case 'comment':
-			$gen = '<!-- generator="WordPress/' . esc_attr( get_bloginfo( 'version' ) ) . '" -->';
+			$gen = '<!-- generator="WordPress/' . get_bloginfo( 'version' ) . '" -->';
 			break;
 		case 'export':
-			$gen = '<!-- generator="WordPress/' . esc_attr( get_bloginfo_rss( 'version' ) ) . '" created="' . date( 'Y-m-d H:i' ) . '" -->';
+			$gen = '<!-- generator="WordPress/' . get_bloginfo_rss('version') . '" created="'. date('Y-m-d H:i') . '" -->';
 			break;
 	}
 	return apply_filters( "get_the_generator_{$type}", $gen, $type );

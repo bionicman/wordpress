@@ -16,9 +16,7 @@ $submenu_file = 'edit.php';
 
 wp_reset_vars( array( 'action' ) );
 
-if ( isset( $_GET['post'] ) && isset( $_POST['post_ID'] ) && (int) $_GET['post'] !== (int) $_POST['post_ID'] )
-	wp_die( __( 'A post ID mismatch has been detected.' ), __( 'Sorry, you are not allowed to edit this item.' ), 400 );
-elseif ( isset( $_GET['post'] ) )
+if ( isset( $_GET['post'] ) )
  	$post_id = $post_ID = (int) $_GET['post'];
 elseif ( isset( $_POST['post_ID'] ) )
  	$post_id = $post_ID = (int) $_POST['post_ID'];
@@ -68,18 +66,12 @@ function redirect_post($post_id = '') {
 		$location = add_query_arg( 'message', 3, wp_get_referer() );
 		$location = explode('#', $location);
 		$location = $location[0] . '#postcustom';
-	} elseif ( 'post-quickpress-save-cont' == $_POST['action'] ) {
-		$location = "post.php?action=edit&post=$post_id&message=7";
 	} else {
 		$location = add_query_arg( 'message', 4, get_edit_post_link( $post_id, 'url' ) );
 	}
 
 	wp_redirect( apply_filters( 'redirect_post_location', $location, $post_id ) );
 	exit;
-}
-
-if ( isset( $_POST['post_type'] ) && $post && $post_type !== $_POST['post_type'] ) {
-	wp_die( __( 'A post type mismatch has been detected.' ), __( 'Sorry, you are not allowed to edit this item.' ), 400 );
 }
 
 if ( isset( $_POST['deletepost'] ) )
@@ -102,32 +94,33 @@ if ( ! $sendback ||
 }
 
 switch($action) {
+case 'post-quickdraft-save':
+	// Check nonce and capabilities
+	$nonce = $_REQUEST['_wpnonce'];
+	$error_msg = false;
+	if ( ! wp_verify_nonce( $nonce, 'add-post' ) )
+		$error_msg = __( 'Unable to submit this form, please refresh and try again.' );
+
+	if ( ! current_user_can( 'edit_posts' ) )
+		$error_msg = __( 'Oops, you don&#8217;t have access to add new drafts.' );
+
+	if ( $error_msg )
+		return wp_dashboard_quick_press( $error_msg );
+
+	$post = get_post( $_REQUEST['post_ID'] );
+	check_admin_referer( 'add-' . $post->post_type );
+	edit_post();
+	// output the quickdraft dashboard widget
+	require_once(ABSPATH . 'wp-admin/includes/dashboard.php');
+	wp_dashboard_quick_press();
+	exit;
+	break;
+
 case 'postajaxpost':
 case 'post':
-case 'post-quickpress-publish':
-case 'post-quickpress-save':
-	check_admin_referer('add-' . $post_type);
-
-	if ( 'post-quickpress-publish' == $action )
-		$_POST['publish'] = 'publish'; // tell write_post() to publish
-
-	if ( 'post-quickpress-publish' == $action || 'post-quickpress-save' == $action ) {
-		$_POST['comment_status'] = get_option('default_comment_status');
-		$_POST['ping_status'] = get_option('default_ping_status');
-		$post_id = edit_post();
-	} else {
-		$post_id = 'postajaxpost' == $action ? edit_post() : write_post();
-	}
-
-	if ( 0 === strpos( $action, 'post-quickpress' ) ) {
-		$_POST['post_ID'] = $post_id;
-		// output the quickpress dashboard widget
-		require_once(ABSPATH . 'wp-admin/includes/dashboard.php');
-		wp_dashboard_quick_press();
-		exit;
-	}
-
-	redirect_post($post_id);
+	check_admin_referer( 'add-' . $post_type );
+	$post_id = 'postajaxpost' == $action ? edit_post() : write_post();
+	redirect_post( $post_id );
 	exit();
 	break;
 
@@ -152,7 +145,6 @@ case 'edit':
 		wp_die( __( 'You can&#8217;t edit this item because it is in the Trash. Please restore it and try again.' ) );
 
 	if ( ! empty( $_GET['get-post-lock'] ) ) {
-		check_admin_referer( 'lock-post_' . $post_id );
 		wp_set_post_lock( $post_id );
 		wp_redirect( get_edit_post_link( $post_id, 'url' ) );
 		exit();
@@ -215,7 +207,7 @@ case 'editattachment':
 
 	// Update the thumbnail filename
 	$newmeta = wp_get_attachment_metadata( $post_id, true );
-	$newmeta['thumb'] = wp_basename( $_POST['thumb'] );
+	$newmeta['thumb'] = $_POST['thumb'];
 
 	wp_update_attachment_metadata( $post_id, $newmeta );
 

@@ -237,8 +237,6 @@ function list_plugin_updates() {
 	<tbody class="plugins">
 <?php
 	foreach ( (array) $plugins as $plugin_file => $plugin_data) {
-		$plugin_data = (object) _get_plugin_data_markup_translate( $plugin_file, (array) $plugin_data, false, true );
-
 		$info = plugins_api('plugin_information', array('slug' => $plugin_data->update->slug ));
 		// Get plugin compat for running version of WordPress.
 		if ( isset($info->tested) && version_compare($info->tested, $cur_wp_version, '>=') ) {
@@ -270,7 +268,7 @@ function list_plugin_updates() {
 		$details = sprintf('<a href="%1$s" class="thickbox" title="%2$s">%3$s</a>.', esc_url($details_url), esc_attr($plugin_data->Name), $details_text);
 
 		echo "
-	<tr class='active'>
+	<tr>
 		<th scope='row' class='check-column'><input type='checkbox' name='checked[]' value='" . esc_attr($plugin_file) . "' /></th>
 		<td><p><strong>{$plugin_data->Name}</strong><br />" . sprintf(__('You have version %1$s installed. Update to %2$s.'), $plugin_data->Version, $plugin_data->update->new_version) . ' ' . $details . $compat . $upgrade_notice . "</p></td>
 	</tr>";
@@ -318,7 +316,7 @@ function list_theme_updates() {
 <?php
 	foreach ( $themes as $stylesheet => $theme ) {
 		echo "
-	<tr class='active'>
+	<tr>
 		<th scope='row' class='check-column'><input type='checkbox' name='checked[]' value='" . esc_attr( $stylesheet ) . "' /></th>
 		<td class='plugin-title'><img src='" . esc_url( $theme->get_screenshot() ) . "' width='85' height='64' style='float:left; padding: 0 5px 5px' /><strong>" . $theme->display('Name') . '</strong> ' . sprintf( __( 'You have version %1$s installed. Update to %2$s.' ), $theme->display('Version'), $theme->update['new_version'] ) . "</td>
 	</tr>";
@@ -450,10 +448,6 @@ function do_undismiss_core_update() {
 	exit;
 }
 
-function no_update_actions($actions) {
-	return '';
-}
-
 $action = isset($_GET['action']) ? $_GET['action'] : 'upgrade-core';
 
 $upgrade_error = false;
@@ -489,8 +483,10 @@ get_current_screen()->set_help_sidebar(
 );
 
 if ( 'upgrade-core' == $action ) {
+	// Force a update check when requested
+	$force_check = ! empty( $_GET['force-check'] );
+	wp_version_check( array(), $force_check ); 
 
-	wp_version_check();
 	require_once(ABSPATH . 'wp-admin/admin-header.php');
 	?>
 	<div class="wrap">
@@ -509,7 +505,7 @@ if ( 'upgrade-core' == $action ) {
 	echo '<p>';
 	/* translators: %1 date, %2 time. */
 	printf( __('Last checked on %1$s at %2$s.'), date_i18n( get_option( 'date_format' ) ), date_i18n( get_option( 'time_format' ) ) );
-	echo ' &nbsp; <a class="button" href="' . esc_url( self_admin_url('update-core.php') ) . '">' . __( 'Check Again' ) . '</a>';
+	echo ' &nbsp; <a class="button" href="' . esc_url( self_admin_url('update-core.php?force-check=1') ) . '">' . __( 'Check Again' ) . '</a>';
 	echo '</p>';
 
 	if ( $core = current_user_can( 'update_core' ) )

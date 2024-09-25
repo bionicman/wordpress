@@ -32,7 +32,7 @@ require_once( ABSPATH . 'wp-admin/includes/admin.php' );
 /** Load Ajax Handlers for WordPress Core */
 require_once( ABSPATH . 'wp-admin/includes/ajax-actions.php' );
 
-@header( 'Content-Type: text/plain; charset=' . get_option( 'blog_charset' ) );
+@header( 'Content-Type: text/html; charset=' . get_option( 'blog_charset' ) );
 @header( 'X-Robots-Tag: noindex' );
 
 send_nosniff_header();
@@ -58,6 +58,7 @@ $core_actions_post = array(
 	'wp-remove-post-lock', 'dismiss-wp-pointer', 'upload-attachment', 'get-attachment',
 	'query-attachments', 'save-attachment', 'save-attachment-compat', 'send-link-to-editor',
 	'send-attachment-to-editor', 'save-attachment-order', 'heartbeat', 'get-revision-diffs',
+	'save-user-color-scheme',
 );
 
 // Register core Ajax calls.

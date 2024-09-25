@@ -14,10 +14,10 @@ require( dirname(__FILE__) . '/wp-load.php' );
 // Redirect to https login if forced to use SSL
 if ( force_ssl_admin() && ! is_ssl() ) {
 	if ( 0 === strpos($_SERVER['REQUEST_URI'], 'http') ) {
-		wp_safe_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
+		wp_redirect( set_url_scheme( $_SERVER['REQUEST_URI'], 'https' ) );
 		exit();
 	} else {
-		wp_safe_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
+		wp_redirect( 'https://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'] );
 		exit();
 	}
 }
@@ -30,11 +30,11 @@ if ( force_ssl_admin() && ! is_ssl() ) {
  * @param string $wp_error Optional. The error to pass. Default empty.
  * @param WP_Error $wp_error Optional. WordPress Error Object
  */
-function login_header($title = 'Log In', $message = '', $wp_error = '') {
-	global $error, $interim_login, $current_site, $action;
+function login_header( $title = 'Log In', $message = '', $wp_error = '' ) {
+	global $error, $interim_login, $action;
 
 	// Don't index any of these forms
-	add_action( 'login_head', 'wp_sensitive_page_meta' );
+	add_action( 'login_head', 'wp_no_robots' );
 
 	if ( wp_is_mobile() )
 		add_action( 'login_head', 'wp_login_viewport_meta' );
@@ -90,7 +90,7 @@ function login_header($title = 'Log In', $message = '', $wp_error = '') {
 
 	if ( is_multisite() ) {
 		$login_header_url   = network_home_url();
-		$login_header_title = $current_site->site_name;
+		$login_header_title = get_current_site()->site_name;
 	} else {
 		$login_header_url   = __( 'http://wordpress.org/' );
 		$login_header_title = __( 'Powered by WordPress' );
@@ -262,7 +262,7 @@ function wp_login_viewport_meta() {
  * @return bool|WP_Error True: when finish. WP_Error on error
  */
 function retrieve_password() {
-	global $wpdb, $current_site, $wp_hasher;
+	global $wpdb, $wp_hasher;
 
 	$errors = new WP_Error();
 
@@ -299,8 +299,8 @@ function retrieve_password() {
 	/**
 	 * Fires before a new password is retrieved.
 	 *
-	 * @since 1.5.2
-	 * @deprecated 1.5.2 Misspelled. Use 'retrieve_password' hook instead.
+	 * @since 1.5.0
+	 * @deprecated 1.5.1 Misspelled. Use 'retrieve_password' hook instead.
 	 *
 	 * @param string $user_login The user login name.
 	 */
@@ -308,7 +308,7 @@ function retrieve_password() {
 	/**
 	 * Fires before a new password is retrieved.
 	 *
-	 * @since 1.5.2
+	 * @since 1.5.1
 	 *
 	 * @param string $user_login The user login name.
 	 */
@@ -508,7 +508,7 @@ case 'retrievepassword' :
 	/**
 	 * Fires before the lost password form.
 	 *
-	 * @since 1.5.2
+	 * @since 1.5.1
 	 */
 	do_action( 'lost_password' );
 
@@ -518,7 +518,7 @@ case 'retrievepassword' :
 
 ?>
 
-<form name="lostpasswordform" id="lostpasswordform" action="<?php echo esc_url( network_site_url( 'wp-login.php?action=lostpassword', 'login_post' ) ); ?>" method="post">
+<form name="lostpasswordform" id="lostpasswordform" action="<?php echo esc_url( site_url( 'wp-login.php?action=lostpassword', 'login_post' ) ); ?>" method="post">
 	<p>
 		<label for="user_login" ><?php _e('Username or E-mail:') ?><br />
 		<input type="text" name="user_login" id="user_login" class="input" value="<?php echo esc_attr($user_login); ?>" size="20" /></label>
@@ -542,7 +542,7 @@ if ( get_option( 'users_can_register' ) ) :
 	/**
 	 * Filter the registration URL below the login form.
 	 *
-	 * @since 1.5.2
+	 * @since 1.5.0
 	 *
 	 * @param string $registration_url Registration URL.
 	 */
@@ -557,28 +557,10 @@ break;
 
 case 'resetpass' :
 case 'rp' :
-	list( $rp_path ) = explode( '?', wp_unslash( $_SERVER['REQUEST_URI'] ) );
-	$rp_cookie = 'wp-resetpass-' . COOKIEHASH;
-	if ( isset( $_GET['key'] ) ) {
-		$value = sprintf( '%s:%s', wp_unslash( $_GET['login'] ), wp_unslash( $_GET['key'] ) );
-		setcookie( $rp_cookie, $value, 0, $rp_path, COOKIE_DOMAIN, is_ssl(), true );
-		wp_safe_redirect( remove_query_arg( array( 'key', 'login' ) ) );
-		exit;
-	}
+	$user = check_password_reset_key($_GET['key'], $_GET['login']);
 
-	if ( isset( $_COOKIE[ $rp_cookie ] ) && 0 < strpos( $_COOKIE[ $rp_cookie ], ':' ) ) {
-		list( $rp_login, $rp_key ) = explode( ':', wp_unslash( $_COOKIE[ $rp_cookie ] ), 2 );
-		$user = check_password_reset_key( $rp_key, $rp_login );
-		if ( isset( $_POST['pass1'] ) && ! hash_equals( $rp_key, $_POST['rp_key'] ) ) {
-			$user = false;
-		}
-	} else {
-		$user = false;
-	}
-
-	if ( ! $user || is_wp_error( $user ) ) {
-		setcookie( $rp_cookie, ' ', time() - YEAR_IN_SECONDS, $rp_path, COOKIE_DOMAIN, is_ssl(), true );
-		if ( $user && $user->get_error_code() === 'expired_key' )
+	if ( is_wp_error($user) ) {
+		if ( $user->get_error_code() === 'expired_key' )
 			wp_redirect( site_url( 'wp-login.php?action=lostpassword&error=expiredkey' ) );
 		else
 			wp_redirect( site_url( 'wp-login.php?action=lostpassword&error=invalidkey' ) );
@@ -602,7 +584,6 @@ case 'rp' :
 
 	if ( ( ! $errors->get_error_code() ) && isset( $_POST['pass1'] ) && !empty( $_POST['pass1'] ) ) {
 		reset_password($user, $_POST['pass1']);
-		setcookie( $rp_cookie, ' ', time() - YEAR_IN_SECONDS, $rp_path, COOKIE_DOMAIN, is_ssl(), true );
 		login_header( __( 'Password Reset' ), '<p class="message reset-pass">' . __( 'Your password has been reset.' ) . ' <a href="' . esc_url( wp_login_url() ) . '">' . __( 'Log in' ) . '</a></p>' );
 		login_footer();
 		exit;
@@ -614,8 +595,8 @@ case 'rp' :
 	login_header(__('Reset Password'), '<p class="message reset-pass">' . __('Enter your new password below.') . '</p>', $errors );
 
 ?>
-<form name="resetpassform" id="resetpassform" action="<?php echo esc_url( network_site_url( 'wp-login.php?action=resetpass', 'login_post' ) ); ?>" method="post" autocomplete="off">
-	<input type="hidden" id="user_login" value="<?php echo esc_attr( $rp_login ); ?>" autocomplete="off" />
+<form name="resetpassform" id="resetpassform" action="<?php echo esc_url( site_url( 'wp-login.php?action=resetpass&key=' . urlencode( $_GET['key'] ) . '&login=' . urlencode( $_GET['login'] ), 'login_post' ) ); ?>" method="post" autocomplete="off">
+	<input type="hidden" id="user_login" value="<?php echo esc_attr( $_GET['login'] ); ?>" autocomplete="off" />
 
 	<p>
 		<label for="pass1"><?php _e('New password') ?><br />
@@ -630,7 +611,6 @@ case 'rp' :
 	<p class="description indicator-hint"><?php _e('Hint: The password should be at least seven characters long. To make it stronger, use upper and lower case letters, numbers and symbols like ! " ? $ % ^ &amp; ).'); ?></p>
 
 	<br class="clear" />
-	<input type="hidden" name="rp_key" value="<?php echo esc_attr( $rp_key ); ?>" />
 	<p class="submit"><input type="submit" name="wp-submit" id="wp-submit" class="button button-primary button-large" value="<?php esc_attr_e('Reset Password'); ?>" /></p>
 </form>
 

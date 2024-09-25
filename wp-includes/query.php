@@ -1393,6 +1393,7 @@ class WP_Query {
 			, 'attachment'
 			, 'attachment_id'
 			, 'name'
+			, 'static'
 			, 'pagename'
 			, 'page_id'
 			, 'second'
@@ -1496,7 +1497,11 @@ class WP_Query {
 			$this->is_single = true;
 		} elseif ( $qv['p'] ) {
 			$this->is_single = true;
-		} elseif ( '' != $qv['pagename'] || !empty($qv['page_id']) ) {
+		} elseif ( ('' !== $qv['hour']) && ('' !== $qv['minute']) &&('' !== $qv['second']) && ('' != $qv['year']) && ('' != $qv['monthnum']) && ('' != $qv['day']) ) {
+			// If year, month, day, hour, minute, and second are set, a single
+			// post is being queried.
+			$this->is_single = true;
+		} elseif ( '' != $qv['static'] || '' != $qv['pagename'] || !empty($qv['page_id']) ) {
 			$this->is_page = true;
 			$this->is_single = false;
 		} else {
@@ -1707,7 +1712,7 @@ class WP_Query {
 		do_action_ref_array('parse_query', array(&$this));
 	}
 
-	/*
+	/**
 	 * Parses various taxonomy related query vars.
 	 *
 	 * @access protected
@@ -1762,26 +1767,39 @@ class WP_Query {
 		}
 
 		// Category stuff
-		if ( !empty($q['cat']) && '0' != $q['cat'] && !$this->is_singular && $this->query_vars_changed ) {
-			$q['cat'] = ''.urldecode($q['cat']).'';
-			$q['cat'] = addslashes_gpc($q['cat']);
-			$cat_array = preg_split('/[,\s]+/', $q['cat']);
-			$q['cat'] = '';
-			$req_cats = array();
-			foreach ( (array) $cat_array as $cat ) {
-				$cat = intval($cat);
-				$req_cats[] = $cat;
-				$in = ($cat > 0);
-				$cat = abs($cat);
-				if ( $in ) {
-					$q['category__in'][] = $cat;
-					$q['category__in'] = array_merge( $q['category__in'], get_term_children($cat, 'category') );
-				} else {
-					$q['category__not_in'][] = $cat;
-					$q['category__not_in'] = array_merge( $q['category__not_in'], get_term_children($cat, 'category') );
-				}
+		if ( ! empty( $q['cat'] ) && ! $this->is_singular ) {
+			$cat_in = $cat_not_in = array();
+
+			$cat_array = preg_split( '/[,\s]+/', urldecode( $q['cat'] ) );
+			$cat_array = array_map( 'intval', $cat_array );
+			$q['cat'] = implode( ',', $cat_array );
+
+			foreach ( $cat_array as $cat ) {
+				if ( $cat > 0 )
+					$cat_in[] = $cat;
+				elseif ( $cat < 0 )
+					$cat_not_in[] = abs( $cat );
 			}
-			$q['cat'] = implode(',', $req_cats);
+
+			if ( ! empty( $cat_in ) ) {
+				$tax_query[] = array(
+					'taxonomy' => 'category',
+					'terms' => $cat_in,
+					'field' => 'term_id',
+					'include_children' => true
+				);
+			}
+
+			if ( ! empty( $cat_not_in ) ) {
+				$tax_query[] = array(
+					'taxonomy' => 'category',
+					'terms' => $cat_not_in,
+					'field' => 'term_id',
+					'operator' => 'NOT IN',
+					'include_children' => true
+				);
+			}
+			unset( $cat_array, $cat_in, $cat_not_in );
 		}
 
 		if ( ! empty( $q['category__and'] ) && 1 === count( (array) $q['category__and'] ) ) {
@@ -1906,8 +1924,9 @@ class WP_Query {
 	 *
 	 * @since 3.7.0
 	 *
-	 * @global type $wpdb
+	 * @global wpdb $wpdb
 	 * @param array $q Query variables.
+	 * @return string WHERE clause.
 	 */
 	protected function parse_search( &$q ) {
 		global $wpdb;
@@ -2012,6 +2031,7 @@ class WP_Query {
 		$words = explode( ',', _x( 'about,an,are,as,at,be,by,com,for,from,how,in,is,it,of,on,or,that,the,this,to,was,what,when,where,who,will,with,www',
 			'Comma-separated list of search stopwords in your language' ) );
 
+		$stopwords = array();
 		foreach( $words as $word ) {
 			$word = trim( $word, "\r\n\t " );
 			if ( $word )
@@ -2652,15 +2672,14 @@ class WP_Query {
 
 		if ( 'any' == $post_type ) {
 			$in_search_post_types = get_post_types( array('exclude_from_search' => false) );
-			if ( empty( $in_search_post_types ) ) {
+			if ( empty( $in_search_post_types ) )
 				$where .= ' AND 1=0 ';
-			} else {
-				$where .= " AND {$wpdb->posts}.post_type IN ('" . join( "', '", array_map( 'esc_sql', $in_search_post_types ) ) . "')";
-			}
+			else
+				$where .= " AND $wpdb->posts.post_type IN ('" . join("', '", $in_search_post_types ) . "')";
 		} elseif ( !empty( $post_type ) && is_array( $post_type ) ) {
-			$where .= " AND {$wpdb->posts}.post_type IN ('" . join("', '", esc_sql( $post_type ) ) . "')";
+			$where .= " AND $wpdb->posts.post_type IN ('" . join("', '", $post_type) . "')";
 		} elseif ( ! empty( $post_type ) ) {
-			$where .= $wpdb->prepare( " AND {$wpdb->posts}.post_type = %s", $post_type );
+			$where .= " AND $wpdb->posts.post_type = '$post_type'";
 			$post_type_object = get_post_type_object ( $post_type );
 		} elseif ( $this->is_attachment ) {
 			$where .= " AND $wpdb->posts.post_type = 'attachment'";
@@ -2782,13 +2801,13 @@ class WP_Query {
 			if ( !$page )
 				$page = 1;
 
-			if ( empty($q['offset']) ) {
-				$pgstrt = ($page - 1) * $q['posts_per_page'] . ', ';
-			} else { // we're ignoring $page and using 'offset'
+			$pgstrt = ($page - 1) * $q['posts_per_page'];
+
+			if ( ! empty( $q['offset'] ) ) {
 				$q['offset'] = absint($q['offset']);
-				$pgstrt = $q['offset'] . ', ';
+				$pgstrt += $q['offset'];
 			}
-			$limits = 'LIMIT ' . $pgstrt . $q['posts_per_page'];
+			$limits = 'LIMIT ' . $pgstrt . ', ' . $q['posts_per_page'];
 		}
 
 		// Comments feeds
@@ -3244,20 +3263,25 @@ class WP_Query {
 		$this->queried_object_id = 0;
 
 		if ( $this->is_category || $this->is_tag || $this->is_tax ) {
-			$tax_query_in_and = wp_list_filter( $this->tax_query->queries, array( 'operator' => 'NOT IN' ), 'NOT' );
+			if ( $this->is_category ) {
+				$term = get_term( $this->get( 'cat' ), 'category' );
+			} elseif ( $this->is_tag ) {
+				$term = get_term( $this->get( 'tag_id' ), 'post_tag' );
+			} else {
+				$tax_query_in_and = wp_list_filter( $this->tax_query->queries, array( 'operator' => 'NOT IN' ), 'NOT' );
+				$query = reset( $tax_query_in_and );
 
-			$query = reset( $tax_query_in_and );
-
-			if ( 'term_id' == $query['field'] )
-				$term = get_term( reset( $query['terms'] ), $query['taxonomy'] );
-			elseif ( $query['terms'] )
-				$term = get_term_by( $query['field'], reset( $query['terms'] ), $query['taxonomy'] );
+				if ( 'term_id' == $query['field'] )
+					$term = get_term( reset( $query['terms'] ), $query['taxonomy'] );
+				else
+					$term = get_term_by( $query['field'], reset( $query['terms'] ), $query['taxonomy'] );
+			}
 
 			if ( ! empty( $term ) && ! is_wp_error( $term ) )  {
 				$this->queried_object = $term;
 				$this->queried_object_id = (int) $term->term_id;
 
-				if ( $this->is_category )
+				if ( $this->is_category && 'category' === $this->queried_object->taxonomy )
 					_make_cat_compat( $this->queried_object );
 			}
 		} elseif ( $this->is_post_type_archive ) {

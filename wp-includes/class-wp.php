@@ -15,7 +15,7 @@ class WP {
 	 * @access public
 	 * @var array
 	 */
-	public $public_query_vars = array( 'm', 'p', 'posts', 'w', 'cat', 'withcomments', 'withoutcomments', 's', 'search', 'exact', 'sentence', 'calendar', 'page', 'paged', 'more', 'tb', 'pb', 'author', 'order', 'orderby', 'year', 'monthnum', 'day', 'hour', 'minute', 'second', 'name', 'category_name', 'tag', 'feed', 'author_name', 'pagename', 'page_id', 'error', 'comments_popup', 'attachment', 'attachment_id', 'subpost', 'subpost_id', 'preview', 'robots', 'taxonomy', 'term', 'cpage', 'post_type', 'embed' );
+	var $public_query_vars = array('m', 'p', 'posts', 'w', 'cat', 'withcomments', 'withoutcomments', 's', 'search', 'exact', 'sentence', 'calendar', 'page', 'paged', 'more', 'tb', 'pb', 'author', 'order', 'orderby', 'year', 'monthnum', 'day', 'hour', 'minute', 'second', 'name', 'category_name', 'tag', 'feed', 'author_name', 'static', 'pagename', 'page_id', 'error', 'comments_popup', 'attachment', 'attachment_id', 'subpost', 'subpost_id', 'preview', 'robots', 'taxonomy', 'term', 'cpage', 'post_type', 'callback');
 
 	/**
 	 * Private query variables.
@@ -120,6 +120,15 @@ class WP {
 	function parse_request($extra_query_vars = '') {
 		global $wp_rewrite;
 
+		/**
+		 * Filter whether to parse the request.
+		 *
+		 * @since 3.5.0
+		 *
+		 * @param bool         $bool             Whether or not to parse the request. Default true.
+		 * @param WP           $this             Current WordPress environment instance.
+		 * @param array|string $extra_query_vars Extra passed query variables.
+		 */
 		if ( ! apply_filters( 'do_parse_request', true, $this, $extra_query_vars ) )
 			return;
 
@@ -236,7 +245,18 @@ class WP {
 			}
 		}
 
-		$this->public_query_vars = apply_filters('query_vars', $this->public_query_vars);
+		/**
+		 * Filter the query variables whitelist before processing.
+		 *
+		 * Allows (publicly allowed) query vars to be added, removed, or changed prior
+		 * to executing the query. Needed to allow custom rewrite rules using your own arguments
+		 * to work, or any other custom query variables you want to be publicly available.
+		 *
+		 * @since 1.5.0
+		 *
+		 * @param array $public_query_vars The array of whitelisted query variables.
+		 */
+		$this->public_query_vars = apply_filters( 'query_vars', $this->public_query_vars );
 
 		foreach ( get_post_types( array(), 'objects' ) as $post_type => $t )
 			if ( $t->query_var )
@@ -245,8 +265,6 @@ class WP {
 		foreach ( $this->public_query_vars as $wpvar ) {
 			if ( isset( $this->extra_query_vars[$wpvar] ) )
 				$this->query_vars[$wpvar] = $this->extra_query_vars[$wpvar];
-			elseif ( isset( $_GET[ $wpvar ] ) && isset( $_POST[ $wpvar ] ) && $_GET[ $wpvar ] !== $_POST[ $wpvar ] )
-				wp_die( __( 'A variable mismatch has been detected.' ), __( 'Sorry, you are not allowed to view this item.' ), 400 );
 			elseif ( isset( $_POST[$wpvar] ) )
 				$this->query_vars[$wpvar] = $_POST[$wpvar];
 			elseif ( isset( $_GET[$wpvar] ) )
@@ -296,9 +314,23 @@ class WP {
 		if ( isset($error) )
 			$this->query_vars['error'] = $error;
 
-		$this->query_vars = apply_filters('request', $this->query_vars);
+		/**
+		 * Filter the array of parsed query variables.
+		 *
+		 * @since 2.1.0
+		 *
+		 * @param array $query_vars The array of requested query variables.
+		 */
+		$this->query_vars = apply_filters( 'request', $this->query_vars );
 
-		do_action_ref_array('parse_request', array(&$this));
+		/**
+		 * Fires once all query variables for the current request have been parsed.
+		 *
+		 * @since 2.1.0
+		 *
+		 * @param WP &$this Current WordPress environment instance (passed by reference).
+		 */
+		do_action_ref_array( 'parse_request', array( &$this ) );
 	}
 
 	/**
@@ -368,7 +400,15 @@ class WP {
 			}
 		}
 
-		$headers = apply_filters('wp_headers', $headers, $this);
+		/**
+		 * Filter the HTTP headers before they're sent to the browser.
+		 *
+		 * @since 2.8.0
+		 *
+		 * @param array $headers The list of headers to be sent.
+		 * @param WP    $this    Current WordPress environment instance.
+		 */
+		$headers = apply_filters( 'wp_headers', $headers, $this );
 
 		if ( ! empty( $status ) )
 			status_header( $status );
@@ -398,7 +438,14 @@ class WP {
 		if ( $exit_required )
 			exit();
 
-		do_action_ref_array('send_headers', array(&$this));
+		/**
+		 * Fires once the requested HTTP headers for caching, content type, etc. have been sent.
+		 *
+		 * @since 2.1.0
+		 *
+		 * @param WP &$this Current WordPress environment instance (passed by reference).
+		 */
+		do_action_ref_array( 'send_headers', array( &$this ) );
 	}
 
 	/**
@@ -420,9 +467,16 @@ class WP {
 			}
 		}
 
-		// query_string filter deprecated. Use request filter instead.
-		if ( has_filter('query_string') ) {  // Don't bother filtering and parsing if no plugins are hooked in.
-			$this->query_string = apply_filters('query_string', $this->query_string);
+		if ( has_filter( 'query_string' ) ) {  // Don't bother filtering and parsing if no plugins are hooked in.
+			/**
+			 * Filter the query string before parsing.
+			 *
+			 * @since 1.5.0
+			 * @deprecated 2.1.0 Use 'query_vars' or 'request' filters instead.
+			 *
+			 * @param string $query_string The query string to modify.
+			 */
+			$this->query_string = apply_filters( 'query_string', $this->query_string );
 			parse_str($this->query_string, $this->query_vars);
 		}
 	}
@@ -551,7 +605,15 @@ class WP {
 		$this->query_posts();
 		$this->handle_404();
 		$this->register_globals();
-		do_action_ref_array('wp', array(&$this));
+
+		/**
+		 * Fires once the WordPress environment has been set up.
+		 *
+		 * @since 2.1.0
+		 *
+		 * @param WP &$this Current WordPress environment instance (passed by reference).
+		 */
+		do_action_ref_array( 'wp', array( &$this ) );
 	}
 
 }

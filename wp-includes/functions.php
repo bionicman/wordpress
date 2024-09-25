@@ -894,27 +894,24 @@ function get_status_header_desc( $code ) {
  * Set HTTP status header.
  *
  * @since 2.0.0
- * @uses apply_filters() Calls 'status_header' on status header string, HTTP
- *		HTTP code, HTTP code description, and protocol string as separate
- *		parameters.
+ * @see get_status_header_desc()
  *
- * @param int $header HTTP status code
- * @return unknown
+ * @param int $code HTTP status code.
  */
-function status_header( $header ) {
-	$text = get_status_header_desc( $header );
+function status_header( $code ) {
+	$description = get_status_header_desc( $code );
 
-	if ( empty( $text ) )
-		return false;
+	if ( empty( $description ) )
+		return;
 
-	$protocol = $_SERVER["SERVER_PROTOCOL"];
+	$protocol = $_SERVER['SERVER_PROTOCOL'];
 	if ( 'HTTP/1.1' != $protocol && 'HTTP/1.0' != $protocol )
 		$protocol = 'HTTP/1.0';
-	$status_header = "$protocol $header $text";
+	$status_header = "$protocol $code $description";
 	if ( function_exists( 'apply_filters' ) )
-		$status_header = apply_filters( 'status_header', $status_header, $header, $text, $protocol );
+		$status_header = apply_filters( 'status_header', $status_header, $code, $description, $protocol );
 
-	return @header( $status_header, true, $header );
+	@header( $status_header, true, $code );
 }
 
 /**
@@ -925,7 +922,6 @@ function status_header( $header ) {
  *
  * @since 2.8.0
  *
- * @uses apply_filters()
  * @return array The associative array of header names and field values.
  */
 function wp_get_nocache_headers() {
@@ -949,7 +945,7 @@ function wp_get_nocache_headers() {
  * be sent so that all of them get the point that no caching should occur.
  *
  * @since 2.0.0
- * @uses wp_get_nocache_headers()
+ * @see wp_get_nocache_headers()
  */
 function nocache_headers() {
 	$headers = wp_get_nocache_headers();
@@ -1084,6 +1080,21 @@ function do_feed_atom( $for_comments ) {
 		load_template( ABSPATH . WPINC . '/feed-atom-comments.php');
 	else
 		load_template( ABSPATH . WPINC . '/feed-atom.php' );
+}
+
+/**
+ * Load either rssjs comment feed or rssjs posts feed.
+ *
+ * @since 3.8.0
+ *
+ * @param bool $for_comments True for the comment feed, false for normal feed.
+ */
+function do_feed_rssjs( $for_comments ) {
+	if ( $for_comments ) {
+		load_template( ABSPATH . WPINC . '/feed-rssjs-comments.php' );
+	} else {
+		load_template( ABSPATH . WPINC . '/feed-rssjs.php' );
+	}
 }
 
 /**
@@ -1365,11 +1376,6 @@ function wp_mkdir_p( $target ) {
 	if ( file_exists( $target ) )
 		return @is_dir( $target );
 
-	// Do not allow path traversals.
-	if ( false !== strpos( $target, '../' ) || false !== strpos( $target, '..' . DIRECTORY_SEPARATOR ) ) {
-		return false;
-	}
-
 	// We need to find the permissions of the parent folder that exists and inherit that.
 	$target_parent = dirname( $target );
 	while ( '.' != $target_parent && ! is_dir( $target_parent ) ) {
@@ -1377,23 +1383,14 @@ function wp_mkdir_p( $target ) {
 	}
 
 	// Get the permission bits.
-	$dir_perms = false;
-	if ( $stat = @stat( $target_parent ) ) {
+	if ( $target_parent && '.' != $target_parent ) {
+		$stat = @stat( $target_parent );
 		$dir_perms = $stat['mode'] & 0007777;
 	} else {
 		$dir_perms = 0777;
 	}
 
 	if ( @mkdir( $target, $dir_perms, true ) ) {
-
-		// If a umask is set that modifies $dir_perms, we'll have to re-set the $dir_perms correctly with chmod()
-		if ( $dir_perms != ( $dir_perms & ~umask() ) ) {
-			$folder_parts = explode( '/', substr( $target, strlen( $target_parent ) + 1 ) );
-			for ( $i = 1; $i <= count( $folder_parts ); $i++ ) {
-				@chmod( $target_parent . '/' . implode( '/', array_slice( $folder_parts, 0, $i ) ), $dir_perms );
-			}
-		}
-
 		return true;
 	}
 
@@ -1440,43 +1437,6 @@ function path_join( $base, $path ) {
 		return $path;
 
 	return rtrim($base, '/') . '/' . ltrim($path, '/');
-}
-
-/**
- * Normalize a filesystem path.
- *
- * On windows systems, replaces backslashes with forward slashes
- * and forces upper-case drive letters.
- * Allows for two leading slashes for Windows network shares, but
- * ensures that all other duplicate slashes are reduced to a single.
- *
- * @since 3.9.0
- * @since 4.4.0 Ensures upper-case drive letters on Windows systems.
- * @since 4.5.0 Allows for Windows network shares.
- * @since 4.9.7 Allows for PHP file wrappers.
- *
- * @param string $path Path to normalize.
- * @return string Normalized path.
- */
-function wp_normalize_path( $path ) {
-	$wrapper = '';
-	if ( wp_is_stream( $path ) ) {
-		list( $wrapper, $path ) = explode( '://', $path, 2 );
-		$wrapper .= '://';
-	}
-
-	// Standardise all paths to use /
-	$path = str_replace( '\\', '/', $path );
-
-	// Replace multiple slashes down to a singular, allowing for network shares having two slashes.
-	$path = preg_replace( '|(?<=.)/+|', '/', $path );
-
-	// Windows paths should uppercase the drive letter
-	if ( ':' === substr( $path, 1, 1 ) ) {
-		$path = ucfirst( $path );
-	}
-
-	return $wrapper . $path;
 }
 
 /**
@@ -1920,7 +1880,7 @@ function wp_check_filetype( $filename, $mimes = null ) {
  * If it's determined that the extension does not match the file's real type,
  * then the "proper_filename" value will be set with a proper filename and extension.
  *
- * Currently this function only supports renaming images validated via wp_get_image_mime().
+ * Currently this function only supports validating images known to getimagesize().
  *
  * @since 3.0.0
  *
@@ -1941,15 +1901,14 @@ function wp_check_filetype_and_ext( $file, $filename, $mimes = null ) {
 	if ( ! file_exists( $file ) )
 		return compact( 'ext', 'type', 'proper_filename' );
 
-	// Validate image types.
-	if ( $type && 0 === strpos( $type, 'image/' ) ) {
+	// We're able to validate images using GD
+	if ( $type && 0 === strpos( $type, 'image/' ) && function_exists('getimagesize') ) {
 
 		// Attempt to figure out what type of image it actually is
-		$real_mime = wp_get_image_mime( $file );
+		$imgstats = @getimagesize( $file );
 
-		if ( ! $real_mime ) {
-			$type = $ext = false;
-		} elseif ( $real_mime != $type ) {
+		// If getimagesize() knows what kind of image it really is and if the real MIME doesn't match the claimed MIME
+		if ( !empty($imgstats['mime']) && $imgstats['mime'] != $type ) {
 			// This is a simplified array of MIMEs that getimagesize() can detect and their extensions
 			// You shouldn't need to use this filter, but it's here just in case
 			$mime_to_ext = apply_filters( 'getimagesize_mimes_to_exts', array(
@@ -1961,10 +1920,10 @@ function wp_check_filetype_and_ext( $file, $filename, $mimes = null ) {
 			) );
 
 			// Replace whatever is after the last period in the filename with the correct extension
-			if ( ! empty( $mime_to_ext[ $real_mime ] ) ) {
+			if ( ! empty( $mime_to_ext[ $imgstats['mime'] ] ) ) {
 				$filename_parts = explode( '.', $filename );
 				array_pop( $filename_parts );
-				$filename_parts[] = $mime_to_ext[ $real_mime ];
+				$filename_parts[] = $mime_to_ext[ $imgstats['mime'] ];
 				$new_filename = implode( '.', $filename_parts );
 
 				if ( $new_filename != $filename )
@@ -1973,102 +1932,13 @@ function wp_check_filetype_and_ext( $file, $filename, $mimes = null ) {
 				// Redefine the extension / MIME
 				$wp_filetype = wp_check_filetype( $new_filename, $mimes );
 				extract( $wp_filetype );
-			} else {
-				$type = $ext = false;
 			}
-		}
-	}
-
-	// Validate files that didn't get validated during previous checks.
-	if ( $type && ! $real_mime && extension_loaded( 'fileinfo' ) ) {
-		$finfo = finfo_open( FILEINFO_MIME_TYPE );
-		$real_mime = finfo_file( $finfo, $file );
-		finfo_close( $finfo );
-
-		// fileinfo often misidentifies obscure files as one of these types
-		$nonspecific_types = array(
-			'application/octet-stream',
-			'application/encrypted',
-			'application/CDFV2-encrypted',
-			'application/zip',
-		);
-
-		/*
-		 * If $real_mime doesn't match the content type we're expecting from the file's extension,
-		 * we need to do some additional vetting. Media types and those listed in $nonspecific_types are
-		 * allowed some leeway, but anything else must exactly match the real content type.
-		 */
-		if ( in_array( $real_mime, $nonspecific_types, true ) ) {
-			// File is a non-specific binary type. That's ok if it's a type that generally tends to be binary.
-			if ( !in_array( substr( $type, 0, strcspn( $type, '/' ) ), array( 'application', 'video', 'audio' ) ) ) {
-				$type = $ext = false;
-			}
-		} elseif ( 0 === strpos( $real_mime, 'video/' ) || 0 === strpos( $real_mime, 'audio/' ) ) {
-			/*
-			 * For these types, only the major type must match the real value.
-			 * This means that common mismatches are forgiven: application/vnd.apple.numbers is often misidentified as application/zip,
-			 * and some media files are commonly named with the wrong extension (.mov instead of .mp4)
-			 */
-
-			if ( substr( $real_mime, 0, strcspn( $real_mime, '/' ) ) !== substr( $type, 0, strcspn( $type, '/' ) ) ) {
-				$type = $ext = false;
-			}
-		} else {
-			if ( $type !== $real_mime ) {
-				/*
-				 * Everything else including image/* and application/*: 
-				 * If the real content type doesn't match the file extension, assume it's dangerous.
-				 */
-				$type = $ext = false;
-			}
-
-		}
-	}
-
-	// The mime type must be allowed 
-	if ( $type ) {
-		$allowed = get_allowed_mime_types();
-
-		if ( ! in_array( $type, $allowed ) ) {
-			$type = $ext = false;
 		}
 	}
 
 	// Let plugins try and validate other types of files
 	// Should return an array in the style of array( 'ext' => $ext, 'type' => $type, 'proper_filename' => $proper_filename )
 	return apply_filters( 'wp_check_filetype_and_ext', compact( 'ext', 'type', 'proper_filename' ), $file, $filename, $mimes );
-}
-
-/**
- * Returns the real mime type of an image file.
- *
- * This depends on exif_imagetype() or getimagesize() to determine real mime types.
- *
- * @since 4.7.1
- *
- * @param string $file Full path to the file.
- * @return string|false The actual mime type or false if the type cannot be determined.
- */
-function wp_get_image_mime( $file ) {
-	/*
-	 * Use exif_imagetype() to check the mimetype if available or fall back to
-	 * getimagesize() if exif isn't avaialbe. If either function throws an Exception
-	 * we assume the file could not be validated.
-	 */
-	try {
-		if ( is_callable( 'exif_imagetype' ) ) {
-			$mime = image_type_to_mime_type( exif_imagetype( $file ) );
-		} elseif ( function_exists( 'getimagesize' ) ) {
-			$imagesize = getimagesize( $file );
-			$mime = ( isset( $imagesize['mime'] ) ) ? $imagesize['mime'] : false;
-		} else {
-			$mime = false;
-		}
-	} catch ( Exception $e ) {
-		$mime = false;
-	}
-
-	return $mime;
 }
 
 /**
@@ -2195,9 +2065,8 @@ function get_allowed_mime_types( $user = null ) {
 	if ( function_exists( 'current_user_can' ) )
 		$unfiltered = $user ? user_can( $user, 'unfiltered_html' ) : current_user_can( 'unfiltered_html' );
 
-	if ( empty( $unfiltered ) ) {
-		unset( $t['htm|html'], $t['js'] );
-	}
+	if ( empty( $unfiltered ) )
+		unset( $t['htm|html'] );
 
 	return apply_filters( 'upload_mimes', $t, $user );
 }
@@ -2221,16 +2090,8 @@ function wp_nonce_ays( $action ) {
 		$html .= sprintf( __( "Do you really want to <a href='%s'>log out</a>?"), wp_logout_url() );
 	} else {
 		$html = __( 'Are you sure you want to do this?' );
-		if ( wp_get_referer() ) {
-			$wp_http_referer = remove_query_arg( 'updated', wp_get_referer() );
-			$wp_http_referer = wp_validate_redirect( esc_url_raw( $wp_http_referer ) );
-			$html .= '</p><p>';
-			$html .= sprintf(
-				'<a href="%s">%s</a>',
-				esc_url( $wp_http_referer ),
-				__( 'Please try again.' )
-			);
-		}
+		if ( wp_get_referer() )
+			$html .= "</p><p><a href='" . esc_url( remove_query_arg( 'updated', wp_get_referer() ) ) . "'>" . __( 'Please try again.' ) . "</a>";
 	}
 
 	wp_die( $html, $title, array('response' => 403) );
@@ -2333,24 +2194,23 @@ function _default_wp_die_handler( $message, $title = '', $args = array() ) {
 	<title><?php echo $title ?></title>
 	<style type="text/css">
 		html {
-			background: #f9f9f9;
+			background: #eee;
 		}
 		body {
 			background: #fff;
 			color: #333;
-			font-family: sans-serif;
+			font-family: "Open Sans", sans-serif;
 			margin: 2em auto;
 			padding: 1em 2em;
-			-webkit-border-radius: 3px;
-			border-radius: 3px;
-			border: 1px solid #dfdfdf;
 			max-width: 700px;
+			-webkit-box-shadow: 0 1px 3px rgba(0,0,0,0.13);
+			box-shadow: 0 1px 3px rgba(0,0,0,0.13);
 		}
 		h1 {
 			border-bottom: 1px solid #dadada;
 			clear: both;
 			color: #666;
-			font: 24px Georgia, "Times New Roman", Times, serif;
+			font: 24px "Open Sans", sans-serif;
 			margin: 30px 0 0 0;
 			padding: 0;
 			padding-bottom: 7px;
@@ -2378,31 +2238,28 @@ function _default_wp_die_handler( $message, $title = '', $args = array() ) {
 			color: #D54E21;
 		}
 		.button {
+			background: #f7f7f7;
+			border: 1px solid #cccccc;
+			color: #555;
 			display: inline-block;
 			text-decoration: none;
-			font-size: 14px;
-			line-height: 23px;
-			height: 24px;
+			font-size: 13px;
+			line-height: 26px;
+			height: 28px;
 			margin: 0;
 			padding: 0 10px 1px;
 			cursor: pointer;
-			border-width: 1px;
-			border-style: solid;
 			-webkit-border-radius: 3px;
+			-webkit-appearance: none;
 			border-radius: 3px;
 			white-space: nowrap;
 			-webkit-box-sizing: border-box;
 			-moz-box-sizing:    border-box;
 			box-sizing:         border-box;
-			background: #f3f3f3;
-			background-image: -webkit-gradient(linear, left top, left bottom, from(#fefefe), to(#f4f4f4));
-			background-image: -webkit-linear-gradient(top, #fefefe, #f4f4f4);
-			background-image:    -moz-linear-gradient(top, #fefefe, #f4f4f4);
-			background-image:      -o-linear-gradient(top, #fefefe, #f4f4f4);
-			background-image:   linear-gradient(to bottom, #fefefe, #f4f4f4);
-			border-color: #bbb;
-		 	color: #333;
-			text-shadow: 0 1px 0 #fff;
+		
+			-webkit-box-shadow: inset 0 1px 0 #fff, 0 1px 0 rgba(0,0,0,.08);
+			box-shadow: inset 0 1px 0 #fff, 0 1px 0 rgba(0,0,0,.08);
+		 	vertical-align: top;
 		}
 
 		.button.button-large {
@@ -2413,13 +2270,7 @@ function _default_wp_die_handler( $message, $title = '', $args = array() ) {
 
 		.button:hover,
 		.button:focus {
-			background: #f3f3f3;
-			background-image: -webkit-gradient(linear, left top, left bottom, from(#fff), to(#f3f3f3));
-			background-image: -webkit-linear-gradient(top, #fff, #f3f3f3);
-			background-image:    -moz-linear-gradient(top, #fff, #f3f3f3);
-			background-image:     -ms-linear-gradient(top, #fff, #f3f3f3);
-			background-image:      -o-linear-gradient(top, #fff, #f3f3f3);
-			background-image:   linear-gradient(to bottom, #fff, #f3f3f3);
+			background: #fafafa;
 			border-color: #999;
 			color: #222;
 		}
@@ -2430,17 +2281,9 @@ function _default_wp_die_handler( $message, $title = '', $args = array() ) {
 		}
 
 		.button:active {
-			outline: none;
 			background: #eee;
-			background-image: -webkit-gradient(linear, left top, left bottom, from(#f4f4f4), to(#fefefe));
-			background-image: -webkit-linear-gradient(top, #f4f4f4, #fefefe);
-			background-image:    -moz-linear-gradient(top, #f4f4f4, #fefefe);
-			background-image:     -ms-linear-gradient(top, #f4f4f4, #fefefe);
-			background-image:      -o-linear-gradient(top, #f4f4f4, #fefefe);
-			background-image:   linear-gradient(to bottom, #f4f4f4, #fefefe);
 			border-color: #999;
 			color: #333;
-			text-shadow: 0 -1px 0 #fff;
 			-webkit-box-shadow: inset 0 2px 5px -3px rgba( 0, 0, 0, 0.5 );
 		 	box-shadow: inset 0 2px 5px -3px rgba( 0, 0, 0, 0.5 );
 		}
@@ -2631,6 +2474,7 @@ function _mce_set_direction( $input ) {
 	return $input;
 }
 
+
 /**
  * Convert smiley code to the icon graphic file equivalent.
  *
@@ -2720,7 +2564,7 @@ function smilies_init() {
 	 */
 	krsort($wpsmiliestrans);
 
-	$wp_smiliessearch = '/(?:\s|^)';
+	$wp_smiliessearch = '/((?:\s|^)';
 
 	$subchar = '';
 	foreach ( (array) $wpsmiliestrans as $smiley => $img ) {
@@ -2730,7 +2574,7 @@ function smilies_init() {
 		// new subpattern?
 		if ($firstchar != $subchar) {
 			if ($subchar != '') {
-				$wp_smiliessearch .= ')|(?:\s|^)';
+				$wp_smiliessearch .= ')(?=\s|$))|((?:\s|^)'; ;
 			}
 			$subchar = $firstchar;
 			$wp_smiliessearch .= preg_quote($firstchar, '/') . '(?:';
@@ -2740,7 +2584,8 @@ function smilies_init() {
 		$wp_smiliessearch .= preg_quote($rest, '/');
 	}
 
-	$wp_smiliessearch .= ')(?:\s|$)/m';
+	$wp_smiliessearch .= ')(?=\s|$))/m';
+
 }
 
 /**
@@ -3408,7 +3253,7 @@ function wp_guess_url() {
 				$path = preg_replace( '#/' . preg_quote( $directory, '#' ) . '/[^/]*$#i', '' , $_SERVER['REQUEST_URI'] );
 			} elseif ( false !== strpos( $abspath_fix, $script_filename_dir ) ) {
 				// Request is hitting a file above ABSPATH
-				$subdirectory = str_replace( $script_filename_dir, '', $abspath_fix );
+				$subdirectory = substr( $abspath_fix, strpos( $abspath_fix, $script_filename_dir ) + strlen( $script_filename_dir ) );
 				// Strip off any file/query params from the path, appending the sub directory to the install
 				$path = preg_replace( '#/[^/]*$#i', '' , $_SERVER['REQUEST_URI'] ) . $subdirectory;
 			} else {
@@ -3497,12 +3342,12 @@ function is_main_site( $site_id = null ) {
  * @return bool True if $network_id is the main network, or if not running multisite.
  */
 function is_main_network( $network_id = null ) {
-	global $current_site, $wpdb;
+	global $wpdb;
 
 	if ( ! is_multisite() )
 		return true;
 
-	$current_network_id = (int) $current_site->id;
+	$current_network_id = (int) get_current_site()->id;
 
 	if ( ! $network_id )
 		$network_id = $current_network_id;
@@ -3884,7 +3729,6 @@ function __return_false() {
  * Useful for returning 0 to filters easily.
  *
  * @since 3.0.0
- * @see __return_zero()
  * @return int 0
  */
 function __return_zero() {
@@ -3897,7 +3741,6 @@ function __return_zero() {
  * Useful for returning an empty array to filters easily.
  *
  * @since 3.0.0
- * @see __return_zero()
  * @return array Empty array
  */
 function __return_empty_array() {
@@ -4068,7 +3911,7 @@ function wp_allowed_protocols() {
  * Return a comma separated string of functions that have been called to get to the current point in code.
  *
  * @link http://core.trac.wordpress.org/ticket/19589
- * @since 3.4
+ * @since 3.4.0
  *
  * @param string $ignore_class A class to ignore all function calls within - useful when you want to just give info about the callee
  * @param int $skip_frames A number of stack frames to skip - useful for unwinding back to the source of the issue
@@ -4353,30 +4196,4 @@ function mbstring_binary_safe_encoding( $reset = false ) {
  */
 function reset_mbstring_encoding() {
 	mbstring_binary_safe_encoding( true );
-}
-
-/**
- * Deletes a file if its path is within the given directory.
- *
- * @since 4.9.7
- *
- * @param string $file      Absolute path to the file to delete.
- * @param string $directory Absolute path to a directory.
- * @return bool True on success, false on failure.
- */
-function wp_delete_file_from_directory( $file, $directory ) {
-	$real_file = realpath( wp_normalize_path( $file ) );
-	$real_directory = realpath( wp_normalize_path( $directory ) );
-
-	if ( false === $real_file || false === $real_directory || strpos( wp_normalize_path( $real_file ), trailingslashit( wp_normalize_path( $real_directory ) ) ) !== 0 ) {
-		return false;
-	}
-
-	/** This filter is documented in wp-admin/custom-header.php */
-	$delete = apply_filters( 'wp_delete_file', $file );
-	if ( ! empty( $delete ) ) {
-		@unlink( $delete );
-	}
-
-	return true;
 }

@@ -247,7 +247,7 @@ add_action( 'update_option_page_on_front', 'update_home_siteurl', 10, 2 );
 /**
  * Shorten an URL, to be used as link text
  *
- * @since 1.2.1
+ * @since 1.2.0
  *
  * @param string $url
  * @return string
@@ -390,49 +390,7 @@ function set_screen_options() {
 					return;
 				break;
 			default:
-				$screen_option = false;
-
-				if ( '_page' === substr( $option, -5 ) || 'layout_columns' === $option ) {
-					/**
-					 * Filters a screen option value before it is set.
-					 *
-					 * The filter can also be used to modify non-standard [items]_per_page
-					 * settings. See the parent function for a full list of standard options.
-					 *
-					 * Returning false to the filter will skip saving the current option.
-					 *
-					 * @since 2.8.0
-					 * @since 5.4.2 Only applied to options ending with '_page',
-					 *              or the 'layout_columns' option.
-					 *
-					 * @see set_screen_options()
-					 *
-					 * @param mixed  $screen_option The value to save instead of the option value.
-					 *                              Default false (to skip saving the current option).
-					 * @param string $option        The option name.
-					 * @param int    $value         The option value.
-					 */
-					$screen_option = apply_filters( 'set-screen-option', $screen_option, $option, $value ); // phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores
-				}
-
-				/**
-				 * Filter a screen option value before it is set.
-				 *
-				 * The dynamic portion of the hook, `$option`, refers to the option name.
-				 *
-				 * Returning false to the filter will skip saving the current option.
-				 *
-				 * @since 5.4.2
-				 *
-				 * @see set_screen_options()
-				 *
-				 * @param mixed   $screen_option The value to save instead of the option value.
-				 *                               Default false (to skip saving the current option).
-				 * @param string  $option        The option name.
-				 * @param int     $value         The option value.
-				 */
-				$value = apply_filters( "set_screen_option_{$option}", $screen_option, $option, $value );
-
+				$value = apply_filters('set-screen-option', false, $option, $value);
 				if ( false === $value )
 					return;
 				break;
@@ -604,28 +562,69 @@ function saveDomDocument($doc, $filename) {
  * @since 3.0.0
  */
 function admin_color_scheme_picker() {
-	global $_wp_admin_css_colors, $user_id; ?>
-<fieldset><legend class="screen-reader-text"><span><?php _e('Admin Color Scheme')?></span></legend>
-<?php
-$current_color = get_user_option('admin_color', $user_id);
-if ( empty($current_color) )
-	$current_color = 'fresh';
-foreach ( $_wp_admin_css_colors as $color => $color_info ): ?>
-<div class="color-option"><input name="admin_color" id="admin_color_<?php echo esc_attr( $color ); ?>" type="radio" value="<?php echo esc_attr( $color ); ?>" class="tog" <?php checked($color, $current_color); ?> />
-	<table class="color-palette">
-	<tr>
-	<?php foreach ( $color_info->colors as $html_color ): ?>
-	<td style="background-color: <?php echo esc_attr( $html_color ); ?>" title="<?php echo esc_attr( $color ); ?>">&nbsp;</td>
-	<?php endforeach; ?>
-	</tr>
-	</table>
+	global $_wp_admin_css_colors, $user_id;
+	ksort($_wp_admin_css_colors);
 
-	<label for="admin_color_<?php echo esc_attr( $color ); ?>"><?php echo esc_html( $color_info->name ); ?></label>
-</div>
-	<?php endforeach; ?>
-</fieldset>
+	$current_color = get_user_option( 'admin_color', $user_id );
+
+	if ( empty( $current_color ) || ! isset( $_wp_admin_css_colors[ $current_color ] ) )
+		$current_color = 'fresh';
+
+	$color_info = $_wp_admin_css_colors[ $current_color ];
+?>
+
+	<fieldset id="color-picker">
+		<legend class="screen-reader-text"><span><?php _e( 'Admin Color Scheme' ); ?></span></legend>
+
+		<div class="picker-dropdown dropdown-current">
+			<div class="picker-dropdown-arrow"></div>
+			<label for="admin_color_<?php echo esc_attr( $current_color ); ?>"><?php echo esc_html( $color_info->name ); ?></label>
+			<table class="color-palette">
+				<tr>
+				<?php foreach ( $color_info->colors as $html_color ): ?>
+					<td style="background-color: <?php echo esc_attr( $html_color ); ?>" title="<?php echo esc_attr( $current_color ); ?>">&nbsp;</td>
+				<?php endforeach; ?>
+				</tr>
+			</table>
+		</div>
+
+		<div class="picker-dropdown dropdown-container">
+
+		<?php foreach ( $_wp_admin_css_colors as $color => $color_info ) : ?>
+
+			<div class="color-option <?php echo ( $color == $current_color ) ? 'selected' : ''; ?>">
+				<input name="admin_color" id="admin_color_<?php echo esc_attr( $color ); ?>" type="radio" value="<?php echo esc_attr( $color ); ?>" class="tog" <?php checked( $color, $current_color ); ?> />
+				<input type="hidden" class="css_url" value="<?php echo esc_url( $color_info->url ); ?>" />
+				<input type="hidden" class="icon_colors" value="<?php echo esc_attr( json_encode( array( 'icons' => $color_info->icon_colors ) ) ); ?>" />
+				<label for="admin_color_<?php echo esc_attr( $color ); ?>"><?php echo esc_html( $color_info->name ); ?></label>
+				<table class="color-palette">
+					<tr>
+					<?php foreach ( $color_info->colors as $html_color ): ?>
+						<td style="background-color: <?php echo esc_attr( $html_color ); ?>" title="<?php echo esc_attr( $color ); ?>">&nbsp;</td>
+					<?php endforeach; ?>
+					</tr>
+				</table>
+			</div>
+
+		<?php endforeach; ?>
+
+		</div>
+
+	</fieldset>
+
 <?php
 }
+
+function set_color_scheme_json() {
+	global $_wp_admin_css_colors;
+
+	$color_scheme = get_user_option( 'admin_color' );
+
+	if ( isset( $_wp_admin_css_colors[ $color_scheme ]->icon_colors ) ) {
+		echo '<script type="text/javascript">var mp6_color_scheme = ' . json_encode( array( 'icons' => $_wp_admin_css_colors[ $color_scheme ]->icon_colors ) ) . ";</script>\n";
+	}
+}
+add_action( 'admin_head', 'set_color_scheme_json' );
 
 function _ipad_meta() {
 	if ( wp_is_mobile() ) {

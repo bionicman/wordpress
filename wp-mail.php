@@ -14,14 +14,12 @@ require(dirname(__FILE__) . '/wp-load.php');
 if ( ! apply_filters( 'enable_post_by_email_configuration', true ) )
 	wp_die( __( 'This action has been disabled by the administrator.' ) );
 
-$mailserver_url = get_option( 'mailserver_url' );
-
-if ( 'mail.example.com' === $mailserver_url || empty( $mailserver_url ) ) {
-	wp_die( __( 'This action has been disabled by the administrator.' ), 403 );
-}
-
-/** Allow a plugin to do a complete takeover of Post by Email **/
-do_action('wp-mail.php');
+/**
+ * Fires to allow a plugin to do a complete takeover of Post by Email.
+ *
+ * @since 2.9.0
+ */
+do_action( 'wp-mail.php' );
 
 /** Get the POP3 class with which to access the mailbox. */
 require_once( ABSPATH . WPINC . '/class-pop3.php' );
@@ -55,9 +53,6 @@ if( 0 === $count ) {
 	$pop3->quit();
 	wp_die( __('There doesn&#8217;t seem to be any new mail.') );
 }
-
-// Always run as an unauthenticated user.
-wp_set_current_user( 0 );
 
 for ( $i = 1; $i <= $count; $i++ ) {
 
@@ -122,6 +117,7 @@ for ( $i = 1; $i <= $count; $i++ ) {
 					$author = trim($line);
 				$author = sanitize_email($author);
 				if ( is_email($author) ) {
+					echo '<p>' . sprintf(__('Author is %s'), $author) . '</p>';
 					$userdata = get_user_by('email', $author);
 					if ( ! empty( $userdata ) ) {
 						$post_author = $userdata->ID;
@@ -184,9 +180,17 @@ for ( $i = 1; $i <= $count; $i++ ) {
 	}
 	$content = trim($content);
 
-	//Give Post-By-Email extending plugins full access to the content
-	//Either the raw content or the content of the last quoted-printable section
-	$content = apply_filters('wp_mail_original_content', $content);
+	/**
+	 * Filter the original content of the email.
+	 *
+	 * Give Post-By-Email extending plugins full access to the content, either
+	 * the raw content, or the content of the last quoted-printable section.
+	 *
+	 * @since 2.8.0
+	 *
+	 * @param string $content The original email content.
+	 */
+	$content = apply_filters( 'wp_mail_original_content', $content );
 
 	if ( false !== stripos($content_transfer_encoding, "quoted-printable") ) {
 		$content = quoted_printable_decode($content);
@@ -202,7 +206,14 @@ for ( $i = 1; $i <= $count; $i++ ) {
 
 	$content = trim($content);
 
-	$post_content = apply_filters('phone_content', $content);
+	/**
+	 * Filter the content of the post submitted by email before saving.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param string $content The email content.
+	 */
+	$post_content = apply_filters( 'phone_content', $content );
 
 	$post_title = xmlrpc_getposttitle($content);
 
@@ -221,7 +232,14 @@ for ( $i = 1; $i <= $count; $i++ ) {
 	if ( empty( $post_ID ) )
 		continue;
 
-	do_action('publish_phone', $post_ID);
+	/**
+	 * Fires after a post submitted by email is published.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param int $post_ID The post ID.
+	 */
+	do_action( 'publish_phone', $post_ID );
 
 	echo "\n<p>" . sprintf(__('<strong>Author:</strong> %s'), esc_html($post_author)) . '</p>';
 	echo "\n<p>" . sprintf(__('<strong>Posted title:</strong> %s'), esc_html($post_title)) . '</p>';

@@ -104,23 +104,39 @@ function _get_template_edit_filename($fullpath, $containingfolder) {
  * Will display link, if there is an update available.
  *
  * @since 2.7.0
+ * @see get_theme_update_available()
  *
  * @param object $theme Theme data object.
- * @return bool False if no valid info was passed.
  */
 function theme_update_available( $theme ) {
+	echo get_theme_update_available( $theme );
+}
+
+/**
+ * Retrieve the update link if there is an update for a theme available.
+ *
+ * Will return a link, if there is an update available.
+ *
+ * @since 3.8.0
+ *
+ * @param object $theme Theme data object.
+ * @return string|bool HTML for the update link, or False if no valid info was passed.
+ */
+function get_theme_update_available( $theme ) {
 	static $themes_update;
 
 	if ( !current_user_can('update_themes' ) )
-		return;
+		return false;
 
 	if ( !isset($themes_update) )
 		$themes_update = get_site_transient('update_themes');
 
 	if ( ! is_a( $theme, 'WP_Theme' ) )
-		return;
+		return false;
 
 	$stylesheet = $theme->get_stylesheet();
+
+	$html = '';
 
 	if ( isset($themes_update->response[ $stylesheet ]) ) {
 		$update = $themes_update->response[ $stylesheet ];
@@ -130,14 +146,17 @@ function theme_update_available( $theme ) {
 		$update_onclick = 'onclick="if ( confirm(\'' . esc_js( __("Updating this theme will lose any customizations you have made. 'Cancel' to stop, 'OK' to update.") ) . '\') ) {return true;}return false;"';
 
 		if ( !is_multisite() ) {
-			if ( ! current_user_can('update_themes') )
-				printf( '<p><strong>' . __('There is a new version of %1$s available. <a href="%2$s" class="thickbox" title="%1$s">View version %3$s details</a>.') . '</strong></p>', $theme_name, $details_url, $update['new_version']);
-			else if ( empty($update['package']) )
-				printf( '<p><strong>' . __('There is a new version of %1$s available. <a href="%2$s" class="thickbox" title="%1$s">View version %3$s details</a>. <em>Automatic update is unavailable for this theme.</em>') . '</strong></p>', $theme_name, $details_url, $update['new_version']);
-			else
-				printf( '<p><strong>' . __('There is a new version of %1$s available. <a href="%2$s" class="thickbox" title="%1$s">View version %3$s details</a> or <a href="%4$s" %5$s>update now</a>.') . '</strong></p>', $theme_name, $details_url, $update['new_version'], $update_url, $update_onclick );
+			if ( ! current_user_can('update_themes') ) {
+				$html = sprintf( '<p><strong>' . __('There is a new version of %1$s available. <a href="%2$s" class="thickbox" title="%1$s">View version %3$s details</a>.') . '</strong></p>', $theme_name, $details_url, $update['new_version']);
+			} else if ( empty( $update['package'] ) ) {
+				$html = sprintf( '<p><strong>' . __('There is a new version of %1$s available. <a href="%2$s" class="thickbox" title="%1$s">View version %3$s details</a>. <em>Automatic update is unavailable for this theme.</em>') . '</strong></p>', $theme_name, $details_url, $update['new_version']);
+			} else {
+				$html = sprintf( '<p><strong>' . __('There is a new version of %1$s available. <a href="%2$s" class="thickbox" title="%1$s">View version %3$s details</a> or <a href="%4$s" %5$s>update now</a>.') . '</strong></p>', $theme_name, $details_url, $update['new_version'], $update_url, $update_onclick );
+			}
 		}
 	}
+
+	return $html;
 }
 
 /**
@@ -266,20 +285,45 @@ function get_theme_feature_list( $api = true ) {
  *
  * @since 2.8.0
  *
- * @param string $action
- * @param array|object $args Optional. Arguments to serialize for the Theme Info API.
+ * @param string       $action The requested action. Likely values are 'theme_information',
+ *                             'feature_list', or 'query_themes'.
+ * @param array|object $args   Optional. Arguments to serialize for the Theme Info API.
  * @return mixed
  */
-function themes_api($action, $args = null) {
+function themes_api( $action, $args = null ) {
 
 	if ( is_array($args) )
 		$args = (object)$args;
 
 	if ( !isset($args->per_page) )
 		$args->per_page = 24;
-
-	$args = apply_filters('themes_api_args', $args, $action); //NOTE: Ensure that an object is returned via this filter.
-	$res = apply_filters('themes_api', false, $action, $args); //NOTE: Allows a theme to completely override the builtin WordPress.org API.
+	/**
+	 * Filter arguments used to query for installer pages from the WordPress.org Themes API.
+	 *
+	 * Important: An object MUST be returned to this filter.
+	 * 
+	 * @since 2.8.0
+	 * 
+	 * @param object $args   Arguments used to query for installer pages from the WordPress.org Themes API.
+	 * @param string $action Requested action. Likely values are 'theme_information',
+	 *                       'feature_list', or 'query_themes'.
+ 	*/
+	$args = apply_filters( 'themes_api_args', $args, $action );
+	
+	/**
+	 * Filter whether to override the WordPress.org Themes API.
+	 *
+	 * Returning a value of true to this filter allows a theme to completely
+	 * override the built-in WordPress.org API.
+	 * 
+	 * @since 2.8.0
+	 *
+	 * @param bool   $bool   Whether to override the WordPress.org Themes API. Default false.
+	 * @param string $action Requested action. Likely values are 'theme_information',
+	 *                       'feature_list', or 'query_themes'.
+	 * @param object $args   Arguments used to query for installer pages from the Themes API.
+	 */
+	$res = apply_filters( 'themes_api', false, $action, $args );
 
 	if ( ! $res ) {
 		$url = $http_url = 'http://api.wordpress.org/themes/info/1.0/';
@@ -308,5 +352,74 @@ function themes_api($action, $args = null) {
 		}
 	}
 
-	return apply_filters('themes_api_result', $res, $action, $args);
+	/**
+	 * Filter the returned WordPress.org Themes API response.
+	 *
+	 * @since 2.8.0
+	 *
+	 * @param array|object $res    WordPress.org Themes API response.
+	 * @param string       $action Requested action. Likely values are 'theme_information',
+	 *                             'feature_list', or 'query_themes'.
+	 * @param object       $args   Arguments used to query for installer pages from the WordPress.org Themes API.
+	 */
+	return apply_filters( 'themes_api_result', $res, $action, $args );
+}
+
+/**
+ * Prepare themes for JavaScript.
+ *
+ * @since 3.8.0
+ *
+ * @param array $themes Optional. Array of WP_Theme objects to prepare.
+ *                      Defaults to all allowed themes.
+ *
+ * @return array An associative array of theme data, sorted by name.
+ */
+function wp_prepare_themes_for_js( $themes = null ) {
+	if ( null === $themes ) {
+		$themes = wp_get_themes( array( 'allowed' => true ) );
+	}
+
+	$prepared_themes = array();
+	$current_theme = get_stylesheet();
+
+	$updates = array();
+	if ( current_user_can( 'update_themes' ) ) {
+		$updates_transient = get_site_transient( 'update_themes' );
+		if ( isset( $updates_transient->response ) ) {
+			$updates = $updates_transient->response;
+		}
+	}
+
+	WP_Theme::sort_by_name( $themes );
+	foreach ( $themes as $slug => $theme ) {
+		$parent = false;
+		if ( $theme->parent() ) {
+			$parent = $theme->parent()->display( 'Name' );
+		}
+
+		$encoded_slug = urlencode( $slug );
+
+		$prepared_themes[] = array(
+			'id'           => $slug,
+			'name'         => $theme->display( 'Name' ),
+			'screenshot'   => array( $theme->get_screenshot() ), // @todo multiple
+			'description'  => $theme->display( 'Description' ),
+			'author'       => $theme->get( 'Author' ),
+			'authorURI'    => $theme->get( 'AuthorURI' ),
+			'version'      => $theme->get( 'Version' ),
+			'tags'         => $theme->get( 'Tags' ),
+			'parent'       => $parent,
+			'active'       => $slug === $current_theme,
+			'hasUpdate'    => isset( $updates[ $slug ] ),
+			'update'       => get_theme_update_available( $theme ),
+			'actions'      => array(
+				'activate' => wp_nonce_url( 'themes.php?action=activate&amp;stylesheet=' . $encoded_slug, 'switch-theme_' . $slug ),
+				'customize'=> admin_url( 'customize.php?theme=' . $encoded_slug ),
+				'delete'   => wp_nonce_url( 'themes.php?action=delete&amp;stylesheet=' . $encoded_slug, 'delete-theme_' . $slug ),
+			),
+		);
+	}
+
+	return $prepared_themes;
 }

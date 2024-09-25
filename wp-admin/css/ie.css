@@ -38,10 +38,6 @@
 	font-size: 14px;
 }
 
-#adminmenushadow {
-	display: none;
-}
-
 #adminmenuback {
 	left: 0;
 	background-image: none;
@@ -139,10 +135,6 @@ table.fixed td {
 #wpbody-content input.button-primary,
 #wpbody-content input.button-secondary {
 	overflow: visible;
-}
-
-#dashboard-widgets #dashboard_quick_press form p.submit #publish {
-	float: none;
 }
 
 #dashboard-widgets h3 a {

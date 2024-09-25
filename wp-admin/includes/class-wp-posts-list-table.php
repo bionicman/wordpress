@@ -491,6 +491,13 @@ class WP_Posts_List_Table extends WP_List_Table {
 			$classes .= ' wp-locked';
 			$lock_holder = get_userdata( $lock_holder );
 		}
+
+		if ( $post->post_parent ) {
+		    $count = count( get_post_ancestors( $post->ID ) );
+		    $classes .= ' level-'. $count;
+		} else {
+		    $classes .= ' level-0';
+		}
 	?>
 		<tr id="post-<?php echo $post->ID; ?>" class="<?php echo implode( ' ', get_post_class( $classes, $post->ID ) ); ?>" valign="top">
 	<?php
@@ -580,9 +587,8 @@ class WP_Posts_List_Table extends WP_List_Table {
 					echo '<div class="locked-info"><span class="locked-avatar">' . $locked_avatar . '</span> <span class="locked-text">' . $locked_text . "</span></div>\n";
 				}
 
-				if ( ! $this->hierarchical_display && 'excerpt' == $mode && current_user_can( 'read_post', $post->ID ) ) {
-						echo esc_html( get_the_excerpt() );
-				}
+				if ( ! $this->hierarchical_display && 'excerpt' == $mode && current_user_can( 'read_post', $post->ID ) )
+						the_excerpt();
 
 				$actions = array();
 				if ( $can_edit_post && 'trash' != $post->post_status ) {
@@ -833,7 +839,7 @@ class WP_Posts_List_Table extends WP_List_Table {
 	<?php if ( !$bulk ) echo $authors_dropdown;
 	endif; // post_type_supports author
 
-	if ( !$bulk && $can_publish ) :
+	if ( !$bulk ) :
 	?>
 
 			<div class="inline-edit-group">

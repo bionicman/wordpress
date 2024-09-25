@@ -395,7 +395,7 @@ function rss_enclosure() {
 				$t = preg_split('/[ \t]/', trim($enclosure[2]) );
 				$type = $t[0];
 
-				echo apply_filters( 'rss_enclosure', '<enclosure url="' . esc_url( trim( $enclosure[0] ) ) . '" length="' . absint( trim( $enclosure[1] ) ) . '" type="' . esc_attr( $type ) . '" />' . "\n" );
+				echo apply_filters('rss_enclosure', '<enclosure url="' . trim(htmlspecialchars($enclosure[0])) . '" length="' . trim($enclosure[1]) . '" type="' . $type . '" />' . "\n");
 			}
 		}
 	}
@@ -426,7 +426,7 @@ function atom_enclosure() {
 		if ($key == 'enclosure') {
 			foreach ( (array) $val as $enc ) {
 				$enclosure = explode("\n", $enc);
-				echo apply_filters( 'atom_enclosure', '<link href="' . esc_url( trim( $enclosure[0] ) ) . '" rel="enclosure" length="' . absint( trim( $enclosure[1] ) ) . '" type="' . esc_attr( trim( $enclosure[2] ) ) . '" />' . "\n" );
+				echo apply_filters('atom_enclosure', '<link href="' . trim(htmlspecialchars($enclosure[0])) . '" rel="enclosure" length="' . trim($enclosure[1]) . '" type="' . trim($enclosure[2]) . '" />' . "\n");
 			}
 		}
 	}
@@ -507,7 +507,8 @@ function feed_content_type( $type = '' ) {
 		'rss2' => 'application/rss+xml',
 		'rss-http'  => 'text/xml',
 		'atom' => 'application/atom+xml',
-		'rdf'  => 'application/rdf+xml'
+		'rdf'  => 'application/rdf+xml',
+		'rssjs' => 'application/json',
 	);
 
 	$content_type = ( !empty($types[$type]) ) ? $types[$type] : 'application/octet-stream';
