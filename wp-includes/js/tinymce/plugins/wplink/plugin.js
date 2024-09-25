@@ -4,7 +4,7 @@
 		renderHtml: function() {
 			return (
 				'<div id="' + this._id + '" class="wp-link-preview">' +
-					'<a href="' + this.url + '" target="_blank" rel="noopener" tabindex="-1">' + this.url + '</a>' +
+					'<a href="' + this.url + '" target="_blank" tabindex="-1">' + this.url + '</a>' +
 				'</div>'
 			);
 		},
@@ -93,6 +93,7 @@
 		var doingUndoRedo;
 		var doingUndoRedoTimer;
 		var $ = window.jQuery;
+		var urlErrors = {};
 
 		function getSelectedLink() {
 			var href, html,
@@ -131,11 +132,62 @@
 		}
 
 		function removePlaceholderStrings( content, dataAttr ) {
-			if ( dataAttr ) {
-				content = content.replace( / data-wplink-edit="true"/g, '' );
+			return content.replace( /(<a [^>]+>)([\s\S]*?)<\/a>/g, function( all, tag, text ) {
+				if ( tag.indexOf( ' href="_wp_link_placeholder"' ) > -1 ) {
+					return text;
+				}
+
+				if ( dataAttr ) {
+					tag = tag.replace( / data-wplink-edit="true"/g, '' );
+				}
+
+				tag = tag.replace( / data-wplink-url-error="true"/g, '' );
+
+				return tag + text + '</a>';
+			});
+		}
+
+		function checkLink( node ) {
+			var $link = editor.$( node );
+			var href = $link.attr( 'href' );
+
+			if ( ! href || typeof $ === 'undefined' ) {
+				return;
 			}
 
-			return content.replace( /<a [^>]*?href="_wp_link_placeholder"[^>]*>([\s\S]+)<\/a>/g, '$1' );
+			// Early check
+			if ( /^http/i.test( href ) && ! /\.[a-z]{2,63}(\/|$)/i.test( href ) ) {
+				urlErrors[href] = tinymce.translate( 'Invalid host name.' );
+			}
+
+			if ( urlErrors.hasOwnProperty( href ) ) {
+				$link.attr( 'data-wplink-url-error', 'true' );
+				return;
+			} else {
+				$link.removeAttr( 'data-wplink-url-error' );
+			}
+
+			$.post(
+				window.ajaxurl, {
+					action: 'test_url',
+					nonce: $( '#_wplink_urltest_nonce' ).val(),
+					href: href
+				},
+				'json'
+			).done( function( response ) {
+				if ( response.success ) {
+					return;
+				}
+
+				if ( response.data && response.data.error ) {
+					urlErrors[href] = response.data.error;
+					$link.attr( 'data-wplink-url-error', 'true' );
+
+					if ( toolbar && toolbar.visible() ) {
+						toolbar.$el.find( '.wp-link-preview a' ).addClass( 'wplink-url-error' ).attr( 'title', editor.dom.encode( response.data.error ) );
+					}
+				}
+			});
 		}
 
 		editor.on( 'preinit', function() {
@@ -158,7 +210,7 @@
 				editToolbar = editor.wp._createToolbar( editButtons, true );
 
 				editToolbar.on( 'show', function() {
-					if ( ! tinymce.$( document.body ).hasClass( 'modal-open' ) ) {
+					if ( typeof window.wpLink === 'undefined' || ! window.wpLink.modalOpen ) {
 						window.setTimeout( function() {
 							var element = editToolbar.$el.find( 'input.ui-autocomplete-input' )[0],
 								selection = linkNode && ( linkNode.textContent || linkNode.innerText );
@@ -217,13 +269,6 @@
 				text = inputInstance.getLinkText();
 				editor.focus();
 
-				var parser = document.createElement( 'a' );
-				parser.href = href;
-
-				if ( 'javascript:' === parser.protocol || 'data:' === parser.protocol ) { // jshint ignore:line
-					href = '';
-				}
-
 				if ( ! href ) {
 					editor.dom.remove( linkNode, true );
 					return;
@@ -238,6 +283,8 @@
 				if ( ! tinymce.trim( linkNode.innerHTML ) ) {
 					editor.$( linkNode ).text( text || href );
 				}
+
+				checkLink( linkNode );
 			}
 
 			inputInstance.reset();
@@ -253,13 +300,18 @@
 			if ( ! editToolbar.tempHide ) {
 				inputInstance.reset();
 				removePlaceholders();
-				editor.focus();
-				editToolbar.tempHide = false;
 			}
 		} );
 
-		// WP default shortcut
+		editor.addCommand( 'wp_unlink', function() {
+			editor.execCommand( 'unlink' );
+			editToolbar.tempHide = false;
+			editor.execCommand( 'wp_link_cancel' );
+		} );
+
+		// WP default shortcuts
 		editor.addShortcut( 'access+a', '', 'WP_Link' );
+		editor.addShortcut( 'access+s', '', 'wp_unlink' );
 		// The "de-facto standard" shortcut, see #27305
 		editor.addShortcut( 'meta+k', '', 'WP_Link' );
 
@@ -320,6 +372,10 @@
 		// When doing undo and redo with keyboard shortcuts (Ctrl|Cmd+Z, Ctrl|Cmd+Shift+Z, Ctrl|Cmd+Y),
 		// set a flag to not focus the inline dialog. The editor has to remain focused so the users can do consecutive undo/redo.
 		editor.on( 'keydown', function( event ) {
+			if ( event.keyCode === 27 ) { // Esc
+				editor.execCommand( 'wp_link_cancel' );
+			}
+
 			if ( event.altKey || ( tinymce.Env.mac && ( ! event.metaKey || event.ctrlKey ) ) ||
 				( ! tinymce.Env.mac && ! event.ctrlKey ) ) {
 
@@ -480,9 +536,9 @@
 
 		editor.on( 'wptoolbar', function( event ) {
 			var linkNode = editor.dom.getParent( event.element, 'a' ),
-				$linkNode, href, edit;
+				$linkNode, href, edit, title;
 
-			if ( tinymce.$( document.body ).hasClass( 'modal-open' ) ) {
+			if ( typeof window.wpLink !== 'undefined' && window.wpLink.modalOpen ) {
 				editToolbar.tempHide = true;
 				return;
 			}
@@ -505,7 +561,16 @@
 					previewInstance.setURL( href );
 					event.element = linkNode;
 					event.toolbar = toolbar;
+					title = urlErrors.hasOwnProperty( href ) ? editor.dom.encode( urlErrors[ href ] ) : null;
+
+					if ( $linkNode.attr( 'data-wplink-url-error' ) === 'true' ) {
+						toolbar.$el.find( '.wp-link-preview a' ).addClass( 'wplink-url-error' ).attr( 'title', title );
+					} else {
+						toolbar.$el.find( '.wp-link-preview a' ).removeClass( 'wplink-url-error' ).attr( 'title', null );
+					}
 				}
+			} else {
+				editor.execCommand( 'wp_link_cancel' );
 			}
 		} );
 
@@ -518,7 +583,7 @@
 		editor.addButton( 'wp_link_remove', {
 			tooltip: 'Remove',
 			icon: 'dashicon dashicons-no',
-			cmd: 'unlink'
+			cmd: 'wp_unlink'
 		} );
 
 		editor.addButton( 'wp_link_advanced', {
@@ -562,7 +627,8 @@
 			close: function() {
 				editToolbar.tempHide = false;
 				editor.execCommand( 'wp_link_cancel' );
-			}
+			},
+			checkLink: checkLink
 		};
 	} );
 } )( window.tinymce );

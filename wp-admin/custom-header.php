@@ -326,7 +326,7 @@ class Custom_Image_Header {
 		?>
 <script type="text/javascript">
 (function($){
-	var default_color = '<?php echo esc_js( $default_color ); ?>',
+	var default_color = '<?php echo $default_color; ?>',
 		header_text_fields;
 
 	function pickColor(color) {
@@ -966,7 +966,7 @@ wp_nonce_field( 'custom-header-options', '_wpnonce-custom-header-options' ); ?>
 	 */
 	public function admin_page() {
 		if ( ! current_user_can('edit_theme_options') )
-			wp_die(__('You do not have permission to customize headers.'));
+			wp_die(__('Sorry, you are not allowed to customize headers.'));
 		$step = $this->step();
 		if ( 2 == $step )
 			$this->step_2();
@@ -1183,7 +1183,7 @@ wp_nonce_field( 'custom-header-options', '_wpnonce-custom-header-options' ); ?>
 		$attachment_id = wp_insert_attachment( $object, $cropped );
 		$metadata = wp_generate_attachment_metadata( $attachment_id, $cropped );
 		/**
-		 * Filter the header image attachment metadata.
+		 * Filters the header image attachment metadata.
 		 *
 		 * @since 3.9.0
 		 *

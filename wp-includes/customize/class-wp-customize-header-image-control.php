@@ -107,10 +107,10 @@ class WP_Customize_Header_Image_Control extends WP_Customize_Image_Control {
 			<# } #>
 
 			<button type="button" class="choice thumbnail"
-				data-customize-image-value="{{data.header.url}}"
+				data-customize-image-value="{{{data.header.url}}}"
 				data-customize-header-image-data="{{JSON.stringify(data.header)}}">
 				<span class="screen-reader-text"><?php _e( 'Set image' ); ?></span>
-				<img src="{{data.header.thumbnail_url}}" alt="{{data.header.alt_text || data.header.description}}" />
+				<img src="{{{data.header.thumbnail_url}}}" alt="{{{data.header.alt_text || data.header.description}}}">
 			</button>
 
 			<# } #>
@@ -121,15 +121,12 @@ class WP_Customize_Header_Image_Control extends WP_Customize_Image_Control {
 				<# if (data.random) { #>
 
 			<div class="placeholder">
-				<div class="inner">
-					<span><span class="dashicons dashicons-randomize dice"></span>
-					<# if ( data.type === 'uploaded' ) { #>
-						<?php _e( 'Randomizing uploaded headers' ); ?>
-					<# } else if ( data.type === 'default' ) { #>
-						<?php _e( 'Randomizing suggested headers' ); ?>
-					<# } #>
-					</span>
-				</div>
+				<span class="dashicons dashicons-randomize dice"></span>
+				<# if ( data.type === 'uploaded' ) { #>
+					<?php _e( 'Randomizing uploaded headers' ); ?>
+				<# } else if ( data.type === 'default' ) { #>
+					<?php _e( 'Randomizing suggested headers' ); ?>
+				<# } #>
 			</div>
 
 				<# } else { #>
@@ -140,11 +137,7 @@ class WP_Customize_Header_Image_Control extends WP_Customize_Image_Control {
 			<# } else { #>
 
 			<div class="placeholder">
-				<div class="inner">
-					<span>
-						<?php _e( 'No image set' ); ?>
-					</span>
-				</div>
+				<?php _e( 'No image set' ); ?>
 			</div>
 
 			<# } #>

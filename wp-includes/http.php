@@ -213,8 +213,9 @@ function wp_remote_head($url, $args = array()) {
  * @return array The headers of the response. Empty array if incorrect parameter given.
  */
 function wp_remote_retrieve_headers( $response ) {
-	if ( is_wp_error($response) || ! isset($response['headers']) || ! is_array($response['headers']))
+	if ( is_wp_error( $response ) || ! isset( $response['headers'] ) ) {
 		return array();
+	}
 
 	return $response['headers'];
 }
@@ -229,11 +230,13 @@ function wp_remote_retrieve_headers( $response ) {
  * @return string The header value. Empty string on if incorrect parameter given, or if the header doesn't exist.
  */
 function wp_remote_retrieve_header( $response, $header ) {
-	if ( is_wp_error($response) || ! isset($response['headers']) || ! is_array($response['headers']))
+	if ( is_wp_error( $response ) || ! isset( $response['headers'] ) ) {
 		return '';
+	}
 
-	if ( array_key_exists($header, $response['headers']) )
+	if ( isset( $response['headers'][ $header ] ) ) {
 		return $response['headers'][$header];
+	}
 
 	return '';
 }
@@ -524,7 +527,7 @@ function wp_http_validate_url( $url ) {
 	$parsed_home = @parse_url( get_option( 'home' ) );
 
 	if ( isset( $parsed_home['host'] ) ) {
-		$same_host = strtolower( $parsed_home['host'] ) === strtolower( $parsed_url['host'] );
+		$same_host = ( strtolower( $parsed_home['host'] ) === strtolower( $parsed_url['host'] ) || 'localhost' === strtolower( $parsed_url['host'] ) );
 	} else {
 		$same_host = false;
 	}
@@ -535,9 +538,8 @@ function wp_http_validate_url( $url ) {
 			$ip = $host;
 		} else {
 			$ip = gethostbyname( $host );
-			if ( $ip === $host ) { // Error condition for gethostbyname()
-				return false;
-			}
+			if ( $ip === $host ) // Error condition for gethostbyname()
+				$ip = false;
 		}
 		if ( $ip ) {
 			$parts = array_map( 'intval', explode( '.', $ip ) );
@@ -579,7 +581,7 @@ function wp_http_validate_url( $url ) {
 /**
  * Whitelists allowed redirect hosts for safe HTTP requests as well.
  *
- * Attached to the http_request_host_is_external filter.
+ * Attached to the {@see 'http_request_host_is_external'} filter.
  *
  * @since 3.6.0
  *
@@ -596,7 +598,7 @@ function allowed_http_request_hosts( $is_external, $host ) {
 /**
  * Whitelists any domain in a multisite installation for safe HTTP requests.
  *
- * Attached to the http_request_host_is_external filter.
+ * Attached to the {@see 'http_request_host_is_external'} filter.
  *
  * @since 3.6.0
  *

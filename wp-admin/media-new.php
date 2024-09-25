@@ -13,7 +13,7 @@
 require_once( dirname( __FILE__ ) . '/admin.php' );
 
 if (!current_user_can('upload_files'))
-	wp_die(__('You do not have permission to upload files.'));
+	wp_die(__('Sorry, you are not allowed to upload files.'));
 
 wp_enqueue_script('plupload-handlers');
 
@@ -72,9 +72,9 @@ if ( get_user_setting('uploader') || isset( $_GET['browser-uploader'] ) )
 	<?php media_upload_form(); ?>
 
 	<script type="text/javascript">
-	var post_id = <?php echo absint( $post_id ); ?>, shortform = 3;
+	var post_id = <?php echo $post_id; ?>, shortform = 3;
 	</script>
-	<input type="hidden" name="post_id" id="post_id" value="<?php echo absint( $post_id ); ?>" />
+	<input type="hidden" name="post_id" id="post_id" value="<?php echo $post_id; ?>" />
 	<?php wp_nonce_field('media-form'); ?>
 	<div id="media-items" class="hide-if-no-js"></div>
 	</form>

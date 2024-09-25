@@ -17,10 +17,10 @@ function got_mod_rewrite() {
 	$got_rewrite = apache_mod_loaded('mod_rewrite', true);
 
 	/**
-	 * Filter whether Apache and mod_rewrite are present.
+	 * Filters whether Apache and mod_rewrite are present.
 	 *
 	 * This filter was previously used to force URL rewriting for other servers,
-	 * like nginx. Use the got_url_rewrite filter in got_url_rewrite() instead.
+	 * like nginx. Use the {@see 'got_url_rewrite'} filter in got_url_rewrite() instead.
 	 *
 	 * @since 2.5.0
 	 *
@@ -46,7 +46,7 @@ function got_url_rewrite() {
 	$got_url_rewrite = ( got_mod_rewrite() || $GLOBALS['is_nginx'] || iis7_supports_permalinks() );
 
 	/**
-	 * Filter whether URL rewriting is available.
+	 * Filters whether URL rewriting is available.
 	 *
 	 * @since 3.7.0
 	 *
@@ -369,7 +369,7 @@ function wp_doc_link_parse( $content ) {
 	sort( $functions );
 
 	/**
-	 * Filter the list of functions and classes to be ignored from the documentation lookup.
+	 * Filters the list of functions and classes to be ignored from the documentation lookup.
 	 *
 	 * @since 2.8.0
 	 *
@@ -436,48 +436,24 @@ function set_screen_options() {
 					return;
 				break;
 			default:
-				$screen_option = false;
-
-				if ( '_page' === substr( $option, -5 ) || 'layout_columns' === $option ) {
-					/**
-					 * Filters a screen option value before it is set.
-					 *
-					 * The filter can also be used to modify non-standard [items]_per_page
-					 * settings. See the parent function for a full list of standard options.
-					 *
-					 * Returning false to the filter will skip saving the current option.
-					 *
-					 * @since 2.8.0
-					 * @since 5.4.2 Only applied to options ending with '_page',
-					 *              or the 'layout_columns' option.
-					 *
-					 * @see set_screen_options()
-					 *
-					 * @param mixed  $screen_option The value to save instead of the option value.
-					 *                              Default false (to skip saving the current option).
-					 * @param string $option        The option name.
-					 * @param int    $value         The option value.
-					 */
-					$screen_option = apply_filters( 'set-screen-option', $screen_option, $option, $value ); // phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores
-				}
 
 				/**
-				 * Filter a screen option value before it is set.
+				 * Filters a screen option value before it is set.
 				 *
-				 * The dynamic portion of the hook, `$option`, refers to the option name.
+				 * The filter can also be used to modify non-standard [items]_per_page
+				 * settings. See the parent function for a full list of standard options.
 				 *
 				 * Returning false to the filter will skip saving the current option.
 				 *
-				 * @since 5.4.2
+				 * @since 2.8.0
 				 *
 				 * @see set_screen_options()
 				 *
-				 * @param mixed   $screen_option The value to save instead of the option value.
-				 *                               Default false (to skip saving the current option).
-				 * @param string  $option        The option name.
-				 * @param int     $value         The option value.
+				 * @param bool|int $value  Screen option value. Default false to skip.
+				 * @param string   $option The option name.
+				 * @param int      $value  The number of rows to use.
 				 */
-				$value = apply_filters( "set_screen_option_{$option}", $screen_option, $option, $value );
+				$value = apply_filters( 'set-screen-option', false, $option, $value );
 
 				if ( false === $value )
 					return;
@@ -905,7 +881,7 @@ function heartbeat_autosave( $response, $data ) {
 		} elseif ( empty( $saved ) ) {
 			$response['wp_autosave'] = array( 'success' => false, 'message' => __( 'Error while saving.' ) );
 		} else {
-			/* translators: draft saved date format, see http://php.net/date */
+			/* translators: draft saved date format, see https://secure.php.net/date */
 			$draft_saved_date_format = __( 'g:i:s a' );
 			/* translators: %s: date and time */
 			$response['wp_autosave'] = array( 'success' => true, 'message' => sprintf( __( 'Draft saved at %s.' ), date_i18n( $draft_saved_date_format ) ) );
@@ -913,24 +889,6 @@ function heartbeat_autosave( $response, $data ) {
 	}
 
 	return $response;
-}
-
-/**
- * Disables autocomplete on the 'post' form (Add/Edit Post screens) for WebKit browsers,
- * as they disregard the autocomplete setting on the editor textarea. That can break the editor
- * when the user navigates to it with the browser's Back button. See #28037
- *
- * @since 4.0.0
- *
- * @global bool $is_safari
- * @global bool $is_chrome
- */
-function post_form_autocomplete_off() {
-	global $is_safari, $is_chrome;
-
-	if ( $is_safari || $is_chrome ) {
-		echo ' autocomplete="off"';
-	}
 }
 
 /**
@@ -959,4 +917,22 @@ function wp_admin_canonical_url() {
 		}
 	</script>
 <?php
+}
+
+/**
+ * Output JS that reloads the page if the user navigated to it with the Back or Forward button.
+ *
+ * Used on the Edit Post and Add New Post screens. Needed to ensure the page is not loaded from browser cache,
+ * so the post title and editor content are the last saved versions. Ideally this script should run first in the head.
+ *
+ * @since 4.6.0
+ */
+function wp_page_reload_on_back_button_js() {
+	?>
+	<script>
+		if ( typeof performance !== 'undefined' && performance.navigation && performance.navigation.type === 2 ) {
+			document.location.reload( true );
+		}
+	</script>
+	<?php
 }

@@ -24,7 +24,7 @@ class WP_Tax_Query {
 	/**
 	 * Array of taxonomy queries.
 	 *
-	 * See {@see WP_Tax_Query::__construct()} for information on tax query arguments.
+	 * See WP_Tax_Query::__construct() for information on tax query arguments.
 	 *
 	 * @since 3.1.0
 	 * @access public
@@ -440,7 +440,7 @@ class WP_Tax_Query {
 				// Store the alias with this clause, so later siblings can use it.
 				$clause['alias'] = $alias;
 
-				$join .= " INNER JOIN $wpdb->term_relationships";
+				$join .= " LEFT JOIN $wpdb->term_relationships";
 				$join .= $i ? " AS $alias" : '';
 				$join .= " ON ($this->primary_table.$this->primary_id_column = $alias.object_id)";
 			}
@@ -543,7 +543,7 @@ class WP_Tax_Query {
 
 			// The sibling must both have compatible operator to share its alias.
 			if ( in_array( strtoupper( $sibling['operator'] ), $compatible_operators ) ) {
-				$alias = preg_replace( '/\W/', '_', $sibling['alias'] );
+				$alias = $sibling['alias'];
 				break;
 			}
 		}
@@ -573,11 +573,7 @@ class WP_Tax_Query {
 			return;
 		}
 
-		if ( 'slug' === $query['field'] || 'name' === $query['field'] ) {
-			$query['terms'] = array_unique( (array) $query['terms'] );
-		} else {
-			$query['terms'] = wp_parse_id_list( $query['terms'] );
-		}
+		$query['terms'] = array_unique( (array) $query['terms'] );
 
 		if ( is_taxonomy_hierarchical( $query['taxonomy'] ) && $query['include_children'] ) {
 			$this->transform_query( $query, 'term_id' );

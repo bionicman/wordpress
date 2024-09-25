@@ -290,9 +290,7 @@ final class WP_Screen {
 
 			switch ( $base ) {
 				case 'post' :
-					if ( isset( $_GET['post'] ) && isset( $_POST['post_ID'] ) && (int) $_GET['post'] !== (int) $_POST['post_ID'] )
-						wp_die( __( 'A post ID mismatch has been detected.' ), __( 'Sorry, you are not allowed to edit this item.' ), 400 );
-					elseif ( isset( $_GET['post'] ) )
+					if ( isset( $_GET['post'] ) )
 						$post_id = (int) $_GET['post'];
 					elseif ( isset( $_POST['post_ID'] ) )
 						$post_id = (int) $_POST['post_ID'];
@@ -420,9 +418,7 @@ final class WP_Screen {
 	}
 
 	/**
-	 * Sets the old string-based contextual help for the screen.
-	 *
-	 * For backwards compatibility.
+	 * Sets the old string-based contextual help for the screen for backward compatibility.
 	 *
 	 * @since 3.3.0
 	 *
@@ -724,7 +720,7 @@ final class WP_Screen {
 	/**
 	 * Render the screen's help section.
 	 *
-	 * This will trigger the deprecated filters for backwards compatibility.
+	 * This will trigger the deprecated filters for backward compatibility.
 	 *
 	 * @since 3.3.0
 	 *
@@ -733,7 +729,7 @@ final class WP_Screen {
 	public function render_screen_meta() {
 
 		/**
-		 * Filter the legacy contextual help list.
+		 * Filters the legacy contextual help list.
 		 *
 		 * @since 2.7.0
 		 * @deprecated 3.3.0 Use get_current_screen()->add_help_tab() or
@@ -747,7 +743,7 @@ final class WP_Screen {
 		$old_help = isset( self::$_old_compat_help[ $this->id ] ) ? self::$_old_compat_help[ $this->id ] : '';
 
 		/**
-		 * Filter the legacy contextual help text.
+		 * Filters the legacy contextual help text.
 		 *
 		 * @since 2.7.0
 		 * @deprecated 3.3.0 Use get_current_screen()->add_help_tab() or
@@ -764,7 +760,7 @@ final class WP_Screen {
 		if ( empty( $old_help ) && ! $this->get_help_tabs() ) {
 
 			/**
-			 * Filter the default legacy contextual help text.
+			 * Filters the default legacy contextual help text.
 			 *
 			 * @since 2.8.0
 			 * @deprecated 3.3.0 Use get_current_screen()->add_help_tab() or
@@ -853,10 +849,10 @@ final class WP_Screen {
 		// Setup layout columns
 
 		/**
-		 * Filter the array of screen layout columns.
+		 * Filters the array of screen layout columns.
 		 *
 		 * This hook provides back-compat for plugins using the back-compat
-		 * filter instead of add_screen_option().
+		 * Filters instead of add_screen_option().
 		 *
 		 * @since 2.8.0
 		 *
@@ -919,8 +915,7 @@ final class WP_Screen {
 
 		switch ( $this->base ) {
 			case 'widgets':
-				$nonce = wp_create_nonce( 'widgets-access' );
-				$this->_screen_settings = '<p><a id="access-on" href="widgets.php?widgets-access=on&_wpnonce=' . urlencode( $nonce ) . '">' . __('Enable accessibility mode') . '</a><a id="access-off" href="widgets.php?widgets-access=off&_wpnonce=' . urlencode( $nonce ) . '">' . __('Disable accessibility mode') . "</a></p>\n";
+				$this->_screen_settings = '<p><a id="access-on" href="widgets.php?widgets-access=on">' . __('Enable accessibility mode') . '</a><a id="access-off" href="widgets.php?widgets-access=off">' . __('Disable accessibility mode') . "</a></p>\n";
 				break;
 			case 'post' :
 				$expand = '<fieldset class="editor-expand hidden"><legend>' . __( 'Additional settings' ) . '</legend><label for="editor-expand-toggle">';
@@ -934,7 +929,7 @@ final class WP_Screen {
 		}
 
 		/**
-		 * Filter the screen settings text displayed in the Screen Options tab.
+		 * Filters the screen settings text displayed in the Screen Options tab.
 		 *
 		 * This filter is currently only used on the Widgets screen to enable
 		 * accessibility mode.
@@ -950,7 +945,7 @@ final class WP_Screen {
 			$show_screen = true;
 
 		/**
-		 * Filter whether to show the Screen Options tab.
+		 * Filters whether to show the Screen Options tab.
 		 *
 		 * @since 3.2.0
 		 *
@@ -1000,7 +995,7 @@ final class WP_Screen {
 		echo $this->_screen_settings;
 
 		/**
-		 * Filter whether to show the Screen Options submit button.
+		 * Filters whether to show the Screen Options submit button.
 		 *
 		 * @since 4.4.0
 		 *
@@ -1209,7 +1204,7 @@ final class WP_Screen {
 		$view_mode_post_types = get_post_types( array( 'hierarchical' => false, 'show_ui' => true ) );
 
 		/**
-		 * Filter the post types that have different view mode options.
+		 * Filters the post types that have different view mode options.
 		 *
 		 * @since 4.4.0
 		 *

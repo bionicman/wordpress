@@ -270,13 +270,10 @@ function wpmu_admin_do_redirect( $url = '' ) {
 	_deprecated_function( __FUNCTION__, '3.3' );
 
 	$ref = '';
-	if ( isset( $_GET['ref'] ) && isset( $_POST['ref'] ) && $_GET['ref'] !== $_POST['ref'] ) {
-		wp_die( __( 'A variable mismatch has been detected.' ), __( 'Sorry, you are not allowed to view this item.' ), 400 );
-	} elseif ( isset( $_POST['ref'] ) ) {
-		$ref = $_POST[ 'ref' ];
-	} elseif ( isset( $_GET['ref'] ) ) {
-		$ref = $_GET[ 'ref' ];
-	}
+	if ( isset( $_GET['ref'] ) )
+		$ref = $_GET['ref'];
+	if ( isset( $_POST['ref'] ) )
+		$ref = $_POST['ref'];
 
 	if ( $ref ) {
 		$ref = wpmu_admin_redirect_add_updated_param( $ref );
@@ -289,9 +286,7 @@ function wpmu_admin_do_redirect( $url = '' ) {
 	}
 
 	$url = wpmu_admin_redirect_add_updated_param( $url );
-	if ( isset( $_GET['redirect'] ) && isset( $_POST['redirect'] ) && $_GET['redirect'] !== $_POST['redirect'] ) {
-		wp_die( __( 'A variable mismatch has been detected.' ), __( 'Sorry, you are not allowed to view this item.' ), 400 );
-	} elseif ( isset( $_GET['redirect'] ) ) {
+	if ( isset( $_GET['redirect'] ) ) {
 		if ( substr( $_GET['redirect'], 0, 2 ) == 's_' )
 			$url .= '&action=blogs&s='. esc_html( substr( $_GET['redirect'], 2 ) );
 	} elseif ( isset( $_POST['redirect'] ) ) {
@@ -442,4 +437,78 @@ function get_admin_users_for_domain( $sitedomain = '', $path = '' ) {
 		return $wpdb->get_results( $wpdb->prepare( "SELECT u.ID, u.user_login, u.user_pass FROM $wpdb->users AS u, $wpdb->sitemeta AS sm WHERE sm.meta_key = 'admin_user_id' AND u.ID = sm.meta_value AND sm.site_id = %d", $site_id ), ARRAY_A );
 
 	return false;
+}
+
+/**
+ * Return an array of sites for a network or networks.
+ *
+ * @since 3.7.0
+ * @deprecated 4.6.0
+ * @see get_sites()
+ *
+ * @global wpdb $wpdb WordPress database abstraction object.
+ *
+ * @param array $args {
+ *     Array of default arguments. Optional.
+ *
+ *     @type int|array $network_id A network ID or array of network IDs. Set to null to retrieve sites
+ *                                 from all networks. Defaults to current network ID.
+ *     @type int       $public     Retrieve public or non-public sites. Default null, for any.
+ *     @type int       $archived   Retrieve archived or non-archived sites. Default null, for any.
+ *     @type int       $mature     Retrieve mature or non-mature sites. Default null, for any.
+ *     @type int       $spam       Retrieve spam or non-spam sites. Default null, for any.
+ *     @type int       $deleted    Retrieve deleted or non-deleted sites. Default null, for any.
+ *     @type int       $limit      Number of sites to limit the query to. Default 100.
+ *     @type int       $offset     Exclude the first x sites. Used in combination with the $limit parameter. Default 0.
+ * }
+ * @return array An empty array if the install is considered "large" via wp_is_large_network(). Otherwise,
+ *               an associative array of site data arrays, each containing the site (network) ID, blog ID,
+ *               site domain and path, dates registered and modified, and the language ID. Also, boolean
+ *               values for whether the site is public, archived, mature, spam, and/or deleted.
+ */
+function wp_get_sites( $args = array() ) {
+	global $wpdb;
+
+	_deprecated_function( __FUNCTION__, '4.6', 'get_sites()' );
+
+	if ( wp_is_large_network() )
+		return array();
+
+	$defaults = array(
+		'network_id' => $wpdb->siteid,
+		'public'     => null,
+		'archived'   => null,
+		'mature'     => null,
+		'spam'       => null,
+		'deleted'    => null,
+		'limit'      => 100,
+		'offset'     => 0,
+	);
+
+	$args = wp_parse_args( $args, $defaults );
+
+	// Backwards compatibility
+	if( is_array( $args['network_id'] ) ){
+		$args['network__in'] = $args['network_id'];
+		$args['network_id'] = null;
+	}
+
+	if( is_numeric( $args['limit'] ) ){
+		$args['number'] = $args['limit'];
+		$args['limit'] = null;
+	}
+
+	// Make sure count is disabled.
+	$args['count'] = false;
+
+	$_sites  = get_sites( $args );
+
+	$results = array();
+
+	foreach ( $_sites as $_site ) {
+		$_site = get_site( $_site );
+		$results[] = $_site->to_array();
+	}
+
+	return $results;
 }

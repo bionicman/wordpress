@@ -20,7 +20,7 @@ if ( is_multisite() && ! is_network_admin() ) {
 }
 
 if ( ! current_user_can( 'update_core' ) && ! current_user_can( 'update_themes' ) && ! current_user_can( 'update_plugins' ) )
-	wp_die( __( 'You do not have sufficient permissions to update this site.' ) );
+	wp_die( __( 'Sorry, you are not allowed to update this site.' ) );
 
 /**
  *
@@ -253,8 +253,6 @@ function list_plugin_updates() {
 	<tbody class="plugins">
 <?php
 	foreach ( (array) $plugins as $plugin_file => $plugin_data ) {
-		$plugin_data = (object) _get_plugin_data_markup_translate( $plugin_file, (array) $plugin_data, false, true );
-
 		// Get plugin compat for running version of WordPress.
 		if ( isset($plugin_data->update->tested) && version_compare($plugin_data->update->tested, $cur_wp_version, '>=') ) {
 			$compat = '<br />' . sprintf(__('Compatibility with WordPress %1$s: 100%% (according to its author)'), $cur_wp_version);
@@ -625,7 +623,7 @@ if ( 'upgrade-core' == $action ) {
 } elseif ( 'do-core-upgrade' == $action || 'do-core-reinstall' == $action ) {
 
 	if ( ! current_user_can( 'update_core' ) )
-		wp_die( __( 'You do not have sufficient permissions to update this site.' ) );
+		wp_die( __( 'Sorry, you are not allowed to update this site.' ) );
 
 	check_admin_referer('upgrade-core');
 
@@ -649,7 +647,7 @@ if ( 'upgrade-core' == $action ) {
 } elseif ( 'do-plugin-upgrade' == $action ) {
 
 	if ( ! current_user_can( 'update_plugins' ) )
-		wp_die( __( 'You do not have sufficient permissions to update this site.' ) );
+		wp_die( __( 'Sorry, you are not allowed to update this site.' ) );
 
 	check_admin_referer('upgrade-core');
 
@@ -677,7 +675,7 @@ if ( 'upgrade-core' == $action ) {
 } elseif ( 'do-theme-upgrade' == $action ) {
 
 	if ( ! current_user_can( 'update_themes' ) )
-		wp_die( __( 'You do not have sufficient permissions to update this site.' ) );
+		wp_die( __( 'Sorry, you are not allowed to update this site.' ) );
 
 	check_admin_referer('upgrade-core');
 
@@ -707,7 +705,7 @@ if ( 'upgrade-core' == $action ) {
 } elseif ( 'do-translation-upgrade' == $action ) {
 
 	if ( ! current_user_can( 'update_core' ) && ! current_user_can( 'update_plugins' ) && ! current_user_can( 'update_themes' ) )
-		wp_die( __( 'You do not have sufficient permissions to update this site.' ) );
+		wp_die( __( 'Sorry, you are not allowed to update this site.' ) );
 
 	check_admin_referer( 'upgrade-translations' );
 

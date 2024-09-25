@@ -226,15 +226,35 @@ class WP_REST_Server {
 	public function serve_request( $path = null ) {
 		$content_type = isset( $_GET['_jsonp'] ) ? 'application/javascript' : 'application/json';
 		$this->send_header( 'Content-Type', $content_type . '; charset=' . get_option( 'blog_charset' ) );
+		$this->send_header( 'X-Robots-Tag', 'noindex' );
+
+		$api_root = get_rest_url();
+		if ( ! empty( $api_root ) ) {
+			$this->send_header( 'Link', '<' . esc_url_raw( $api_root ) . '>; rel="https://api.w.org/"' );
+		}
 
 		/*
 		 * Mitigate possible JSONP Flash attacks.
 		 *
-		 * http://miki.it/blog/2014/7/8/abusing-jsonp-with-rosetta-flash/
+		 * https://miki.it/blog/2014/7/8/abusing-jsonp-with-rosetta-flash/
 		 */
 		$this->send_header( 'X-Content-Type-Options', 'nosniff' );
 		$this->send_header( 'Access-Control-Expose-Headers', 'X-WP-Total, X-WP-TotalPages' );
 		$this->send_header( 'Access-Control-Allow-Headers', 'Authorization' );
+
+		/**
+		 * Send nocache headers on authenticated requests.
+		 *
+		 * @since 4.4.0
+		 *
+		 * @param bool $rest_send_nocache_headers Whether to send no-cache headers.
+		 */
+		$send_no_cache_headers = apply_filters( 'rest_send_nocache_headers', is_user_logged_in() );
+		if ( $send_no_cache_headers ) {
+			foreach ( wp_get_nocache_headers() as $header => $header_value ) {
+				$this->send_header( $header, $header_value );
+			}
+		}
 
 		/**
 		 * Filters whether the REST API is enabled.
@@ -246,7 +266,7 @@ class WP_REST_Server {
 		$enabled = apply_filters( 'rest_enabled', true );
 
 		/**
-		 * Filter whether jsonp is enabled.
+		 * Filters whether jsonp is enabled.
 		 *
 		 * @since 4.4.0
 		 *
@@ -266,14 +286,8 @@ class WP_REST_Server {
 				return false;
 			}
 
-			// Check for invalid characters (only alphanumeric allowed).
-			if ( is_string( $_GET['_jsonp'] ) ) {
-				$jsonp_callback = preg_replace( '/[^\w\.]/', '', wp_unslash( $_GET['_jsonp'] ), -1, $illegal_char_count );
-				if ( 0 !== $illegal_char_count ) {
-					$jsonp_callback = null;
-				}
-			}
-			if ( null === $jsonp_callback ) {
+			$jsonp_callback = $_GET['_jsonp'];
+			if ( ! wp_check_jsonp_callback( $jsonp_callback ) ) {
 				echo $this->json_error( 'rest_callback_invalid', __( 'The JSONP callback function is invalid.' ), 400 );
 				return false;
 			}
@@ -300,12 +314,10 @@ class WP_REST_Server {
 		 * $_GET['_method']. If that is not set, we check for the HTTP_X_HTTP_METHOD_OVERRIDE
 		 * header.
 		 */
-		$method_overridden = false;
 		if ( isset( $_GET['_method'] ) ) {
 			$request->set_method( $_GET['_method'] );
 		} elseif ( isset( $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'] ) ) {
 			$request->set_method( $_SERVER['HTTP_X_HTTP_METHOD_OVERRIDE'] );
-			$method_overridden = true;
 		}
 
 		$result = $this->check_authentication();
@@ -323,7 +335,7 @@ class WP_REST_Server {
 		}
 
 		/**
-		 * Filter the API response.
+		 * Filters the API response.
 		 *
 		 * Allows modification of the response before returning.
 		 *
@@ -349,7 +361,7 @@ class WP_REST_Server {
 		$this->set_status( $code );
 
 		/**
-		 * Filter whether the request has already been served.
+		 * Filters whether the request has already been served.
 		 *
 		 * Allow sending the request manually - by returning true, the API result
 		 * will not be sent to the client.
@@ -363,24 +375,6 @@ class WP_REST_Server {
 		 * @param WP_REST_Server   $this    Server instance.
 		 */
 		$served = apply_filters( 'rest_pre_serve_request', false, $result, $request, $this );
-
-		/**
-		 * Filters whether to send nocache headers on a REST API request.
-		 *
-		 * @since 4.4.0
-		 * @since 6.x.x Moved the block to catch the filter added on rest_cookie_check_errors() from rest-api.php
-		 *
-		 * @param bool $rest_send_nocache_headers Whether to send no-cache headers.
-		 */
-		$send_no_cache_headers = apply_filters( 'rest_send_nocache_headers', is_user_logged_in() );
-
-		// send no cache headers if the $send_no_cache_headers is true
-		// OR if the HTTP_X_HTTP_METHOD_OVERRIDE is used but resulted a 4xx response code.
-		if ( $send_no_cache_headers || ( true === $method_overridden && strpos( $code, '4' ) === 0 ) ) {
-			foreach ( wp_get_nocache_headers() as $header => $header_value ) {
-				$this->send_header( $header, $header_value );
-			}
-		}
 
 		if ( ! $served ) {
 			if ( 'HEAD' === $request->get_method() ) {
@@ -401,7 +395,7 @@ class WP_REST_Server {
 
 			if ( $jsonp_callback ) {
 				// Prepend '/**/' to mitigate possible JSONP Flash attacks
-				// http://miki.it/blog/2014/7/8/abusing-jsonp-with-rosetta-flash/
+				// https://miki.it/blog/2014/7/8/abusing-jsonp-with-rosetta-flash/
 				echo '/**/' . $jsonp_callback . '(' . $result . ')';
 			} else {
 				echo $result;
@@ -625,7 +619,7 @@ class WP_REST_Server {
 		);
 
 		/**
-		 * Filter the enveloped form of a response.
+		 * Filters the enveloped form of a response.
 		 *
 		 * @since 4.4.0
 		 *
@@ -705,7 +699,7 @@ class WP_REST_Server {
 	public function get_routes() {
 
 		/**
-		 * Filter the array of available endpoints.
+		 * Filters the array of available endpoints.
 		 *
 		 * @since 4.4.0
 		 *
@@ -807,7 +801,7 @@ class WP_REST_Server {
 	 */
 	public function dispatch( $request ) {
 		/**
-		 * Filter the pre-calculated result of a REST dispatch request.
+		 * Filters the pre-calculated result of a REST dispatch request.
 		 *
 		 * Allow hijacking the request before dispatching by returning a non-empty. The returned value
 		 * will be used to serve the request instead.
@@ -892,7 +886,7 @@ class WP_REST_Server {
 
 				if ( ! is_wp_error( $response ) ) {
 					/**
-					 * Filter the REST dispatch request result.
+					 * Filters the REST dispatch request result.
 					 *
 					 * Allow plugins to override dispatching the request.
 					 *
@@ -988,7 +982,7 @@ class WP_REST_Server {
 		$response->add_link( 'help', 'http://v2.wp-api.org/' );
 
 		/**
-		 * Filter the API root index data.
+		 * Filters the API root index data.
 		 *
 		 * This contains the data describing the API. This includes information
 		 * about supported authentication schemes, supported namespaces, routes
@@ -1031,7 +1025,7 @@ class WP_REST_Server {
 		$response->add_link( 'up', rest_url( '/' ) );
 
 		/**
-		 * Filter the namespace index data.
+		 * Filters the namespace index data.
 		 *
 		 * This typically is just the route data for the namespace, but you can
 		 * add any data you'd like here.
@@ -1065,7 +1059,7 @@ class WP_REST_Server {
 			}
 
 			/**
-			 * Filter the REST endpoint data.
+			 * Filters the REST endpoint data.
 			 *
 			 * @since 4.4.0
 			 *
@@ -1075,7 +1069,7 @@ class WP_REST_Server {
 		}
 
 		/**
-		 * Filter the publicly-visible data for routes.
+		 * Filters the publicly-visible data for routes.
 		 *
 		 * This data is exposed on indexes and can be used by clients or
 		 * developers to investigate the site and find out how to use it. It

@@ -12,7 +12,7 @@ require_once( dirname( __FILE__ ) . '/admin.php' );
 if ( ! current_user_can( 'switch_themes' ) && ! current_user_can( 'edit_theme_options' ) ) {
 	wp_die(
 		'<h1>' . __( 'Cheatin&#8217; uh?' ) . '</h1>' .
-		'<p>' . __( 'You are not allowed to edit theme options on this site.' ) . '</p>',
+		'<p>' . __( 'Sorry, you are not allowed to edit theme options on this site.' ) . '</p>',
 		403
 	);
 }
@@ -40,7 +40,7 @@ if ( current_user_can( 'switch_themes' ) && isset($_GET['action'] ) ) {
 		if ( ! current_user_can( 'delete_themes' ) ) {
 			wp_die(
 				'<h1>' . __( 'Cheatin&#8217; uh?' ) . '</h1>' .
-				'<p>' . __( 'You are not allowed to delete this item.' ) . '</p>',
+				'<p>' . __( 'Sorry, you are not allowed to delete this item.' ) . '</p>',
 				403
 			);
 		}
@@ -89,7 +89,7 @@ if ( current_user_can( 'install_themes' ) ) {
 	if ( is_multisite() ) {
 		$help_install = '<p>' . __('Installing themes on Multisite can only be done from the Network Admin section.') . '</p>';
 	} else {
-		$help_install = '<p>' . sprintf( __('If you would like to see more themes to choose from, click on the &#8220;Add New&#8221; button and you will be able to browse or search for additional themes from the <a href="%s" target="_blank">WordPress.org Theme Directory</a>. Themes in the WordPress.org Theme Directory are designed and developed by third parties, and are compatible with the license WordPress uses. Oh, and they&#8217;re free!'), 'https://wordpress.org/themes/' ) . '</p>';
+		$help_install = '<p>' . sprintf( __('If you would like to see more themes to choose from, click on the &#8220;Add New&#8221; button and you will be able to browse or search for additional themes from the <a href="%s" target="_blank">WordPress Theme Directory</a>. Themes in the WordPress Theme Directory are designed and developed by third parties, and are compatible with the license WordPress uses. Oh, and they&#8217;re free!'), 'https://wordpress.org/themes/' ) . '</p>';
 	}
 
 	get_current_screen()->add_help_tab( array(
@@ -145,6 +145,7 @@ wp_localize_script( 'theme', '_wpThemeSettings', array(
 
 add_thickbox();
 wp_enqueue_script( 'theme' );
+wp_enqueue_script( 'updates' );
 wp_enqueue_script( 'customize-loader' );
 
 require_once( ABSPATH . 'wp-admin/admin-header.php' );
@@ -248,6 +249,13 @@ foreach ( $themes as $theme ) :
 	<?php } else { ?>
 		<div class="theme-screenshot blank"></div>
 	<?php } ?>
+
+	<?php if ( $theme['hasUpdate'] ) : ?>
+		<div class="update-message notice inline notice-warning notice-alt">
+			<p><?php _e( 'New version available. <button class="button-link" type="button">Update now</button>' ); ?></p>
+		</div>
+	<?php endif; ?>
+
 	<span class="more-details" id="<?php echo $aria_action; ?>"><?php _e( 'Theme Details' ); ?></span>
 	<div class="theme-author"><?php printf( __( 'By %s' ), $theme['author'] ); ?></div>
 
@@ -276,10 +284,6 @@ foreach ( $themes as $theme ) :
 	<?php } ?>
 
 	</div>
-
-	<?php if ( $theme['hasUpdate'] ) { ?>
-		<div class="theme-update"><?php _e( 'Update Available' ); ?></div>
-	<?php } ?>
 </div>
 <?php endforeach; ?>
 	</div>
@@ -314,7 +318,7 @@ $can_install = current_user_can( 'install_themes' );
 	</tr>
 	<?php foreach ( $broken_themes as $broken_theme ) : ?>
 		<tr>
-			<td><?php echo $broken_theme->get( 'Name' ) ? $broken_theme->display( 'Name' ) : esc_html( $broken_theme->get_stylesheet() ); ?></td>
+			<td><?php echo $broken_theme->get( 'Name' ) ? $broken_theme->display( 'Name' ) : $broken_theme->get_stylesheet(); ?></td>
 			<td><?php echo $broken_theme->errors()->get_error_message(); ?></td>
 			<?php
 			if ( $can_delete ) {
@@ -368,13 +372,23 @@ $can_install = current_user_can( 'install_themes' );
 	<# } else { #>
 		<div class="theme-screenshot blank"></div>
 	<# } #>
+
+	<# if ( data.hasUpdate ) { #>
+		<div class="update-message notice inline notice-warning notice-alt"><p><?php _e( 'New version available. <button class="button-link" type="button">Update now</button>' ); ?></p></div>
+	<# } #>
+
 	<span class="more-details" id="{{ data.id }}-action"><?php _e( 'Theme Details' ); ?></span>
-	<div class="theme-author"><?php printf( __( 'By %s' ), '{{{ data.author }}}' ); ?></div>
+	<div class="theme-author">
+		<?php
+		/* translators: %s: Theme author name */
+		printf( __( 'By %s' ), '{{{ data.author }}}' );
+		?>
+	</div>
 
 	<# if ( data.active ) { #>
 		<h2 class="theme-name" id="{{ data.id }}-name">
 			<?php
-			/* translators: %s: theme name */
+			/* translators: %s: Theme name */
 			printf( __( '<span>Active:</span> %s' ), '{{{ data.name }}}' );
 			?>
 		</h2>
@@ -383,21 +397,15 @@ $can_install = current_user_can( 'install_themes' );
 	<# } #>
 
 	<div class="theme-actions">
-
-	<# if ( data.active ) { #>
-		<# if ( data.actions.customize ) { #>
-			<a class="button button-primary customize load-customize hide-if-no-customize" href="{{{ data.actions.customize }}}"><?php _e( 'Customize' ); ?></a>
+		<# if ( data.active ) { #>
+			<# if ( data.actions.customize ) { #>
+				<a class="button button-primary customize load-customize hide-if-no-customize" href="{{{ data.actions.customize }}}"><?php _e( 'Customize' ); ?></a>
+			<# } #>
+		<# } else { #>
+			<a class="button button-secondary activate" href="{{{ data.actions.activate }}}"><?php _e( 'Activate' ); ?></a>
+			<a class="button button-primary load-customize hide-if-no-customize" href="{{{ data.actions.customize }}}"><?php _e( 'Live Preview' ); ?></a>
 		<# } #>
-	<# } else { #>
-		<a class="button button-secondary activate" href="{{{ data.actions.activate }}}"><?php _e( 'Activate' ); ?></a>
-		<a class="button button-primary load-customize hide-if-no-customize" href="{{{ data.actions.customize }}}"><?php _e( 'Live Preview' ); ?></a>
-	<# } #>
-
 	</div>
-
-	<# if ( data.hasUpdate ) { #>
-		<div class="theme-update"><?php _e( 'Update Available' ); ?></div>
-	<# } #>
 </script>
 
 <script id="tmpl-theme-single" type="text/template">
@@ -461,4 +469,9 @@ $can_install = current_user_can( 'install_themes' );
 	</div>
 </script>
 
-<?php require( ABSPATH . 'wp-admin/admin-footer.php' );
+<?php
+wp_print_request_filesystem_credentials_modal();
+wp_print_admin_notice_templates();
+wp_print_update_row_templates();
+
+require( ABSPATH . 'wp-admin/admin-footer.php' );

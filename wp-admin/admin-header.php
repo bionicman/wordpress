@@ -46,7 +46,7 @@ else
 	$admin_title = sprintf( __( '%1$s &lsaquo; %2$s &#8212; WordPress' ), $title, $admin_title );
 
 /**
- * Filter the title tag content for an admin page.
+ * Filters the title tag content for an admin page.
  *
  * @since 3.1.0
  *
@@ -70,13 +70,13 @@ wp_enqueue_script( 'svg-painter' );
 $admin_body_class = preg_replace('/[^a-z0-9_-]+/i', '-', $hook_suffix);
 ?>
 <script type="text/javascript">
-addLoadEvent = function(func){if(typeof jQuery!=='undefined')jQuery(document).ready(func);else if(typeof wpOnload!=='function'){wpOnload=func;}else{var oldonload=wpOnload;wpOnload=function(){oldonload();func();}}};
-var ajaxurl = '<?php echo esc_js( admin_url( 'admin-ajax.php', 'relative' ) ); ?>',
-	pagenow = '<?php echo esc_js( $current_screen->id ); ?>',
-	typenow = '<?php echo esc_js( $current_screen->post_type ); ?>',
-	adminpage = '<?php echo esc_js( $admin_body_class ); ?>',
-	thousandsSeparator = '<?php echo esc_js( $wp_locale->number_format['thousands_sep'] ); ?>',
-	decimalPoint = '<?php echo esc_js( $wp_locale->number_format['decimal_point'] ); ?>',
+addLoadEvent = function(func){if(typeof jQuery!="undefined")jQuery(document).ready(func);else if(typeof wpOnload!='function'){wpOnload=func;}else{var oldonload=wpOnload;wpOnload=function(){oldonload();func();}}};
+var ajaxurl = '<?php echo admin_url( 'admin-ajax.php', 'relative' ); ?>',
+	pagenow = '<?php echo $current_screen->id; ?>',
+	typenow = '<?php echo $current_screen->post_type; ?>',
+	adminpage = '<?php echo $admin_body_class; ?>',
+	thousandsSeparator = '<?php echo addslashes( $wp_locale->number_format['thousands_sep'] ); ?>',
+	decimalPoint = '<?php echo addslashes( $wp_locale->number_format['decimal_point'] ); ?>',
 	isRtl = <?php echo (int) is_rtl(); ?>;
 </script>
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
@@ -174,7 +174,7 @@ $admin_body_class .= ' no-customize-support no-svg';
 </head>
 <?php
 /**
- * Filter the CSS classes for the body tag in the admin.
+ * Filters the CSS classes for the body tag in the admin.
  *
  * This filter differs from the {@see 'post_class'} and {@see 'body_class'} filters
  * in two important ways:
@@ -229,21 +229,21 @@ $current_screen->render_screen_meta();
 
 if ( is_network_admin() ) {
 	/**
-	 * Print network admin screen notices.
+	 * Prints network admin screen notices.
 	 *
 	 * @since 3.1.0
 	 */
 	do_action( 'network_admin_notices' );
 } elseif ( is_user_admin() ) {
 	/**
-	 * Print user admin screen notices.
+	 * Prints user admin screen notices.
 	 *
 	 * @since 3.1.0
 	 */
 	do_action( 'user_admin_notices' );
 } else {
 	/**
-	 * Print admin screen notices.
+	 * Prints admin screen notices.
 	 *
 	 * @since 3.1.0
 	 */
@@ -251,7 +251,7 @@ if ( is_network_admin() ) {
 }
 
 /**
- * Print generic admin screen notices.
+ * Prints generic admin screen notices.
  *
  * @since 3.1.0
  */

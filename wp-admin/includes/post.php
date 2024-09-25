@@ -30,14 +30,14 @@ function _wp_translate_postdata( $update = false, $post_data = null ) {
 
 	if ( $update && ! current_user_can( 'edit_post', $post_data['ID'] ) ) {
 		if ( 'page' == $post_data['post_type'] )
-			return new WP_Error( 'edit_others_pages', __( 'You are not allowed to edit pages as this user.' ) );
+			return new WP_Error( 'edit_others_pages', __( 'Sorry, you are not allowed to edit pages as this user.' ) );
 		else
-			return new WP_Error( 'edit_others_posts', __( 'You are not allowed to edit posts as this user.' ) );
+			return new WP_Error( 'edit_others_posts', __( 'Sorry, you are not allowed to edit posts as this user.' ) );
 	} elseif ( ! $update && ! current_user_can( $ptype->cap->create_posts ) ) {
 		if ( 'page' == $post_data['post_type'] )
-			return new WP_Error( 'edit_others_pages', __( 'You are not allowed to create pages as this user.' ) );
+			return new WP_Error( 'edit_others_pages', __( 'Sorry, you are not allowed to create pages as this user.' ) );
 		else
-			return new WP_Error( 'edit_others_posts', __( 'You are not allowed to create posts as this user.' ) );
+			return new WP_Error( 'edit_others_posts', __( 'Sorry, you are not allowed to create posts as this user.' ) );
 	}
 
 	if ( isset( $post_data['content'] ) )
@@ -68,14 +68,14 @@ function _wp_translate_postdata( $update = false, $post_data = null ) {
 		 && ! current_user_can( $ptype->cap->edit_others_posts ) ) {
 		if ( $update ) {
 			if ( 'page' == $post_data['post_type'] )
-				return new WP_Error( 'edit_others_pages', __( 'You are not allowed to edit pages as this user.' ) );
+				return new WP_Error( 'edit_others_pages', __( 'Sorry, you are not allowed to edit pages as this user.' ) );
 			else
-				return new WP_Error( 'edit_others_posts', __( 'You are not allowed to edit posts as this user.' ) );
+				return new WP_Error( 'edit_others_posts', __( 'Sorry, you are not allowed to edit posts as this user.' ) );
 		} else {
 			if ( 'page' == $post_data['post_type'] )
-				return new WP_Error( 'edit_others_pages', __( 'You are not allowed to create pages as this user.' ) );
+				return new WP_Error( 'edit_others_pages', __( 'Sorry, you are not allowed to create pages as this user.' ) );
 			else
-				return new WP_Error( 'edit_others_posts', __( 'You are not allowed to create posts as this user.' ) );
+				return new WP_Error( 'edit_others_posts', __( 'Sorry, you are not allowed to create posts as this user.' ) );
 		}
 	}
 
@@ -176,27 +176,6 @@ function _wp_translate_postdata( $update = false, $post_data = null ) {
 }
 
 /**
- * Returns only allowed post data fields
- *
- * @since 4.9.9
- *
- * @param array $post_data Array of post data. Defaults to the contents of $_POST.
- * @return object|bool WP_Error on failure, true on success.
- */
-function _wp_get_allowed_postdata( $post_data = null ) {
-	if ( empty( $post_data ) ) {
-		$post_data = $_POST;
-	}
-
-	// Pass through errors
-	if ( is_wp_error( $post_data ) ) {
-		return $post_data;
-	}
-
-	return array_diff_key( $post_data, array_flip( array( 'meta_input', 'file', 'guid' ) ) );
-}
-
-/**
  * Update an existing post with values provided in $_POST.
  *
  * @since 1.5.0
@@ -231,9 +210,9 @@ function edit_post( $post_data = null ) {
 	$ptype = get_post_type_object($post_data['post_type']);
 	if ( !current_user_can( 'edit_post', $post_ID ) ) {
 		if ( 'page' == $post_data['post_type'] )
-			wp_die( __('You are not allowed to edit this page.' ));
+			wp_die( __('Sorry, you are not allowed to edit this page.' ));
 		else
-			wp_die( __('You are not allowed to edit this post.' ));
+			wp_die( __('Sorry, you are not allowed to edit this post.' ));
 	}
 
 	if ( post_type_supports( $ptype->name, 'revisions' ) ) {
@@ -264,7 +243,6 @@ function edit_post( $post_data = null ) {
 	$post_data = _wp_translate_postdata( true, $post_data );
 	if ( is_wp_error($post_data) )
 		wp_die( $post_data->get_error_message() );
-	$translated = _wp_get_allowed_postdata( $post_data );
 
 	// Post Formats
 	if ( isset( $post_data['post_format'] ) )
@@ -342,7 +320,7 @@ function edit_post( $post_data = null ) {
 		$attachment_data = isset( $post_data['attachments'][ $post_ID ] ) ? $post_data['attachments'][ $post_ID ] : array();
 
 		/** This filter is documented in wp-admin/includes/media.php */
-		$translated = apply_filters( 'attachment_fields_to_save', $translated, $attachment_data );
+		$post_data = apply_filters( 'attachment_fields_to_save', $post_data, $attachment_data );
 	}
 
 	// Convert taxonomy input to term IDs, to avoid ambiguity.
@@ -387,7 +365,7 @@ function edit_post( $post_data = null ) {
 				}
 			}
 
-			$translated['tax_input'][ $taxonomy ] = $clean_terms;
+			$post_data['tax_input'][ $taxonomy ] = $clean_terms;
 		}
 	}
 
@@ -395,18 +373,18 @@ function edit_post( $post_data = null ) {
 
 	update_post_meta( $post_ID, '_edit_last', get_current_user_id() );
 
-	$success = wp_update_post( $translated );
+	$success = wp_update_post( $post_data );
 	// If the save failed, see if we can sanity check the main fields and try again
 	if ( ! $success && is_callable( array( $wpdb, 'strip_invalid_text_for_column' ) ) ) {
 		$fields = array( 'post_title', 'post_content', 'post_excerpt' );
 
 		foreach ( $fields as $field ) {
-			if ( isset( $translated[ $field ] ) ) {
-				$translated[ $field ] = $wpdb->strip_invalid_text_for_column( $wpdb->posts, $field, $translated[ $field ] );
+			if ( isset( $post_data[ $field ] ) ) {
+				$post_data[ $field ] = $wpdb->strip_invalid_text_for_column( $wpdb->posts, $field, $post_data[ $field ] );
 			}
 		}
 
-		wp_update_post( $translated );
+		wp_update_post( $post_data );
 	}
 
 	// Now that we have an ID we can fix any attachment anchor hrefs
@@ -450,9 +428,9 @@ function bulk_edit_posts( $post_data = null ) {
 
 	if ( !current_user_can( $ptype->cap->edit_posts ) ) {
 		if ( 'page' == $ptype->name )
-			wp_die( __('You are not allowed to edit pages.'));
+			wp_die( __('Sorry, you are not allowed to edit pages.'));
 		else
-			wp_die( __('You are not allowed to edit posts.'));
+			wp_die( __('Sorry, you are not allowed to edit posts.'));
 	}
 
 	if ( -1 == $post_data['_status'] ) {
@@ -566,9 +544,9 @@ function bulk_edit_posts( $post_data = null ) {
 			unset( $post_data['tax_input']['category'] );
 		}
 
-		$post_data['post_ID']        = $post_ID;
 		$post_data['post_type'] = $post->post_type;
 		$post_data['post_mime_type'] = $post->post_mime_type;
+		$post_data['guid'] = $post->guid;
 
 		foreach ( array( 'comment_status', 'ping_status', 'post_author' ) as $field ) {
 			if ( ! isset( $post_data[ $field ] ) ) {
@@ -576,12 +554,14 @@ function bulk_edit_posts( $post_data = null ) {
 			}
 		}
 
+		$post_data['ID'] = $post_ID;
+		$post_data['post_ID'] = $post_ID;
+
 		$post_data = _wp_translate_postdata( true, $post_data );
 		if ( is_wp_error( $post_data ) ) {
 			$skipped[] = $post_ID;
 			continue;
 		}
-		$post_data = _wp_get_allowed_postdata( $post_data );
 
 		$updated[] = wp_update_post( $post_data );
 
@@ -592,8 +572,8 @@ function bulk_edit_posts( $post_data = null ) {
 				unstick_post( $post_ID );
 		}
 
-		if ( isset( $shared_post_data['post_format'] ) )
-			set_post_format( $post_ID, $shared_post_data['post_format'] );
+		if ( isset( $post_data['post_format'] ) )
+			set_post_format( $post_ID, $post_data['post_format'] );
 	}
 
 	return array( 'updated' => $updated, 'skipped' => $skipped, 'locked' => $locked );
@@ -649,7 +629,7 @@ function get_default_post_to_edit( $post_type = 'post', $create_in_db = false ) 
 	}
 
 	/**
-	 * Filter the default post content initially used in the "Write Post" form.
+	 * Filters the default post content initially used in the "Write Post" form.
 	 *
 	 * @since 1.5.0
 	 *
@@ -659,7 +639,7 @@ function get_default_post_to_edit( $post_type = 'post', $create_in_db = false ) 
 	$post->post_content = apply_filters( 'default_content', $post_content, $post );
 
 	/**
-	 * Filter the default post title initially used in the "Write Post" form.
+	 * Filters the default post title initially used in the "Write Post" form.
 	 *
 	 * @since 1.5.0
 	 *
@@ -669,7 +649,7 @@ function get_default_post_to_edit( $post_type = 'post', $create_in_db = false ) 
 	$post->post_title = apply_filters( 'default_title', $post_title, $post );
 
 	/**
-	 * Filter the default post excerpt initially used in the "Write Post" form.
+	 * Filters the default post excerpt initially used in the "Write Post" form.
 	 *
 	 * @since 1.5.0
 	 *
@@ -741,9 +721,9 @@ function wp_write_post() {
 
 	if ( !current_user_can( $ptype->cap->edit_posts ) ) {
 		if ( 'page' == $ptype->name )
-			return new WP_Error( 'edit_pages', __( 'You are not allowed to create pages on this site.' ) );
+			return new WP_Error( 'edit_pages', __( 'Sorry, you are not allowed to create pages on this site.' ) );
 		else
-			return new WP_Error( 'edit_posts', __( 'You are not allowed to create posts or drafts on this site.' ) );
+			return new WP_Error( 'edit_posts', __( 'Sorry, you are not allowed to create posts or drafts on this site.' ) );
 	}
 
 	$_POST['post_mime_type'] = '';
@@ -774,10 +754,9 @@ function wp_write_post() {
 	$translated = _wp_translate_postdata( false );
 	if ( is_wp_error($translated) )
 		return $translated;
-	$translated = _wp_get_allowed_postdata( $translated );
 
 	// Create the post.
-	$post_ID = wp_insert_post( $translated );
+	$post_ID = wp_insert_post( $_POST );
 	if ( is_wp_error( $post_ID ) )
 		return $post_ID;
 
@@ -1050,7 +1029,7 @@ function wp_edit_posts_query( $q = false ) {
 		$posts_per_page = 20;
 
 	/**
-	 * Filter the number of items per page to show for a specific 'per_page' type.
+	 * Filters the number of items per page to show for a specific 'per_page' type.
 	 *
 	 * The dynamic portion of the hook name, `$post_type`, refers to the post type.
 	 *
@@ -1065,7 +1044,7 @@ function wp_edit_posts_query( $q = false ) {
 	$posts_per_page = apply_filters( "edit_{$post_type}_per_page", $posts_per_page );
 
 	/**
-	 * Filter the number of posts displayed per page when specifically listing "posts".
+	 * Filters the number of posts displayed per page when specifically listing "posts".
 	 *
 	 * @since 2.8.0
 	 *
@@ -1141,7 +1120,7 @@ function wp_edit_attachments_query_vars( $q = false ) {
 	}
 
 	/**
-	 * Filter the number of items to list per page when listing media items.
+	 * Filters the number of items to list per page when listing media items.
 	 *
 	 * @since 2.9.0
 	 *
@@ -1209,7 +1188,7 @@ function postbox_classes( $id, $page ) {
 	}
 
 	/**
-	 * Filter the postbox classes for a specific screen and screen ID combo.
+	 * Filters the postbox classes for a specific screen and screen ID combo.
 	 *
 	 * The dynamic portions of the hook name, `$page` and `$id`, refer to
 	 * the screen and screen ID, respectively.
@@ -1287,7 +1266,7 @@ function get_sample_permalink($id, $title = null, $name = null) {
 	unset($post->filter);
 
 	/**
-	 * Filter the sample permalink.
+	 * Filters the sample permalink.
 	 *
 	 * @since 4.4.0
 	 *
@@ -1375,7 +1354,7 @@ function get_sample_permalink_html( $id, $new_title = null, $new_slug = null ) {
 	}
 
 	/**
-	 * Filter the sample permalink HTML markup.
+	 * Filters the sample permalink HTML markup.
 	 *
 	 * @since 2.9.0
 	 * @since 4.4.0 Added `$post` parameter.
@@ -1421,7 +1400,7 @@ function _wp_post_thumbnail_html( $thumbnail_id = null, $post = null ) {
 		$size = isset( $_wp_additional_image_sizes['post-thumbnail'] ) ? 'post-thumbnail' : array( 266, 266 );
 
 		/**
-		 * Filter the size used to display the post thumbnail image in the 'Featured Image' meta box.
+		 * Filters the size used to display the post thumbnail image in the 'Featured Image' meta box.
 		 *
 		 * Note: When a theme adds 'post-thumbnail' support, a special 'post-thumbnail'
 		 * image size is registered, which differs from the 'thumbnail' image size
@@ -1454,14 +1433,17 @@ function _wp_post_thumbnail_html( $thumbnail_id = null, $post = null ) {
 	}
 
 	/**
-	 * Filter the admin post thumbnail HTML markup to return.
+	 * Filters the admin post thumbnail HTML markup to return.
 	 *
 	 * @since 2.9.0
+	 * @since 3.5.0 Added $post->ID
+	 * @since 4.6.0 Added $thumbnail_id
 	 *
-	 * @param string $content Admin post thumbnail HTML markup.
-	 * @param int    $post_id Post ID.
+	 * @param string $content      Admin post thumbnail HTML markup.
+	 * @param int    $post_id      Post ID.
+	 * @param int    $thumbnail_id Thumbnail ID.
 	 */
-	return apply_filters( 'admin_post_thumbnail_html', $content, $post->ID );
+	return apply_filters( 'admin_post_thumbnail_html', $content, $post->ID, $thumbnail_id );
 }
 
 /**
@@ -1530,7 +1512,7 @@ function _admin_notice_post_locked() {
 	if ( $user ) {
 
 		/**
-		 * Filter whether to show the post locked dialog.
+		 * Filters whether to show the post locked dialog.
 		 *
 		 * Returning a falsey value to the filter will short-circuit displaying the dialog.
 		 *
@@ -1582,7 +1564,7 @@ function _admin_notice_post_locked() {
 		$preview_link = get_preview_post_link( $post->ID, $query_args );
 
 		/**
-		 * Filter whether to allow the post lock to be overridden.
+		 * Filters whether to allow the post lock to be overridden.
 		 *
 		 * Returning a falsey value to the filter will disable the ability
 		 * to override the post lock.
@@ -1685,7 +1667,6 @@ function wp_create_post_autosave( $post_data ) {
 	$post_data = _wp_translate_postdata( true, $post_data );
 	if ( is_wp_error( $post_data ) )
 		return $post_data;
-	$post_data = _wp_get_allowed_postdata( $post_data );
 
 	$post_author = get_current_user_id();
 
@@ -1743,11 +1724,11 @@ function post_preview() {
 	$_POST['ID'] = $post_ID;
 
 	if ( ! $post = get_post( $post_ID ) ) {
-		wp_die( __( 'You are not allowed to edit this post.' ) );
+		wp_die( __( 'Sorry, you are not allowed to edit this post.' ) );
 	}
 
 	if ( ! current_user_can( 'edit_post', $post->ID ) ) {
-		wp_die( __( 'You are not allowed to edit this post.' ) );
+		wp_die( __( 'Sorry, you are not allowed to edit this post.' ) );
 	}
 
 	$is_autosave = false;
@@ -1805,7 +1786,7 @@ function wp_autosave( $post_data ) {
 	$post = get_post( $post_id );
 
 	if ( ! current_user_can( 'edit_post', $post->ID ) ) {
-		return new WP_Error( 'edit_posts', __( 'You are not allowed to edit this item.' ) );
+		return new WP_Error( 'edit_posts', __( 'Sorry, you are not allowed to edit this item.' ) );
 	}
 
 	if ( 'auto-draft' == $post->post_status )
@@ -1861,7 +1842,7 @@ function redirect_post($post_id = '') {
 	}
 
 	/**
-	 * Filter the post redirect destination URL.
+	 * Filters the post redirect destination URL.
 	 *
 	 * @since 2.9.0
 	 *

@@ -35,7 +35,7 @@ require( ABSPATH . WPINC . '/functions.wp-styles.php' );
  * Register all WordPress scripts.
  *
  * Localizes some of them.
- * args order: $scripts->add( 'handle', 'url', 'dependencies', 'query-string', 1 );
+ * args order: `$scripts->add( 'handle', 'url', 'dependencies', 'query-string', 1 );`
  * when last arg === 1 queues the script for the footer
  *
  * @since 2.6.0
@@ -124,7 +124,7 @@ function wp_default_scripts( &$scripts ) {
 
 	$scripts->add( 'wp-ajax-response', "/wp-includes/js/wp-ajax-response$suffix.js", array('jquery'), false, 1 );
 	did_action( 'init' ) && $scripts->localize( 'wp-ajax-response', 'wpAjax', array(
-		'noPerm' => __('You do not have permission to do that.'),
+		'noPerm' => __('Sorry, you are not allowed to do that.'),
 		'broken' => __('An unidentified error has occurred.')
 	) );
 
@@ -138,7 +138,7 @@ function wp_default_scripts( &$scripts ) {
 	$scripts->add( 'heartbeat', "/wp-includes/js/heartbeat$suffix.js", array('jquery'), false, 1 );
 	did_action( 'init' ) && $scripts->localize( 'heartbeat', 'heartbeatSettings',
 		/**
-		 * Filter the Heartbeat settings.
+		 * Filters the Heartbeat settings.
 		 *
 		 * @since 3.6.0
 		 *
@@ -152,7 +152,7 @@ function wp_default_scripts( &$scripts ) {
 		'beforeunload' => __('Your session has expired. You can log in again from this page or go to the login page.'),
 
 		/**
-		 * Filter the authentication check interval.
+		 * Filters the authentication check interval.
 		 *
 		 * @since 3.6.0
 		 *
@@ -229,6 +229,7 @@ function wp_default_scripts( &$scripts ) {
 		'noResults' => __( 'No search results.' ),
 		/* translators: Number of results found when using jQuery UI Autocomplete */
 		'oneResult' => __( '1 result found. Use up and down arrow keys to navigate.' ),
+		/* translators: %d: Number of results found when using jQuery UI Autocomplete */
 		'manyResults' => __( '%d results found. Use up and down arrow keys to navigate.' ),
 	) );
 
@@ -239,7 +240,7 @@ function wp_default_scripts( &$scripts ) {
 	$scripts->add( 'jquery-color', "/wp-includes/js/jquery/jquery.color.min.js", array('jquery'), '2.1.1', 1 );
 	$scripts->add( 'suggest', "/wp-includes/js/jquery/suggest$suffix.js", array('jquery'), '1.1-20110113', 1 );
 	$scripts->add( 'schedule', '/wp-includes/js/jquery/jquery.schedule.js', array('jquery'), '20m', 1 );
-	$scripts->add( 'jquery-query', "/wp-includes/js/jquery/jquery.query.js", array('jquery'), '2.2.3', 1 );
+	$scripts->add( 'jquery-query', "/wp-includes/js/jquery/jquery.query.js", array('jquery'), '2.1.7', 1 );
 	$scripts->add( 'jquery-serialize-object', "/wp-includes/js/jquery/jquery.serialize-object.js", array('jquery'), '0.2', 1 );
 	$scripts->add( 'jquery-hotkeys', "/wp-includes/js/jquery/jquery.hotkeys$suffix.js", array('jquery'), '0.0.2m', 1 );
 	$scripts->add( 'jquery-table-hotkeys', "/wp-includes/js/jquery/jquery.table-hotkeys$suffix.js", array('jquery', 'jquery-hotkeys'), false, 1 );
@@ -247,7 +248,8 @@ function wp_default_scripts( &$scripts ) {
 
 	// Masonry v2 depended on jQuery. v3 does not. The older jquery-masonry handle is a shiv.
 	// It sets jQuery as a dependency, as the theme may have been implicitly loading it this way.
-	$scripts->add( 'masonry', "/wp-includes/js/masonry.min.js", array(), '3.1.2', 1 );
+	$scripts->add( 'imagesloaded', "/wp-includes/js/imagesloaded.min.js", array(), '3.2.0', 1 );
+	$scripts->add( 'masonry', "/wp-includes/js/masonry.min.js", array( 'imagesloaded' ), '3.3.2', 1 );
 	$scripts->add( 'jquery-masonry', "/wp-includes/js/jquery/jquery.masonry$dev_suffix.js", array( 'jquery', 'masonry' ), '3.1.2', 1 );
 
 	$scripts->add( 'thickbox', "/wp-includes/js/thickbox/thickbox.js", array('jquery'), '3.1-20121105', 1 );
@@ -333,7 +335,7 @@ function wp_default_scripts( &$scripts ) {
 
 	$scripts->add( 'imgareaselect', "/wp-includes/js/imgareaselect/jquery.imgareaselect$suffix.js", array('jquery'), false, 1 );
 
-	$scripts->add( 'mediaelement', "/wp-includes/js/mediaelement/mediaelement-and-player.min.js", array('jquery'), '2.18.1-a', 1 );
+	$scripts->add( 'mediaelement', "/wp-includes/js/mediaelement/mediaelement-and-player.min.js", array('jquery'), '2.21.2', 1 );
 	did_action( 'init' ) && $scripts->localize( 'mediaelement', 'mejsL10n', array(
 		'language' => get_bloginfo( 'language' ),
 		'strings'  => array(
@@ -359,7 +361,7 @@ function wp_default_scripts( &$scripts ) {
 	);
 	did_action( 'init' ) && $scripts->localize( 'mediaelement', '_wpmejsSettings',
 		/**
-		 * Filter the MediaElement configuration settings.
+		 * Filters the MediaElement configuration settings.
 		 *
 		 * @since 4.4.0
 		 *
@@ -443,7 +445,7 @@ function wp_default_scripts( &$scripts ) {
 		'cancel'             => __( 'Cancel' ),
 		'close'              => __( 'Close' ),
 		'cheatin'            => __( 'Cheatin&#8217; uh?' ),
-		'notAllowed'         => __( 'You are not allowed to customize the appearance of this site.' ),
+		'notAllowed'         => __( 'Sorry, you are not allowed to customize this site.' ),
 		'previewIframeTitle' => __( 'Site Preview' ),
 		'loginIframeTitle'   => __( 'Session expired' ),
 		'collapseSidebar'    => __( 'Collapse Sidebar' ),
@@ -483,7 +485,7 @@ function wp_default_scripts( &$scripts ) {
 	if ( is_admin() ) {
 		$scripts->add( 'admin-tags', "/wp-admin/js/tags$suffix.js", array( 'jquery', 'wp-ajax-response' ), false, 1 );
 		did_action( 'init' ) && $scripts->localize( 'admin-tags', 'tagsl10n', array(
-			'noPerm' => __('You do not have permission to do that.'),
+			'noPerm' => __('Sorry, you are not allowed to do that.'),
 			'broken' => __('An unidentified error has occurred.')
 		));
 
@@ -494,6 +496,7 @@ function wp_default_scripts( &$scripts ) {
 			'replyApprove' => __( 'Approve and Reply' ),
 			'reply' => __( 'Reply' ),
 			'warnQuickEdit' => __( "Are you sure you want to edit this comment?\nThe changes you made will be lost." ),
+			'warnCommentChanges' => __( "Are you sure you want to do this?\nThe comment changes you made will be lost." ),
 			'docTitleComments' => __( 'Comments' ),
 			/* translators: %s: comments count */
 			'docTitleCommentsCount' => __( 'Comments (%s)' ),
@@ -593,25 +596,62 @@ function wp_default_scripts( &$scripts ) {
 		did_action( 'init' ) && $scripts->localize( 'updates', '_wpUpdatesSettings', array(
 			'ajax_nonce' => wp_create_nonce( 'updates' ),
 			'l10n'       => array(
-				'updating'          => __( 'Updating...' ), // no ellipsis
-				'updated'           => __( 'Updated!' ),
-				'updateFailedShort' => __( 'Update Failed!' ),
+				/* translators: %s: Search string */
+				'searchResults'              => __( 'Search results for &#8220;%s&#8221;' ),
+				'noPlugins'                  => __( 'You do not appear to have any plugins available at this time.' ),
+				'noItemsSelected'            => __( 'Please select at least one item to perform this action on.' ),
+				'updating'                   => __( 'Updating...' ), // No ellipsis.
+				'updated'                    => __( 'Updated!' ),
+				'update'                     => __( 'Update' ),
+				'updateNow'                  => __( 'Update Now' ),
+				'updateFailedShort'          => __( 'Update Failed!' ),
 				/* translators: Error string for a failed update */
-				'updateFailed'      => __( 'Update Failed: %s' ),
+				'updateFailed'               => __( 'Update Failed: %s' ),
 				/* translators: Plugin name and version */
-				'updatingLabel'     => __( 'Updating %s...' ), // no ellipsis
+				'updatingLabel'              => __( 'Updating %s...' ), // No ellipsis.
 				/* translators: Plugin name and version */
-				'updatedLabel'      => __( '%s updated!' ),
+				'updatedLabel'               => __( '%s updated!' ),
 				/* translators: Plugin name and version */
-				'updateFailedLabel' => __( '%s update failed' ),
+				'updateFailedLabel'          => __( '%s update failed' ),
 				/* translators: JavaScript accessible string */
-				'updatingMsg'       => __( 'Updating... please wait.' ), // no ellipsis
+				'updatingMsg'                => __( 'Updating... please wait.' ), // No ellipsis.
 				/* translators: JavaScript accessible string */
-				'updatedMsg'        => __( 'Update completed successfully.' ),
+				'updatedMsg'                 => __( 'Update completed successfully.' ),
 				/* translators: JavaScript accessible string */
-				'updateCancel'      => __( 'Update canceled.' ),
-				'beforeunload'      => __( 'Plugin updates may not complete if you navigate away from this page.' ),
-			)
+				'updateCancel'               => __( 'Update canceled.' ),
+				'beforeunload'               => __( 'Updates may not complete if you navigate away from this page.' ),
+				'installNow'                 => __( 'Install Now' ),
+				'installing'                 => __( 'Installing...' ),
+				'installed'                  => __( 'Installed!' ),
+				'installFailedShort'         => __( 'Install Failed!' ),
+				/* translators: Error string for a failed installation */
+				'installFailed'              => __( 'Installation failed: %s' ),
+				/* translators: Plugin/Theme name and version */
+				'installingLabel'            => __( 'Installing %s...' ), // no ellipsis
+				/* translators: Plugin/Theme name and version */
+				'installedLabel'             => __( '%s installed!' ),
+				/* translators: Plugin/Theme name and version */
+				'installFailedLabel'         => __( '%s installation failed' ),
+				'installingMsg'              => __( 'Installing... please wait.' ),
+				'installedMsg'               => __( 'Installation completed successfully.' ),
+				/* translators: Activation URL */
+				'importerInstalledMsg'       => __( 'Importer installed successfully. <a href="%s">Activate plugin &#38; run importer</a>' ),
+				/* translators: %s: Theme name */
+				'aysDelete'                  => __( 'Are you sure you want to delete %s?' ),
+				/* translators: %s: Plugin name */
+				'aysDeleteUninstall'         => __( 'Are you sure you want to delete %s and its data?' ),
+				'aysBulkDelete'              => __( 'Are you sure you want to delete the selected plugins and their data?' ),
+				'aysBulkDeleteThemes'        => __( 'Caution: These themes may be active on other sites in the network. Are you sure you want to proceed?' ),
+				'deleting'                   => __( 'Deleting...' ),
+				/* translators: %s: Error string for a failed deletion */
+				'deleteFailed'               => __( 'Deletion failed: %s' ),
+				'deleted'                    => __( 'Deleted!' ),
+				'livePreview'                => __( 'Live Preview' ),
+				'activatePlugin'             => is_network_admin() ? __( 'Network Activate' ) : __( 'Activate' ),
+				'activateTheme'              => is_network_admin() ? __( 'Network Enable' ) : __( 'Activate' ),
+				'activateImporter'           => __( 'Activate importer' ),
+				'unknownError'               => __( 'An unknown error occured' ),
+			),
 		) );
 
 		$scripts->add( 'farbtastic', '/wp-admin/js/farbtastic.js', array('jquery'), '1.2' );
@@ -695,6 +735,7 @@ function wp_default_styles( &$styles ) {
 	$styles->text_direction = function_exists( 'is_rtl' ) && is_rtl() ? 'rtl' : 'ltr';
 	$styles->default_dirs = array('/wp-admin/', '/wp-includes/css/');
 
+	// Open Sans is no longer used by core, but may be relied upon by themes and plugins.
 	$open_sans_font_url = '';
 
 	/* translators: If there are characters in your language that are not supported
@@ -741,15 +782,15 @@ function wp_default_styles( &$styles ) {
 	$styles->add( 'site-icon',           "/wp-admin/css/site-icon$suffix.css" );
 	$styles->add( 'l10n',                "/wp-admin/css/l10n$suffix.css" );
 
-	$styles->add( 'wp-admin', false, array( 'open-sans', 'dashicons', 'common', 'forms', 'admin-menu', 'dashboard', 'list-tables', 'edit', 'revisions', 'media', 'themes', 'about', 'nav-menus', 'widgets', 'site-icon', 'l10n' ) );
+	$styles->add( 'wp-admin', false, array( 'dashicons', 'common', 'forms', 'admin-menu', 'dashboard', 'list-tables', 'edit', 'revisions', 'media', 'themes', 'about', 'nav-menus', 'widgets', 'site-icon', 'l10n' ) );
 
-	$styles->add( 'login',               "/wp-admin/css/login$suffix.css", array( 'open-sans', 'dashicons', 'buttons', 'forms', 'l10n' ) );
-	$styles->add( 'install',             "/wp-admin/css/install$suffix.css", array( 'open-sans', 'buttons' ) );
+	$styles->add( 'login',               "/wp-admin/css/login$suffix.css", array( 'dashicons', 'buttons', 'forms', 'l10n' ) );
+	$styles->add( 'install',             "/wp-admin/css/install$suffix.css", array( 'buttons' ) );
 	$styles->add( 'wp-color-picker',     "/wp-admin/css/color-picker$suffix.css" );
 	$styles->add( 'customize-controls',  "/wp-admin/css/customize-controls$suffix.css", array( 'wp-admin', 'colors', 'ie', 'imgareaselect' ) );
 	$styles->add( 'customize-widgets',   "/wp-admin/css/customize-widgets$suffix.css", array( 'wp-admin', 'colors' ) );
 	$styles->add( 'customize-nav-menus', "/wp-admin/css/customize-nav-menus$suffix.css", array( 'wp-admin', 'colors' ) );
-	$styles->add( 'press-this',          "/wp-admin/css/press-this$suffix.css", array( 'open-sans', 'buttons' ) );
+	$styles->add( 'press-this',          "/wp-admin/css/press-this$suffix.css", array( 'buttons' ) );
 
 	$styles->add( 'ie', "/wp-admin/css/ie$suffix.css" );
 	$styles->add_data( 'ie', 'conditional', 'lte IE 7' );
@@ -757,10 +798,9 @@ function wp_default_styles( &$styles ) {
 	// Common dependencies
 	$styles->add( 'buttons',   "/wp-includes/css/buttons$suffix.css" );
 	$styles->add( 'dashicons', "/wp-includes/css/dashicons$suffix.css" );
-	$styles->add( 'open-sans', $open_sans_font_url );
 
 	// Includes CSS
-	$styles->add( 'admin-bar',            "/wp-includes/css/admin-bar$suffix.css", array( 'open-sans', 'dashicons' ) );
+	$styles->add( 'admin-bar',            "/wp-includes/css/admin-bar$suffix.css", array( 'dashicons' ) );
 	$styles->add( 'wp-auth-check',        "/wp-includes/css/wp-auth-check$suffix.css", array( 'dashicons' ) );
 	$styles->add( 'editor-buttons',       "/wp-includes/css/editor$suffix.css", array( 'dashicons' ) );
 	$styles->add( 'media-views',          "/wp-includes/css/media-views$suffix.css", array( 'buttons', 'dashicons', 'wp-mediaelement' ) );
@@ -772,7 +812,7 @@ function wp_default_styles( &$styles ) {
 	// External libraries and friends
 	$styles->add( 'imgareaselect',       '/wp-includes/js/imgareaselect/imgareaselect.css', array(), '0.9.8' );
 	$styles->add( 'wp-jquery-ui-dialog', "/wp-includes/css/jquery-ui-dialog$suffix.css", array( 'dashicons' ) );
-	$styles->add( 'mediaelement',        "/wp-includes/js/mediaelement/mediaelementplayer.min.css", array(), '2.18.1' );
+	$styles->add( 'mediaelement',        "/wp-includes/js/mediaelement/mediaelementplayer.min.css", array(), '2.21.2' );
 	$styles->add( 'wp-mediaelement',     "/wp-includes/js/mediaelement/wp-mediaelement$suffix.css", array( 'mediaelement' ) );
 	$styles->add( 'thickbox',            '/wp-includes/js/thickbox/thickbox.css', array( 'dashicons' ) );
 
@@ -781,6 +821,7 @@ function wp_default_styles( &$styles ) {
 	$styles->add( 'farbtastic',       "/wp-admin/css/farbtastic$suffix.css", array(), '1.3u1' );
 	$styles->add( 'jcrop',            "/wp-includes/js/jcrop/jquery.Jcrop.min.css", array(), '0.9.12' );
 	$styles->add( 'colors-fresh', false, array( 'wp-admin', 'buttons' ) ); // Old handle.
+	$styles->add( 'open-sans', $open_sans_font_url ); // No longer used in core as of 4.6
 
 	// RTL CSS
 	$rtl_styles = array(
@@ -841,10 +882,54 @@ function wp_just_in_time_script_localization() {
 		'autosaveInterval' => AUTOSAVE_INTERVAL,
 		'blog_id' => get_current_blog_id(),
 	) );
+}
 
-	wp_localize_script( 'mce-view', 'mceViewL10n', array(
-		'shortcodes' => ! empty( $GLOBALS['shortcode_tags'] ) ? array_keys( $GLOBALS['shortcode_tags'] ) : array()
+/**
+ * Localizes the jQuery UI datepicker.
+ *
+ * @since 4.6.0
+ *
+ * @link http://api.jqueryui.com/datepicker/#options
+ * @global WP_Locale $wp_locale The WordPress date and time locale object.
+ */
+function wp_localize_jquery_ui_datepicker() {
+	global $wp_locale;
+
+	if ( ! wp_script_is( 'jquery-ui-datepicker', 'enqueued' ) ) {
+		return;
+	}
+
+	// Convert the PHP date format into jQuery UI's format.
+	$datepicker_date_format = str_replace(
+		array(
+			'd', 'j', 'l', 'z', // Day.
+			'F', 'M', 'n', 'm', // Month.
+			'Y', 'y'            // Year.
+		),
+		array(
+			'dd', 'd', 'DD', 'o',
+			'MM', 'M', 'm', 'mm',
+			'yy', 'y'
+		),
+		get_option( 'date_format' )
+	);
+
+	$datepicker_defaults = wp_json_encode( array(
+		'closeText'       => __( 'Close' ),
+		'currentText'     => __( 'Today' ),
+		'monthNames'      => array_values( $wp_locale->month ),
+		'monthNamesShort' => array_values( $wp_locale->month_abbrev ),
+		'nextText'        => __( 'Next' ),
+		'prevText'        => __( 'Previous' ),
+		'dayNames'        => array_values( $wp_locale->weekday ),
+		'dayNamesShort'   => array_values( $wp_locale->weekday_abbrev ),
+		'dayNamesMin'     => array_values( $wp_locale->weekday_initial ),
+		'dateFormat'      => $datepicker_date_format,
+		'firstDay'        => absint( get_option( 'start_of_week' ) ),
+		'isRTL'           => $wp_locale->is_rtl(),
 	) );
+
+	wp_add_inline_script( 'jquery-ui-datepicker', "jQuery(document).ready(function(jQuery){jQuery.datepicker.setDefaults({$datepicker_defaults});});" );
 }
 
 /**
@@ -927,7 +1012,7 @@ function print_head_scripts() {
 	$wp_scripts->do_head_items();
 
 	/**
-	 * Filter whether to print the head scripts.
+	 * Filters whether to print the head scripts.
 	 *
 	 * @since 2.8.0
 	 *
@@ -962,7 +1047,7 @@ function print_footer_scripts() {
 	$wp_scripts->do_footer_items();
 
 	/**
-	 * Filter whether to print the footer scripts.
+	 * Filters whether to print the footer scripts.
 	 *
 	 * @since 2.8.0
 	 *
@@ -1098,7 +1183,7 @@ function print_admin_styles() {
 	$wp_styles->do_items(false);
 
 	/**
-	 * Filter whether to print the admin styles.
+	 * Filters whether to print the admin styles.
 	 *
 	 * @since 2.8.0
 	 *
@@ -1134,7 +1219,7 @@ function print_late_styles() {
 	$wp_styles->do_footer_items();
 
 	/**
-	 * Filter whether to print the styles queued too late for the HTML head.
+	 * Filters whether to print the styles queued too late for the HTML head.
 	 *
 	 * @since 3.3.0
 	 *

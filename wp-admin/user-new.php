@@ -13,14 +13,14 @@ if ( is_multisite() ) {
 	if ( ! current_user_can( 'create_users' ) && ! current_user_can( 'promote_users' ) ) {
 		wp_die(
 			'<h1>' . __( 'Cheatin&#8217; uh?' ) . '</h1>' .
-			'<p>' . __( 'You do not have sufficient permissions to add users to this network.' ) . '</p>',
+			'<p>' . __( 'Sorry, you are not allowed to add users to this network.' ) . '</p>',
 			403
 		);
 	}
 } elseif ( ! current_user_can( 'create_users' ) ) {
 	wp_die(
 		'<h1>' . __( 'Cheatin&#8217; uh?' ) . '</h1>' .
-		'<p>' . __( 'You are not allowed to create users.' ) . '</p>',
+		'<p>' . __( 'Sorry, you are not allowed to create users.' ) . '</p>',
 		403
 	);
 }
@@ -53,7 +53,7 @@ if ( isset($_REQUEST['action']) && 'adduser' == $_REQUEST['action'] ) {
 	if ( ! current_user_can( 'promote_user', $user_details->ID ) ) {
 		wp_die(
 			'<h1>' . __( 'Cheatin&#8217; uh?' ) . '</h1>' .
-			'<p>' . __( 'You do not have sufficient permissions to add users to this network.' ) . '</p>',
+			'<p>' . __( 'Sorry, you are not allowed to add users to this network.' ) . '</p>',
 			403
 		);
 	}
@@ -70,7 +70,7 @@ if ( isset($_REQUEST['action']) && 'adduser' == $_REQUEST['action'] ) {
 			add_existing_user_to_blog( array( 'user_id' => $user_id, 'role' => $_REQUEST[ 'role' ] ) );
 			$redirect = add_query_arg( array( 'update' => 'addnoconfirmation' , 'user_id' => $user_id ), 'user-new.php' );
 		} else {
-			$newuser_key = wp_generate_password( 20, false );
+			$newuser_key = substr( md5( $user_id ), 0, 5 );
 			add_option( 'new_user_' . $newuser_key, array( 'user_id' => $user_id, 'email' => $user_details->user_email, 'role' => $_REQUEST[ 'role' ] ) );
 
 			$roles = get_editable_roles();
@@ -107,7 +107,7 @@ Please click the following link to confirm the invite:
 	if ( ! current_user_can( 'create_users' ) ) {
 		wp_die(
 			'<h1>' . __( 'Cheatin&#8217; uh?' ) . '</h1>' .
-			'<p>' . __( 'You are not allowed to create users.' ) . '</p>',
+			'<p>' . __( 'Sorry, you are not allowed to create users.' ) . '</p>',
 			403
 		);
 	}
@@ -133,7 +133,7 @@ Please click the following link to confirm the invite:
 			$add_user_errors = $user_details[ 'errors' ];
 		} else {
 			/**
-			 * Filter the user_login, also known as the username, before it is added to the site.
+			 * Filters the user_login, also known as the username, before it is added to the site.
 			 *
 			 * @since 2.0.3
 			 *
@@ -210,7 +210,7 @@ wp_enqueue_script('wp-ajax-response');
 wp_enqueue_script( 'user-profile' );
 
 /**
- * Filter whether to enable user auto-complete for non-super admins in Multisite.
+ * Filters whether to enable user auto-complete for non-super admins in Multisite.
  *
  * @since 3.4.0
  *
