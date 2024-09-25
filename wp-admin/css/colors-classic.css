@@ -83,7 +83,7 @@ div.dashboard-widget,
 	background-color: #f1f1f1;
 }
 
-.widefat {
+table.widefat {
 	border-color: #d1e5ee;
 	background-color: #fff;
 }
@@ -1459,23 +1459,71 @@ div.wp-menu-image {
 
 /* Diff */
 table.diff .diff-deletedline {
-	background-color: #fdd;
+	background-color: #ffe5e6;
+	color: #8b0012;
+	text-decoration: line-through;
 }
 
 table.diff .diff-deletedline del {
-	background-color: #f99;
+	background-color: #ffe5e6;
 }
 
 table.diff .diff-addedline {
-	background-color: #dfd;
+	background-color: #e9f6ea;
 }
 
 table.diff .diff-addedline ins {
-	background-color: #9f9;
+	background-color: #e9f6ea;
 }
 
-#att-info {
-	background-color: #e4f2fd;
+.diff-header {
+	background-color: #f7f7f7;
+}
+
+#diff-title-to strong {
+	color: #0080aa;
+}
+
+.revision-tick.loading-true {
+	background-color: #9999cc;
+	background: url(../images/wpspin_light.gif) no-repeat;
+	background-position: middle;
+	background-size: 1px 10px;
+}
+
+.revision-tick.loading-false {
+	background-color: #aaa;
+}
+
+/* jQuery UI Slider */
+.wp-slider.ui-slider {
+	border-color: #d1e5ee;
+	background: #eff8ff;
+}
+
+.wp-slider .ui-slider-handle {
+	border-color: #acd;
+	background: #f4f9fc;
+	background-image: -webkit-gradient(linear, left bottom, left top, from(#f4f9fc), to(#fff));
+	background-image: -webkit-linear-gradient(bottom, #f4f9fc, #fff);
+	background-image:    -moz-linear-gradient(bottom, #f4f9fc, #fff);
+	background-image:      -o-linear-gradient(bottom, #f4f9fc, #fff);
+	background-image: linear-gradient(to top, #f4f9fc, #fff);
+}
+
+.wp-slider .ui-slider-handle.ui-state-hover,
+.wp-slider .ui-slider-handle.ui-state-focus {
+	border-color: #79afca;
+}
+
+.wp-slider .ui-slider-handle.ui-state-active {
+	border-color: #79afca;
+	background: #eff8ff;
+	background-image: -webkit-gradient(linear, left bottom, left top, from(#fff), to(#f4f9fc));
+	background-image: -webkit-linear-gradient(bottom, #fff, #f4f9fc);
+	background-image:    -moz-linear-gradient(bottom, #fff, #f4f9fc);
+	background-image:      -o-linear-gradient(bottom, #fff, #f4f9fc);
+	background-image: linear-gradient(to top, #fff, #f4f9fc);
 }
 
 /* edit image */
@@ -1533,11 +1581,6 @@ table.diff .diff-addedline ins {
 .inline-editor ul.cat-checklist {
 	background-color: #fff;
 	border-color: #ddd;
-}
-
-.inline-editor .categories .catshow,
-.inline-editor .categories .cathide {
-	color: #21759b;
 }
 
 .inline-editor .quick-edit-save {

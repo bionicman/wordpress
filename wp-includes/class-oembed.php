@@ -108,7 +108,7 @@ class WP_oEmbed {
 		$providers = array();
 
 		// Fetch URL content
-		if ( $html = wp_remote_retrieve_body( wp_remote_get( $url, array( 'reject_unsafe_urls' => true ) ) ) ) {
+		if ( $html = wp_remote_retrieve_body( wp_remote_get( $url ) ) ) {
 
 			// <link> types that contain oEmbed provider URLs
 			$linktypes = apply_filters( 'oembed_linktypes', array(
@@ -190,7 +190,7 @@ class WP_oEmbed {
 	 */
 	function _fetch_with_format( $provider_url_with_args, $format ) {
 		$provider_url_with_args = add_query_arg( 'format', $format, $provider_url_with_args );
-		$response = wp_remote_get( $provider_url_with_args, array( 'reject_unsafe_urls' => true ) );
+		$response = wp_remote_get( $provider_url_with_args );
 		if ( 501 == wp_remote_retrieve_response_code( $response ) )
 			return new WP_Error( 'not-implemented' );
 		if ( ! $body = wp_remote_retrieve_body( $response ) )
@@ -219,24 +219,35 @@ class WP_oEmbed {
 		if ( !function_exists('simplexml_load_string') ) {
 			return false;
 		}
-		if ( ! function_exists( 'libxml_disable_entity_loader' ) )
+
+		if ( ! class_exists( 'DOMDocument' ) )
 			return false;
 
-		$loader = libxml_disable_entity_loader( true );
-
 		$errors = libxml_use_internal_errors( true );
-		$data = simplexml_load_string( $response_body );
-		libxml_use_internal_errors( $errors );
-
-		$return = false;
-		if ( is_object( $data ) ) {
-			$return = new stdClass;
-			foreach ( $data as $key => $value ) {
-				$return->$key = (string) $value;
-			}
+		$old_value = null;
+		if ( function_exists( 'libxml_disable_entity_loader' ) ) {
+			$old_value = libxml_disable_entity_loader( true );
 		}
 
-		libxml_disable_entity_loader( $loader );
+		$dom = new DOMDocument;
+		$success = $dom->loadXML( $response_body );
+
+		if ( ! is_null( $old_value ) ) {
+			libxml_disable_entity_loader( $old_value );
+		}
+		libxml_use_internal_errors( $errors );
+
+		if ( ! $success || isset( $dom->doctype ) ) {
+			return false;
+		}
+
+		$data = simplexml_import_dom( $dom );
+		if ( ! is_object( $data ) )
+			return false;
+
+		$return = new stdClass;
+		foreach ( $data as $key => $value )
+			$return->$key = (string) $value;
 		return $return;
 	}
 

@@ -5,7 +5,7 @@
  * Handles many functions for formatting output.
  *
  * @package WordPress
- **/
+ */
 
 /**
  * Replaces common plain text characters into formatted entities
@@ -134,8 +134,8 @@ function wptexturize($text) {
  * Search for disabled element tags. Push element to stack on tag open and pop
  * on tag close. Assumes first character of $text is tag opening.
  *
- * @access private
  * @since 2.9.0
+ * @access private
  *
  * @param string $text Text to check. First character is assumed to be $opening
  * @param array $stack Array used as stack of opened tag elements
@@ -220,7 +220,7 @@ function wpautop($pee, $br = true) {
 
 	$pee = preg_replace('|<br />\s*<br />|', "\n\n", $pee);
 	// Space things out a little
-	$allblocks = '(?:table|thead|tfoot|caption|col|colgroup|tbody|tr|td|th|div|dl|dd|dt|ul|ol|li|pre|select|option|form|map|area|blockquote|address|math|style|p|h[1-6]|hr|fieldset|noscript|samp|legend|section|article|aside|hgroup|header|footer|nav|figure|figcaption|details|menu|summary)';
+	$allblocks = '(?:table|thead|tfoot|caption|col|colgroup|tbody|tr|td|th|div|dl|dd|dt|ul|ol|li|pre|select|option|form|map|area|blockquote|address|math|style|p|h[1-6]|hr|fieldset|noscript|legend|section|article|aside|hgroup|header|footer|nav|figure|figcaption|details|menu|summary)';
 	$pee = preg_replace('!(<' . $allblocks . '[^>]*>)!', "\n$1", $pee);
 	$pee = preg_replace('!(</' . $allblocks . '>)!', "$1\n\n", $pee);
 	$pee = str_replace(array("\r\n", "\r"), "\n", $pee); // cross-platform newlines
@@ -262,6 +262,7 @@ function wpautop($pee, $br = true) {
  *
  * @since 3.1.0
  * @access private
+ *
  * @param array $matches preg_replace_callback matches array
  * @return string
  */
@@ -363,6 +364,7 @@ function seems_utf8($str) {
  * &quot;, or ENT_QUOTES to do both. Default is ENT_NOQUOTES where no quotes are encoded.
  *
  * @since 1.2.2
+ * @access private
  *
  * @param string $string The text which is to be encoded.
  * @param mixed $quote_style Optional. Converts double quotes if set to ENT_COMPAT, both single and double if set to ENT_QUOTES or none if set to ENT_NOQUOTES. Also compatible with old values; converting single quotes if set to 'single', double if set to 'double' or both if otherwise set. Default is ENT_NOQUOTES.
@@ -442,7 +444,7 @@ function _wp_specialchars( $string, $quote_style = ENT_NOQUOTES, $charset = fals
  * $quote_style can be set to ENT_COMPAT to decode " entities,
  * or ENT_QUOTES to do both " and '. Default is ENT_NOQUOTES where no quotes are decoded.
  *
- * @since 2.8
+ * @since 2.8.0
  *
  * @param string $string The text which is to be decoded.
  * @param mixed $quote_style Optional. Converts double quotes if set to ENT_COMPAT, both single and double if set to ENT_QUOTES or none if set to ENT_NOQUOTES. Also compatible with old _wp_specialchars() values; converting single quotes if set to 'single', double if set to 'double' or both if otherwise set. Default is ENT_NOQUOTES.
@@ -499,7 +501,7 @@ function wp_specialchars_decode( $string, $quote_style = ENT_NOQUOTES ) {
 /**
  * Checks for invalid UTF8 in a string.
  *
- * @since 2.8
+ * @since 2.8.0
  *
  * @param string $string The text which is to be checked.
  * @param boolean $strip Optional. Whether to attempt to strip out invalid UTF8. Default is false.
@@ -785,6 +787,19 @@ function remove_accents($string) {
 		chr(199).chr(155) => 'U', chr(199).chr(156) => 'u',
 		);
 
+		// Used for locale-specific rules
+		$locale = get_locale();
+
+		if ( 'de_DE' == $locale ) {
+			$chars[ chr(195).chr(132) ] = 'Ae';
+			$chars[ chr(195).chr(164) ] = 'ae';
+			$chars[ chr(195).chr(150) ] = 'Oe';
+			$chars[ chr(195).chr(182) ] = 'oe';
+			$chars[ chr(195).chr(156) ] = 'Ue';
+			$chars[ chr(195).chr(188) ] = 'ue';
+			$chars[ chr(195).chr(159) ] = 'ss';
+		}
+
 		$string = strtr($string, $chars);
 	} else {
 		// Assume ISO-8859-1 if not UTF-8
@@ -811,12 +826,12 @@ function remove_accents($string) {
 }
 
 /**
- * Sanitizes a filename replacing whitespace with dashes
+ * Sanitizes a filename, replacing whitespace with dashes.
  *
  * Removes special characters that are illegal in filenames on certain
  * operating systems and special characters requiring special escaping
  * to manipulate at the command line. Replaces spaces and consecutive
- * dashes with a single dash. Trim period, dash and underscore from beginning
+ * dashes with a single dash. Trims period, dash and underscore from beginning
  * and end of filename.
  *
  * @since 2.1.0
@@ -868,7 +883,7 @@ function sanitize_file_name( $filename ) {
 }
 
 /**
- * Sanitize username stripping out unsafe characters.
+ * Sanitizes a username, stripping out unsafe characters.
  *
  * Removes tags, octets, entities, and if strict is enabled, will only keep
  * alphanumeric, _, space, ., -, @. After sanitizing, it passes the username,
@@ -903,7 +918,7 @@ function sanitize_user( $username, $strict = false ) {
 }
 
 /**
- * Sanitize a string key.
+ * Sanitizes a string key.
  *
  * Keys are used as internal identifiers. Lowercase alphanumeric characters, dashes and underscores are allowed.
  *
@@ -920,7 +935,7 @@ function sanitize_key( $key ) {
 }
 
 /**
- * Sanitizes title or use fallback title.
+ * Sanitizes a title, or returns a fallback title.
  *
  * Specifically, HTML and PHP tags are stripped. Further actions can be added
  * via the plugin API. If $title is empty and $fallback_title is set, the latter
@@ -933,7 +948,7 @@ function sanitize_key( $key ) {
  * @param string $context Optional. The operation for which the string is sanitized
  * @return string The sanitized string.
  */
-function sanitize_title($title, $fallback_title = '', $context = 'save') {
+function sanitize_title( $title, $fallback_title = '', $context = 'save' ) {
 	$raw_title = $title;
 
 	if ( 'save' == $context )
@@ -947,12 +962,23 @@ function sanitize_title($title, $fallback_title = '', $context = 'save') {
 	return $title;
 }
 
-function sanitize_title_for_query($title) {
-	return sanitize_title($title, '', 'query');
+/**
+ * Sanitizes a title with the 'query' context.
+ *
+ * Used for querying the database for a value from URL.
+ *
+ * @since 3.1.0
+ * @uses sanitize_title()
+ *
+ * @param string $title The string to be sanitized.
+ * @return string The sanitized string.
+ */
+function sanitize_title_for_query( $title ) {
+	return sanitize_title( $title, '', 'query' );
 }
 
 /**
- * Sanitizes title, replacing whitespace and a few other characters with dashes.
+ * Sanitizes a title, replacing whitespace and a few other characters with dashes.
  *
  * Limits the output to alphanumeric characters, underscore (_) and dash (-).
  * Whitespace becomes a dash.
@@ -964,7 +990,7 @@ function sanitize_title_for_query($title) {
  * @param string $context Optional. The operation for which the string is sanitized.
  * @return string The sanitized title.
  */
-function sanitize_title_with_dashes($title, $raw_title = '', $context = 'display') {
+function sanitize_title_with_dashes( $title, $raw_title = '', $context = 'display' ) {
 	$title = strip_tags($title);
 	// Preserve escaped octets.
 	$title = preg_replace('|%([a-fA-F0-9][a-fA-F0-9])|', '---$1---', $title);
@@ -999,8 +1025,10 @@ function sanitize_title_with_dashes($title, $raw_title = '', $context = 'display
 			'%e2%80%9a', '%e2%80%9b', '%e2%80%9e', '%e2%80%9f',
 			// copy, reg, deg, hellip and trade
 			'%c2%a9', '%c2%ae', '%c2%b0', '%e2%80%a6', '%e2%84%a2',
-			// grave accent, acute accent, macron, caron
-			'%cc%80', '%cc%81', '%cc%84', '%cc%8c',
+			// acute accents
+			'%c2%b4', '%cb%8a', '%cc%81', '%cd%81',
+			// grave accent, macron, caron
+			'%cc%80', '%cc%84', '%cc%8c',
 		), '', $title );
 
 		// Convert times to x
@@ -1034,7 +1062,7 @@ function sanitize_sql_orderby( $orderby ){
 }
 
 /**
- * Santizes a html classname to ensure it only contains valid characters
+ * Sanitizes an HTML classname to ensure it only contains valid characters.
  *
  * Strips the string down to A-Z,a-z,0-9,_,-. If this results in an empty
  * string then it will return the alternative value supplied.
@@ -1132,9 +1160,7 @@ function convert_chars($content, $deprecated = '') {
 }
 
 /**
- * Will only balance the tags if forced to and the option is set to balance tags.
- *
- * The option 'use_balanceTags' is used to determine whether the tags will be balanced.
+ * Balances tags if forced to, or if the 'use_balanceTags' option is set to true.
  *
  * @since 0.71
  *
@@ -1143,9 +1169,10 @@ function convert_chars($content, $deprecated = '') {
  * @return string Balanced text
  */
 function balanceTags( $text, $force = false ) {
-	if ( !$force && get_option('use_balanceTags') == 0 )
+	if ( $force || get_option('use_balanceTags') == 1 )
+		return force_balance_tags( $text );
+	else
 		return $text;
-	return force_balance_tags( $text );
 }
 
 /**
@@ -1396,7 +1423,7 @@ function addslashes_gpc($gpc) {
 	if ( get_magic_quotes_gpc() )
 		$gpc = stripslashes($gpc);
 
-	return esc_sql($gpc);
+	return wp_slash($gpc);
 }
 
 /**
@@ -1692,12 +1719,12 @@ function wp_rel_nofollow( $text ) {
 	// This is a pre save filter, so text is already escaped.
 	$text = stripslashes($text);
 	$text = preg_replace_callback('|<a (.+?)>|i', 'wp_rel_nofollow_callback', $text);
-	$text = esc_sql($text);
+	$text = wp_slash($text);
 	return $text;
 }
 
 /**
- * Callback to used to add rel=nofollow string to HTML A element.
+ * Callback to add rel=nofollow string to HTML A element.
  *
  * Will remove already existing rel="nofollow" and rel='nofollow' from the
  * string to prevent from invalidating (X)HTML.
@@ -1868,6 +1895,7 @@ function wp_iso_descrambler($string) {
  *
  * @since 3.1.0
  * @access private
+ *
  * @param array $match The preg_replace_callback matches array
  * @return array Converted chars
  */
@@ -1878,10 +1906,10 @@ function _wp_iso_convert( $match ) {
 /**
  * Returns a date in the GMT equivalent.
  *
- * Requires and returns a date in the Y-m-d H:i:s format. Simply subtracts the
- * value of the 'gmt_offset' option. Return format can be overridden using the
- * $format parameter. The DateTime and DateTimeZone classes are used to respect
- * time zone differences in DST.
+ * Requires and returns a date in the Y-m-d H:i:s format. If there is a
+ * timezone_string available, the date is assumed to be in that timezone,
+ * otherwise it simply subtracts the value of the 'gmt_offset' option. Return
+ * format can be overridden using the $format parameter.
  *
  * @since 1.2.0
  *
@@ -1890,27 +1918,19 @@ function _wp_iso_convert( $match ) {
  * @param string $format The format string for the returned date (default is Y-m-d H:i:s)
  * @return string GMT version of the date provided.
  */
-function get_gmt_from_date($string, $format = 'Y-m-d H:i:s') {
-	preg_match('#([0-9]{1,4})-([0-9]{1,2})-([0-9]{1,2}) ([0-9]{1,2}):([0-9]{1,2}):([0-9]{1,2})#', $string, $matches);
-	if ( ! $matches )
-		return date( $format, 0 );
-
-	$tz = get_option('timezone_string');
+function get_gmt_from_date( $string, $format = 'Y-m-d H:i:s' ) {
+	$tz = get_option( 'timezone_string' );
 	if ( $tz ) {
-		date_default_timezone_set( $tz );
-		$datetime = date_create( $string );
+		$datetime = date_create( $string, new DateTimeZone( $tz ) );
 		if ( ! $datetime )
-			return date( $format, 0 );
-
-		$datetime->setTimezone( new DateTimeZone('UTC') );
-		$offset = $datetime->getOffset();
-		$datetime->modify( '+' . $offset / HOUR_IN_SECONDS . ' hours');
-		$string_gmt = gmdate($format, $datetime->format('U'));
-
-		date_default_timezone_set('UTC');
+			return gmdate( $format, 0 );
+		$datetime->setTimezone( new DateTimeZone( 'UTC' ) );
+		$string_gmt = $datetime->format( $format );
 	} else {
-		$string_time = gmmktime($matches[4], $matches[5], $matches[6], $matches[2], $matches[3], $matches[1]);
-		$string_gmt = gmdate($format, $string_time - get_option('gmt_offset') * HOUR_IN_SECONDS);
+		if ( ! preg_match( '#([0-9]{1,4})-([0-9]{1,2})-([0-9]{1,2}) ([0-9]{1,2}):([0-9]{1,2}):([0-9]{1,2})#', $string, $matches ) )
+			return gmdate( $format, 0 );
+		$string_time = gmmktime( $matches[4], $matches[5], $matches[6], $matches[2], $matches[3], $matches[1] );
+		$string_gmt = gmdate( $format, $string_time - get_option( 'gmt_offset' ) * HOUR_IN_SECONDS );
 	}
 	return $string_gmt;
 }
@@ -1918,19 +1938,31 @@ function get_gmt_from_date($string, $format = 'Y-m-d H:i:s') {
 /**
  * Converts a GMT date into the correct format for the blog.
  *
- * Requires and returns in the Y-m-d H:i:s format. Simply adds the value of
- * gmt_offset.Return format can be overridden using the $format parameter
+ * Requires and returns a date in the Y-m-d H:i:s format. If there is a
+ * timezone_string available, the returned date is in that timezone, otherwise
+ * it simply adds the value of gmt_offset. Return format can be overridden
+ * using the $format parameter
  *
  * @since 1.2.0
  *
  * @param string $string The date to be converted.
  * @param string $format The format string for the returned date (default is Y-m-d H:i:s)
- * @return string Formatted date relative to the GMT offset.
+ * @return string Formatted date relative to the timezone / GMT offset.
  */
-function get_date_from_gmt($string, $format = 'Y-m-d H:i:s') {
-	preg_match('#([0-9]{1,4})-([0-9]{1,2})-([0-9]{1,2}) ([0-9]{1,2}):([0-9]{1,2}):([0-9]{1,2})#', $string, $matches);
-	$string_time = gmmktime($matches[4], $matches[5], $matches[6], $matches[2], $matches[3], $matches[1]);
-	$string_localtime = gmdate($format, $string_time + get_option('gmt_offset') * HOUR_IN_SECONDS);
+function get_date_from_gmt( $string, $format = 'Y-m-d H:i:s' ) {
+	$tz = get_option( 'timezone_string' );
+	if ( $tz ) {
+		$datetime = date_create( $string, new DateTimeZone( 'UTC' ) );
+		if ( ! $datetime )
+			return date( $format, 0 );
+		$datetime->setTimezone( new DateTimeZone( $tz ) );
+		$string_localtime = $datetime->format( $format );
+	} else {
+		if ( ! preg_match('#([0-9]{1,4})-([0-9]{1,2})-([0-9]{1,2}) ([0-9]{1,2}):([0-9]{1,2}):([0-9]{1,2})#', $string, $matches) )
+			return date( $format, 0 );
+		$string_time = gmmktime( $matches[4], $matches[5], $matches[6], $matches[2], $matches[3], $matches[1] );
+		$string_localtime = gmdate( $format, $string_time + get_option( 'gmt_offset' ) * HOUR_IN_SECONDS );
+	}
 	return $string_localtime;
 }
 
@@ -2491,7 +2523,7 @@ function wp_richedit_pre($text) {
 
 	$output = convert_chars($text);
 	$output = wpautop($output);
-	$output = htmlspecialchars($output, ENT_NOQUOTES);
+	$output = htmlspecialchars($output, ENT_NOQUOTES, get_option( 'blog_charset' ) );
 
 	return apply_filters('richedit_pre', $output);
 }
@@ -2509,7 +2541,7 @@ function wp_richedit_pre($text) {
  */
 function wp_htmledit_pre($output) {
 	if ( !empty($output) )
-		$output = htmlspecialchars($output, ENT_NOQUOTES); // convert only < > &
+		$output = htmlspecialchars($output, ENT_NOQUOTES, get_option( 'blog_charset' ) ); // convert only < > &
 
 	return apply_filters('htmledit_pre', $output);
 }
@@ -2690,18 +2722,18 @@ function esc_attr( $text ) {
 /**
  * Escaping for textarea values.
  *
- * @since 3.1
+ * @since 3.1.0
  *
  * @param string $text
  * @return string
  */
 function esc_textarea( $text ) {
-	$safe_text = htmlspecialchars( $text, ENT_QUOTES );
+	$safe_text = htmlspecialchars( $text, ENT_QUOTES, get_option( 'blog_charset' ) );
 	return apply_filters( 'esc_textarea', $safe_text, $text );
 }
 
 /**
- * Escape a HTML tag name.
+ * Escape an HTML tag name.
  *
  * @since 2.5.0
  *
@@ -2870,7 +2902,7 @@ function sanitize_option($option, $value) {
 
 		case 'illegal_names':
 			if ( ! is_array( $value ) )
-				$value = explode( ' ', $value );
+				$value = explode( "\n", $value );
 
 			$value = array_values( array_filter( array_map( 'trim', $value ) ) );
 
@@ -2976,7 +3008,7 @@ function wp_pre_kses_less_than_callback( $matches ) {
  * @return string The formatted string.
  */
 function wp_sprintf( $pattern ) {
-	$args = func_get_args( );
+	$args = func_get_args();
 	$len = strlen($pattern);
 	$start = 0;
 	$result = '';
@@ -3174,10 +3206,17 @@ function _links_add_target( $m ) {
 	return '<' . $tag . $link . ' target="' . esc_attr( $_links_add_target ) . '">';
 }
 
-// normalize EOL characters and strip duplicate whitespace
+/**
+ * Normalize EOL characters and strip duplicate whitespace.
+ *
+ * @since 2.7.0
+ *
+ * @param string $str The string to normalize.
+ * @return string The normalized string.
+ */
 function normalize_whitespace( $str ) {
-	$str  = trim($str);
-	$str  = str_replace("\r", "\n", $str);
+	$str  = trim( $str );
+	$str  = str_replace( "\r", "\n", $str );
 	$str  = preg_replace( array( '/\n+/', '/[ \t]+/' ), array( "\n", ' ' ), $str );
 	return $str;
 }
@@ -3306,4 +3345,46 @@ function sanitize_trackback_urls( $to_ping ) {
 	$urls_to_ping = array_map( 'esc_url_raw', $urls_to_ping );
 	$urls_to_ping = implode( "\n", $urls_to_ping );
 	return apply_filters( 'sanitize_trackback_urls', $urls_to_ping, $to_ping );
+}
+
+/**
+ * Add slashes to a string or array of strings.
+ *
+ * This should be used when preparing data for core API that expects slashed data.
+ * This should not be used to escape data going directly into an SQL query.
+ *
+ * @since 3.6.0
+ *
+ * @param string|array $value String or array of strings to slash.
+ * @return string|array Slashed $value
+ */
+function wp_slash( $value ) {
+	if ( is_array( $value ) ) {
+		foreach ( $value as $k => $v ) {
+			if ( is_array( $v ) ) {
+				$value[$k] = wp_slash( $v );
+			} else {
+				$value[$k] = addslashes( $v );
+			}
+		}
+	} else {
+		$value = addslashes( $value );
+	}
+
+	return $value;
+}
+
+/**
+ * Remove slashes from a string or array of strings.
+ *
+ * This should be used to remove slashes from data passed to core API that
+ * expects data to be unslashed.
+ *
+ * @since 3.6.0
+ *
+ * @param string|array $value String or array of strings to unslash.
+ * @return string|array Unslashed $value
+ */
+function wp_unslash( $value ) {
+	return stripslashes_deep( $value );
 }

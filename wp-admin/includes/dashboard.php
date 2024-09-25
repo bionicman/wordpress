@@ -232,7 +232,7 @@ function wp_dashboard_right_now() {
 
 	$num_tags = wp_count_terms('post_tag');
 
-	$num_comm = wp_count_comments( );
+	$num_comm = wp_count_comments();
 
 	echo "\n\t".'<div class="table table_content">';
 	echo "\n\t".'<p class="sub">' . __('Content') . '</p>'."\n\t".'<table>';
@@ -869,7 +869,7 @@ function wp_dashboard_primary_control() {
 }
 
 /**
- * {@internal Missing Short Description}}
+ * Display primary dashboard RSS widget feed.
  *
  * @since 2.5.0
  *
@@ -1093,7 +1093,7 @@ function wp_dashboard_rss_control( $widget_id, $form_inputs = array() ) {
 	$widget_options[$widget_id]['number'] = $number;
 
 	if ( 'POST' == $_SERVER['REQUEST_METHOD'] && isset($_POST['widget-rss'][$number]) ) {
-		$_POST['widget-rss'][$number] = stripslashes_deep( $_POST['widget-rss'][$number] );
+		$_POST['widget-rss'][$number] = wp_unslash( $_POST['widget-rss'][$number] );
 		$widget_options[$widget_id] = wp_widget_rss_process( $_POST['widget-rss'][$number] );
 		// title is optional. If black, fill it if possible
 		if ( !$widget_options[$widget_id]['title'] && isset($_POST['widget-rss'][$number]['title']) ) {

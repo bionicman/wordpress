@@ -251,12 +251,69 @@ WPRemoveThumbnail = function(nonce){
 	);
 };
 
-})(jQuery);
+$(document).on( 'heartbeat-send.refresh-lock', function( e, data ) {
+	var lock = $('#active_post_lock').val(), post_id = $('#post_ID').val(), send = {};
+
+	if ( !post_id )
+		return;
+
+	send['post_id'] = post_id;
+
+	if ( lock )
+		send['lock'] = lock;
+
+	data['wp-refresh-post-lock'] = send;
+});
+
+// Post locks: update the lock string or show the dialog if somebody has taken over editing
+$(document).on( 'heartbeat-tick.refresh-lock', function( e, data ) {
+	var received, wrap, avatar;
+
+	if ( data['wp-refresh-post-lock'] ) {
+		received = data['wp-refresh-post-lock'];
+
+		if ( received.lock_error ) {
+			// show "editing taken over" message
+			wrap = $('#notification-dialog-wrap');
+
+			if ( ! wrap.is(':visible') ) {
+				autosave();
+
+				if ( received.lock_error.avatar_src ) {
+					avatar = $('<img class="avatar avatar-64 photo" width="64" height="64" />').attr( 'src', received.lock_error.avatar_src.replace(/&amp;/g, '&') );
+					wrap.find('div.post-locked-avatar').empty().append( avatar );
+				}
+
+				wrap.show().find('p.currently-editing').text( received.lock_error.text ).focus();
+			}
+		} else if ( received.new_lock ) {
+			$('#active_post_lock').val( received.new_lock );
+		}
+	}
+});
+
+}(jQuery));
 
 jQuery(document).ready( function($) {
 	var stamp, visibility, sticky = '', last = 0, co = $('#content');
 
 	postboxes.add_postbox_toggles(pagenow);
+
+	// Post locks: contain focus inside the dialog. If the dialog is shown, focus the first item.
+	$('#notification-dialog').on( 'keydown', function(e) {
+		if ( e.which != 9 )
+			return;
+
+		var target = $(e.target);
+
+		if ( target.hasClass('wp-tab-first') && e.shiftKey ) {
+			$(this).find('.wp-tab-last').focus();
+			e.preventDefault();
+		} else if ( target.hasClass('wp-tab-last') && ! e.shiftKey ) {
+			$(this).find('.wp-tab-first').focus();
+			e.preventDefault();
+		}
+	}).filter(':visible').find('.wp-tab-first').focus();
 
 	// multi-taxonomies
 	if ( $('#tagsdiv-post_tag').length ) {
@@ -272,7 +329,7 @@ jQuery(document).ready( function($) {
 
 	// categories
 	$('.categorydiv').each( function(){
-		var this_id = $(this).attr('id'), noSyncChecks = false, syncChecks, catAddAfter, taxonomyParts, taxonomy, settingName;
+		var this_id = $(this).attr('id'), catAddBefore, catAddAfter, taxonomyParts, taxonomy, settingName;
 
 		taxonomyParts = this_id.split('-');
 		taxonomyParts.shift();
@@ -308,15 +365,6 @@ jQuery(document).ready( function($) {
 		});
 		$('#' + taxonomy + '-add-submit').click( function(){ $('#new' + taxonomy).focus(); });
 
-		syncChecks = function() {
-			if ( noSyncChecks )
-				return;
-			noSyncChecks = true;
-			var th = jQuery(this), c = th.is(':checked'), id = th.val().toString();
-			$('#in-' + taxonomy + '-' + id + ', #in-' + taxonomy + '-category-' + id).prop( 'checked', c );
-			noSyncChecks = false;
-		};
-
 		catAddBefore = function( s ) {
 			if ( !$('#new'+taxonomy).val() )
 				return false;
@@ -349,7 +397,7 @@ jQuery(document).ready( function($) {
 			return false;
 		});
 
-		$('#' + taxonomy + 'checklist li.popular-category input[type="checkbox"], #' + taxonomy + 'checklist-pop input[type="checkbox"]').live( 'click', function(){
+		$('#' + taxonomy + 'checklist, #' + taxonomy + 'checklist-pop').on( 'click', 'input[type="checkbox"]', function() {
 			var t = $(this), c = t.is(':checked'), id = t.val();
 			if ( id && t.parents('#taxonomy-'+taxonomy).length )
 				$('#in-' + taxonomy + '-' + id + ', #in-popular-' + taxonomy + '-' + id).prop( 'checked', c );
@@ -478,7 +526,7 @@ jQuery(document).ready( function($) {
 		$('.cancel-post-visibility', '#post-visibility-select').click(function () {
 			$('#post-visibility-select').slideUp('fast');
 			$('#visibility-radio-' + $('#hidden-post-visibility').val()).prop('checked', true);
-			$('#post_password').val($('#hidden_post_password').val());
+			$('#post_password').val($('#hidden-post-password').val());
 			$('#sticky').prop('checked', $('#hidden-post-sticky').prop('checked'));
 			$('#post-visibility-display').html(visibility);
 			$('.edit-visibility', '#visibility').show();
@@ -593,7 +641,13 @@ jQuery(document).ready( function($) {
 					new_title: $('#title').val(),
 					samplepermalinknonce: $('#samplepermalinknonce').val()
 				}, function(data) {
-					$('#edit-slug-box').html(data);
+					var box = $('#edit-slug-box');
+					box.html(data);
+					if (box.hasClass('hidden')) {
+						box.fadeIn('fast', function () {
+							box.removeClass('hidden');
+						});
+					}
 					b.html(revert_b);
 					real_slug.val(new_slug);
 					makeSlugeditClickable();

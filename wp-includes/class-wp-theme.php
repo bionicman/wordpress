@@ -37,11 +37,12 @@ final class WP_Theme implements ArrayAccess {
 	 * @var array
 	 */
 	private static $default_themes = array(
-		'classic'      => 'WordPress Classic',
-		'default'      => 'WordPress Default',
-		'twentyten'    => 'Twenty Ten',
-		'twentyeleven' => 'Twenty Eleven',
-		'twentytwelve' => 'Twenty Twelve',
+		'classic'        => 'WordPress Classic',
+		'default'        => 'WordPress Default',
+		'twentyten'      => 'Twenty Ten',
+		'twentyeleven'   => 'Twenty Eleven',
+		'twentytwelve'   => 'Twenty Twelve',
+		'twentythirteen' => 'Twenty Thirteen',
 	);
 
 	/**
@@ -651,7 +652,7 @@ final class WP_Theme implements ArrayAccess {
 					static $attr = null;
 					if ( ! isset( $attr ) )
 						$attr = esc_attr__( 'Visit author homepage' );
-					$value = sprintf( '<a href="%1$s" title="%2$s">%3$s</a>', $this->display( 'AuthorURI', true, $translate ), $attr, $value );
+					$value = sprintf( '<a href="%1$s" title="%2$s" target="_blank">%3$s</a>', $this->display( 'AuthorURI', true, $translate ), $attr, $value );
 				} elseif ( ! $value ) {
 					$value = __( 'Anonymous' );
 				}

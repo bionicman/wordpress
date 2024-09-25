@@ -141,34 +141,65 @@ function get_template_part( $slug, $name = null ) {
  * form into the sidebar and also by the search widget in WordPress.
  *
  * There is also an action that is called whenever the function is run called,
- * 'get_search_form'. This can be useful for outputting JavaScript that the
+ * 'pre_get_search_form'. This can be useful for outputting JavaScript that the
  * search relies on or various formatting that applies to the beginning of the
  * search. To give a few examples of what it can be used for.
  *
  * @since 2.7.0
+ * @uses apply_filters() Calls 'search_form_format' filter to determine which type to use for the search field.
+ *  If set to 'html5', it changes to search input type and adds placeholder text.
+ *
  * @param boolean $echo Default to echo and not return the form.
  * @return string|null String when retrieving, null when displaying or if searchform.php exists.
  */
-function get_search_form($echo = true) {
-	do_action( 'get_search_form' );
+function get_search_form( $echo = true ) {
+	static $search_form_counter = 0;
 
-	$search_form_template = locate_template('searchform.php');
+	do_action( 'pre_get_search_form' );
+
+	$format = apply_filters( 'search_form_format', 'xhtml' );
+
+	// Initialize the values
+	$form_id   = $search_form_counter ? '' : ' id="searchform"';
+	$submit_id = $search_form_counter ? '' : ' id="searchsubmit"';
+	$text_id   = $search_form_counter ? 's-' . $search_form_counter : 's';
+
+	$search_form_template = locate_template( 'searchform.php' );
 	if ( '' != $search_form_template ) {
-		require($search_form_template);
-		return;
+		ob_start();
+		require( $search_form_template );
+		$form = ob_get_clean();
+	} else {
+		if ( 'html5' == $format ) {
+			$form = '<form role="search" method="get" class="searchform" action="' . esc_url( home_url( '/' ) ) . '"> 
+				<div> 
+					<label><span class="screen-reader-text">' . _x( 'Search for:', 'label' ) . '</span> 
+						<input type="search" placeholder="' . esc_attr_x( 'Search &hellip;', 'placeholder' ) . '" value="' . get_search_query() . '" name="s" title="' . _x( 'Search for:', 'label' ) . '" /> 
+					</label> 
+					<input type="submit" class="searchsubmit" value="'. esc_attr_x( 'Search', 'submit button' ) .'" /> 
+				</div> 
+			</form>'; 
+		} else { 
+			$form = '<form role="search" method="get"' . $form_id . ' class="searchform" action="' . esc_url( home_url( '/' ) ) . '"> 
+				<div> 
+					<label class="screen-reader-text" for="' . $text_id . '">' . _x( 'Search for:', 'label' ) . '</label> 
+					<input type="text" value="' . get_search_query() . '" name="s" id="' . $text_id . '" /> 
+					<input type="submit"' . $submit_id . ' value="'. esc_attr_x( 'Search', 'submit button' ) .'" /> 
+				</div> 
+			</form>';
+		}
 	}
 
-	$form = '<form role="search" method="get" id="searchform" action="' . esc_url( home_url( '/' ) ) . '" >
-	<div><label class="screen-reader-text" for="s">' . __('Search for:') . '</label>
-	<input type="text" value="' . get_search_query() . '" name="s" id="s" />
-	<input type="submit" id="searchsubmit" value="'. esc_attr__('Search') .'" />
-	</div>
-	</form>';
+	$result = apply_filters( 'get_search_form', $form );
+	if ( null === $result )
+		$result = $form;
+
+	$search_form_counter++;
 
 	if ( $echo )
-		echo apply_filters('get_search_form', $form);
+		echo $result;
 	else
-		return apply_filters('get_search_form', $form);
+		return $result;
 }
 
 /**
@@ -255,21 +286,22 @@ function wp_login_url($redirect = '', $force_reauth = false) {
  * @return string|null String when retrieving, null when displaying.
  */
 function wp_login_form( $args = array() ) {
-	$defaults = array( 'echo' => true,
-						'redirect' => ( is_ssl() ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'], // Default redirect is back to the current page
-	 					'form_id' => 'loginform',
-						'label_username' => __( 'Username' ),
-						'label_password' => __( 'Password' ),
-						'label_remember' => __( 'Remember Me' ),
-						'label_log_in' => __( 'Log In' ),
-						'id_username' => 'user_login',
-						'id_password' => 'user_pass',
-						'id_remember' => 'rememberme',
-						'id_submit' => 'wp-submit',
-						'remember' => true,
-						'value_username' => '',
-						'value_remember' => false, // Set this to true to default the "Remember me" checkbox to checked
-					);
+	$defaults = array(
+		'echo' => true,
+		'redirect' => ( is_ssl() ? 'https://' : 'http://' ) . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'], // Default redirect is back to the current page
+		'form_id' => 'loginform',
+		'label_username' => __( 'Username' ),
+		'label_password' => __( 'Password' ),
+		'label_remember' => __( 'Remember Me' ),
+		'label_log_in' => __( 'Log In' ),
+		'id_username' => 'user_login',
+		'id_password' => 'user_pass',
+		'id_remember' => 'rememberme',
+		'id_submit' => 'wp-submit',
+		'remember' => true,
+		'value_username' => '',
+		'value_remember' => false, // Set this to true to default the "Remember me" checkbox to checked
+	);
 	$args = wp_parse_args( $args, apply_filters( 'login_form_defaults', $defaults ) );
 
 	$form = '
@@ -912,103 +944,97 @@ function wp_get_archives($args = '') {
 		$archive_week_end_date_format = get_option('date_format');
 	}
 
-	//filters
 	$where = apply_filters( 'getarchives_where', "WHERE post_type = 'post' AND post_status = 'publish'", $r );
 	$join = apply_filters( 'getarchives_join', '', $r );
 
 	$output = '';
 
+	$last_changed = wp_cache_get( 'last_changed', 'posts' );
+	if ( ! $last_changed ) {
+		$last_changed = microtime();
+		wp_cache_set( 'last_changed', $last_changed, 'posts' );
+	}
+
 	if ( 'monthly' == $type ) {
 		$query = "SELECT YEAR(post_date) AS `year`, MONTH(post_date) AS `month`, count(ID) as posts FROM $wpdb->posts $join $where GROUP BY YEAR(post_date), MONTH(post_date) ORDER BY post_date $order $limit";
-		$key = md5($query);
-		$cache = wp_cache_get( 'wp_get_archives' , 'general');
-		if ( !isset( $cache[ $key ] ) ) {
-			$arcresults = $wpdb->get_results($query);
-			$cache[ $key ] = $arcresults;
-			wp_cache_set( 'wp_get_archives', $cache, 'general' );
-		} else {
-			$arcresults = $cache[ $key ];
+		$key = md5( $query );
+		$key = "wp_get_archives:$key:$last_changed";
+		if ( ! $results = wp_cache_get( $key, 'posts' ) ) {
+			$results = $wpdb->get_results( $query );
+			wp_cache_set( $key, $results, 'posts' );
 		}
-		if ( $arcresults ) {
+		if ( $results ) {
 			$afterafter = $after;
-			foreach ( (array) $arcresults as $arcresult ) {
-				$url = get_month_link( $arcresult->year, $arcresult->month );
+			foreach ( (array) $results as $result ) {
+				$url = get_month_link( $result->year, $result->month );
 				/* translators: 1: month name, 2: 4-digit year */
-				$text = sprintf(__('%1$s %2$d'), $wp_locale->get_month($arcresult->month), $arcresult->year);
+				$text = sprintf(__('%1$s %2$d'), $wp_locale->get_month($result->month), $result->year);
 				if ( $show_post_count )
-					$after = '&nbsp;('.$arcresult->posts.')' . $afterafter;
+					$after = '&nbsp;('.$result->posts.')' . $afterafter;
 				$output .= get_archives_link($url, $text, $format, $before, $after);
 			}
 		}
 	} elseif ('yearly' == $type) {
 		$query = "SELECT YEAR(post_date) AS `year`, count(ID) as posts FROM $wpdb->posts $join $where GROUP BY YEAR(post_date) ORDER BY post_date $order $limit";
-		$key = md5($query);
-		$cache = wp_cache_get( 'wp_get_archives' , 'general');
-		if ( !isset( $cache[ $key ] ) ) {
-			$arcresults = $wpdb->get_results($query);
-			$cache[ $key ] = $arcresults;
-			wp_cache_set( 'wp_get_archives', $cache, 'general' );
-		} else {
-			$arcresults = $cache[ $key ];
+		$key = md5( $query );
+		$key = "wp_get_archives:$key:$last_changed";
+		if ( ! $results = wp_cache_get( $key, 'posts' ) ) {
+			$results = $wpdb->get_results( $query );
+			wp_cache_set( $key, $results, 'posts' );
 		}
-		if ($arcresults) {
+		if ( $results ) {
 			$afterafter = $after;
-			foreach ( (array) $arcresults as $arcresult) {
-				$url = get_year_link($arcresult->year);
-				$text = sprintf('%d', $arcresult->year);
+			foreach ( (array) $results as $result) {
+				$url = get_year_link($result->year);
+				$text = sprintf('%d', $result->year);
 				if ($show_post_count)
-					$after = '&nbsp;('.$arcresult->posts.')' . $afterafter;
+					$after = '&nbsp;('.$result->posts.')' . $afterafter;
 				$output .= get_archives_link($url, $text, $format, $before, $after);
 			}
 		}
 	} elseif ( 'daily' == $type ) {
 		$query = "SELECT YEAR(post_date) AS `year`, MONTH(post_date) AS `month`, DAYOFMONTH(post_date) AS `dayofmonth`, count(ID) as posts FROM $wpdb->posts $join $where GROUP BY YEAR(post_date), MONTH(post_date), DAYOFMONTH(post_date) ORDER BY post_date $order $limit";
-		$key = md5($query);
-		$cache = wp_cache_get( 'wp_get_archives' , 'general');
-		if ( !isset( $cache[ $key ] ) ) {
-			$arcresults = $wpdb->get_results($query);
-			$cache[ $key ] = $arcresults;
-			wp_cache_set( 'wp_get_archives', $cache, 'general' );
-		} else {
-			$arcresults = $cache[ $key ];
+		$key = md5( $query );
+		$key = "wp_get_archives:$key:$last_changed";
+		if ( ! $results = wp_cache_get( $key, 'posts' ) ) {
+			$results = $wpdb->get_results( $query );
+			$cache[ $key ] = $results;
+			wp_cache_set( $key, $results, 'posts' );
 		}
-		if ( $arcresults ) {
+		if ( $results ) {
 			$afterafter = $after;
-			foreach ( (array) $arcresults as $arcresult ) {
-				$url	= get_day_link($arcresult->year, $arcresult->month, $arcresult->dayofmonth);
-				$date = sprintf('%1$d-%2$02d-%3$02d 00:00:00', $arcresult->year, $arcresult->month, $arcresult->dayofmonth);
+			foreach ( (array) $results as $result ) {
+				$url	= get_day_link($result->year, $result->month, $result->dayofmonth);
+				$date = sprintf('%1$d-%2$02d-%3$02d 00:00:00', $result->year, $result->month, $result->dayofmonth);
 				$text = mysql2date($archive_day_date_format, $date);
 				if ($show_post_count)
-					$after = '&nbsp;('.$arcresult->posts.')'.$afterafter;
+					$after = '&nbsp;('.$result->posts.')'.$afterafter;
 				$output .= get_archives_link($url, $text, $format, $before, $after);
 			}
 		}
 	} elseif ( 'weekly' == $type ) {
 		$week = _wp_mysql_week( '`post_date`' );
 		$query = "SELECT DISTINCT $week AS `week`, YEAR( `post_date` ) AS `yr`, DATE_FORMAT( `post_date`, '%Y-%m-%d' ) AS `yyyymmdd`, count( `ID` ) AS `posts` FROM `$wpdb->posts` $join $where GROUP BY $week, YEAR( `post_date` ) ORDER BY `post_date` $order $limit";
-		$key = md5($query);
-		$cache = wp_cache_get( 'wp_get_archives' , 'general');
-		if ( !isset( $cache[ $key ] ) ) {
-			$arcresults = $wpdb->get_results($query);
-			$cache[ $key ] = $arcresults;
-			wp_cache_set( 'wp_get_archives', $cache, 'general' );
-		} else {
-			$arcresults = $cache[ $key ];
+		$key = md5( $query );
+		$key = "wp_get_archives:$key:$last_changed";
+		if ( ! $results = wp_cache_get( $key, 'posts' ) ) {
+			$results = $wpdb->get_results( $query );
+			wp_cache_set( $key, $results, 'posts' );
 		}
 		$arc_w_last = '';
 		$afterafter = $after;
-		if ( $arcresults ) {
-				foreach ( (array) $arcresults as $arcresult ) {
-					if ( $arcresult->week != $arc_w_last ) {
-						$arc_year = $arcresult->yr;
-						$arc_w_last = $arcresult->week;
-						$arc_week = get_weekstartend($arcresult->yyyymmdd, get_option('start_of_week'));
+		if ( $results ) {
+				foreach ( (array) $results as $result ) {
+					if ( $result->week != $arc_w_last ) {
+						$arc_year = $result->yr;
+						$arc_w_last = $result->week;
+						$arc_week = get_weekstartend($result->yyyymmdd, get_option('start_of_week'));
 						$arc_week_start = date_i18n($archive_week_start_date_format, $arc_week['start']);
 						$arc_week_end = date_i18n($archive_week_end_date_format, $arc_week['end']);
-						$url  = sprintf('%1$s/%2$s%3$sm%4$s%5$s%6$sw%7$s%8$d', home_url(), '', '?', '=', $arc_year, '&amp;', '=', $arcresult->week);
+						$url  = sprintf('%1$s/%2$s%3$sm%4$s%5$s%6$sw%7$s%8$d', home_url(), '', '?', '=', $arc_year, '&amp;', '=', $result->week);
 						$text = $arc_week_start . $archive_week_separator . $arc_week_end;
 						if ($show_post_count)
-							$after = '&nbsp;('.$arcresult->posts.')'.$afterafter;
+							$after = '&nbsp;('.$result->posts.')'.$afterafter;
 						$output .= get_archives_link($url, $text, $format, $before, $after);
 					}
 				}
@@ -1016,23 +1042,20 @@ function wp_get_archives($args = '') {
 	} elseif ( ( 'postbypost' == $type ) || ('alpha' == $type) ) {
 		$orderby = ('alpha' == $type) ? 'post_title ASC ' : 'post_date DESC ';
 		$query = "SELECT * FROM $wpdb->posts $join $where ORDER BY $orderby $limit";
-		$key = md5($query);
-		$cache = wp_cache_get( 'wp_get_archives' , 'general');
-		if ( !isset( $cache[ $key ] ) ) {
-			$arcresults = $wpdb->get_results($query);
-			$cache[ $key ] = $arcresults;
-			wp_cache_set( 'wp_get_archives', $cache, 'general' );
-		} else {
-			$arcresults = $cache[ $key ];
+		$key = md5( $query );
+		$key = "wp_get_archives:$key:$last_changed";
+		if ( ! $results = wp_cache_get( $key, 'posts' ) ) {
+			$results = $wpdb->get_results( $query );
+			wp_cache_set( $key, $results, 'posts' );
 		}
-		if ( $arcresults ) {
-			foreach ( (array) $arcresults as $arcresult ) {
-				if ( $arcresult->post_date != '0000-00-00 00:00:00' ) {
-					$url  = get_permalink( $arcresult );
-					if ( $arcresult->post_title )
-						$text = strip_tags( apply_filters( 'the_title', $arcresult->post_title, $arcresult->ID ) );
+		if ( $results ) {
+			foreach ( (array) $results as $result ) {
+				if ( $result->post_date != '0000-00-00 00:00:00' ) {
+					$url  = get_permalink( $result );
+					if ( $result->post_title )
+						$text = strip_tags( apply_filters( 'the_title', $result->post_title, $result->ID ) );
 					else
-						$text = $arcresult->ID;
+						$text = $result->ID;
 					$output .= get_archives_link($url, $text, $format, $before, $after);
 				}
 			}
@@ -1600,7 +1623,7 @@ function feed_links( $args = array() ) {
 		'separator'	=> _x('&raquo;', 'feed link'),
 		/* translators: 1: blog title, 2: separator (raquo) */
 		'feedtitle'	=> __('%1$s %2$s Feed'),
-		/* translators: %s: blog title, 2: separator (raquo) */
+		/* translators: 1: blog title, 2: separator (raquo) */
 		'comstitle'	=> __('%1$s %2$s Comments Feed'),
 	);
 
@@ -1705,8 +1728,22 @@ function wlwmanifest_link() {
  * @since 2.1.0
  */
 function noindex() {
+	$public = get_option( 'blog_public' );
+
+	if ( is_multisite() ) {
+		// Compare local and global and override with the local setting if they
+		// don't match.
+
+		global $current_blog;
+
+		if ( ( '' != $public ) && ( $public != $current_blog->public ) ) {
+			update_blog_status( get_current_blog_id(), 'public', $public );
+			$current_blog->public = $public;
+		}
+	}
+
 	// If the blog is not public, tell robots to go away.
-	if ( '0' == get_option('blog_public') )
+	if ( '0' == $public )
 		wp_no_robots();
 }
 
@@ -2283,4 +2320,24 @@ function __checked_selected_helper( $helper, $current, $echo, $type ) {
 		echo $result;
 
 	return $result;
+}
+
+/**
+ * Default settings for heartbeat
+ *
+ * Outputs the nonce used in the heartbeat XHR
+ *
+ * @since 3.6.0
+ *
+ * @param array $settings
+ * @return array $settings
+ */
+function wp_heartbeat_settings( $settings ) {
+	if ( ! is_admin() )
+		$settings['ajaxurl'] = admin_url( 'admin-ajax.php', 'relative' );
+
+	if ( is_user_logged_in() )
+		$settings['nonce'] = wp_create_nonce( 'heartbeat-nonce' );
+
+	return $settings;
 }

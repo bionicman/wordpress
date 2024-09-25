@@ -280,16 +280,16 @@ class wp_xmlrpc_server extends IXR_Server {
 				$meta['id'] = (int) $meta['id'];
 				$pmeta = get_metadata_by_mid( 'post', $meta['id'] );
 				if ( isset($meta['key']) ) {
-					$meta['key'] = stripslashes( $meta['key'] );
+					$meta['key'] = wp_unslash( $meta['key'] );
 					if ( $meta['key'] != $pmeta->meta_key )
 						continue;
-					$meta['value'] = stripslashes_deep( $meta['value'] );
+					$meta['value'] = wp_unslash( $meta['value'] );
 					if ( current_user_can( 'edit_post_meta', $post_id, $meta['key'] ) )
 						update_metadata_by_mid( 'post', $meta['id'], $meta['value'] );
 				} elseif ( current_user_can( 'delete_post_meta', $post_id, $pmeta->meta_key ) ) {
 					delete_metadata_by_mid( 'post', $meta['id'] );
 				}
-			} elseif ( current_user_can( 'add_post_meta', $post_id, stripslashes( $meta['key'] ) ) ) {
+			} elseif ( current_user_can( 'add_post_meta', $post_id, wp_unslash( $meta['key'] ) ) ) {
 				add_post_meta( $post_id, $meta['key'], $meta['value'] );
 			}
 		}
@@ -318,12 +318,12 @@ class wp_xmlrpc_server extends IXR_Server {
 				'value'         => $wp_version
 			),
 			'blog_url'          => array(
-				'desc'          => __( 'Site URL' ),
+				'desc'          => __( 'WordPress Address (URL)' ),
 				'readonly'      => true,
 				'option'        => 'siteurl'
 			),
 			'home_url'          => array(
-				'desc'          => __( 'Home URL' ),
+				'desc'          => __( 'Site Address (URL)' ),
 				'readonly'      => true,
 				'option'        => 'home'
 			),
@@ -3535,7 +3535,7 @@ class wp_xmlrpc_server extends IXR_Server {
 			return new IXR_Error( 401, __( 'Sorry, you are not allowed to edit posts.' ) );
 
 		// Check if revisions are enabled.
-		if ( ! WP_POST_REVISIONS || ! post_type_supports( $post->post_type, 'revisions' ) )
+		if ( ! wp_revisions_enabled( $post ) )
 			return new IXR_Error( 401, __( 'Sorry, revisions are disabled.' ) );
 
 		$revisions = wp_get_post_revisions( $post_id );
@@ -3602,7 +3602,7 @@ class wp_xmlrpc_server extends IXR_Server {
 			return new IXR_Error( 401, __( 'Sorry, you cannot edit this post.' ) );
 
 		// Check if revisions are disabled.
-		if ( ! WP_POST_REVISIONS || ! post_type_supports( $post->post_type, 'revisions' ) )
+		if ( ! wp_revisions_enabled( $post ) )
 			return new IXR_Error( 401, __( 'Sorry, revisions are disabled.' ) );
 
 		$post = wp_restore_post_revision( $revision_id );
@@ -3746,9 +3746,9 @@ class wp_xmlrpc_server extends IXR_Server {
 
 		$categories = implode(',', wp_get_post_categories($post_ID));
 
-		$content  = '<title>'.stripslashes($post_data['post_title']).'</title>';
+		$content  = '<title>'.wp_unslash($post_data['post_title']).'</title>';
 		$content .= '<category>'.$categories.'</category>';
-		$content .= stripslashes($post_data['post_content']);
+		$content .= wp_unslash($post_data['post_content']);
 
 		$struct = array(
 			'userid'    => $post_data['post_author'],
@@ -3784,6 +3784,9 @@ class wp_xmlrpc_server extends IXR_Server {
 		if ( !$user = $this->login($username, $password) )
 			return $this->error;
 
+		if ( ! current_user_can( 'edit_posts' ) )
+			return new IXR_Error( 401, __( 'Sorry, you cannot edit posts on this site.' ) );
+
 		do_action('xmlrpc_call', 'blogger.getRecentPosts');
 
 		$posts_list = wp_get_recent_posts( $query );
@@ -3800,9 +3803,9 @@ class wp_xmlrpc_server extends IXR_Server {
 			$post_date  = $this->_convert_date( $entry['post_date'] );
 			$categories = implode(',', wp_get_post_categories($entry['ID']));
 
-			$content  = '<title>'.stripslashes($entry['post_title']).'</title>';
+			$content  = '<title>'.wp_unslash($entry['post_title']).'</title>';
 			$content .= '<category>'.$categories.'</category>';
-			$content .= stripslashes($entry['post_content']);
+			$content .= wp_unslash($entry['post_content']);
 
 			$struct[] = array(
 				'userid' => $entry['post_author'],
@@ -4757,6 +4760,9 @@ class wp_xmlrpc_server extends IXR_Server {
 		if ( !$user = $this->login($username, $password) )
 			return $this->error;
 
+		if ( ! current_user_can( 'edit_posts' ) )
+			return new IXR_Error( 401, __( 'Sorry, you cannot edit posts on this site.' ) );
+
 		do_action('xmlrpc_call', 'metaWeblog.getRecentPosts');
 
 		$posts_list = wp_get_recent_posts( $query );
@@ -5380,8 +5386,7 @@ class wp_xmlrpc_server extends IXR_Server {
 		sleep(1);
 
 		// Let's check the remote site
-		$linea = wp_remote_retrieve_body( wp_remote_get( $pagelinkedfrom, array( 'timeout' => 10, 'redirection' => 0, 'reject_unsafe_urls' => true ) ) );
-
+		$linea = wp_remote_retrieve_body( wp_remote_get( $pagelinkedfrom, array( 'timeout' => 10, 'redirection' => 0 ) ) );
 		if ( !$linea )
 	  		return $this->pingback_error( 16, __( 'The source URL does not exist.' ) );
 

@@ -459,6 +459,21 @@ function twentyeleven_content_nav( $html_id ) {
 endif; // twentyeleven_content_nav
 
 /**
+ * Return the first link from the post content. If none found, the
+ * post permalink is used as a fallback.
+ *
+ * @return string
+ */
+function twentyeleven_get_first_url() {
+	$has_url = function_exists( 'get_the_post_format_url' ) ? get_the_post_format_url() : false;
+
+	if ( ! $has_url )
+		$has_url = twentyeleven_url_grabber();
+
+	return ( $has_url ) ? $has_url : apply_filters( 'the_permalink', get_permalink() );
+}
+
+/**
  * Return the URL for the first link found in the post content.
  *
  * @since Twenty Eleven 1.0
@@ -612,3 +627,42 @@ function twentyeleven_body_classes( $classes ) {
 }
 add_filter( 'body_class', 'twentyeleven_body_classes' );
 
+/**
+ * Retrieves the IDs for images in a gallery.
+ *
+ * @uses get_post_galleries() first, if available. Falls back to shortcode parsing,
+ * then as last option uses a get_posts() call.
+ *
+ * @since Twenty Eleven 1.6.
+ *
+ * @return array List of image IDs from the post gallery.
+ */
+function twentyeleven_get_gallery_images() {
+	$images = array();
+
+	if ( function_exists( 'get_post_gallery_images' ) ) {
+		$galleries = get_post_galleries();
+		if ( isset( $galleries[0]['ids'] ) )
+		 	$images = explode( ',', $galleries[0]['ids'] );
+	} else {
+		$pattern = get_shortcode_regex();
+		preg_match( "/$pattern/s", get_the_content(), $match );
+		$atts = shortcode_parse_atts( $match[3] );
+		if ( isset( $atts['ids'] ) )
+			$images = explode( ',', $atts['ids'] );
+	}
+
+	if ( ! $images ) {
+		$images = get_posts( array(
+			'fields'         => 'ids',
+			'numberposts'    => 999,
+			'order'          => 'ASC',
+			'orderby'        => 'menu_order',
+			'post_mime_type' => 'image',
+			'post_parent'    => get_the_ID(),
+			'post_type'      => 'attachment',
+		) );
+	}
+
+	return $images;
+}

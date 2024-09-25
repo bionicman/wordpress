@@ -1406,8 +1406,8 @@ class WP_Query {
 				$array[$key] = '';
 		}
 
-		$array_keys = array('category__in', 'category__not_in', 'category__and', 'post__in', 'post__not_in',
-			'tag__in', 'tag__not_in', 'tag__and', 'tag_slug__in', 'tag_slug__and');
+		$array_keys = array( 'category__in', 'category__not_in', 'category__and', 'post__in', 'post__not_in',
+			'tag__in', 'tag__not_in', 'tag__and', 'tag_slug__in', 'tag_slug__and', 'post_parent__in', 'post_parent__not_in' );
 
 		foreach ( $array_keys as $key ) {
 			if ( !isset($array[$key]) )
@@ -2079,7 +2079,7 @@ class WP_Query {
 		if ( $q['day'] )
 			$where .= " AND DAYOFMONTH($wpdb->posts.post_date)='" . $q['day'] . "'";
 
-		// If we've got a post_type AND its not "any" post_type.
+		// If we've got a post_type AND it's not "any" post_type.
 		if ( !empty($q['post_type']) && 'any' != $q['post_type'] ) {
 			foreach ( (array)$q['post_type'] as $_post_type ) {
 				$ptype_obj = get_post_type_object($_post_type);
@@ -2168,8 +2168,15 @@ class WP_Query {
 			$where .= " AND {$wpdb->posts}.ID NOT IN ($post__not_in)";
 		}
 
-		if ( is_numeric($q['post_parent']) )
+		if ( is_numeric( $q['post_parent'] ) ) {
 			$where .= $wpdb->prepare( " AND $wpdb->posts.post_parent = %d ", $q['post_parent'] );
+		} elseif ( $q['post_parent__in'] ) {
+			$post_parent__in = implode( ',', array_map( 'absint', $q['post_parent__in'] ) );
+			$where .= " AND {$wpdb->posts}.post_parent IN ($post_parent__in)";
+		} elseif ( $q['post_parent__not_in'] ) {
+			$post_parent__not_in = implode( ',',  array_map( 'absint', $q['post_parent__not_in'] ) );
+			$where .= " AND {$wpdb->posts}.post_parent NOT IN ($post_parent__not_in)";
+		}
 
 		if ( $q['page_id'] ) {
 			if  ( ('page' != get_option('show_on_front') ) || ( $q['page_id'] != get_option('page_for_posts') ) ) {
@@ -2343,6 +2350,8 @@ class WP_Query {
 			$orderby = '';
 		} elseif ( $q['orderby'] == 'post__in' && ! empty( $post__in ) ) {
 			$orderby = "FIELD( {$wpdb->posts}.ID, $post__in )";
+		} elseif ( $q['orderby'] == 'post_parent__in' && ! empty( $post_parent__in ) ) {
+			$orderby = "FIELD( {$wpdb->posts}.post_parent, $post_parent__in )";
 		} else {
 			// Used to filter values
 			$allowed_keys = array('name', 'author', 'date', 'title', 'modified', 'menu_order', 'parent', 'ID', 'rand', 'comment_count');
@@ -3612,6 +3621,52 @@ function wp_old_slug_redirect() {
 		exit;
 	endif;
 }
+/**
+ * Split the passed content by <!--nextpage-->
+ *
+ * @since 3.6.0
+ *
+ * @param string $content Content to split.
+ * @return array Paged content.
+ */
+function paginate_content( $content ) {
+	$content = str_replace( "\n<!--nextpage-->\n", '<!--nextpage-->', $content );
+	$content = str_replace( "\n<!--nextpage-->",   '<!--nextpage-->', $content );
+	$content = str_replace( "<!--nextpage-->\n",   '<!--nextpage-->', $content );
+	return explode( '<!--nextpage-->', $content );
+}
+
+/**
+ * Return content offset by $page
+ *
+ * @since 3.6.0
+ *
+ * @param string $content
+ * @param int $paged
+ * @return string
+ */
+function get_paged_content( $content = '', $paged = 0 ) {
+	global $page;
+	if ( empty( $page ) )
+		$page = 1;
+
+	if ( empty( $paged ) )
+		$paged = $page;
+
+	if ( empty( $content ) ) {
+		$post = get_post();
+		if ( empty( $post ) )
+			return '';
+
+		$content = $post->post_content;
+	}
+
+	$pages = paginate_content( $content );
+	if ( isset( $pages[$paged - 1] ) )
+		return $pages[$paged - 1];
+
+	return reset( $pages );
+}
 
 /**
  * Set up global post data.
@@ -3623,7 +3678,7 @@ function wp_old_slug_redirect() {
  * @return bool True when finished.
  */
 function setup_postdata($post) {
-	global $id, $authordata, $currentday, $currentmonth, $page, $pages, $multipage, $more, $numpages;
+	global $id, $authordata, $currentday, $currentmonth, $page, $pages, $format_pages, $multipage, $more, $numpages;
 
 	$id = (int) $post->ID;
 
@@ -3637,18 +3692,38 @@ function setup_postdata($post) {
 		$page = 1;
 	if ( is_single() || is_page() || is_feed() )
 		$more = 1;
-	$content = $post->post_content;
+	$split_content = $content = $post->post_content;
+	$format = get_post_format( $post );
+	if ( $format && in_array( $format, array( 'image', 'audio', 'video' ) ) ) {
+		switch ( $format ) {
+		case 'image':
+			get_the_post_format_image( 'full', $post );
+			if ( isset( $post->split_content ) )
+				$split_content = $post->split_content;
+			break;
+		case 'audio':
+			get_the_post_format_media( 'audio', $post );
+			if ( isset( $post->split_content ) )
+				$split_content = $post->split_content;
+			break;
+		case 'video':
+			get_the_post_format_media( 'video', $post );
+			if ( isset( $post->split_content ) )
+				$split_content = $post->split_content;
+			break;
+		}
+	}
+
 	if ( strpos( $content, '<!--nextpage-->' ) ) {
 		if ( $page > 1 )
 			$more = 1;
 		$multipage = 1;
-		$content = str_replace("\n<!--nextpage-->\n", '<!--nextpage-->', $content);
-		$content = str_replace("\n<!--nextpage-->", '<!--nextpage-->', $content);
-		$content = str_replace("<!--nextpage-->\n", '<!--nextpage-->', $content);
-		$pages = explode('<!--nextpage-->', $content);
-		$numpages = count($pages);
+		$pages = paginate_content( $content );
+		$format_pages = paginate_content( $split_content );
+		$numpages = count( $pages );
 	} else {
 		$pages = array( $post->post_content );
+		$format_pages = array( $split_content );
 		$multipage = 0;
 	}
 

@@ -66,7 +66,8 @@
 					src:       size.url,
 					captionId: 'attachment_' + attachment.id
 				});
-
+			} else if ( 'video' === attachment.type || 'audio' === attachment.type ) {
+				_.extend( props, _.pick( attachment, 'title', 'type', 'icon', 'mime' ) );
 			// Format properties for non-images.
 			} else {
 				props.title = props.title || attachment.filename;
@@ -93,6 +94,88 @@
 				options.attrs.rel = props.rel;
 
 			return wp.html.string( options );
+		},
+
+		audio: function( props, attachment ) {
+			var shortcode, html;
+
+			props = wp.media.string.props( props, attachment );
+			shortcode = {};
+
+			if ( props.mime ) {
+				switch ( props.mime ) {
+				case 'audio/mpeg':
+					if ( attachment.url.indexOf( 'mp3' ) )
+						shortcode.mp3 = attachment.url;
+					else if ( attachment.url.indexOf( 'm4a' ) )
+						shortcode.m4a = attachment.url;
+					break;
+				case 'audio/mp3':
+					shortcode.mp3 = attachment.url;
+					break;
+				case 'audio/m4a':
+					shortcode.m4a = attachment.url;
+					break;
+				case 'audio/wav':
+					shortcode.wav = attachment.url;
+					break;
+				case 'audio/ogg':
+					shortcode.ogg = attachment.url;
+					break;
+				case 'audio/x-ms-wma':
+				case 'audio/wma':
+					shortcode.wma = attachment.url;
+					break;
+				}
+			}
+
+			html = wp.shortcode.string({
+				tag:     'audio',
+				attrs:   shortcode
+			});
+
+			return html;
+		},
+
+		video: function( props, attachment ) {
+			var shortcode, html;
+
+			props = wp.media.string.props( props, attachment );
+
+			shortcode = {};
+
+			if ( props.mime ) {
+				switch ( props.mime ) {
+				case 'video/mp4':
+					shortcode.mp4 = attachment.url;
+					break;
+				case 'video/m4v':
+					shortcode.m4v = attachment.url;
+					break;
+				case 'video/webm':
+					shortcode.webm = attachment.url;
+					break;
+				case 'video/ogg':
+					shortcode.ogv = attachment.url;
+					break;
+				case 'video/x-ms-wmv':
+				case 'video/wmv':
+				case 'video/asf':
+					shortcode.wmv = attachment.url;
+					break;
+				case 'video/flv':
+				case 'video/x-flv':
+					shortcode.flv = attachment.url
+					break;
+				}
+			}
+
+			html = wp.shortcode.string({
+				tag:     'video',
+				attrs:   shortcode
+			});
+
+			return html;
 		},
 
 		image: function( props, attachment ) {
@@ -170,7 +253,6 @@
 				icontag:    'dt',
 				captiontag: 'dd',
 				columns:    '3',
-				link:       'post',
 				size:       'thumbnail',
 				orderby:    'menu_order ID'
 			},
@@ -576,7 +658,10 @@
 						if ( props[ prop ] )
 							options[ option ] = props[ prop ];
 					});
-
+				} else if ( 'video' === attachment.type ) {
+					html = wp.media.string.video( props, attachment );
+				} else if ( 'audio' === attachment.type ) {
+					html = wp.media.string.audio( props, attachment );
 				} else {
 					html = wp.media.string.link( props );
 					options.post_title = props.title;

@@ -144,8 +144,8 @@ abstract class WP_Image_Editor {
 	 * @access public
 	 * @abstract
 	 *
-	 * @param boolean $horz Horizontal Flip
-	 * @param boolean $vert Vertical Flip
+	 * @param boolean $horz Flip along Horizontal Axis
+	 * @param boolean $vert Flip along Vertical Axis
 	 * @return boolean|WP_Error
 	 */
 	abstract public function flip( $horz, $vert );
@@ -325,6 +325,9 @@ abstract class WP_Image_Editor {
 	 */
 	protected function make_image( $filename, $function, $arguments ) {
 		$dst_file = $filename;
+
+		// The directory containing the original file may no longer exist when using a replication plugin.
+		wp_mkdir_p( dirname( $dst_file ) );
 
 		if ( $stream = wp_is_stream( $filename ) ) {
 			$filename = null;

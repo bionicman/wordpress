@@ -393,7 +393,7 @@ function media_buttons($editor_id = 'content') {
 
 	$img = '<span class="wp-media-buttons-icon"></span> ';
 
-	echo '<a href="#" class="button insert-media add_media" data-editor="' . esc_attr( $editor_id ) . '" title="' . esc_attr__( 'Add Media' ) . '">' . $img . __( 'Add Media' ) . '</a>';
+	echo '<a href="#" id="insert-media-button" class="button insert-media add_media" data-editor="' . esc_attr( $editor_id ) . '" title="' . esc_attr__( 'Add Media' ) . '">' . $img . __( 'Add Media' ) . '</a>';
 
 	// Don't use this filter. Want to add a button? Use the media_buttons action.
 	$legacy_filter = apply_filters('media_buttons_context', ''); // deprecated
@@ -467,11 +467,11 @@ function media_upload_form_handler() {
 		$post = apply_filters('attachment_fields_to_save', $post, $attachment);
 
 		if ( isset($attachment['image_alt']) ) {
-			$image_alt = get_post_meta($attachment_id, '_wp_attachment_image_alt', true);
-			if ( $image_alt != stripslashes($attachment['image_alt']) ) {
-				$image_alt = wp_strip_all_tags( stripslashes($attachment['image_alt']), true );
+			$image_alt = wp_unslash( $attachment['image_alt'] );
+			if ( $image_alt != get_post_meta($attachment_id, '_wp_attachment_image_alt', true) ) {
+				$image_alt = wp_strip_all_tags( $image_alt, true );
 				// update_meta expects slashed
-				update_post_meta( $attachment_id, '_wp_attachment_image_alt', addslashes($image_alt) );
+				update_post_meta( $attachment_id, '_wp_attachment_image_alt', wp_slash( $image_alt ) );
 			}
 		}
 
@@ -501,7 +501,7 @@ function media_upload_form_handler() {
 	}
 
 	if ( isset($send_id) ) {
-		$attachment = stripslashes_deep( $_POST['attachments'][$send_id] );
+		$attachment = wp_unslash( $_POST['attachments'][$send_id] );
 
 		$html = isset( $attachment['post_title'] ) ? $attachment['post_title'] : '';
 		if ( !empty($attachment['url']) ) {
@@ -546,7 +546,7 @@ function wp_media_upload_handler() {
 			$src = "http://$src";
 
 		if ( isset( $_POST['media_type'] ) && 'image' != $_POST['media_type'] ) {
-			$title = esc_html( stripslashes( $_POST['title'] ) );
+			$title = esc_html( wp_unslash( $_POST['title'] ) );
 			if ( empty( $title ) )
 				$title = esc_html( basename( $src ) );
 
@@ -561,9 +561,9 @@ function wp_media_upload_handler() {
 			$html = apply_filters( $type . '_send_to_editor_url', $html, esc_url_raw( $src ), $title );
 		} else {
 			$align = '';
-			$alt = esc_attr( stripslashes( $_POST['alt'] ) );
+			$alt = esc_attr( wp_unslash( $_POST['alt'] ) );
 			if ( isset($_POST['align']) ) {
-				$align = esc_attr( stripslashes( $_POST['align'] ) );
+				$align = esc_attr( wp_unslash( $_POST['align'] ) );
 				$class = " class='align$align'";
 			}
 			if ( !empty($src) )
@@ -1127,7 +1127,7 @@ function get_media_item( $attachment_id, $args = null ) {
 
 	$media_dims = '';
 	$meta = wp_get_attachment_metadata( $post->ID );
-	if ( is_array( $meta ) && array_key_exists( 'width', $meta ) && array_key_exists( 'height', $meta ) )
+	if ( isset( $meta['width'], $meta['height'] ) )
 		$media_dims .= "<span id='media-dims-$post->ID'>{$meta['width']}&nbsp;&times;&nbsp;{$meta['height']}</span> ";
 	$media_dims = apply_filters( 'media_meta', $media_dims, $post );
 
@@ -1602,7 +1602,7 @@ function media_upload_type_form($type = 'file', $errors = null, $id = null) {
 		$form_class .= ' html-uploader';
 ?>
 
-<form enctype="multipart/form-data" method="post" action="<?php echo esc_attr($form_action_url); ?>" class="<?php echo $form_class; ?>" id="<?php echo $type; ?>-form">
+<form enctype="multipart/form-data" method="post" action="<?php echo esc_url( $form_action_url ); ?>" class="<?php echo $form_class; ?>" id="<?php echo $type; ?>-form">
 <?php submit_button( '', 'hidden', 'save', false ); ?>
 <input type="hidden" name="post_id" id="post_id" value="<?php echo (int) $post_id; ?>" />
 <?php wp_nonce_field('media-form'); ?>
@@ -1667,7 +1667,7 @@ function media_upload_type_url_form($type = null, $errors = null, $id = null) {
 		$form_class .= ' html-uploader';
 ?>
 
-<form enctype="multipart/form-data" method="post" action="<?php echo esc_attr($form_action_url); ?>" class="<?php echo $form_class; ?>" id="<?php echo $type; ?>-form">
+<form enctype="multipart/form-data" method="post" action="<?php echo esc_url( $form_action_url ); ?>" class="<?php echo $form_class; ?>" id="<?php echo $type; ?>-form">
 <input type="hidden" name="post_id" id="post_id" value="<?php echo (int) $post_id; ?>" />
 <?php wp_nonce_field('media-form'); ?>
 
@@ -1818,7 +1818,7 @@ jQuery(function($){
 <a href="#" id="desc"><?php _e('Descending'); ?></a> |
 <a href="#" id="clear"><?php _ex('Clear', 'verb'); ?></a>
 </div>
-<form enctype="multipart/form-data" method="post" action="<?php echo esc_attr($form_action_url); ?>" class="<?php echo $form_class; ?>" id="gallery-form">
+<form enctype="multipart/form-data" method="post" action="<?php echo esc_url( $form_action_url ); ?>" class="<?php echo $form_class; ?>" id="gallery-form">
 <?php wp_nonce_field('media-form'); ?>
 <?php //media_upload_form( $errors ); ?>
 <table class="widefat" cellspacing="0">
@@ -2058,7 +2058,7 @@ foreach ($arc_result as $arc_row) {
 </div>
 </form>
 
-<form enctype="multipart/form-data" method="post" action="<?php echo esc_attr($form_action_url); ?>" class="<?php echo $form_class; ?>" id="library-form">
+<form enctype="multipart/form-data" method="post" action="<?php echo esc_url( $form_action_url ); ?>" class="<?php echo $form_class; ?>" id="library-form">
 
 <?php wp_nonce_field('media-form'); ?>
 <?php //media_upload_form( $errors ); ?>
@@ -2270,7 +2270,9 @@ function multisite_over_quota_message() {
  *
  * @since 3.5.0
  */
-function edit_form_image_editor( $post ) {
+function edit_form_image_editor() {
+	$post = get_post();
+
 	$open = isset( $_GET['image-editor'] );
 	if ( $open )
 		require_once ABSPATH . 'wp-admin/includes/image-edit.php';
@@ -2283,8 +2285,9 @@ function edit_form_image_editor( $post ) {
 	$title = esc_attr( $post->post_title );
 	$alt_text = get_post_meta( $post->ID, '_wp_attachment_image_alt', true );
 
-	$att_url = wp_get_attachment_url( $post->ID );
-
+	$att_url = wp_get_attachment_url( $post->ID ); ?>
+	<div class="wp_attachment_holder">
+	<?php
 	if ( wp_attachment_is_image( $post->ID ) ) :
 		$image_edit_button = '';
 		if ( wp_image_editor_supports( array( 'mime_type' => $post->post_mime_type ) ) ) {
@@ -2292,7 +2295,7 @@ function edit_form_image_editor( $post ) {
 			$image_edit_button = "<input type='button' id='imgedit-open-btn-$post->ID' onclick='imageEdit.open( $post->ID, \"$nonce\" )' class='button' value='" . esc_attr__( 'Edit Image' ) . "' /> <span class='spinner'></span>";
 		}
  	?>
-	<div class="wp_attachment_holder">
+
 		<div class="imgedit-response" id="imgedit-response-<?php echo $attachment_id; ?>"></div>
 
 		<div<?php if ( $open ) echo ' style="display:none"'; ?> class="wp_attachment_image" id="media-head-<?php echo $attachment_id; ?>">
@@ -2302,10 +2305,24 @@ function edit_form_image_editor( $post ) {
 		<div<?php if ( ! $open ) echo ' style="display:none"'; ?> class="image-editor" id="image-editor-<?php echo $attachment_id; ?>">
 			<?php if ( $open ) wp_image_editor( $attachment_id ); ?>
 		</div>
-	</div>
-	<?php endif; ?>
+	<?php
+	elseif ( $attachment_id && 0 === strpos( $post->post_mime_type, 'audio/' ) ):
 
-	<div class="wp_attachment_details">
+		echo do_shortcode( '[audio src="' . $att_url . '"]' );
+
+	elseif ( $attachment_id && 0 === strpos( $post->post_mime_type, 'video/' ) ):
+
+		$meta = wp_get_attachment_metadata( $attachment_id );
+		$shortcode = sprintf( '[video src="%s"%s%s]',
+			$att_url,
+			empty( $meta['width'] ) ? '' : sprintf( ' width="%d"', $meta['width'] ),
+			empty( $meta['height'] ) ? '' : sprintf( ' height="%d"', $meta['height'] )
+		);
+		echo do_shortcode( $shortcode );
+
+	endif; ?>
+	</div>
+	<div class="wp_attachment_details edit-form-section">
 		<p>
 			<label for="attachment_caption"><strong><?php _e( 'Caption' ); ?></strong></label><br />
 			<textarea class="widefat" name="excerpt" id="attachment_caption"><?php echo $post->post_excerpt; ?></textarea>
@@ -2351,7 +2368,7 @@ function attachment_submitbox_metadata() {
 
 	$media_dims = '';
 	$meta = wp_get_attachment_metadata( $post->ID );
-	if ( is_array( $meta ) && array_key_exists( 'width', $meta ) && array_key_exists( 'height', $meta ) )
+	if ( isset( $meta['width'], $meta['height'] ) )
 		$media_dims .= "<span id='media-dims-$post->ID'>{$meta['width']}&nbsp;&times;&nbsp;{$meta['height']}</span> ";
 	$media_dims = apply_filters( 'media_meta', $media_dims, $post );
 
@@ -2395,3 +2412,140 @@ add_filter( 'media_upload_gallery', 'media_upload_gallery' );
 add_filter( 'media_upload_library', 'media_upload_library' );
 
 add_action( 'attachment_submitbox_misc_actions', 'attachment_submitbox_metadata' );
+
+/**
+ * Parse ID3v2, ID3v1, and getID3 comments to extract usable data
+ *
+ * @since 3.6.0
+ *
+ * @param array $metadata An existing array with data
+ * @param array $data Data supplied by ID3 tags
+ */
+function wp_add_id3_tag_data( &$metadata, $data ) {
+	foreach ( array( 'id3v2', 'id3v1' ) as $version ) {
+		if ( ! empty( $data[$version]['comments'] ) ) {
+			foreach ( $data[$version]['comments'] as $key => $list ) {
+				if ( ! empty( $list ) ) {
+					$metadata[$key] = reset( $list );
+					// fix bug in byte stream analysis
+					if ( 'terms_of_use' === $key && 0 === strpos( $metadata[$key], 'yright notice.' ) )
+						$metadata[$key] = 'Cop' . $metadata[$key];
+				}
+			}
+			break;
+		}
+	}
+
+	if ( ! empty( $data['id3v2']['APIC'] ) ) {
+		$image = reset( $data['id3v2']['APIC']);
+		if ( ! empty( $image['data'] ) ) {
+			$metadata['image'] = array(
+				'data' => $image['data'],
+				'mime' => $image['image_mime'],
+				'width' => $image['image_width'],
+				'height' => $image['image_height']
+			);
+		}
+	} elseif ( ! empty( $data['comments']['picture'] ) ) {
+		$image = reset( $data['comments']['picture'] );
+		if ( ! empty( $image['data'] ) ) {
+			$metadata['image'] = array(
+				'data' => $image['data'],
+				'mime' => $image['image_mime']
+			);
+		}
+	}
+}
+
+/**
+ * Retrieve metadata from a video file's ID3 tags
+ *
+ * @since 3.6.0
+ *
+ * @param string $file Path to file.
+ * @return array|boolean Returns array of metadata, if found.
+ */
+function wp_read_video_metadata( $file ) {
+	if ( ! file_exists( $file ) )
+		return false;
+
+	$metadata = array();
+
+	if ( ! class_exists( 'getID3' ) )
+		require( ABSPATH . WPINC . '/ID3/class-getid3.php' );
+	$id3 = new getID3();
+	$data = $id3->analyze( $file );
+
+	if ( isset( $data['video']['lossless'] ) )
+		$metadata['lossless'] = $data['video']['lossless'];
+	if ( ! empty( $data['video']['bitrate'] ) )
+		$metadata['bitrate'] = (int) $data['video']['bitrate'];
+	if ( ! empty( $data['video']['bitrate_mode'] ) )
+		$metadata['bitrate_mode'] = $data['video']['bitrate_mode'];
+	if ( ! empty( $data['filesize'] ) )
+		$metadata['filesize'] = (int) $data['filesize'];
+	if ( ! empty( $data['mime_type'] ) )
+		$metadata['mime_type'] = $data['mime_type'];
+	if ( ! empty( $data['playtime_seconds'] ) )
+		$metadata['length'] = (int) ceil( $data['playtime_seconds'] );
+	if ( ! empty( $data['playtime_string'] ) )
+		$metadata['length_formatted'] = $data['playtime_string'];
+	if ( ! empty( $data['video']['resolution_x'] ) )
+		$metadata['width'] = (int) $data['video']['resolution_x'];
+	if ( ! empty( $data['video']['resolution_y'] ) )
+		$metadata['height'] = (int) $data['video']['resolution_y'];
+	if ( ! empty( $data['fileformat'] ) )
+		$metadata['fileformat'] = $data['fileformat'];
+	if ( ! empty( $data['video']['dataformat'] ) )
+		$metadata['dataformat'] = $data['video']['dataformat'];
+	if ( ! empty( $data['video']['encoder'] ) )
+		$metadata['encoder'] = $data['video']['encoder'];
+	if ( ! empty( $data['video']['codec'] ) )
+		$metadata['codec'] = $data['video']['codec'];
+
+	unset( $data['audio']['streams'] );
+	$metadata['audio'] = $data['audio'];
+
+	wp_add_id3_tag_data( $metadata, $data );
+
+	return $metadata;
+}
+
+/**
+ * Retrieve metadata from a audio file's ID3 tags
+ *
+ * @since 3.6.0
+ *
+ * @param string $file Path to file.
+ * @return array|boolean Returns array of metadata, if found.
+ */
+function wp_read_audio_metadata( $file ) {
+	if ( ! file_exists( $file ) )
+		return false;
+	$metadata = array();
+
+	if ( ! class_exists( 'getID3' ) )
+		require( ABSPATH . WPINC . '/ID3/class-getid3.php' );
+	$id3 = new getID3();
+	$data = $id3->analyze( $file );
+
+	if ( ! empty( $data['audio'] ) ) {
+		unset( $data['audio']['streams'] );
+		$metadata = $data['audio'];
+	}
+
+	if ( ! empty( $data['fileformat'] ) )
+		$metadata['fileformat'] = $data['fileformat'];
+	if ( ! empty( $data['filesize'] ) )
+		$metadata['filesize'] = (int) $data['filesize'];
+	if ( ! empty( $data['mime_type'] ) )
+		$metadata['mime_type'] = $data['mime_type'];
+	if ( ! empty( $data['playtime_seconds'] ) )
+		$metadata['length'] = (int) ceil( $data['playtime_seconds'] );
+	if ( ! empty( $data['playtime_string'] ) )
+		$metadata['length_formatted'] = $data['playtime_string'];
+
+	wp_add_id3_tag_data( $metadata, $data );
+
+	return $metadata;
+}

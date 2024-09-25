@@ -48,7 +48,7 @@ function login_header($title = 'Log In', $message = '', $wp_error = '') {
 		$wp_error = new WP_Error();
 
 	// Shake it!
-	$shake_error_codes = array( 'empty_password', 'empty_email', 'invalid_email', 'invalidcombo', 'empty_username', 'invalid_username', 'incorrect_password' );
+	$shake_error_codes = array( 'interim_login_error', 'empty_password', 'empty_email', 'invalid_email', 'invalidcombo', 'empty_username', 'invalid_username', 'incorrect_password' );
 	$shake_error_codes = apply_filters( 'shake_error_codes', $shake_error_codes );
 
 	if ( $shake_error_codes && $wp_error->get_error_code() && in_array( $wp_error->get_error_code(), $shake_error_codes ) )
@@ -68,6 +68,15 @@ function login_header($title = 'Log In', $message = '', $wp_error = '') {
 		<meta name="viewport" content="width=320; initial-scale=0.9; maximum-scale=1.0; user-scalable=0;" /><?php
 	}
 
+	// Remove all stored post data on logging out.
+	// This could be added by add_action('login_head'...) like wp_shake_js()
+	// but maybe better if it's not removable by plugins
+	if ( 'loggedout' == $wp_error->get_error_code() ) {
+		?>
+		<script>if("sessionStorage" in window){try{for(var key in sessionStorage){if(key.indexOf("wp-autosave-")!=-1){sessionStorage.removeItem(key)}}}catch(e){}};</script>
+		<?php
+	}
+
 	do_action( 'login_enqueue_scripts' );
 	do_action( 'login_head' );
 
@@ -82,16 +91,25 @@ function login_header($title = 'Log In', $message = '', $wp_error = '') {
 	$login_header_url   = apply_filters( 'login_headerurl',   $login_header_url   );
 	$login_header_title = apply_filters( 'login_headertitle', $login_header_title );
 
-	// Don't allow interim logins to navigate away from the page.
-	if ( $interim_login )
-		$login_header_url = '#';
-
 	$classes = array( 'login-action-' . $action, 'wp-core-ui' );
 	if ( wp_is_mobile() )
 		$classes[] = 'mobile';
 	if ( is_rtl() )
 		$classes[] = 'rtl';
+	if ( $interim_login ) {
+		// Don't allow interim logins to navigate away from the page.
+		$login_header_url = '#';
+		$classes[] = 'interim-login';
+		?>
+		<style type="text/css">html{background-color: transparent;}</style>
+		<?php
+
+		if ( 'success' ===  $interim_login )
+			$classes[] = 'interim-login-success';
+	}
+
 	$classes = apply_filters( 'login_body_class', $classes, $action );
+
 	?>
 	</head>
 	<body class="login <?php echo esc_attr( implode( ' ', $classes ) ); ?>">
@@ -389,11 +407,14 @@ $http_post = ('POST' == $_SERVER['REQUEST_METHOD']);
 switch ($action) {
 
 case 'postpass' :
-	require_once ABSPATH . 'wp-includes/class-phpass.php';
-	$hasher = new PasswordHash( 8, true );
+	if ( empty( $wp_hasher ) ) {
+		require_once( ABSPATH . 'wp-includes/class-phpass.php' );
+		// By default, use the portable hash from phpass
+		$wp_hasher = new PasswordHash(8, true);
+	}
 
 	// 10 days
-	setcookie( 'wp-postpass_' . COOKIEHASH, $hasher->HashPassword( stripslashes( $_POST['post_password'] ) ), time() + 10 * DAY_IN_SECONDS, COOKIEPATH );
+	setcookie( 'wp-postpass_' . COOKIEHASH, $wp_hasher->HashPassword( wp_unslash( $_POST['post_password'] ) ), time() + 10 * DAY_IN_SECONDS, COOKIEPATH );
 
 	wp_safe_redirect( wp_get_referer() );
 	exit();
@@ -428,7 +449,7 @@ case 'retrievepassword' :
 	do_action('lost_password');
 	login_header(__('Lost Password'), '<p class="message">' . __('Please enter your username or email address. You will receive a link to create a new password via email.') . '</p>', $errors);
 
-	$user_login = isset($_POST['user_login']) ? stripslashes($_POST['user_login']) : '';
+	$user_login = isset($_POST['user_login']) ? wp_unslash($_POST['user_login']) : '';
 
 ?>
 
@@ -445,7 +466,7 @@ case 'retrievepassword' :
 <p id="nav">
 <a href="<?php echo esc_url( wp_login_url() ); ?>"><?php _e('Log in') ?></a>
 <?php if ( get_option( 'users_can_register' ) ) : ?>
- | <a href="<?php echo esc_url( site_url( 'wp-login.php?action=register', 'login' ) ); ?>"><?php _e( 'Register' ); ?></a>
+ | <?php echo apply_filters( 'register', sprintf( '<a href="%s">%s</a>', esc_url( site_url( 'wp-login.php?action=register', 'login' ) ), __( 'Register' ) ) ); ?>
 <?php endif; ?>
 </p>
 
@@ -504,7 +525,7 @@ case 'rp' :
 <p id="nav">
 <a href="<?php echo esc_url( wp_login_url() ); ?>"><?php _e( 'Log in' ); ?></a>
 <?php if ( get_option( 'users_can_register' ) ) : ?>
- | <a href="<?php echo esc_url( site_url( 'wp-login.php?action=register', 'login' ) ); ?>"><?php _e( 'Register' ); ?></a>
+ | <?php echo apply_filters( 'register', sprintf( '<a href="%s">%s</a>', esc_url( site_url( 'wp-login.php?action=register', 'login' ) ), __( 'Register' ) ) ); ?>
 <?php endif; ?>
 </p>
 
@@ -544,11 +565,11 @@ case 'register' :
 <form name="registerform" id="registerform" action="<?php echo esc_url( site_url('wp-login.php?action=register', 'login_post') ); ?>" method="post">
 	<p>
 		<label for="user_login"><?php _e('Username') ?><br />
-		<input type="text" name="user_login" id="user_login" class="input" value="<?php echo esc_attr(stripslashes($user_login)); ?>" size="20" /></label>
+		<input type="text" name="user_login" id="user_login" class="input" value="<?php echo esc_attr(wp_unslash($user_login)); ?>" size="20" /></label>
 	</p>
 	<p>
 		<label for="user_email"><?php _e('E-mail') ?><br />
-		<input type="text" name="user_email" id="user_email" class="input" value="<?php echo esc_attr(stripslashes($user_email)); ?>" size="25" /></label>
+		<input type="text" name="user_email" id="user_email" class="input" value="<?php echo esc_attr(wp_unslash($user_email)); ?>" size="25" /></label>
 	</p>
 <?php do_action('register_form'); ?>
 	<p id="reg_passmail"><?php _e('A password will be e-mailed to you.') ?></p>
@@ -609,13 +630,8 @@ default:
 	if ( !is_wp_error($user) && !$reauth ) {
 		if ( $interim_login ) {
 			$message = '<p class="message">' . __('You have logged in successfully.') . '</p>';
+			$interim_login = 'success';
 			login_header( '', $message ); ?>
-
-			<?php if ( ! $customize_login ) : ?>
-			<script type="text/javascript">setTimeout( function(){window.close()}, 8000);</script>
-			<p class="alignright">
-			<input type="button" class="button-primary" value="<?php esc_attr_e('Close'); ?>" onclick="window.close()" /></p>
-			<?php endif; ?>
 			</div>
 			<?php do_action( 'login_footer' ); ?>
 			<?php if ( $customize_login ) : ?>
@@ -647,21 +663,34 @@ default:
 	if ( isset($_POST['testcookie']) && empty($_COOKIE[TEST_COOKIE]) )
 		$errors->add('test_cookie', __("<strong>ERROR</strong>: Cookies are blocked or not supported by your browser. You must <a href='http://www.google.com/cookies.html'>enable cookies</a> to use WordPress."));
 
-	// Some parts of this script use the main login form to display a message
-	if		( isset($_GET['loggedout']) && true == $_GET['loggedout'] )
-		$errors->add('loggedout', __('You are now logged out.'), 'message');
-	elseif	( isset($_GET['registration']) && 'disabled' == $_GET['registration'] )
-		$errors->add('registerdisabled', __('User registration is currently not allowed.'));
-	elseif	( isset($_GET['checkemail']) && 'confirm' == $_GET['checkemail'] )
-		$errors->add('confirm', __('Check your e-mail for the confirmation link.'), 'message');
-	elseif	( isset($_GET['checkemail']) && 'newpass' == $_GET['checkemail'] )
-		$errors->add('newpass', __('Check your e-mail for your new password.'), 'message');
-	elseif	( isset($_GET['checkemail']) && 'registered' == $_GET['checkemail'] )
-		$errors->add('registered', __('Registration complete. Please check your e-mail.'), 'message');
-	elseif	( $interim_login )
-		$errors->add('expired', __('Your session has expired. Please log-in again.'), 'message');
-	elseif ( strpos( $redirect_to, 'about.php?updated' ) )
-		$errors->add('updated', __( '<strong>You have successfully updated WordPress!</strong> Please log back in to experience the awesomeness.' ), 'message' );
+	// Clear most errors if interim login
+	if ( $interim_login ) {
+		$error_code = $errors->get_error_code();
+		$errors = new WP_Error();
+
+		if ( $error_code ) {
+			if ( in_array( $error_code, array( 'empty_password', 'empty_username', 'invalid_username', 'incorrect_password' ) ) )
+				$errors->add('interim_login_error', __('<strong>ERROR</strong>: Invalid username or password.'));
+			else
+				$errors->add('interim_login_error_other', sprintf( __( '<strong>ERROR</strong>: Please contact the site administrator or try to <a href="%s" target="_blank">log in from a new window</a>.' ), wp_login_url() ) );
+		} else {
+			$errors->add('expired', __('Session expired. Please log in again. You will not move away from this page.'), 'message');
+		}
+	} else {
+		// Some parts of this script use the main login form to display a message
+		if		( isset($_GET['loggedout']) && true == $_GET['loggedout'] )
+			$errors->add('loggedout', __('You are now logged out.'), 'message');
+		elseif	( isset($_GET['registration']) && 'disabled' == $_GET['registration'] )
+			$errors->add('registerdisabled', __('User registration is currently not allowed.'));
+		elseif	( isset($_GET['checkemail']) && 'confirm' == $_GET['checkemail'] )
+			$errors->add('confirm', __('Check your e-mail for the confirmation link.'), 'message');
+		elseif	( isset($_GET['checkemail']) && 'newpass' == $_GET['checkemail'] )
+			$errors->add('newpass', __('Check your e-mail for your new password.'), 'message');
+		elseif	( isset($_GET['checkemail']) && 'registered' == $_GET['checkemail'] )
+			$errors->add('registered', __('Registration complete. Please check your e-mail.'), 'message');
+		elseif ( strpos( $redirect_to, 'about.php?updated' ) )
+			$errors->add('updated', __( '<strong>You have successfully updated WordPress!</strong> Please log back in to experience the awesomeness.' ), 'message' );
+	}
 
 	// Clear any stale cookies.
 	if ( $reauth )
@@ -670,7 +699,7 @@ default:
 	login_header(__('Log In'), '', $errors);
 
 	if ( isset($_POST['log']) )
-		$user_login = ( 'incorrect_password' == $errors->get_error_code() || 'empty_password' == $errors->get_error_code() ) ? esc_attr(stripslashes($_POST['log'])) : '';
+		$user_login = ( 'incorrect_password' == $errors->get_error_code() || 'empty_password' == $errors->get_error_code() ) ? esc_attr(wp_unslash($_POST['log'])) : '';
 	$rememberme = ! empty( $_POST['rememberme'] );
 ?>
 
@@ -699,14 +728,13 @@ default:
 	</p>
 </form>
 
-<?php if ( !$interim_login ) { ?>
+<?php if ( ! $interim_login ) { ?>
 <p id="nav">
-<?php if ( isset($_GET['checkemail']) && in_array( $_GET['checkemail'], array('confirm', 'newpass') ) ) : ?>
-<?php elseif ( get_option('users_can_register') ) : ?>
-<a href="<?php echo esc_url( site_url( 'wp-login.php?action=register', 'login' ) ); ?>"><?php _e( 'Register' ); ?></a> |
-<a href="<?php echo esc_url( wp_lostpassword_url() ); ?>" title="<?php esc_attr_e( 'Password Lost and Found' ); ?>"><?php _e( 'Lost your password?' ); ?></a>
-<?php else : ?>
-<a href="<?php echo esc_url( wp_lostpassword_url() ); ?>" title="<?php esc_attr_e( 'Password Lost and Found' ); ?>"><?php _e( 'Lost your password?' ); ?></a>
+<?php if ( ! isset( $_GET['checkemail'] ) || ! in_array( $_GET['checkemail'], array( 'confirm', 'newpass' ) ) ) : ?>
+	<?php if ( get_option( 'users_can_register' ) ) : ?>
+		<?php echo apply_filters( 'register', sprintf( '<a href="%s">%s</a>', esc_url( site_url( 'wp-login.php?action=register', 'login' ) ), __( 'Register' ) ) ); ?> |
+	<?php endif; ?>
+	<a href="<?php echo esc_url( wp_lostpassword_url() ); ?>" title="<?php esc_attr_e( 'Password Lost and Found' ); ?>"><?php _e( 'Lost your password?' ); ?></a>
 <?php endif; ?>
 </p>
 <?php } ?>

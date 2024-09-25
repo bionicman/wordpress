@@ -127,7 +127,8 @@ function get_registered_nav_menus() {
  */
 
 function get_nav_menu_locations() {
-	return get_theme_mod( 'nav_menu_locations' );
+	$locations = get_theme_mod( 'nav_menu_locations' );
+	return ( is_array( $locations ) ) ? $locations : array();
 }
 
 /**
@@ -187,6 +188,14 @@ function wp_delete_nav_menu( $menu ) {
 	}
 
 	$result = wp_delete_term( $menu->term_id, 'nav_menu' );
+
+	// Remove this menu from any locations.
+	$locations = get_theme_mod( 'nav_menu_locations' );
+	foreach ( (array) $locations as $location => $menu_id ) {
+		if ( $menu_id == $nav_menu_id )
+			$locations[ $location ] = 0;
+	}
+	set_theme_mod( 'nav_menu_locations', $locations );
 
 	if ( $result && !is_wp_error($result) )
 		do_action( 'wp_delete_nav_menu', $menu->term_id );

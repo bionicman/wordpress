@@ -97,6 +97,11 @@ class WP_Image_Editor_GD extends WP_Image_Editor {
 		if ( ! $size )
 			return new WP_Error( 'invalid_image', __('Could not read image size.'), $this->file );
 
+		if ( function_exists( 'imagealphablending' ) && function_exists( 'imagesavealpha' ) ) {
+			imagealphablending( $this->image, false );
+			imagesavealpha( $this->image, true );
+		}
+
 		$this->update_size( $size[0], $size[1] );
 		$this->mime_type = $size['mime'];
 
@@ -279,8 +284,8 @@ class WP_Image_Editor_GD extends WP_Image_Editor {
 	 * @since 3.5.0
 	 * @access public
 	 *
-	 * @param boolean $horz Horizontal Flip
-	 * @param boolean $vert Vertical Flip
+	 * @param boolean $horz Flip along Horizontal Axis
+	 * @param boolean $vert Flip along Vertical Axis
 	 * @returns boolean|WP_Error
 	 */
 	public function flip( $horz, $vert ) {

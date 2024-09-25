@@ -14,7 +14,7 @@ require_once('./admin.php');
 $parent_file = 'edit.php';
 $submenu_file = 'edit.php';
 
-wp_reset_vars(array('action', 'safe_mode', 'withcomments', 'posts', 'content', 'edited_post_title', 'comment_error', 'profile', 'trackback_url', 'excerpt', 'showcomments', 'commentstart', 'commentend', 'commentorder'));
+wp_reset_vars( array( 'action' ) );
 
 if ( isset( $_GET['post'] ) )
  	$post_id = $post_ID = (int) $_GET['post'];
@@ -135,6 +135,7 @@ case 'edit':
 
 	$p = $post_id;
 
+
 	if ( empty($post->ID) )
 		wp_die( __('You attempted to edit an item that doesn&#8217;t exist. Perhaps it was deleted?') );
 
@@ -146,6 +147,15 @@ case 'edit':
 
 	if ( 'trash' == $post->post_status )
 		wp_die( __('You can&#8217;t edit this item because it is in the Trash. Please restore it and try again.') );
+
+	if ( !empty( $_GET['get-post-lock'] ) ) {
+		wp_set_post_lock( $post_id );
+		wp_redirect( get_edit_post_link( $post_id, 'url' ) );
+		exit();
+	}
+
+	//upgrade any old bad revision data (#16215)
+	_wp_upgrade_revisions_of_post( $p );
 
 	$post_type = $post->post_type;
 	if ( 'post' == $post_type ) {
@@ -165,14 +175,14 @@ case 'edit':
 		$post_new_file = "post-new.php?post_type=$post_type";
 	}
 
-	if ( $last = wp_check_post_lock( $post->ID ) ) {
-		add_action('admin_notices', '_admin_notice_post_locked' );
-	} else {
+	if ( ! wp_check_post_lock( $post->ID ) ) {
 		$active_post_lock = wp_set_post_lock( $post->ID );
 
 		if ( 'attachment' !== $post_type )
 			wp_enqueue_script('autosave');
 	}
+
+	add_action( 'admin_footer', '_admin_notice_post_locked' );
 
 	$title = $post_type_object->labels->edit_item;
 	$post = get_post($post_id, OBJECT, 'edit');
@@ -204,6 +214,10 @@ case 'editpost':
 
 	$post_id = edit_post();
 
+	// Session cookie flag that the post was saved
+	if ( isset( $_COOKIE['wp-saving-post-' . $post_id] ) )
+		setcookie( 'wp-saving-post-' . $post_id, 'saved' );
+
 	redirect_post($post_id); // Send user on their way while we keep working
 
 	exit();
@@ -216,6 +230,11 @@ case 'trash':
 
 	if ( !current_user_can($post_type_object->cap->delete_post, $post_id) )
 		wp_die( __('You are not allowed to move this item to the Trash.') );
+
+	if ( $user_id = wp_check_post_lock( $post_id ) ) {
+		$user = get_userdata( $user_id );
+		wp_die( sprintf( __( 'You cannot move this item to the Trash. %s is currently editing.' ), $user->display_name ) );
+	}
 
 	if ( ! wp_trash_post($post_id) )
 		wp_die( __('Error in moving to Trash.') );

@@ -198,7 +198,7 @@ function the_permalink_rss() {
  * @return none
  */
 function comments_link_feed() {
-	echo esc_url( get_comments_link() );
+	echo esc_url( apply_filters( 'comments_link_feed', get_comments_link() ) );
 }
 
 /**
@@ -239,7 +239,7 @@ function get_comment_guid($comment_id = null) {
  * @since 1.5.0
  */
 function comment_link() {
-	echo esc_url( get_comment_link() );
+	echo esc_url( apply_filters( 'comment_link', get_comment_link() ) );
 }
 
 /**
@@ -488,7 +488,7 @@ function prep_atom_text_construct($data) {
  */
 function self_link() {
 	$host = @parse_url(home_url());
-	echo esc_url( set_url_scheme( 'http://' . $host['host'] . stripslashes($_SERVER['REQUEST_URI']) ) );
+	echo esc_url( apply_filters( 'self_link', set_url_scheme( 'http://' . $host['host'] . wp_unslash( $_SERVER['REQUEST_URI'] ) ) ) );
 }
 
 /**

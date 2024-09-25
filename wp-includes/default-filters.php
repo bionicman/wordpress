@@ -132,12 +132,13 @@ add_filter( 'the_title', 'wptexturize'   );
 add_filter( 'the_title', 'convert_chars' );
 add_filter( 'the_title', 'trim'          );
 
-add_filter( 'the_content', 'wptexturize'        );
-add_filter( 'the_content', 'convert_smilies'    );
-add_filter( 'the_content', 'convert_chars'      );
-add_filter( 'the_content', 'wpautop'            );
-add_filter( 'the_content', 'shortcode_unautop'  );
-add_filter( 'the_content', 'prepend_attachment' );
+add_filter( 'the_content', 'post_formats_compat', 7 );
+add_filter( 'the_content', 'wptexturize'            );
+add_filter( 'the_content', 'convert_smilies'        );
+add_filter( 'the_content', 'convert_chars'          );
+add_filter( 'the_content', 'wpautop'                );
+add_filter( 'the_content', 'shortcode_unautop'      );
+add_filter( 'the_content', 'prepend_attachment'     );
 
 add_filter( 'the_excerpt',     'wptexturize'      );
 add_filter( 'the_excerpt',     'convert_smilies'  );
@@ -249,7 +250,7 @@ add_action( 'init',                       'smilies_init',                       
 add_action( 'plugins_loaded',             'wp_maybe_load_widgets',                    0    );
 add_action( 'plugins_loaded',             'wp_maybe_load_embeds',                     0    );
 add_action( 'shutdown',                   'wp_ob_end_flush_all',                      1    );
-add_action( 'pre_post_update',            'wp_save_post_revision'                          );
+add_action( 'wp_insert_post',             'wp_save_post_revision',                   10, 1 );
 add_action( 'publish_post',               '_publish_post_hook',                       5, 1 );
 add_action( 'transition_post_status',     '_transition_post_status',                  5, 3 );
 add_action( 'transition_post_status',     '_update_term_count_on_transition_post_status', 10, 3 );
@@ -289,5 +290,11 @@ add_filter( 'default_option_link_manager_enabled', '__return_true' );
 
 // This option no longer exists; tell plugins we always support auto-embedding.
 add_filter( 'default_option_embed_autourls', '__return_true' );
+
+// Default settings for heartbeat
+add_filter( 'heartbeat_settings', 'wp_heartbeat_settings' );
+
+// Check if the user is logged out
+add_action( 'admin_init', 'wp_auth_check_load' );
 
 unset($filter, $action);

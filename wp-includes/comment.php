@@ -250,8 +250,10 @@ class WP_Comment_Query {
 		// $args can be whatever, only use the args defined in defaults to compute the key
 		$key = md5( serialize( compact(array_keys($defaults)) )  );
 		$last_changed = wp_cache_get( 'last_changed', 'comment' );
-		if ( ! $last_changed )
-			$last_changed = wp_cache_set( 'last_changed', 1, 'comment' );
+		if ( ! $last_changed ) {
+			$last_changed = microtime();
+			wp_cache_set( 'last_changed', $last_changed, 'comment' );
+		}
 		$cache_key = "get_comments:$key:$last_changed";
 
 		if ( $cache = wp_cache_get( $cache_key, 'comment' ) )
@@ -415,7 +417,7 @@ class WP_Comment_Query {
  *
  * @return array List of comment statuses.
  */
-function get_comment_statuses( ) {
+function get_comment_statuses() {
 	$status = array(
 		'hold'		=> __('Unapproved'),
 		/* translators: comment status  */
@@ -632,21 +634,21 @@ function wp_set_comment_cookies($comment, $user) {
 function sanitize_comment_cookies() {
 	if ( isset($_COOKIE['comment_author_'.COOKIEHASH]) ) {
 		$comment_author = apply_filters('pre_comment_author_name', $_COOKIE['comment_author_'.COOKIEHASH]);
-		$comment_author = stripslashes($comment_author);
+		$comment_author = wp_unslash($comment_author);
 		$comment_author = esc_attr($comment_author);
 		$_COOKIE['comment_author_'.COOKIEHASH] = $comment_author;
 	}
 
 	if ( isset($_COOKIE['comment_author_email_'.COOKIEHASH]) ) {
 		$comment_author_email = apply_filters('pre_comment_author_email', $_COOKIE['comment_author_email_'.COOKIEHASH]);
-		$comment_author_email = stripslashes($comment_author_email);
+		$comment_author_email = wp_unslash($comment_author_email);
 		$comment_author_email = esc_attr($comment_author_email);
 		$_COOKIE['comment_author_email_'.COOKIEHASH] = $comment_author_email;
 	}
 
 	if ( isset($_COOKIE['comment_author_url_'.COOKIEHASH]) ) {
 		$comment_author_url = apply_filters('pre_comment_author_url', $_COOKIE['comment_author_url_'.COOKIEHASH]);
-		$comment_author_url = stripslashes($comment_author_url);
+		$comment_author_url = wp_unslash($comment_author_url);
 		$_COOKIE['comment_author_url_'.COOKIEHASH] = $comment_author_url;
 	}
 }
@@ -1260,7 +1262,7 @@ function wp_get_current_commenter() {
  */
 function wp_insert_comment($commentdata) {
 	global $wpdb;
-	extract(stripslashes_deep($commentdata), EXTR_SKIP);
+	extract(wp_unslash($commentdata), EXTR_SKIP);
 
 	if ( ! isset($comment_author_IP) )
 		$comment_author_IP = '';
@@ -1290,12 +1292,7 @@ function wp_insert_comment($commentdata) {
 	$comment = get_comment($id);
 	do_action('wp_insert_comment', $id, $comment);
 
-	if ( function_exists( 'wp_cache_incr' ) ) {
-		wp_cache_incr( 'last_changed', 1, 'comment' );
-	} else {
-		$last_changed = wp_cache_get( 'last_changed', 'comment' );
-		wp_cache_set( 'last_changed', $last_changed + 1, 'comment' );
-	}
+	wp_cache_set( 'last_changed', microtime(), 'comment' );
 
 	return $id;
 }
@@ -1505,7 +1502,7 @@ function wp_update_comment($commentarr) {
 	$commentarr = wp_filter_comment( $commentarr );
 
 	// Now extract the merged array.
-	extract(stripslashes_deep($commentarr), EXTR_SKIP);
+	extract(wp_unslash($commentarr), EXTR_SKIP);
 
 	$comment_content = apply_filters('comment_save_pre', $comment_content);
 
@@ -1661,7 +1658,7 @@ function discover_pingback_server_uri( $url, $deprecated = '' ) {
 	if ( 0 === strpos($url, $uploads_dir['baseurl']) )
 		return false;
 
-	$response = wp_remote_head( $url, array( 'timeout' => 2, 'httpversion' => '1.0', 'reject_unsafe_urls' => true ) );
+	$response = wp_remote_head( $url, array( 'timeout' => 2, 'httpversion' => '1.0' ) );
 
 	if ( is_wp_error( $response ) )
 		return false;
@@ -1673,8 +1670,8 @@ function discover_pingback_server_uri( $url, $deprecated = '' ) {
 	if ( preg_match('#(image|audio|video|model)/#is', wp_remote_retrieve_header( $response, 'content-type' )) )
 		return false;
 
-	// Now do a GET since we're going to look in the html headers (and we're sure its not a binary file)
-	$response = wp_remote_get( $url, array( 'timeout' => 2, 'httpversion' => '1.0', 'reject_unsafe_urls' => true ) );
+	// Now do a GET since we're going to look in the html headers (and we're sure it's not a binary file)
+	$response = wp_remote_get( $url, array( 'timeout' => 2, 'httpversion' => '1.0' ) );
 
 	if ( is_wp_error( $response ) )
 		return false;
@@ -1848,6 +1845,7 @@ function pingback($content, $post_ID) {
 		endif;
 	endforeach;
 
+	$post_links = array_unique( $post_links );
 	do_action_ref_array( 'pre_ping', array( &$post_links, &$pung, $post_ID ) );
 
 	foreach ( (array) $post_links as $pagelinkedto ) {
@@ -1908,7 +1906,6 @@ function trackback($trackback_url, $title, $excerpt, $ID) {
 
 	$options = array();
 	$options['timeout'] = 4;
-	$options['reject_unsafe_urls'] = true;
 	$options['body'] = array(
 		'title' => $title,
 		'url' => get_permalink($ID),
@@ -1956,13 +1953,62 @@ function weblog_ping($server = '', $path = '') {
  * Default filter attached to pingback_ping_source_uri to validate the pingback's Source URI
  *
  * @since 3.5.1
- * @see wp_http_validate_url()
  *
  * @param string $source_uri
  * @return string
  */
 function pingback_ping_source_uri( $source_uri ) {
-	return (string) wp_http_validate_url( $source_uri );
+	$uri = esc_url_raw( $source_uri, array( 'http', 'https' ) );
+	if ( ! $uri )
+		return '';
+
+	$parsed_url = @parse_url( $uri );
+	if ( ! $parsed_url )
+		return '';
+
+	if ( isset( $parsed_url['user'] ) || isset( $parsed_url['pass'] ) )
+		return '';
+
+	if ( false !== strpos( $parsed_url['host'], ':' ) )
+		return '';
+
+	$parsed_home = @parse_url( get_option( 'home' ) );
+
+	$same_host = strtolower( $parsed_home['host'] ) === strtolower( $parsed_url['host'] );
+
+	if ( ! $same_host ) {
+		$host = trim( $parsed_url['host'], '.' );
+		if ( preg_match( '#^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$#', $host ) ) {
+			$ip = $host;
+		} else {
+			$ip = gethostbyname( $host );
+			if ( $ip === $host ) // Error condition for gethostbyname()
+				$ip = false;
+		}
+		if ( $ip ) {
+			if ( '127.0.0.1' === $ip )
+				return '';
+			$parts = array_map( 'intval', explode( '.', $ip ) );
+			if ( 10 === $parts[0] )
+				return '';
+			if ( 172 === $parts[0] && 16 <= $parts[1] && 31 >= $parts[1] )
+				return '';
+			if ( 192 === $parts[0] && 168 === $parts[1] )
+				return '';
+		}
+	}
+
+	if ( empty( $parsed_url['port'] ) )
+		return $uri;
+
+	$port = $parsed_url['port'];
+	if ( 80 === $port || 443 === $port || 8080 === $port )
+		return $uri;
+
+	if ( $parsed_home && $same_host && $parsed_home['port'] === $port )
+		return $uri;
+
+	return '';
 }
 
 /**
@@ -2000,12 +2046,7 @@ function clean_comment_cache($ids) {
 	foreach ( (array) $ids as $id )
 		wp_cache_delete($id, 'comment');
 
-	if ( function_exists( 'wp_cache_incr' ) ) {
-		wp_cache_incr( 'last_changed', 1, 'comment' );
-	} else {
-		$last_changed = wp_cache_get( 'last_changed', 'comment' );
-		wp_cache_set( 'last_changed', $last_changed + 1, 'comment' );
-	}
+	wp_cache_set( 'last_changed', microtime(), 'comment' );
 }
 
 /**
