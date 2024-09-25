@@ -853,6 +853,8 @@ border color while dragging a file over the uploader drop area */
 .wp_attachment_holder .imgedit-wrap .imgedit-panel-content {
 	float: right;
 	padding: 3px 0 0 16px;
+	min-width: 400px;
+	max-width: calc( 100% - 266px );
 }
 
 .wp_attachment_holder .imgedit-wrap .imgedit-settings {
@@ -1034,7 +1036,7 @@ border color while dragging a file over the uploader drop area */
 	display: block;
 }
 
-.poststuff .imgedit-group-top h2 {
+#poststuff .imgedit-group-top h2 {
 	display: inline-block;
 	margin: 0;
 	padding: 0;
@@ -1042,7 +1044,7 @@ border color while dragging a file over the uploader drop area */
 	line-height: 1.4;
 }
 
-.poststuff .imgedit-group-top .button-link {
+#poststuff .imgedit-group-top .button-link {
 	text-decoration: none;
 	color: #23282d;
 }
@@ -1212,6 +1214,7 @@ audio, video {
 	.wp_attachment_holder .imgedit-wrap .imgedit-settings {
 		float: none;
 		width: auto;
+		max-width: none;
 	}
 }
 
