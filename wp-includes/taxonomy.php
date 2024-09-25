@@ -393,7 +393,7 @@ function register_taxonomy( $taxonomy, $object_type, $args = array() ) {
 	 * @param array|string $object_type Object type or array of object types.
 	 * @param array        $args        Array of taxonomy registration arguments.
 	 */
-	do_action( 'registered_taxonomy', $taxonomy, $object_type, $args );
+	do_action( 'registered_taxonomy', $taxonomy, $object_type, (array) $taxonomy_object );
 }
 
 /**
@@ -2655,10 +2655,12 @@ function wp_update_term( $term_id, $taxonomy, $args = array() ) {
 	if ( $duplicate && $duplicate->term_id != $term_id ) {
 		// If an empty slug was passed or the parent changed, reset the slug to something unique.
 		// Otherwise, bail.
-		if ( $empty_slug || ( $parent != $term['parent']) )
+		if ( $empty_slug || ( $parent != $term['parent']) ) {
 			$slug = wp_unique_term_slug($slug, (object) $args);
-		else
+		} else {
+			/* translators: 1: Taxonomy term slug */
 			return new WP_Error('duplicate_term_slug', sprintf(__('The slug &#8220;%s&#8221; is already in use by another term'), $slug));
+		}
 	}
 
 	$tt_id = (int) $wpdb->get_var( $wpdb->prepare( "SELECT tt.term_taxonomy_id FROM $wpdb->term_taxonomy AS tt INNER JOIN $wpdb->terms AS t ON tt.term_id = t.term_id WHERE tt.taxonomy = %s AND t.term_id = %d", $taxonomy, $term_id) );
