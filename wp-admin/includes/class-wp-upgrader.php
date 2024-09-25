@@ -1058,11 +1058,14 @@ class Plugin_Upgrader extends WP_Upgrader {
 
 		// Check the folder contains at least 1 valid plugin.
 		$plugins_found = false;
-		foreach ( glob( $working_directory . '*.php' ) as $file ) {
-			$info = get_plugin_data($file, false, false);
-			if ( !empty( $info['Name'] ) ) {
-				$plugins_found = true;
-				break;
+		$files = glob( $working_directory . '*.php' );
+		if ( $files ) {
+			foreach ( $files as $file ) {
+				$info = get_plugin_data( $file, false, false );
+				if ( ! empty( $info['Name'] ) ) {
+					$plugins_found = true;
+					break;
+				}
 			}
 		}
 
@@ -1897,7 +1900,7 @@ class Language_Pack_Upgrader extends WP_Upgrader {
 		// Remove any existing upgrade filters from the plugin/theme upgraders #WP29425 & #WP29230
 		remove_all_filters( 'upgrader_pre_install' );
 		remove_all_filters( 'upgrader_clear_destination' );
-		remove_all_filterS( 'upgrader_post_install' );
+		remove_all_filters( 'upgrader_post_install' );
 		remove_all_filters( 'upgrader_source_selection' );
 
 		add_filter( 'upgrader_source_selection', array( $this, 'check_package' ), 10, 2 );

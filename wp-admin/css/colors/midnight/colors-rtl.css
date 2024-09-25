@@ -112,7 +112,6 @@ input[type=radio]:checked:before {
 
 /* List tables */
 .wrap .add-new-h2:hover, .wrap .page-title-action:hover,
-#add-new-comment a:hover,
 .tablenav .tablenav-pages a:hover,
 .tablenav .tablenav-pages a:focus {
   color: #fff;
@@ -125,23 +124,6 @@ input[type=radio]:checked:before {
 
 .view-switch a:hover:before {
   color: #69a8bb;
-}
-
-.post-com-count:hover:after {
-  border-top-color: #363b3f;
-}
-
-.post-com-count:hover span {
-  color: #fff;
-  background-color: #363b3f;
-}
-
-strong .post-com-count:after {
-  border-top-color: #69a8bb;
-}
-
-strong .post-com-count span {
-  background-color: #69a8bb;
 }
 
 /* Admin Menu */

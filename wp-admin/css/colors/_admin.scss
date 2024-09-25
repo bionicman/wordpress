@@ -85,7 +85,6 @@ input[type=radio]:checked:before {
 
 .wrap .add-new-h2:hover, /* deprecated */
 .wrap .page-title-action:hover,
-#add-new-comment a:hover,
 .tablenav .tablenav-pages a:hover,
 .tablenav .tablenav-pages a:focus {
 	color: $menu-text;
@@ -98,21 +97,6 @@ input[type=radio]:checked:before {
 
 .view-switch a:hover:before {
 	color: $menu-bubble-background;
-}
-
-.post-com-count:hover:after {
-	border-top-color: $menu-background;
-}
-.post-com-count:hover span {
-	color: $menu-text;
-	background-color: $menu-background;
-}
-
-strong .post-com-count:after {
-	border-top-color: $menu-bubble-background;
-}
-strong .post-com-count span {
-	background-color: $menu-bubble-background;
 }
 
 

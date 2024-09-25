@@ -214,10 +214,8 @@
 	width: 30px;
 	height: 38px;
 	margin-left: 0 !important;
-	text-indent: 100%;
 	outline: none;
 	overflow: hidden;
-	white-space: nowrap;
 	cursor: pointer;
 }
 
@@ -227,35 +225,25 @@
 	box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
 }
 
-/* Duplicates `.nav-menus-php .item-edit:before {}` in common.css:2220. */
-.wp-customizer .menu-item .item-edit:before {
-	top: -1px;
-	left: 0;
+/* rework the arrow indicator implementation for NVDA bug same as #32715 */
+.wp-customizer .menu-item .item-edit .toggle-indicator {
+	display: inline-block;
+	font-size: 20px;
+	line-height: 1;
+}
+
+.wp-customizer .menu-item .item-edit .toggle-indicator:after {
 	content: '\f140';
-	border: none;
-	background: none;
 	font: normal 20px/1 dashicons;
+	color: #a0a5aa;
+	vertical-align: top;
 	speak: none;
-	display: block;
-	padding: 0;
-	text-indent: 0;
-	text-align: center;
-	position: relative;
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
 	text-decoration: none !important;
 }
 
-.wp-customizer .menu-item.menu-item-edit-active .item-edit:before {
-	content: '\f142';
-}
-
-.wp-customizer .menu-item .item-edit:before {
-	line-height: 2;
-}
-
-/* Duplicates `.nav-menus-php .menu-item-edit-active .item-edit:before {}` in common.css:2271. */
-.wp-customizer .menu-item .menu-item-edit-active .item-edit:before {
+.wp-customizer .menu-item.menu-item-edit-active .item-edit .toggle-indicator:after {
 	content: '\f142';
 }
 
@@ -304,10 +292,11 @@
 	border: none;
 	color: #555;
 	cursor: pointer;
+	margin: 0;
 	padding: 20px;
 	position: absolute;
-	left: 31px;
-	top: 4px;
+	left: 0;
+	top: 30px;
 }
 
 #customize-controls .customize-info .customize-help-toggle {
@@ -315,7 +304,7 @@
 }
 
 #customize-controls .customize-info .customize-help-toggle:before {
-	padding: 5px;
+	padding: 4px;
 }
 
 .customize-screen-options-toggle:hover,
@@ -331,8 +320,6 @@
 .customize-screen-options-toggle:focus,
 #customize-controls .customize-info .customize-help-toggle:focus {
 	outline: none;
-	-webkit-box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
-	box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
 }
 
 .customize-screen-options-toggle:before {
@@ -340,14 +327,22 @@
 	border: none;
 	content: "\f111";
 	display: block;
-	font: 16px/1 "dashicons";
+	font: 18px/1 "dashicons";
 	padding: 5px;
 	text-align: center;
 	text-decoration: none !important;
 	text-indent: 0;
-	right: 7px;
+	right: 6px;
 	position: absolute;
-	top: 7px;
+	top: 6px;
+}
+
+.customize-screen-options-toggle:focus:before,
+#customize-controls .customize-info .customize-help-toggle:focus:before {
+	-webkit-box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
+	box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
+	-webkit-border-radius: 100%;
+	border-radius: 100%;
 }
 
 .wp-customizer #screen-options-wrap {
@@ -595,7 +590,8 @@
 	bottom: 0;
 	right: -301px;
 	visibility: hidden;
-	overflow: hidden;
+	overflow-x: hidden;
+	overflow-y: auto;
 	width: 300px;
 	margin: 0;
 	z-index: 4;
@@ -605,8 +601,13 @@
 	border-left: 1px solid #ddd;
 }
 
-#available-menu-items.allow-scroll {
-	overflow-y: auto;
+#available-menu-items.opening {
+	overflow-y: hidden; /* avoid scrollbar jitter with animating heights */
+}
+
+#available-menu-items #available-menu-items-search.open {
+	height: 100%;
+	border-bottom: none;
 }
 
 #available-menu-items .accordion-section-title {
@@ -615,11 +616,38 @@
 	background: #fff;
 }
 
-#available-menu-items .open .accordion-section-title {
+#available-menu-items .open .accordion-section-title,
+#available-menu-items #available-menu-items-search .accordion-section-title {
 	background: #eee;
 }
 
-#available-menu-items .open .accordion-section-title:after {
+/* rework the arrow indicator implementation for NVDA bug see #32715 */
+#available-menu-items .accordion-section-title:after {
+	content: none !important;
+}
+
+#available-menu-items .accordion-section-title .toggle-indicator {
+	display: inline-block;
+	font-size: 20px;
+	line-height: 1;
+}
+
+#available-menu-items .accordion-section-title .toggle-indicator:after {
+	content: '\f140';
+	font: normal 20px/1 'dashicons';
+	color: #a0a5aa;
+	vertical-align: top;
+	speak: none;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+	text-decoration: none !important;
+}
+
+#available-menu-items .accordion-section-title:hover .toggle-indicator:after {
+	color: #777;
+}
+
+#available-menu-items .open .accordion-section-title .toggle-indicator:after {
 	content: '\f142';
 }
 
@@ -644,10 +672,11 @@ button.not-a-button {
 #available-menu-items .accordion-section-title button {
 	display: block;
 	width: 28px;
-	height: 32px;
+	height: 35px;
 	position: absolute;
 	top: 5px;
 	left: 5px;
+	cursor: pointer;
 }
 
 #available-menu-items .accordion-section-title button:focus {
@@ -656,8 +685,13 @@ button.not-a-button {
 }
 
 #available-menu-items .accordion-section-title .no-items,
-#available-menu-items .cannot-expand .accordion-section-title .spinner {
+#available-menu-items .cannot-expand .accordion-section-title .spinner,
+#available-menu-items .cannot-expand .accordion-section-title > button {
 	display: none;
+}
+
+#available-menu-items-search.cannot-expand .accordion-section-title .spinner {
+	display: block;
 }
 
 #available-menu-items .cannot-expand .accordion-section-title .no-items {
@@ -673,6 +707,15 @@ button.not-a-button {
 	margin: 0;
 	min-height: 120px;
 	max-height: 290px;
+}
+
+#available-menu-items #available-menu-items-search .accordion-section-content {
+	position: absolute;
+	right: 1px;
+	top: 60px; /* below title div / search input */
+	bottom: 0px; /* 100% height that still triggers lazy load */
+	max-height: none;
+	width: 270px;
 }
 
 #available-menu-items .menu-item-tpl {
@@ -775,9 +818,46 @@ button.not-a-button {
 	margin: 0 20px;
 }
 
+#available-menu-items-search .clear-results {
+	position: absolute;
+	top: 20px;
+	left: 20px;
+	width: 20px;
+	height: 20px;
+	cursor: pointer;
+	color: #a00;
+	text-decoration: none;
+}
+
+#available-menu-items-search .clear-results,
+#available-menu-items-search.loading .clear-results.is-visible {
+	display: none;
+}
+
+#available-menu-items-search .clear-results.is-visible {
+	display: block;
+}
+
+#available-menu-items-search .clear-results:before {
+	content: "\f335";
+	font: normal 20px/1 dashicons;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
+}
+
+#available-menu-items-search .clear-results:hover,
+#available-menu-items-search .clear-results:focus {
+	color: #f00;
+}
+
+#available-menu-items-search .clear-results:focus {
+	-webkit-box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
+	box-shadow: 0 0 0 1px #5b9dd9, 0 0 2px 1px rgba(30, 140, 190, .8);
+}
+
 #available-menu-items-search .spinner {
 	position: absolute;
-	top: 18px;
+	top: 20px;
 	margin: 0 !important;
 	left: 20px;
 }

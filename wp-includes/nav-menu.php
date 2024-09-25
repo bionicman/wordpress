@@ -12,12 +12,17 @@
  *
  * @since 3.0.0
  *
- * @param string $menu Menu ID, slug, or name.
+ * @param string $menu Menu ID, slug, or name - or the menu object.
  * @return object|false False if $menu param isn't supplied or term does not exist, menu object if successful.
  */
 function wp_get_nav_menu_object( $menu ) {
 	$menu_obj = false;
-	if ( $menu ) {
+
+	if ( is_object( $menu ) ) {
+		$menu_obj = $menu;
+	}
+
+	if ( $menu && ! $menu_obj ) {
 		$menu_obj = get_term( $menu, 'nav_menu' );
 
 		if ( ! $menu_obj ) {
@@ -638,7 +643,7 @@ function wp_get_nav_menu_items( $menu, $args = array() ) {
 		usort($items, '_sort_nav_menu_items');
 		$i = 1;
 		foreach( $items as $k => $item ) {
-			$items[$k]->$args['output_key'] = $i++;
+			$items[$k]->{$args['output_key']} = $i++;
 		}
 	}
 

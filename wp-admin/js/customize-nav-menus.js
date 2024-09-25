@@ -96,7 +96,6 @@
 		events: {
 			'input #menu-items-search': 'debounceSearch',
 			'keyup #menu-items-search': 'debounceSearch',
-			'click #menu-items-search': 'debounceSearch',
 			'focus .menu-item-tpl': 'focus',
 			'click .menu-item-tpl': '_submit',
 			'click #custom-menu-item-submit': '_submitLink',
@@ -138,6 +137,20 @@
 				}
 			} );
 
+			// Clear the search results.
+			$( '.clear-results' ).on( 'click keydown', function( event ) {
+				console.log(event);
+				if ( event.type === 'keydown' && ( 13 !== event.which && 32 !== event.which ) ) { // "return" or "space" keys only
+					return;
+				}
+
+				event.preventDefault();
+
+				$( '#menu-items-search' ).val( '' ).focus();
+				event.target.value = '';
+				self.search( event );
+			} );
+
 			this.$el.on( 'input', '#custom-menu-item-name.invalid, #custom-menu-item-url.invalid', function() {
 				$( this ).removeClass( 'invalid' );
 			});
@@ -153,16 +166,18 @@
 			// Load more items.
 			this.sectionContent.scroll( function() {
 				var totalHeight = self.$el.find( '.accordion-section.open .accordion-section-content' ).prop( 'scrollHeight' ),
-				    visibleHeight = self.$el.find( '.accordion-section.open' ).height();
+					visibleHeight = self.$el.find( '.accordion-section.open' ).height();
+
 				if ( ! self.loading && $( this ).scrollTop() > 3 / 4 * totalHeight - visibleHeight ) {
 					var type = $( this ).data( 'type' ),
-					    obj_type = $( this ).data( 'obj_type' );
+						object = $( this ).data( 'object' );
+
 					if ( 'search' === type ) {
 						if ( self.searchTerm ) {
 							self.doSearch( self.pages.search );
 						}
 					} else {
-						self.loadItems( type, obj_type );
+						self.loadItems( type, object );
 					}
 				}
 			});
@@ -173,22 +188,32 @@
 
 		// Search input change handler.
 		search: function( event ) {
+			var $searchSection = $( '#available-menu-items-search' ),
+				$otherSections = $( '#available-menu-items .accordion-section' ).not( $searchSection );
+
 			if ( ! event ) {
 				return;
 			}
-			// Manual accordion-opening behavior.
-			if ( this.searchTerm && ! $( '#available-menu-items-search' ).hasClass( 'open' ) ) {
-				$( '#available-menu-items .accordion-section-content' ).slideUp( 'fast' );
-				$( '#available-menu-items-search .accordion-section-content' ).slideDown( 'fast' );
-				$( '#available-menu-items .accordion-section.open' ).removeClass( 'open' );
-				$( '#available-menu-items-search' ).addClass( 'open' );
-			}
-			if ( '' === event.target.value ) {
-				$( '#available-menu-items-search' ).removeClass( 'open' );
-			}
+
 			if ( this.searchTerm === event.target.value ) {
 				return;
 			}
+
+			if ( '' !== event.target.value && ! $searchSection.hasClass( 'open' ) ) {
+				$otherSections.fadeOut( 100 );
+				$searchSection.find( '.accordion-section-content' ).slideDown( 'fast' );
+				$searchSection.addClass( 'open' );
+				$searchSection.find( '.clear-results' )
+					.prop( 'tabIndex', 0 )
+					.addClass( 'is-visible' );
+			} else if ( '' === event.target.value ) {
+				$searchSection.removeClass( 'open' );
+				$otherSections.show();
+				$searchSection.find( '.clear-results' )
+					.prop( 'tabIndex', -1 )
+					.removeClass( 'is-visible' );
+			}
+			
 			this.searchTerm = event.target.value;
 			this.pages.search = 1;
 			this.doSearch( 1 );
@@ -197,9 +222,9 @@
 		// Get search results.
 		doSearch: function( page ) {
 			var self = this, params,
-			    $section = $( '#available-menu-items-search' ),
-			    $content = $section.find( '.accordion-section-content' ),
-			    itemTemplate = wp.template( 'available-menu-item' );
+				$section = $( '#available-menu-items-search' ),
+				$content = $section.find( '.accordion-section-content' ),
+				itemTemplate = wp.template( 'available-menu-item' );
 
 			if ( self.currentRequest ) {
 				self.currentRequest.abort();
@@ -345,8 +370,6 @@
 			diff = totalHeight - accordionHeight;
 			if ( 120 < diff && 290 > diff ) {
 				sections.css( 'max-height', diff );
-			} else if ( 120 >= diff ) {
-				this.$el.addClass( 'allow-scroll' );
 			}
 		},
 
@@ -677,11 +700,11 @@
 				if ( ! section.container.parent().length ) {
 					return;
 				}
-				section.container.find( '.menu-item .menu-item-reorder-nav button' ).prop( 'tabIndex', 0 );
-				section.container.find( '.menu-item.move-up-disabled .menus-move-up' ).prop( 'tabIndex', -1 );
-				section.container.find( '.menu-item.move-down-disabled .menus-move-down' ).prop( 'tabIndex', -1 );
-				section.container.find( '.menu-item.move-left-disabled .menus-move-left' ).prop( 'tabIndex', -1 );
-				section.container.find( '.menu-item.move-right-disabled .menus-move-right' ).prop( 'tabIndex', -1 );
+				section.container.find( '.menu-item .menu-item-reorder-nav button' ).attr({ 'tabindex': '0', 'aria-hidden': 'false' });
+				section.container.find( '.menu-item.move-up-disabled .menus-move-up' ).attr({ 'tabindex': '-1', 'aria-hidden': 'true' });
+				section.container.find( '.menu-item.move-down-disabled .menus-move-down' ).attr({ 'tabindex': '-1', 'aria-hidden': 'true' });
+				section.container.find( '.menu-item.move-left-disabled .menus-move-left' ).attr({ 'tabindex': '-1', 'aria-hidden': 'true' });
+				section.container.find( '.menu-item.move-right-disabled .menus-move-right' ).attr({ 'tabindex': '-1', 'aria-hidden': 'true' });
 			} );
 		},
 
@@ -951,7 +974,13 @@
 			var control = this;
 			api.Control.prototype.initialize.call( control, id, options );
 			control.active.validate = function() {
-				return api.section( control.section() ).active();
+				var value, section = api.section( control.section() );
+				if ( section ) {
+					value = section.active();
+				} else {
+					value = false;
+				}
+				return value;
 			};
 		},
 
@@ -1358,6 +1387,7 @@
 					self.container.trigger( 'expanded' );
 				};
 
+				$menuitem.find( '.item-edit' ).attr( 'aria-expanded', 'true' );
 				$inside.slideDown( 'fast', complete );
 
 				self.container.trigger( 'expand' );
@@ -1371,6 +1401,7 @@
 
 				self.container.trigger( 'collapse' );
 
+				$menuitem.find( '.item-edit' ).attr( 'aria-expanded', 'false' );
 				$inside.slideUp( 'fast', complete );
 			}
 		},
@@ -1596,7 +1627,13 @@
 			 * being deactivated.
 			 */
 			control.active.validate = function() {
-				return api.section( control.section() ).active();
+				var value, section = api.section( control.section() );
+				if ( section ) {
+					value = section.active();
+				} else {
+					value = false;
+				}
+				return value;
 			};
 
 			control.nameElement = new api.Element( control.container.find( '.menu-name-field' ) );
@@ -1642,7 +1679,13 @@
 			 * being deactivated.
 			 */
 			control.active.validate = function() {
-				return api.section( control.section() ).active();
+				var value, section = api.section( control.section() );
+				if ( section ) {
+					value = section.active();
+				} else {
+					value = false;
+				}
+				return value;
 			};
 
 			control.autoAddElement = new api.Element( control.container.find( 'input[type=checkbox].auto_add' ) );
@@ -1685,7 +1728,9 @@
 			var control = this,
 				menuId = control.params.menu_id,
 				menu = control.setting(),
-				name;
+				name,
+				widgetTemplate,
+				select;
 
 			if ( 'undefined' === typeof this.params.menu_id ) {
 				throw new Error( 'params.menu_id was not defined' );
@@ -1697,7 +1742,13 @@
 			 * being deactivated.
 			 */
 			control.active.validate = function() {
-				return api.section( control.section() ).active();
+				var value, section = api.section( control.section() );
+				if ( section ) {
+					value = section.active();
+				} else {
+					value = false;
+				}
+				return value;
 			};
 
 			control.$controlSection = control.container.closest( '.control-section' );
@@ -1719,16 +1770,28 @@
 			if ( menu ) {
 				name = displayNavMenuName( menu.name );
 
+				// Add the menu to the existing controls.
 				api.control.each( function( widgetControl ) {
 					if ( ! widgetControl.extended( api.controlConstructor.widget_form ) || 'nav_menu' !== widgetControl.params.widget_id_base ) {
 						return;
 					}
-					var select = widgetControl.container.find( 'select' );
-					if ( select.find( 'option[value=' + String( menuId ) + ']' ).length === 0 ) {
+					widgetControl.container.find( '.nav-menu-widget-form-controls:first' ).show();
+					widgetControl.container.find( '.nav-menu-widget-no-menus-message:first' ).hide();
+
+					select = widgetControl.container.find( 'select' );
+					if ( 0 === select.find( 'option[value=' + String( menuId ) + ']' ).length ) {
 						select.append( new Option( name, menuId ) );
 					}
 				} );
-				$( '#available-widgets-list .widget-inside:has(input.id_base[value=nav_menu]) select:first' ).append( new Option( name, menuId ) );
+
+				// Add the menu to the widget template.
+				widgetTemplate = $( '#available-widgets-list .widget-tpl:has( input.id_base[ value=nav_menu ] )' );
+				widgetTemplate.find( '.nav-menu-widget-form-controls:first' ).show();
+				widgetTemplate.find( '.nav-menu-widget-no-menus-message:first' ).hide();
+				select = widgetTemplate.find( '.widget-inside select:first' );
+				if ( 0 === select.find( 'option[value=' + String( menuId ) + ']' ).length ) {
+					select.append( new Option( name, menuId ) );
+				}
 			}
 		},
 
@@ -1753,7 +1816,6 @@
 						var select = widgetControl.container.find( 'select' );
 						select.find( 'option[value=' + String( menuId ) + ']' ).text( name );
 					});
-					$( '#available-widgets-list .widget-inside:has(input.id_base[value=nav_menu]) select:first option[value=' + String( menuId ) + ']' ).text( name );
 				}
 			} );
 
@@ -1825,8 +1887,8 @@
 						menuItemControl.setting.set( setting );
 					});
 				});
-			});
 
+			});
 			control.isReordering = false;
 
 			/**
@@ -1863,7 +1925,9 @@
 			var control = this,
 				section,
 				menuId = control.params.menu_id,
-				removeSection;
+				removeSection,
+				widgetTemplate,
+				navMenuCount = 0;
 			section = api.section( control.section() );
 			removeSection = function() {
 				section.container.remove();
@@ -1882,6 +1946,12 @@
 				removeSection();
 			}
 
+			api.each(function( setting ) {
+				if ( /^nav_menu\[/.test( setting.id ) && false !== setting() ) {
+					navMenuCount += 1;
+				}
+			});
+
 			// Remove the menu from any Custom Menu widgets.
 			api.control.each(function( widgetControl ) {
 				if ( ! widgetControl.extended( api.controlConstructor.widget_form ) || 'nav_menu' !== widgetControl.params.widget_id_base ) {
@@ -1891,9 +1961,17 @@
 				if ( select.val() === String( menuId ) ) {
 					select.prop( 'selectedIndex', 0 ).trigger( 'change' );
 				}
-				select.find( 'option[value=' + String( menuId ) + ']' ).remove();
+
+				widgetControl.container.find( '.nav-menu-widget-form-controls:first' ).toggle( 0 !== navMenuCount );
+				widgetControl.container.find( '.nav-menu-widget-no-menus-message:first' ).toggle( 0 === navMenuCount );
+				widgetControl.container.find( 'option[value=' + String( menuId ) + ']' ).remove();
 			});
-			$( '#available-widgets-list .widget-inside:has(input.id_base[value=nav_menu]) select:first option[value=' + String( menuId ) + ']' ).remove();
+
+			// Remove the menu to the nav menu widget template.
+			widgetTemplate = $( '#available-widgets-list .widget-tpl:has( input.id_base[ value=nav_menu ] )' );
+			widgetTemplate.find( '.nav-menu-widget-form-controls:first' ).toggle( 0 !== navMenuCount );
+			widgetTemplate.find( '.nav-menu-widget-no-menus-message:first' ).toggle( 0 === navMenuCount );
+			widgetTemplate.find( 'option[value=' + String( menuId ) + ']' ).remove();
 		},
 
 		// Setup theme location checkboxes.
@@ -1991,7 +2069,8 @@
 		 */
 		toggleReordering: function( showOrHide ) {
 			var addNewItemBtn = this.container.find( '.add-new-menu-item' ),
-				reorderBtn = this.container.find( '.reorder-toggle' );
+				reorderBtn = this.container.find( '.reorder-toggle' ),
+				itemsTitle = this.$sectionContent.find( '.item-title' );
 
 			showOrHide = Boolean( showOrHide );
 
@@ -2003,13 +2082,15 @@
 			this.$sectionContent.toggleClass( 'reordering', showOrHide );
 			this.$sectionContent.sortable( this.isReordering ? 'disable' : 'enable' );
 			if ( this.isReordering ) {
-				addNewItemBtn.attr( 'tabindex', '-1' );
+				addNewItemBtn.attr({ 'tabindex': '-1', 'aria-hidden': 'true' });
 				reorderBtn.attr( 'aria-label', api.Menus.data.l10n.reorderLabelOff );
 				wp.a11y.speak( api.Menus.data.l10n.reorderModeOn );
+				itemsTitle.attr( 'aria-hidden', 'false' );
 			} else {
-				addNewItemBtn.removeAttr( 'tabindex' );
+				addNewItemBtn.removeAttr( 'tabindex aria-hidden' );
 				reorderBtn.attr( 'aria-label', api.Menus.data.l10n.reorderLabelOn );
 				wp.a11y.speak( api.Menus.data.l10n.reorderModeOff );
+				itemsTitle.attr( 'aria-hidden', 'true' );
 			}
 
 			if ( showOrHide ) {
@@ -2283,6 +2364,9 @@
 
 			// Focus on the new menu section.
 			api.section( customizeId ).focus(); // @todo should we focus on the new menu's control and open the add-items panel? Thinking user flow...
+
+			// Fix an issue with extra space at top immediately after creating new menu.
+			$( '#menu-to-edit' ).css( 'margin-top', 0 );
 		}
 	});
 
@@ -2348,7 +2432,7 @@
 		var insertedMenuIdMapping = {};
 
 		_( data.nav_menu_updates ).each(function( update ) {
-			var oldCustomizeId, newCustomizeId, customizeId, oldSetting, newSetting, setting, settingValue, oldSection, newSection, wasSaved;
+			var oldCustomizeId, newCustomizeId, customizeId, oldSetting, newSetting, setting, settingValue, oldSection, newSection, wasSaved, widgetTemplate, navMenuCount;
 			if ( 'inserted' === update.status ) {
 				if ( ! update.previous_term_id ) {
 					throw new Error( 'Expected previous_term_id' );
@@ -2398,18 +2482,51 @@
 					}
 				} );
 
-				// Remove old setting and control.
-				oldSection.container.remove();
-				api.section.remove( oldCustomizeId );
-
-				// Add new control to take its place.
+				// Add new control for the new menu.
 				api.section.add( newCustomizeId, newSection );
 
-				// Delete the placeholder and preview the new setting.
+				// Update the values for nav menus in Custom Menu controls.
+				api.control.each( function( setting ) {
+					if ( ! setting.extended( api.controlConstructor.widget_form ) || 'nav_menu' !== setting.params.widget_id_base ) {
+						return;
+					}
+					var select, oldMenuOption, newMenuOption;
+					select = setting.container.find( 'select' );
+					oldMenuOption = select.find( 'option[value=' + String( update.previous_term_id ) + ']' );
+					newMenuOption = select.find( 'option[value=' + String( update.term_id ) + ']' );
+					newMenuOption.prop( 'selected', oldMenuOption.prop( 'selected' ) );
+					oldMenuOption.remove();
+				} );
+
+				// Delete the old placeholder nav_menu.
 				oldSetting.callbacks.disable(); // Prevent setting triggering Customizer dirty state when set.
 				oldSetting.set( false );
 				oldSetting.preview();
 				newSetting.preview();
+				oldSetting._dirty = false;
+
+				// Remove nav_menu section.
+				oldSection.container.remove();
+				api.section.remove( oldCustomizeId );
+
+				// Update the nav_menu widget to reflect removed placeholder menu.
+				navMenuCount = 0;
+				api.each(function( setting ) {
+					if ( /^nav_menu\[/.test( setting.id ) && false !== setting() ) {
+						navMenuCount += 1;
+					}
+				});
+				widgetTemplate = $( '#available-widgets-list .widget-tpl:has( input.id_base[ value=nav_menu ] )' );
+				widgetTemplate.find( '.nav-menu-widget-form-controls:first' ).toggle( 0 !== navMenuCount );
+				widgetTemplate.find( '.nav-menu-widget-no-menus-message:first' ).toggle( 0 === navMenuCount );
+				widgetTemplate.find( 'option[value=' + String( update.previous_term_id ) + ']' ).remove();
+
+				// Update the nav_menu_locations[...] controls to remove the placeholder menus from the dropdown options.
+				wp.customize.control.each(function( control ){
+					if ( /^nav_menu_locations\[/.test( control.id ) ) {
+						control.container.find( 'option[value=' + String( update.previous_term_id ) + ']' ).remove();
+					}
+				});
 
 				// Update nav_menu_locations to reference the new ID.
 				api.each( function( setting ) {
@@ -2426,8 +2543,6 @@
 					// @todo This doesn't seem to be working.
 					newSection.expand();
 				}
-
-				// @todo Update the Custom Menu selects, ensuring the newly-inserted IDs are used for any that have selected a placeholder menu.
 			} else if ( 'updated' === update.status ) {
 				customizeId = 'nav_menu[' + String( update.term_id ) + ']';
 				if ( ! api.has( customizeId ) ) {
@@ -2499,7 +2614,7 @@
 					previewer: api.previewer
 				} );
 
-				// Remove old setting and control.
+				// Remove old control.
 				oldControl.container.remove();
 				api.control.remove( oldCustomizeId );
 
@@ -2511,12 +2626,22 @@
 				oldSetting.set( false );
 				oldSetting.preview();
 				newSetting.preview();
+				oldSetting._dirty = false;
 
 				newControl.container.toggleClass( 'menu-item-edit-inactive', oldControl.container.hasClass( 'menu-item-edit-inactive' ) );
 			}
 		});
 
-		// @todo trigger change event for each Custom Menu widget that was modified.
+		/*
+		 * Update the settings for any nav_menu widgets that had selected a placeholder ID.
+		 */
+		_.each( data.widget_nav_menu_updates, function( widgetSettingValue, widgetSettingId ) {
+			var setting = api( widgetSettingId );
+			if ( setting ) {
+				setting._value = widgetSettingValue;
+				setting.preview(); // Send to the preview now so that menu refresh will use the inserted menu.
+			}
+		});
 	};
 
 	/**

@@ -217,7 +217,7 @@ final class WP_Customize_Nav_Menus {
 		$items = $this->search_available_items_query( array( 'pagenum' => $p, 's' => $s ) );
 
 		if ( empty( $items ) ) {
-			wp_send_json_error( array( 'message' => __( 'No menu items found.' ) ) );
+			wp_send_json_error( array( 'message' => __( 'No results found.' ) ) );
 		} else {
 			wp_send_json_success( array( 'items' => $items ) );
 		}
@@ -336,8 +336,8 @@ final class WP_Customize_Nav_Menus {
 				'movedDown'         => __( 'Menu item moved down' ),
 				'movedLeft'         => __( 'Menu item moved out of submenu' ),
 				'movedRight'        => __( 'Menu item is now a sub-item' ),
-				/* translators: %s: &#9656 is the unicode right-pointing triangle */
-				'customizingMenus'  => __( 'Customizing &#9656; Menus' ),
+				/* translators: &#9656; is the unicode right-pointing triangle, and %s is the section title in the Customizer */
+				'customizingMenus'  => sprintf( __( 'Customizing &#9656; %s' ), esc_html( $this->manager->get_panel( 'nav_menus' )->title ) ),
 				/* translators: %s: title of menu item which is invalid */
 				'invalidTitleTpl'   => __( '%s (Invalid)' ),
 				/* translators: %s: title of menu item in draft status */
@@ -496,6 +496,7 @@ final class WP_Customize_Nav_Menus {
 					'theme_supports'    => 'menus',
 					'type'              => 'theme_mod',
 					'transport'         => 'postMessage',
+					'default'           => 0,
 				) );
 			}
 
@@ -717,11 +718,18 @@ final class WP_Customize_Nav_Menus {
 					<input type="text" id="menu-items-search" placeholder="<?php esc_attr_e( 'Search menu items&hellip;' ) ?>" aria-describedby="menu-items-search-desc" />
 					<p class="screen-reader-text" id="menu-items-search-desc"><?php _e( 'The search results will be updated as you type.' ); ?></p>
 					<span class="spinner"></span>
+					<span class="clear-results"><span class="screen-reader-text"><?php _e( 'Clear Results' ); ?></span></span>
 				</div>
 				<ul class="accordion-section-content" data-type="search"></ul>
 			</div>
 			<div id="new-custom-menu-item" class="accordion-section">
-				<h4 class="accordion-section-title"><?php _e( 'Custom Links' ); ?><button type="button" class="not-a-button"><span class="screen-reader-text"><?php _e( 'Toggle' ); ?></span></button></h4>
+				<h4 class="accordion-section-title" role="presentation">
+					<?php _e( 'Custom Links' ); ?>
+					<button type="button" class="not-a-button" aria-expanded="false">
+						<span class="screen-reader-text"><?php _e( 'Toggle section: Custom Links' ); ?></span>
+						<span class="toggle-indicator" aria-hidden="true"></span>
+					</button>
+				</h4>
 				<div class="accordion-section-content">
 					<input type="hidden" value="custom" id="custom-menu-item-type" name="menu-item[-1][menu-item-type]" />
 					<p id="menu-item-url-wrap">
@@ -750,7 +758,17 @@ final class WP_Customize_Nav_Menus {
 				$id = sprintf( 'available-menu-items-%s-%s', $available_item_type['type'], $available_item_type['object'] );
 				?>
 				<div id="<?php echo esc_attr( $id ); ?>" class="accordion-section">
-					<h4 class="accordion-section-title"><?php echo esc_html( $available_item_type['title'] ); ?> <span class="no-items"><?php _e( 'No items' ); ?></span><span class="spinner"></span> <button type="button" class="not-a-button"><span class="screen-reader-text"><?php _e( 'Toggle' ); ?></span></button></h4>
+					<h4 class="accordion-section-title" role="presentation">
+						<?php echo esc_html( $available_item_type['title'] ); ?>
+						<span class="spinner"></span>
+						<span class="no-items"><?php _e( 'No items' ); ?></span>
+						<button type="button" class="not-a-button" aria-expanded="false">
+							<span class="screen-reader-text"><?php
+							/* translators: %s: Title of a section with menu items */
+							printf( __( 'Toggle section: %s' ), esc_html( $available_item_type['title'] ) ); ?></span>
+							<span class="toggle-indicator" aria-hidden="true"></span>
+						</button>
+					</h4>
 					<ul class="accordion-section-content" data-type="<?php echo esc_attr( $available_item_type['type'] ); ?>" data-object="<?php echo esc_attr( $available_item_type['object'] ); ?>"></ul>
 				</div>
 				<?php
