@@ -41,9 +41,11 @@
  */
 function random_bytes($bytes)
 {
-    if (!is_int($bytes)) {
+    try {
+        $bytes = RandomCompat_intval($bytes);
+    } catch (TypeError $ex) {
         throw new TypeError(
-            'Length must be an integer'
+            'random_bytes(): $bytes must be an integer'
         );
     }
     if ($bytes < 1) {
@@ -52,7 +54,7 @@ function random_bytes($bytes)
         );
     }
 
-    $buf = mcrypt_create_iv($bytes, MCRYPT_DEV_URANDOM);
+    $buf = @mcrypt_create_iv($bytes, MCRYPT_DEV_URANDOM);
     if ($buf !== false) {
         if (RandomCompat_strlen($buf) === $bytes) {
             /**

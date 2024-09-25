@@ -1159,6 +1159,10 @@ function wp_ajax_add_menu_item() {
 					$_object = get_post( $menu_item_data['menu-item-object-id'] );
 				break;
 
+				case 'post_type_archive' :
+					$_object = get_post_type_object( $menu_item_data['menu-item-object'] );
+				break;
+
 				case 'taxonomy' :
 					$_object = get_term( $menu_item_data['menu-item-object-id'], $menu_item_data['menu-item-object'] );
 				break;
@@ -3098,6 +3102,7 @@ function wp_ajax_update_plugin() {
 		 * For now, surface some sort of error here.
 		 */
 		if ( $plugin_update_data === true ) {
+			$status['error'] = __( 'Plugin update failed.' );
  			wp_send_json_error( $status );
 		}
 
@@ -3124,6 +3129,10 @@ function wp_ajax_update_plugin() {
 
 		wp_send_json_error( $status );
 
+	} else {
+		// An unhandled error occured
+		$status['error'] = __( 'Plugin update failed.' );
+		wp_send_json_error( $status );
 	}
 }
 

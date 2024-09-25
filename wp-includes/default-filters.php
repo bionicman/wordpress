@@ -429,6 +429,7 @@ add_action( 'init', 'wp_widgets_init', 1 );
 // Don't remove. Wrong way to disable.
 add_action( 'template_redirect', '_wp_admin_bar_init', 0 );
 add_action( 'admin_init', '_wp_admin_bar_init' );
+add_action( 'before_signup_header', '_wp_admin_bar_init' );
 add_action( 'wp_footer', 'wp_admin_bar_render', 1000 );
 add_action( 'in_admin_header', 'wp_admin_bar_render', 0 );
 
@@ -446,13 +447,13 @@ add_action( 'wp_head',              'wp_oembed_add_host_js'                );
 add_action( 'embed_head',           'print_emoji_detection_script'         );
 add_action( 'embed_head',           'print_emoji_styles'                   );
 add_action( 'embed_head',           'print_embed_styles'                   );
-add_action( 'embed_head',           'print_embed_scripts'                  );
 add_action( 'embed_head',           'wp_print_head_scripts',         20    );
 add_action( 'embed_head',           'wp_print_styles',               20    );
 add_action( 'embed_head',           'wp_no_robots'                         );
 add_action( 'embed_head',           'rel_canonical'                        );
 add_action( 'embed_head',           'locale_stylesheet'                    );
 
+add_action( 'embed_footer',         'print_embed_scripts'                  );
 add_action( 'embed_footer',         'wp_print_footer_scripts',       20    );
 
 add_filter( 'excerpt_more',         'wp_embed_excerpt_more',         20    );

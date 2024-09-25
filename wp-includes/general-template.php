@@ -776,7 +776,16 @@ function get_site_icon_url( $size = 512, $url = '', $blog_id = 0 ) {
 		}
 	}
 
-	return $url;
+	/**
+	 * Filter the site icon URL.
+	 *
+	 * @site 4.4.0
+	 *
+	 * @param string $url     Site icon URL.
+	 * @param int    $size    Size of the site icon.
+	 * @param int    $blog_id ID of the blog to get the site icon for.
+	 */
+	return apply_filters( 'get_site_icon_url', $url, $size, $blog_id );
 }
 
 /**
@@ -2509,7 +2518,7 @@ function wp_site_icon() {
  * @return bool
  */
 function user_can_richedit() {
-	global $wp_rich_edit, $is_gecko, $is_opera, $is_safari, $is_chrome, $is_IE;
+	global $wp_rich_edit, $is_gecko, $is_opera, $is_safari, $is_chrome, $is_IE, $is_edge;
 
 	if ( !isset($wp_rich_edit) ) {
 		$wp_rich_edit = false;
@@ -2517,7 +2526,7 @@ function user_can_richedit() {
 		if ( get_user_option( 'rich_editing' ) == 'true' || ! is_user_logged_in() ) { // default to 'true' for logged out users
 			if ( $is_safari ) {
 				$wp_rich_edit = ! wp_is_mobile() || ( preg_match( '!AppleWebKit/(\d+)!', $_SERVER['HTTP_USER_AGENT'], $match ) && intval( $match[1] ) >= 534 );
-			} elseif ( $is_gecko || $is_chrome || $is_IE || ( $is_opera && !wp_is_mobile() ) ) {
+			} elseif ( $is_gecko || $is_chrome || $is_IE || $is_edge || ( $is_opera && !wp_is_mobile() ) ) {
 				$wp_rich_edit = true;
 			}
 		}

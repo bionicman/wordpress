@@ -1323,6 +1323,7 @@ function _post_type_meta_capabilities( $capabilities = null ) {
  * - parent_item_colon - This string isn't used on non-hierarchical types. In hierarchical
  *                       ones the default is 'Parent Page:'.
  * - all_items - String for the submenu. Default is All Posts/All Pages.
+ * - archives - String for use with archives in nav menus. Default is Post Archives/Page Archives.
  * - insert_into_item - String for the media frame button. Default is Insert into post/Insert into page.
  * - uploaded_to_this_item - String for the media frame filter. Default is Uploaded to this post/Uploaded to this page.
  * - featured_image - Default is Featured Image.
@@ -1330,9 +1331,9 @@ function _post_type_meta_capabilities( $capabilities = null ) {
  * - remove_featured_image - Default is Remove featured image.
  * - use_featured_image - Default is Use as featured image.
  * - menu_name - Default is the same as `name`.
- * - views - String for the table views hidden heading.
- * - pagination - String for the table pagination hidden heading.
- * - list - String for the table hidden heading.
+ * - filter_items_list - String for the table views hidden heading.
+ * - items_list_navigation - String for the table pagination hidden heading.
+ * - items_list - String for the table hidden heading.
  *
  * Above, the first default value is for non-hierarchical post types (like posts)
  * and the second one is for hierarchical post types (like pages).
@@ -1340,7 +1341,8 @@ function _post_type_meta_capabilities( $capabilities = null ) {
  * @since 3.0.0
  * @since 4.3.0 Added the `featured_image`, `set_featured_image`, `remove_featured_image`,
  *              and `use_featured_image` labels.
- * @since 4.4.0 Added the `insert_into_item` and `uploaded_to_this_item` labels.
+ * @since 4.4.0 Added the `insert_into_item`, `uploaded_to_this_item`, `filter_items_list`,
+ *              `items_list_navigation`, and `items_list` labels.
  *
  * @access private
  *
@@ -1361,15 +1363,16 @@ function get_post_type_labels( $post_type_object ) {
 		'not_found_in_trash' => array( __('No posts found in Trash.'), __('No pages found in Trash.') ),
 		'parent_item_colon' => array( null, __('Parent Page:') ),
 		'all_items' => array( __( 'All Posts' ), __( 'All Pages' ) ),
+		'archives' => array( __( 'Post Archives' ), __( 'Page Archives' ) ),
 		'insert_into_item' => array( __( 'Insert into post' ), __( 'Insert into page' ) ),
 		'uploaded_to_this_item' => array( __( 'Uploaded to this post' ), __( 'Uploaded to this page' ) ),
 		'featured_image' => array( __( 'Featured Image' ), __( 'Featured Image' ) ),
 		'set_featured_image' => array( __( 'Set featured image' ), __( 'Set featured image' ) ),
 		'remove_featured_image' => array( __( 'Remove featured image' ), __( 'Remove featured image' ) ),
 		'use_featured_image' => array( __( 'Use as featured image' ), __( 'Use as featured image' ) ),
-		'views' => array( __( 'Filter posts list' ), __( 'Filter pages list' ) ),
-		'pagination' => array( __( 'Posts list navigation' ), __( 'Pages list navigation' ) ),
-		'list' => array( __( 'Posts list' ), __( 'Pages list' ) ),
+		'filter_items_list' => array( __( 'Filter posts list' ), __( 'Filter pages list' ) ),
+		'items_list_navigation' => array( __( 'Posts list navigation' ), __( 'Pages list navigation' ) ),
+		'items_list' => array( __( 'Posts list' ), __( 'Pages list' ) ),
 	);
 	$nohier_vs_hier_defaults['menu_name'] = $nohier_vs_hier_defaults['name'];
 
@@ -1426,6 +1429,10 @@ function _get_custom_object_labels( $object, $nohier_vs_hier_defaults ) {
 
 	if ( !isset( $object->labels['all_items'] ) && isset( $object->labels['menu_name'] ) )
 		$object->labels['all_items'] = $object->labels['menu_name'];
+
+	if ( !isset( $object->labels['archives'] ) && isset( $object->labels['all_items'] ) ) {
+		$object->labels['archives'] = $object->labels['all_items'];
+	}
 
 	$defaults = array();
 	foreach ( $nohier_vs_hier_defaults as $key => $value ) {
@@ -1603,7 +1610,7 @@ function is_post_type_viewable( $post_type_object ) {
  */
 function get_posts( $args = null ) {
 	$defaults = array(
-		'numberposts' => 5, 'offset' => 0,
+		'numberposts' => 5,
 		'category' => 0, 'orderby' => 'date',
 		'order' => 'DESC', 'include' => array(),
 		'exclude' => array(), 'meta_key' => '',
