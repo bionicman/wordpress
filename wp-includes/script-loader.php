@@ -471,7 +471,7 @@ function wp_default_scripts( &$scripts ) {
 	$scripts->add( 'jsonlint', '/wp-includes/js/codemirror/jsonlint.js', array(), '1.6.2' );
 	$scripts->add( 'htmlhint', '/wp-includes/js/codemirror/htmlhint.js', array(), '0.9.14-xwp' );
 	$scripts->add( 'htmlhint-kses', '/wp-includes/js/codemirror/htmlhint-kses.js', array( 'htmlhint' ) );
-	$scripts->add( 'code-editor', "/wp-admin/js/code-editor$suffix.js", array( 'jquery', 'wp-codemirror' ) );
+	$scripts->add( 'code-editor', "/wp-admin/js/code-editor$suffix.js", array( 'jquery', 'wp-codemirror', 'underscore' ) );
 	$scripts->add( 'wp-theme-plugin-editor', "/wp-admin/js/theme-plugin-editor$suffix.js", array( 'wp-util', 'wp-sanitize', 'jquery', 'jquery-ui-core', 'wp-a11y', 'underscore' ) );
 	did_action( 'init' ) && $scripts->add_inline_script( 'wp-theme-plugin-editor', sprintf( 'wp.themePluginEditor.l10n = %s;', wp_json_encode( array(
 		'saveAlert' => __( 'The changes you made will be lost if you navigate away from this page.' ),
@@ -551,7 +551,7 @@ function wp_default_scripts( &$scripts ) {
 		'draftSaved'         => __( 'Draft Saved' ),
 		'updating'           => __( 'Updating' ),
 		'schedule'           => _x( 'Schedule', 'customizer changeset action/button label' ),
-		'scheduled'          => __( 'Scheduled' ),
+		'scheduled'          => _x( 'Scheduled', 'customizer changeset status' ),
 		'invalid'            => __( 'Invalid' ),
 		'saveBeforeShare'    => __( 'Please save your changes in order to share the preview.' ),
 		'futureDateError'    => __( 'You must supply a future date to schedule.' ),
@@ -593,6 +593,11 @@ function wp_default_scripts( &$scripts ) {
 		),
 		'scheduleDescription' => __( 'Schedule your customization changes to publish ("go live") at a future date.' ),
 		'themePreviewUnavailable' => __( 'Sorry, you can&#8217;t preview new themes when you have changes scheduled or saved as a draft. Please publish your changes, or wait until they publish to preview new themes.' ),
+		'themeInstallUnavailable' => sprintf(
+			/* translators: %s: URL to Add Themes admin screen */
+			__( 'You won&#8217;t be able to install new themes from here yet since your install requires SFTP credentials. For now, please <a href="%s">add themes in the admin</a>.' ),
+			esc_url( admin_url( 'theme-install.php' ) )
+		),
 	) );
 	$scripts->add( 'customize-selective-refresh', "/wp-includes/js/customize-selective-refresh$suffix.js", array( 'jquery', 'wp-util', 'customize-preview' ), false, 1 );
 
@@ -720,7 +725,7 @@ function wp_default_scripts( &$scripts ) {
 		$scripts->add( 'media-gallery-widget', "/wp-admin/js/widgets/media-gallery-widget$suffix.js", array( 'media-widgets' ) );
 		$scripts->add( 'media-video-widget', "/wp-admin/js/widgets/media-video-widget$suffix.js", array( 'media-widgets', 'media-audiovideo', 'wp-api-request' ) );
 		$scripts->add( 'text-widgets', "/wp-admin/js/widgets/text-widgets$suffix.js", array( 'jquery', 'backbone', 'editor', 'wp-util', 'wp-a11y' ) );
-		$scripts->add( 'custom-html-widgets', "/wp-admin/js/widgets/custom-html-widgets$suffix.js", array( 'code-editor', 'jquery', 'backbone', 'wp-util', 'jquery-ui-core', 'wp-a11y' ) );
+		$scripts->add( 'custom-html-widgets', "/wp-admin/js/widgets/custom-html-widgets$suffix.js", array( 'jquery', 'backbone', 'wp-util', 'jquery-ui-core', 'wp-a11y' ) );
 
 		$scripts->add( 'theme', "/wp-admin/js/theme$suffix.js", array( 'wp-backbone', 'wp-a11y', 'customize-base' ), false, 1 );
 

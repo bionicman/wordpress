@@ -529,10 +529,11 @@ final class WP_Customize_Nav_Menus {
 	 * @since 4.3.0
 	 */
 	public function customize_register() {
+		$changeset = $this->manager->unsanitized_post_values();
 
 		// Preview settings for nav menus early so that the sections and controls will be added properly.
 		$nav_menus_setting_ids = array();
-		foreach ( array_keys( $this->manager->unsanitized_post_values() ) as $setting_id ) {
+		foreach ( array_keys( $changeset ) as $setting_id ) {
 			if ( preg_match( '/^(nav_menu_locations|nav_menu|nav_menu_item)\[/', $setting_id ) ) {
 				$nav_menus_setting_ids[] = $setting_id;
 			}
@@ -627,7 +628,7 @@ final class WP_Customize_Nav_Menus {
 			}
 
 			// Override the assigned nav menu location if mapped during previewed theme switch.
-			if ( isset( $mapped_nav_menu_locations[ $location ] ) ) {
+			if ( empty( $changeset[ $setting_id ] ) && isset( $mapped_nav_menu_locations[ $location ] ) ) {
 				$this->manager->set_post_value( $setting_id, $mapped_nav_menu_locations[ $location ] );
 			}
 
@@ -946,7 +947,7 @@ final class WP_Customize_Nav_Menus {
 		</script>
 
 		<script type="text/html" id="tmpl-nav-menu-submit-new-button">
-			<p id="customize-new-menu-submit-description"><?php _e( 'Click "next" to start adding links to your new menu.' ); ?></p>
+			<p id="customize-new-menu-submit-description"><?php _e( 'Click &#8220;Next&#8221; to start adding links to your new menu.' ); ?></p>
 			<button id="customize-new-menu-submit" type="button" class="button" aria-describedby="customize-new-menu-submit-description"><?php _e( 'Next' ); ?></button>
 		</script>
 
