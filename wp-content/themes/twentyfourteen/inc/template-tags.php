@@ -94,13 +94,11 @@ function twentyfourteen_posted_on() {
 	if ( is_sticky() && is_home() && ! is_paged() )
 		echo '<span class="featured-post">' . __( 'Sticky', 'twentyfourteen' ) . '</span>';
 
-	printf( __( '<span class="entry-date"><a href="%1$s" title="%2$s" rel="bookmark"><time class="entry-date" datetime="%3$s">%4$s</time></a></span> <span class="byline"><span class="author vcard"><a class="url fn n" href="%5$s" title="%6$s" rel="author">%7$s</a></span></span>', 'twentyfourteen' ),
+	printf( __( '<span class="entry-date"><a href="%1$s" rel="bookmark"><time class="entry-date" datetime="%2$s">%3$s</time></a></span> <span class="byline"><span class="author vcard"><a class="url fn n" href="%4$s" rel="author">%5$s</a></span></span>', 'twentyfourteen' ),
 		esc_url( get_permalink() ),
-		esc_attr( get_the_time() ),
 		esc_attr( get_the_date( 'c' ) ),
 		esc_html( get_the_date() ),
 		esc_url( get_author_posts_url( get_the_author_meta( 'ID' ) ) ),
-		esc_attr( sprintf( __( 'View all posts by %s', 'twentyfourteen' ), get_the_author() ) ),
 		get_the_author()
 	);
 }
@@ -143,3 +141,26 @@ function twentyfourteen_category_transient_flusher() {
 }
 add_action( 'edit_category', 'twentyfourteen_category_transient_flusher' );
 add_action( 'save_post',     'twentyfourteen_category_transient_flusher' );
+
+/**
+ * Displays featured image with appropriate html tag.
+ *
+ * @return void
+ */
+function twentyfourteen_featured_thumbnail() {
+	if ( ! post_password_required() ) :
+		if ( has_post_thumbnail() && is_singular() ) :
+		?>
+			<div class="attachment-featured-thumbnail">
+				<?php the_post_thumbnail( 'featured-thumbnail-large' ); ?>
+			</div>
+		<?php
+		else :
+		?>
+			<a href="<?php the_permalink(); ?>" rel="<?php the_ID(); ?>" class="attachment-featured-thumbnail">
+				<?php the_post_thumbnail( 'featured-thumbnail-large' ); ?>
+			</a>
+		<?php
+		endif;
+	endif;
+}

@@ -193,6 +193,9 @@ class WP_Roles {
 
 		if ( $this->use_db )
 			update_option( $this->role_key, $this->roles );
+
+		if ( get_option( 'default_role' ) == $role )
+			update_option( 'default_role', 'subscriber' );
 	}
 
 	/**
@@ -732,6 +735,8 @@ class WP_User {
 	 * @since 2.0.0
 	 * @uses $wp_roles
 	 * @access public
+	 *
+	 * @return array List of all capabilities for the user.
 	 */
 	function get_role_caps() {
 		global $wp_roles;
@@ -750,6 +755,8 @@ class WP_User {
 			$this->allcaps = array_merge( (array) $this->allcaps, (array) $the_role->capabilities );
 		}
 		$this->allcaps = array_merge( (array) $this->allcaps, (array) $this->caps );
+
+		return $this->allcaps;
 	}
 
 	/**
@@ -1407,7 +1414,6 @@ function add_role( $role, $display_name, $capabilities = array() ) {
  * @since 2.0.0
  *
  * @param string $role Role name.
- * @return null
  */
 function remove_role( $role ) {
 	global $wp_roles;
@@ -1415,7 +1421,7 @@ function remove_role( $role ) {
 	if ( ! isset( $wp_roles ) )
 		$wp_roles = new WP_Roles();
 
-	return $wp_roles->remove_role( $role );
+	$wp_roles->remove_role( $role );
 }
 
 /**

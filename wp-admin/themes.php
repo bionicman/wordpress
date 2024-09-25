@@ -14,6 +14,8 @@ if ( !current_user_can('switch_themes') && !current_user_can('edit_theme_options
 
 $wp_list_table = _get_list_table('WP_Themes_List_Table');
 
+$_SERVER['REQUEST_URI'] = remove_query_arg( array( 's', 'features', '_ajax_fetch_list_nonce', '_wp_http_referer', 'paged' ), $_SERVER['REQUEST_URI'] );
+
 if ( current_user_can( 'switch_themes' ) && isset($_GET['action'] ) ) {
 	if ( 'activate' == $_GET['action'] ) {
 		check_admin_referer('switch-theme_' . $_GET['stylesheet']);
@@ -139,6 +141,15 @@ $customize_title = sprintf( __( 'Customize &#8220;%s&#8221;' ), $ct->display('Na
 		<?php echo $ct->display('Name'); ?>
 	</h4>
 
+<?php
+if ( $ct->errors() && ( ! is_multisite() || current_user_can( 'manage_network_themes' ) ) ) {
+	echo '<p class="error-message">' . sprintf( __( 'ERROR: %s' ), $ct->errors()->get_error_message() ) . '</p>';
+}
+
+// Certain error codes are less fatal than others. We can still display theme information in most cases.
+if ( ! $ct->errors() || ( 1 == count( $ct->errors()->get_error_codes() )
+	&& in_array( $ct->errors()->get_error_code(), array( 'theme_no_parent', 'theme_parent_invalid', 'theme_no_index' ) ) ) ) : ?>
+
 	<div>
 		<ul class="theme-info">
 			<li><?php printf( __('By %s'), $ct->display('Author') ); ?></li>
@@ -206,6 +217,8 @@ $customize_title = sprintf( __( 'Customize &#8220;%s&#8221;' ), $ct->display('Na
 	<?php
 	endif; // options || edit_theme_options
 	?>
+
+<?php endif; // theme errors ?>
 
 </div>
 
@@ -292,11 +305,9 @@ if ( ! is_multisite() && current_user_can('edit_themes') && $broken_themes = wp_
 		<th><?php _e('Description'); ?></th>
 	</tr>
 <?php
-	$alt = '';
 	foreach ( $broken_themes as $broken_theme ) {
-		$alt = ('class="alternate"' == $alt) ? '' : 'class="alternate"';
 		echo "
-		<tr $alt>
+		<tr>
 			 <td>" . $broken_theme->get('Name') ."</td>
 			 <td>" . $broken_theme->errors()->get_error_message() . "</td>
 		</tr>";

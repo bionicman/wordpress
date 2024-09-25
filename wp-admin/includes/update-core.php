@@ -665,7 +665,7 @@ function update_core($from, $to) {
 	}
 
 	$wp_filesystem->chmod( $versions_file, FS_CHMOD_FILE );
-	require_once( WP_CONTENT_DIR . '/upgrade/version-current.php' );
+	require( WP_CONTENT_DIR . '/upgrade/version-current.php' );
 	$wp_filesystem->delete( $versions_file );
 
 	$php_version    = phpversion();
@@ -698,7 +698,9 @@ function update_core($from, $to) {
 		$checksums = get_core_checksums( $wp_version );
 		if ( ! empty( $checksums[ $wp_version ] ) && is_array( $checksums[ $wp_version ] ) ) {
 			foreach( $checksums[ $wp_version ] as $file => $checksum ) {
-				if ( md5_file( ABSPATH . $file ) === $checksum )
+				if ( 'wp-content' == substr( $file, 0, 10 ) )
+					continue;
+				if ( file_exists( ABSPATH . $file ) && md5_file( ABSPATH . $file ) === $checksum )
 					$skip[] = $file;
 			}
 		}
@@ -740,7 +742,7 @@ function update_core($from, $to) {
 
 		// If we don't have enough free space, it isn't worth trying again
 		if ( $total_size >= disk_free_space( ABSPATH ) )
-			$result = new WP_Error( 'disk_full', __( "There isn't enough free disk space to complete the upgrade." ), $to );
+			$result = new WP_Error( 'disk_full', __( 'There is not enough free disk space to complete the update.' ), $to );
 		else
 			$result = _copy_dir( $from . $distro, $to, $skip );
 	}

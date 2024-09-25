@@ -117,4 +117,8 @@
 
 	} );
 
+	/* Focus styles for primary menu. */
+	$( '.primary-navigation' ).find( 'a' ).on( 'focus.twentyfourteen blur.twentyfourteen', function() {
+		$( this ).parents().toggleClass( 'focus' );
+	});
 } )( jQuery );

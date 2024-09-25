@@ -131,6 +131,8 @@ function twentyfourteen_customizer_styles() {
 		.hentry .mejs-controls .mejs-time-rail .mejs-time-current,
 		.header-extra,
 		.search-toggle,
+		.primary-navigation ul ul,
+		.primary-navigation li:hover > a,
 		.widget-area button,
 		.widget-area html input[type="button"],
 		.widget-area input[type="reset"],
@@ -201,9 +203,8 @@ function twentyfourteen_customizer_styles() {
 		.secondary-navigation a:hover,
 		#secondary .current_page_item > a,
 		#secondary .current-menu-item > a,
-		#featured-content .entry-meta a:hover,
-		#featured-content .entry-title a:hover,
-		#featured-content .more-link,
+		.featured-content a:hover,
+		.featured-content .more-link,
 		.widget-area a:hover {
 			color: ' . $accent_much_lighter . ';
 		}

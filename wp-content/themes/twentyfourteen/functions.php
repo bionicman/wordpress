@@ -59,7 +59,7 @@ function twentyfourteen_setup() {
 	add_theme_support( 'automatic-feed-links' );
 
 	// Enable support for Post Thumbnails.
-	add_theme_support( 'post-thumbnails', array( 'post' ) );
+	add_theme_support( 'post-thumbnails' );
 
 	// Adding several sizes for Post Thumbnails.
 	add_image_size( 'featured-thumbnail-large', 672, 0 );
@@ -332,9 +332,8 @@ function twentyfourteen_the_attached_image() {
 			$next_attachment_url = get_attachment_link( array_shift( $attachment_ids ) );
 	}
 
-	printf( '<a href="%1$s" title="%2$s" rel="attachment">%3$s</a>',
+	printf( '<a href="%1$s" rel="attachment">%2$s</a>',
 		esc_url( $next_attachment_url ),
-		the_title_attribute( array( 'echo' => false ) ),
 		wp_get_attachment_image( $post->ID, $attachment_size )
 	);
 }
@@ -459,6 +458,7 @@ add_action( 'pre_get_posts', 'twentyfourteen_pre_get_posts' );
  * 1. Single or multiple authors.
  * 2. Index views.
  * 3. Full-width content layout.
+ * 4. Presence of footer widgets.
  *
  * @param array $classes A list of existing body class values.
  * @return array The filtered body class list.
@@ -476,9 +476,29 @@ function twentyfourteen_body_classes( $classes ) {
 		|| is_attachment() )
 		$classes[] = 'full-width';
 
+	if ( is_active_sidebar( 'sidebar-4' ) )
+		$classes[] = 'footer-widgets';
+
 	return $classes;
 }
 add_filter( 'body_class', 'twentyfourteen_body_classes' );
+
+/**
+ * Extends the default WordPress post classes.
+ *
+ * Adds a post class to denote:
+ * Non-password protected page with a featured image.
+ *
+ * @param array $classes A list of existing post class values.
+ * @return array The filtered post class list.
+ */
+function twentyfourteen_post_classes( $classes ) {
+	if ( ! post_password_required() && has_post_thumbnail() )
+		$classes[] = 'has-featured-image';
+
+	return $classes;
+}
+add_filter( 'post_class', 'twentyfourteen_post_classes' );
 
 /**
  * Creates a nicely formatted and more specific title element text for output

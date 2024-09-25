@@ -1089,13 +1089,13 @@ class Language_Pack_Upgrader extends WP_Upgrader {
 	}
 
 	function upgrade_strings() {
-		$this->strings['starting_upgrade'] = __( 'Some of your language files need updating. Sit tight for a few more seconds while we update them as well.' );
-		$this->strings['up_to_date'] = __( 'The language is up to date.' ); // We need to silently skip this case
+		$this->strings['starting_upgrade'] = __( 'Some of your translations need updating. Sit tight for a few more seconds while we update them as well.' );
+		$this->strings['up_to_date'] = __( 'The translation is up to date.' ); // We need to silently skip this case
 		$this->strings['no_package'] = __( 'Update package not available.' );
-		$this->strings['downloading_package'] = __( 'Downloading language update from <span class="code">%s</span>&#8230;' );
+		$this->strings['downloading_package'] = __( 'Downloading translation from <span class="code">%s</span>&#8230;' );
 		$this->strings['unpack_package'] = __( 'Unpacking the update&#8230;' );
-		$this->strings['process_failed'] = __( 'Language update failed.' );
-		$this->strings['process_success'] = __( 'Language updated successfully.' );
+		$this->strings['process_failed'] = __( 'Translation update failed.' );
+		$this->strings['process_success'] = __( 'Translation updated successfully.' );
 	}
 
 	function upgrade( $update = false ) {
@@ -1224,12 +1224,17 @@ class Core_Upgrader extends WP_Upgrader {
 		$this->strings['unpack_package'] = __('Unpacking the update&#8230;');
 		$this->strings['copy_failed'] = __('Could not copy files.');
 		$this->strings['copy_failed_space'] = __('Could not copy files. You may have run out of disk space.' );
+		$this->strings['start_rollback'] = __( 'Attempting to roll back to previous version.' );
+		$this->strings['rollback_was_required'] = __( 'Due to an error during updating, WordPress has rolled back to your previous version.' );
 	}
 
 	function upgrade( $current, $args = array() ) {
 		global $wp_filesystem, $wp_version;
 
 		$defaults = array(
+			'pre_check_md5'    => true,
+			'attempt_rollback' => false,
+			'do_rollback'      => false,
 		);
 		$parsed_args = wp_parse_args( $args, $defaults );
 
@@ -1249,15 +1254,19 @@ class Core_Upgrader extends WP_Upgrader {
 		// Pre-cache the checksums for the versions we care about
 		get_core_checksums( array( $wp_version, $current->version ) );
 
-		$no_partial = false;
-		if ( ! $this->check_files() )
-			$no_partial = true;
+		$partial = true;
+		if ( $parsed_args['do_rollback'] )
+			$partial = false;
+		elseif ( $parsed_args['pre_check_md5'] && ! $this->check_files() )
+			$partial = false;
 
 		// If partial update is returned from the API, use that, unless we're doing a reinstall.
 		// If we cross the new_bundled version number, then use the new_bundled zip.
 		// Don't though if the constant is set to skip bundled items.
 		// If the API returns a no_content zip, go with it. Finally, default to the full zip.
-		if ( $current->packages->partial && 'reinstall' != $current->response && $wp_version == $current->partial_version && ! $no_partial )
+		if ( $parsed_args['do_rollback'] && $current->packages->rollback )
+			$to_download = 'rollback';
+		elseif ( $current->packages->partial && 'reinstall' != $current->response && $wp_version == $current->partial_version && $partial )
 			$to_download = 'partial';
 		elseif ( $current->packages->new_bundled && version_compare( $wp_version, $current->new_bundled, '<' )
 			&& ( ! defined( 'CORE_UPGRADE_SKIP_NEW_BUNDLED' ) || ! CORE_UPGRADE_SKIP_NEW_BUNDLED ) )
@@ -1282,12 +1291,22 @@ class Core_Upgrader extends WP_Upgrader {
 		}
 		$wp_filesystem->chmod($wp_dir . 'wp-admin/includes/update-core.php', FS_CHMOD_FILE);
 
-		require(ABSPATH . 'wp-admin/includes/update-core.php');
+		require_once( ABSPATH . 'wp-admin/includes/update-core.php' );
 
 		if ( ! function_exists( 'update_core' ) )
 			return new WP_Error( 'copy_failed_space', $this->strings['copy_failed_space'] );
 
 		$result = update_core( $working_dir, $wp_dir );
+
+		// In the event of an error, rollback to the previous version
+		if ( is_wp_error( $result ) && $parsed_args['attempt_rollback'] && $current->packages->rollback && ! $parsed_args['do_rollback'] ) {
+			apply_filters( 'update_feedback', $result );
+			apply_filters( 'update_feedback', $this->strings['start_rollback'] );
+
+			$rollback_result = $this->upgrade( $current, array_merge( $parsed_args, array( 'do_rollback' => true ) ) );
+
+			$result = new WP_Error( 'rollback_was_required', $this->strings['rollback_was_required'], array( 'rollback' => $rollback_result, 'update' => $result ) );
+		}
 		do_action( 'upgrader_process_complete', $this, array( 'action' => 'update', 'type' => 'core' ), $result );
 		return $result;
 	}
@@ -1356,7 +1375,10 @@ class Core_Upgrader extends WP_Upgrader {
 			return false;
 
 		foreach ( $checksums[ $wp_version ] as $file => $checksum ) {
-			if ( md5_file( ABSPATH . $file ) !== $checksum )
+			// Skip files which get updated
+			if ( 'wp-content' == substr( $file, 0, 10 ) )
+				continue;
+			if ( ! file_exists( ABSPATH . $file ) || md5_file( ABSPATH . $file ) !== $checksum )
 				return false;
 		}
 
@@ -1466,18 +1488,27 @@ class WP_Automatic_Upgrader {
 	 * Check for GIT/SVN checkouts.
 	 */
 	static function is_vcs_checkout( $context ) {
-		$stop_dirs = array(
-			ABSPATH,
-			untrailingslashit( $context ),
-		);
-		if ( ! file_exists( ABSPATH . '/wp-config.php' ) ) // wp-config.php up one folder in a deployment situation
-			$stop_dirs[] = dirname( ABSPATH );
+		$context_dirs = array( untrailingslashit( $context ) );
+		if ( $context !== ABSPATH )
+			$context_dirs[] = untrailingslashit( ABSPATH );
 
-		$checkout = false;
-		foreach ( array_unique( $stop_dirs ) as $dir ) {
-			if ( file_exists( $dir . '/.svn' ) || file_exists( $dir . '/.git' ) ) {
-				$checkout = true;
-				break;
+		$vcs_dirs = array( '.svn', '.git', '.hg', '.bzr' );
+		$check_dirs = array();
+
+		foreach ( $context_dirs as $context_dir ) {
+			// Walk up from $context_dir to the root.
+			do {
+				$check_dirs[] = $context_dir;
+			} while ( $context_dir != dirname( $context_dir ) && $context_dir = dirname( $context_dir ) );
+		}
+
+		$check_dirs = array_unique( $check_dirs );
+
+		// Search all directories we've found for evidence of version control.
+		foreach ( $vcs_dirs as $vcs_dir ) {
+			foreach ( $check_dirs as $check_dir ) {
+				if ( $checkout = is_dir( rtrim( $check_dir, '\\/' ) . "/$vcs_dir" ) )
+					break 2;
 			}
 		}
 		return apply_filters( 'auto_upgrade_is_vcs_checkout', $checkout, $context );
@@ -1575,23 +1606,23 @@ class WP_Automatic_Upgrader {
 			case 'theme':
 				$theme = wp_get_theme( $item );
 				$item_name = $theme->Get( 'Name' );
-				$skin->feedback( __( 'Updating Theme: %s' ), $item_name );
+				$skin->feedback( __( 'Updating theme: %s' ), $item_name );
 				break;
 			case 'plugin':
 				$plugin_data = get_plugin_data( $context . '/' . $item );
 				$item_name = $plugin_data['Name'];
-				$skin->feedback( __( 'Updating Plugin: %s' ), $item_name );
+				$skin->feedback( __( 'Updating plugin: %s' ), $item_name );
 				break;
 			case 'language':
 				if ( 'theme' == $item->type ) {
 					$theme = wp_get_theme( $item->slug );
 					$skin->feedback( sprintf(
-						__( 'Updating the %1$s language files for the %2$s Theme' ),
+						__( 'Updating the %1$s translation for the %2$s theme' ),
 						$item->language,
 						$theme->Get( 'Name' )
 					) );
 					$item_name = sprintf(
-						__( '%1$s translation for the %2$s Theme' ),
+						__( '%1$s translation for the %2$s theme' ),
 						$item->language,
 						$theme->Get( 'Name' )
 					);
@@ -1599,12 +1630,12 @@ class WP_Automatic_Upgrader {
 					$plugin_data = get_plugins( '/' . $item->slug );
 					$plugin_data = array_shift( $plugin_data );
 					$skin->feedback( sprintf(
-						__( 'Updating the %1$s language files for the %2$s Plugin' ),
+						__( 'Updating the %1$s translation for the %2$s plugin' ),
 						$item->language,
 						$plugin_data['Name']
 					) );
 					$item_name = sprintf(
-						__( '%1$s translation for the %2$s Plugin' ),
+						__( '%1$s translation for the %2$s plugin' ),
 						$item->language,
 						$plugin_data['Name']
 					);
@@ -1625,6 +1656,8 @@ class WP_Automatic_Upgrader {
 		// Boom, This sites about to get a whole new splash of paint!
 		$upgrade_result = $upgrader->upgrade( $item, array(
 			'clear_update_cache' => false,
+			'pre_check_md5'      => false, /* always use partial builds if possible for core updates */
+			'attempt_rollback'   => true, /* only available for core updates */
 		) );
 
 		// Core doesn't output this, so lets append it so we don't get confused
@@ -1693,14 +1726,25 @@ class WP_Automatic_Upgrader {
 
 		// Next, Process any core upgrade
 		wp_version_check(); // Check for Core updates
+		$extra_update_stats = array();
 		$core_update = find_core_auto_update();
 		if ( $core_update ) {
-			self::upgrade( 'core', $core_update );
+			$start_time = time();
+			$core_update_result = self::upgrade( 'core', $core_update );
 			delete_site_transient( 'update_core' );
+			$extra_update_stats['success'] = is_wp_error( $core_update_result ) ? $core_update_result->get_error_code() : true;
+			if ( is_wp_error( $core_update_result ) && 'rollback_was_required' == $core_update_result->get_error_code() ) {
+				$rollback_data = $core_update_result->get_error_data();
+				$extra_update_stats['success'] = is_wp_error( $rollback_data['update'] ) ? $rollback_data['update']->get_error_code() : $rollback_data['update'];
+				$extra_update_stats['rollback'] = is_wp_error( $rollback_data['rollback'] ) ? $rollback_data['rollback']->get_error_code() : true; // If it's not a WP_Error, the rollback was successful.
+			}
+			$extra_update_stats['fs_method'] = $GLOBALS['wp_filesystem']->method;
+			$extra_update_stats['time_taken'] = ( time() - $start_time );
+			$extra_update_stats['attempted'] = $core_update->version;
 		}
 
 		// Cleanup, and check for any pending translations
-		wp_version_check();  // check for Core updates
+		wp_version_check( $extra_update_stats );  // check for Core updates
 		wp_update_themes();  // Check for Theme updates
 		wp_update_plugins(); // Check for Plugin updates
 
