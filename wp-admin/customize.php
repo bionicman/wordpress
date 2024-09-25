@@ -12,7 +12,7 @@ define( 'IFRAME_REQUEST', true );
 /** Load WordPress Administration Bootstrap */
 require_once( dirname( __FILE__ ) . '/admin.php' );
 
-if ( ! current_user_can( 'edit_theme_options' ) ) {
+if ( ! current_user_can( 'customize' ) ) {
 	wp_die( __( 'Cheatin&#8217; uh?' ) );
 }
 
@@ -24,7 +24,13 @@ if ( $return ) {
 	$return = wp_validate_redirect( $return );
 }
 if ( ! $return ) {
-	$return = $url;
+	if ( $url ) {
+		$return = $url;
+	} elseif ( current_user_can( 'edit_theme_options' ) || current_user_can( 'switch_themes' ) ) {
+		$return = admin_url( 'themes.php' );
+	} else {
+		$return = admin_url();
+	}
 }
 
 global $wp_scripts, $wp_customize;
@@ -112,7 +118,7 @@ do_action( 'customize_controls_print_scripts' );
 				submit_button( $save_text, 'primary save', 'save', false );
 			?>
 			<span class="spinner"></span>
-			<a class="customize-controls-close" href="<?php echo esc_url( $return ? $return : admin_url( 'themes.php' ) ); ?>">
+			<a class="customize-controls-close" href="<?php echo esc_url( $return ); ?>">
 				<span class="screen-reader-text"><?php _e( 'Cancel' ); ?></span>
 			</a>
 		</div>
@@ -131,7 +137,7 @@ do_action( 'customize_controls_print_scripts' );
 							/* translators: %s is the theme name in the Customize/Live Preview pane */
 							echo sprintf( __( 'You are previewing %s' ), '<strong class="theme-name">' . $wp_customize->theme()->display('Name') . '</strong>' );
 						} else {
-							/* translators: %s is the site title in the Customize pane */
+							/* translators: %s is the site/panel title in the Customize pane */
 							echo sprintf( __( 'You are customizing %s' ), '<strong class="theme-name site-title">' . get_bloginfo( 'name' ) . '</strong>' );
 						}
 					?></span>
@@ -183,12 +189,14 @@ do_action( 'customize_controls_print_scripts' );
 	 */
 	do_action( 'customize_controls_print_footer_scripts' );
 
-	// If the frontend and the admin are served from the same domain, load the
-	// preview over ssl if the customizer is being loaded over ssl. This avoids
-	// insecure content warnings. This is not attempted if the admin and frontend
-	// are on different domains to avoid the case where the frontend doesn't have
-	// ssl certs. Domain mapping plugins can allow other urls in these conditions
-	// using the customize_allowed_urls filter.
+	/*
+	 * If the frontend and the admin are served from the same domain, load the
+	 * preview over ssl if the customizer is being loaded over ssl. This avoids
+	 * insecure content warnings. This is not attempted if the admin and frontend
+	 * are on different domains to avoid the case where the frontend doesn't have
+	 * ssl certs. Domain mapping plugins can allow other urls in these conditions
+	 * using the customize_allowed_urls filter.
+	 */
 
 	$allowed_urls = array( home_url('/') );
 	$admin_origin = parse_url( admin_url() );

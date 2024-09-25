@@ -337,11 +337,16 @@
 	});
 
 	/**
-	 * A more abstracted state, because media.controller.State expects
-	 * specific regions (menu, title, etc.) to exist on the frame, which do not
-	 * exist in media.view.Frame.EditAttachment.
+	 * wp.media.controller.State
+	 *
+	 * A state is a step in a workflow that when set will trigger the controllers
+	 * for the regions to be updated as specified in the frame. This is the base
+	 * class that the various states used in wp.media extend.
+	 *
+	 * @constructor
+	 * @augments Backbone.Model
 	 */
-	media.controller._State = Backbone.Model.extend({
+	media.controller.State = Backbone.Model.extend({
 		constructor: function() {
 			this.on( 'activate', this._preActivate, this );
 			this.on( 'activate', this.activate, this );
@@ -349,13 +354,14 @@
 			this.on( 'deactivate', this._deactivate, this );
 			this.on( 'deactivate', this.deactivate, this );
 			this.on( 'reset', this.reset, this );
+			this.on( 'ready', this._ready, this );
 			this.on( 'ready', this.ready, this );
 			/**
 			 * Call parent constructor with passed arguments
 			 */
 			Backbone.Model.apply( this, arguments );
+			this.on( 'change:menu', this._updateMenu, this );
 		},
-
 		/**
 		 * @abstract
 		 */
@@ -375,55 +381,15 @@
 		/**
 		 * @access private
 		 */
-		_preActivate: function() {
-			this.active = true;
-		},
-		/**
-		 * @access private
-		 */
-		_postActivate: function() {},
-		/**
-		 * @access private
-		 */
-		_deactivate: function() {
-			this.active = false;
-		}
-	});
-
-	/**
-	 * wp.media.controller.State
-	 *
-	 * A state is a step in a workflow that when set will trigger the controllers
-	 * for the regions to be updated as specified in the frame. This is the base
-	 * class that the various states used in wp.media extend.
-	 *
-	 * @constructor
-	 * @augments Backbone.Model
-	 */
-	media.controller.State = media.controller._State.extend({
-		constructor: function() {
-			this.on( 'activate', this._preActivate, this );
-			this.on( 'activate', this.activate, this );
-			this.on( 'activate', this._postActivate, this );
-			this.on( 'deactivate', this._deactivate, this );
-			this.on( 'deactivate', this.deactivate, this );
-			this.on( 'reset', this.reset, this );
-			this.on( 'ready', this._ready, this );
-			this.on( 'ready', this.ready, this );
-			/**
-			 * Call parent constructor with passed arguments
-			 */
-			Backbone.Model.apply( this, arguments );
-			this.on( 'change:menu', this._updateMenu, this );
-		},
-
-		/**
-		 * @access private
-		 */
 		_ready: function() {
 			this._updateMenu();
 		},
-
+		/**
+		 * @access private
+		*/
+		_preActivate: function() {
+			this.active = true;
+		},
 		/**
 		 * @access private
 		 */
@@ -792,6 +758,9 @@
 				this.frame.content.mode('browse');
 			}
 			this.get('selection').add( attachment );
+
+			// Set focus back to where it goes when an attachment is selected.
+			$( '.attachments-browser .attachments .attachment' ).first().focus();
 		},
 
 		/**
@@ -1812,7 +1781,7 @@
 			this.activeModes.on( 'add remove reset', _.bind( this.triggerModeEvents, this ) );
 
 			_.each( this.options.mode, function( mode ) {
-				this.activeModes.add( new Backbone.Model( { id: mode } ) );
+				this.activateMode( mode );
 			}, this );
 
 			// Force the uploader off if the upload limit has been exceeded or
@@ -2004,17 +1973,60 @@
 			eventToTrigger = model.get('id') + ':' + modeEventMap[collectionEvent];
 			this.trigger( eventToTrigger );
 		},
+		/**
+		 * Activate a mode on the frame.
+		 *
+		 * @param string mode Mode ID.
+		 * @returns {this} Returns itself to allow chaining.
+		 */
 		activateMode: function( mode ) {
+			// Bail if the mode is already active.
+			if ( this.isModeActive( mode ) ) {
+				return;
+			}
 			this.activeModes.add( [ { id: mode } ] );
+			// Add a css class to the frame for anything that needs to be styled
+			// for the mode.
+			this.$el.addClass( 'mode-' + mode );
+			/**
+			 * Frame mode activation event.
+			 *
+			 * @event this#{mode}:activate
+			 */
 			this.trigger( mode + ':activate' );
+
+			return this;
 		},
+		/**
+		 * Deactivate a mode on the frame.
+		 *
+		 * @param string mode Mode ID.
+		 * @returns {this} Returns itself to allow chaining.
+		 */
 		deactivateMode: function( mode ) {
 			// Bail if the mode isn't active.
-			if ( ! this.activeModes.where( { id: mode } ).length ) {
+			if ( ! this.isModeActive( mode ) ) {
 				return;
 			}
 			this.activeModes.remove( this.activeModes.where( { id: mode } ) );
+			this.$el.removeClass( 'mode-' + mode );
+			/**
+			 * Frame mode deactivation event.
+			 *
+			 * @event this#{mode}:deactivate
+			 */
 			this.trigger( mode + ':deactivate' );
+
+			return this;
+		},
+		/**
+		 * Check if a mode is enabled on the frame.
+		 *
+		 * @param  string mode Mode ID.
+		 * @return bool
+		 */
+		isModeActive: function( mode ) {
+			return Boolean( this.activeModes.where( { id: mode } ).length );
 		}
 	});
 
@@ -3212,7 +3224,7 @@
 				};
 			}
 
-			$el.show().focus();
+			$el.show().find( '.media-modal-close' ).focus();
 			return this.propagate('open');
 		},
 
@@ -3293,9 +3305,6 @@
 			if ( 27 === event.which && this.$el.is(':visible') ) {
 				this.escape();
 				event.stopImmediatePropagation();
-			} else {
-				// Keep focus inside the media modal
-				this.focusManager;
 			}
 		}
 	});
@@ -3645,10 +3654,15 @@
 		className: 'uploader-inline',
 		template:  media.template('uploader-inline'),
 
+		events: {
+			'click .close': 'hide'
+		},
+
 		initialize: function() {
 			_.defaults( this.options, {
 				message: '',
-				status:  true
+				status:  true,
+				canClose: false
 			});
 
 			if ( ! this.options.$browser && this.controller.uploader ) {
@@ -3668,14 +3682,16 @@
 
 		prepare: function() {
 			var suggestedWidth = this.controller.state().get('suggestedWidth'),
-				suggestedHeight = this.controller.state().get('suggestedHeight');
+				suggestedHeight = this.controller.state().get('suggestedHeight'),
+				data = {};
+
+			data.canClose = this.options.canClose;
 
 			if ( suggestedWidth && suggestedHeight ) {
-				return {
-					suggestedWidth: suggestedWidth,
-					suggestedHeight: suggestedHeight
-				};
+				data.suggestedWidth = suggestedWidth;
+				data.suggestedHeight = suggestedHeight;
 			}
+			return data;
 		},
 		/**
 		 * @returns {wp.media.view.UploaderInline} Returns itself to allow chaining
@@ -3736,7 +3752,14 @@
 
 			this.refresh();
 			return this;
+		},
+		show: function() {
+			this.$el.removeClass( 'hidden' );
+		},
+		hide: function() {
+			this.$el.addClass( 'hidden' );
 		}
+
 	});
 
 	/**
@@ -4381,6 +4404,10 @@
 			} else {
 				this.click();
 			}
+
+			// When selecting a tab along the left side,
+			// focus should be transferred into the main panel
+			$('.media-frame-content input').first().focus();
 		},
 
 		click: function() {
@@ -4590,13 +4617,13 @@
 		},
 
 		events: {
-			'click .attachment-preview':      'toggleSelectionHandler',
+			'click .js--select-attachment':   'toggleSelectionHandler',
 			'change [data-setting]':          'updateSetting',
 			'change [data-setting] input':    'updateSetting',
 			'change [data-setting] select':   'updateSetting',
 			'change [data-setting] textarea': 'updateSetting',
 			'click .close':                   'removeFromLibrary',
-			'click .check':                   'removeFromSelection',
+			'click .check':                   'checkClickHandler',
 			'click a':                        'preventDefault',
 			'keydown':                        'toggleSelectionHandler'
 		},
@@ -4610,6 +4637,8 @@
 			this.model.on( 'change', this.render, this );
 			this.model.on( 'change:title', this._syncTitle, this );
 			this.model.on( 'change:caption', this._syncCaption, this );
+			this.model.on( 'change:artist', this._syncArtist, this );
+			this.model.on( 'change:album', this._syncAlbum, this );
 			this.model.on( 'change:percent', this.progress, this );
 
 			// Update the selection.
@@ -4710,6 +4739,13 @@
 		 */
 		toggleSelectionHandler: function( event ) {
 			var method;
+
+			// Catch arrow events
+			if ( 37 === event.keyCode || 38 === event.keyCode || 39 === event.keyCode || 40 === event.keyCode ) {
+				this.arrowEvent(event);
+				return;
+			}
+
 			// Catch enter and space events
 			if ( 'keydown' === event.type && 13 !== event.keyCode && 32 !== event.keyCode ) {
 				return;
@@ -4730,6 +4766,54 @@
 			this.toggleSelection({
 				method: method
 			});
+		},
+		/**
+		 * @param {Object} event
+		 */
+		arrowEvent: function( event ) {
+			var attachment = $('.attachments-browser .attachment'),
+				attachmentsWidth = $('.attachments-browser .attachments').width(),
+				thumbnailWidth = attachment.first().innerWidth() + 16,
+				thumbnailsPerRow = Math.floor(attachmentsWidth/thumbnailWidth),
+				totalThumnails = attachment.length,
+				totalRows = Math.ceil(totalThumnails/thumbnailsPerRow),
+				thisIndex = attachment.filter( ':focus' ).index(),
+				thisIndexAdjusted = thisIndex + 1,
+				thisRow = thisIndexAdjusted <= thumbnailsPerRow ? 1 : Math.ceil(thisIndexAdjusted/thumbnailsPerRow);
+
+				// Left arrow
+				if ( 37 === event.keyCode ) {
+					if ( 0 === thisIndex ) {
+						return;
+					}
+					attachment.eq( thisIndex - 1 ).focus();
+				}
+
+				// Up arrow
+				if ( 38 === event.keyCode ) {
+					if ( 1 === thisRow ) {
+						return;
+					}
+					attachment.eq( thisIndex - thumbnailsPerRow ).focus();
+				}
+
+				// Right arrow
+				if ( 39 === event.keyCode ) {
+					if ( totalThumnails === thisIndex ) {
+						return;
+					}
+					attachment.eq( thisIndex + 1 ).focus();
+				}
+
+				// Down arrow
+				if ( 40 === event.keyCode ) {
+					if ( totalRows === thisRow ) {
+						return;
+					}
+					attachment.eq( thisIndex + thumbnailsPerRow ).focus();
+				}
+
+				return false;
 		},
 		/**
 		 * @param {Object} options
@@ -4767,6 +4851,10 @@
 
 				selection.add( models );
 				selection.single( model );
+
+				// When selecting attachments, focus should be transferred to the right details panel
+				$('.attachment-details input').first().focus();
+
 				return;
 
 			// If the `method` is set to `toggle`, just flip the selection
@@ -4774,6 +4862,12 @@
 			} else if ( 'toggle' === method ) {
 				selection[ this.selected() ? 'remove' : 'add' ]( model );
 				selection.single( model );
+
+				if ( this.selected() ) {
+					// When selecting an attachment, focus should be transferred to the right details panel
+					$('.attachment-details input').first().focus();
+				}
+
 				return;
 			}
 
@@ -4825,7 +4919,11 @@
 				return;
 			}
 
-			this.$el.addClass('selected').attr('aria-checked', true);
+			this.$el.addClass( 'selected' ).attr( 'aria-checked', true )
+					.find( '.check' ).attr( 'tabindex', '0' );
+
+			// When selecting an attachment, focus should be transferred to the right details panel
+			$('.attachment-details input').first().focus();
 		},
 		/**
 		 * @param {Backbone.Model} model
@@ -4840,7 +4938,8 @@
 			if ( ! selection || ( collection && collection !== selection ) ) {
 				return;
 			}
-			this.$el.removeClass('selected').attr('aria-checked', false);
+			this.$el.removeClass( 'selected' ).attr( 'aria-checked', false )
+					.find( '.check' ).attr( 'tabindex', '-1' );
 		},
 		/**
 		 * @param {Backbone.Model} model
@@ -4986,26 +5085,36 @@
 
 			this.collection.remove( this.model );
 		},
+
 		/**
-		 * @param {Object} event
+		 * Add the model if it isn't in the selection, if it is in the selection,
+		 * remove it.
+		 *
+		 * @param  {[type]} event [description]
+		 * @return {[type]}       [description]
 		 */
-		removeFromSelection: function( event ) {
+		checkClickHandler: function ( event ) {
 			var selection = this.options.selection;
 			if ( ! selection ) {
 				return;
 			}
-
-			// Stop propagation so the model isn't selected.
 			event.stopPropagation();
-
-			selection.remove( this.model );
+			if ( selection.where( { id: this.model.get( 'id' ) } ).length ) {
+				selection.remove( this.model );
+				// Move focus back to the attachment tile (from the check).
+				this.$el.focus();
+			} else {
+				selection.add( this.model );
+			}
 		}
 	});
 
 	// Ensure settings remain in sync between attachment views.
 	_.each({
 		caption: '_syncCaption',
-		title:   '_syncTitle'
+		title:   '_syncTitle',
+		artist:  '_syncArtist',
+		album:   '_syncAlbum'
 	}, function( method, setting ) {
 		/**
 		 * @param {Backbone.Model} model
@@ -5257,8 +5366,7 @@
 				controller:           this.controller,
 				model:                attachment,
 				collection:           this.collection,
-				selection:            this.options.selection,
-				showAttachmentFields: this.options.showAttachmentFields
+				selection:            this.options.selection
 			});
 
 			return this._viewsByCid[ attachment.cid ] = view;
@@ -5573,11 +5681,11 @@
 				search:  true,
 				display: false,
 				sidebar: true,
-				showAttachmentFields: getUserSetting( 'showAttachmentFields', [ 'title', 'uploadedTo', 'dateFormatted', 'mime' ] ),
 				AttachmentView: media.view.Attachment.Library
 			});
 
-			this.listenTo( this.controller, 'show:upload:attachment', _.bind( this.showUploader, this ) );
+			this.listenTo( this.controller, 'toggle:upload:attachment', _.bind( this.toggleUploader, this ) );
+
 			this.createToolbar();
 			this.createUploader();
 			this.createAttachments();
@@ -5627,21 +5735,9 @@
 					priority: -90
 				}).render() );
 
-				this.toolbar.set( 'bulkSelectionToggleButton', new media.view.BulkSelectionToggleButton({
-					text: 'Bulk Edit',
+				this.toolbar.set( 'BulkSelection', new media.view.BulkSelection({
 					controller: this.controller,
 					priority: -70
-				}).render() );
-
-				this.toolbar.set( 'BulkDeleteButton', new media.view.BulkDeleteButton({
-					text: 'Bulk Delete',
-					controller: this.controller,
-					priority: -69
-				}).render() );
-
-				this.toolbar.set( 'gridFieldOptions', new media.view.GridFieldOptions({
-					controller: this.controller,
-					priority: -50
 				}).render() );
 			}
 
@@ -5716,15 +5812,20 @@
 			this.uploader = new media.view.UploaderInline({
 				controller: this.controller,
 				status:     false,
-				message:    l10n.noItemsFound
+				message:    l10n.noItemsFound,
+				canClose:   this.controller.isModeActive( 'grid' )
 			});
 
 			this.uploader.$el.addClass( 'hidden' );
 			this.views.add( this.uploader );
 		},
 
-		showUploader: function() {
-			this.uploader.$el.removeClass( 'hidden' );
+		toggleUploader: function() {
+			if ( this.uploader.$el.hasClass( 'hidden' ) ) {
+				this.uploader.show();
+			} else {
+				this.uploader.hide();
+			}
 		},
 
 		createAttachments: function() {
@@ -5734,7 +5835,6 @@
 				selection:            this.options.selection,
 				model:                this.model,
 				sortable:             this.options.sortable,
-				showAttachmentFields: this.options.showAttachmentFields,
 
 				// The single `Attachment` view to be used in the `Attachments` view.
 				AttachmentView: this.options.AttachmentView
@@ -5743,11 +5843,12 @@
 			this.views.add( this.attachments );
 
 			this.attachmentsNoResults = new media.View({
-				controller: this.controller
+				controller: this.controller,
+				tagName: 'p'
 			});
 
-			this.attachmentsNoResults.$el.addClass( 'hidden' );
-			this.attachmentsNoResults.$el.html( 'No media found.' );
+			this.attachmentsNoResults.$el.addClass( 'hidden no-media' );
+			this.attachmentsNoResults.$el.html( l10n.noMedia );
 
 			this.views.add( this.attachmentsNoResults );
 
@@ -6212,7 +6313,8 @@
 			'click .delete-attachment':       'deleteAttachment',
 			'click .trash-attachment':        'trashAttachment',
 			'click .edit-attachment':         'editAttachment',
-			'click .refresh-attachment':      'refreshAttachment'
+			'click .refresh-attachment':      'refreshAttachment',
+			'keydown':                        'toggleSelectionHandler'
 		},
 
 		initialize: function() {
@@ -6275,6 +6377,17 @@
 			this.$el.removeClass('needs-refresh');
 			event.preventDefault();
 			this.model.fetch();
+		},
+		/**
+		 * @param {Object} event
+		 */
+		toggleSelectionHandler: function( event ) {
+			// Reverse tabbing out of the right details panel
+			// should take me back to the item in the list that was being edited.
+			if ( 'keydown' === event.type && 9 === event.keyCode && event.shiftKey && event.target === $( ':tabbable', this.$el ).filter( ':first' )[0] ) {
+				$('.attachments-browser .details').focus();
+				return false;
+			}
 		}
 
 	});

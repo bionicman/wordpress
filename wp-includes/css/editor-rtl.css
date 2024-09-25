@@ -181,11 +181,6 @@ div.mce-path {
 	line-height: 18px; 
 } 
 
-.mce-path-item:focus {
-	background: none;
-	color: inherit;
-}
-
 .mce-toolbar .mce-btn,
 .qt-fullscreen {
 	border-color: transparent;
@@ -756,7 +751,7 @@ i.mce-i-hr:before {
 	position: relative;
 }
 
-.wp-editor-tools {
+#wp-content-editor-tools {
 	background-color: #f1f1f1;
 	padding-top: 20px;
 	position: relative;

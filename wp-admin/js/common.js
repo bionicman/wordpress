@@ -27,12 +27,31 @@ columns = {
 	},
 
 	saveManageColumnsState : function() {
-		var hidden = this.hidden();
+		var hidden, page, opts = $( '.misc-screen-options' );
+		if ( opts.length ) {
+			hidden = [];
+			opts.find( '.hide-column-tog' ).each( function() {
+				var $el, field = this.value;
+				$el = $( '.data-' + field );
+				if ( ! this.checked ) {
+					hidden.push( field );
+					$el.removeClass( 'data-visible' ).addClass( 'data-hidden' );
+				} else {
+					$el.removeClass( 'data-hidden' ).addClass( 'data-visible' );
+				}
+			} );
+			page = pagenow + opts.data( 'id' );
+			hidden = hidden.join( ',' );
+		} else {
+			page = pagenow;
+			hidden = this.hidden();
+		}
+
 		$.post(ajaxurl, {
 			action: 'hidden-columns',
 			hidden: hidden,
 			screenoptionnonce: $('#screenoptionnonce').val(),
-			page: pagenow
+			page: page
 		});
 	},
 
@@ -131,6 +150,8 @@ screenMeta = {
 			panel.focus();
 			link.addClass('screen-meta-active').attr('aria-expanded', true);
 		});
+
+		$( document ).trigger( 'screen:options:open' );
 	},
 
 	close: function( panel, link ) {
@@ -139,6 +160,8 @@ screenMeta = {
 			$('.screen-meta-toggle').css('visibility', '');
 			panel.parent().hide();
 		});
+
+		$( document ).trigger( 'screen:options:close' );
 	}
 };
 

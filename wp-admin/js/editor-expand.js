@@ -117,14 +117,23 @@ jQuery( document ).ready( function($) {
 		// Adjust when switching editor modes.
 		editor.on( 'show', function() {
 			setTimeout( function() {
-				editor.execCommand( 'mceAutoResize' );
+				editor.execCommand( 'wpAutoResize' );
 				adjust( 'resize' );
 			}, 200 );
 		} );
 
-		editor.on( 'keyup', function() {
-			var offset = getCursorOffset(),
+		// Make sure the cursor is always visible.
+		// This is not only necessary to keep the cursor between the toolbars,
+		// but also to scroll the window when the cursor moves out of the viewport to a wpview.
+		// Setting a buffer > 0 will prevent the browser default.
+		// Some browsers will scroll to the middle,
+		// others to the top/bottom of the *window* when moving the cursor out of the viewport.
+		editor.on( 'keyup', function( event ) {
+			var VK = tinymce.util.VK,
+				key = event.keyCode,
+				offset = getCursorOffset(),
 				windowHeight = $window.height(),
+				buffer = 10,
 				cursorTop, cursorBottom, editorTop, editorBottom;
 
 			if ( ! offset ) {
@@ -133,11 +142,15 @@ jQuery( document ).ready( function($) {
 
 			cursorTop = offset.top + editor.getContentAreaContainer().getElementsByTagName( 'iframe' )[0].getBoundingClientRect().top;
 			cursorBottom = cursorTop + offset.height;
+			cursorTop = cursorTop - buffer;
+			cursorBottom = cursorBottom + buffer;
 			editorTop = $adminBar.outerHeight() + $tools.outerHeight() + $visualTop.outerHeight();
-			editorBottom = $window.height() - $bottom.outerHeight();
+			editorBottom = windowHeight - $bottom.outerHeight();
 
-			if ( cursorTop < editorTop || cursorBottom > editorBottom ) {
-				window.scrollTo( window.pageXOffset, cursorTop + window.pageYOffset - windowHeight / 2 );
+			if ( cursorTop < editorTop && ( key === VK.UP || key === VK.LEFT || key === VK.BACKSPACE ) ) {
+				window.scrollTo( window.pageXOffset, cursorTop + window.pageYOffset - editorTop );
+			} else if ( cursorBottom > editorBottom ) {
+				window.scrollTo( window.pageXOffset, cursorBottom + window.pageYOffset - editorBottom );
 			}
 		} );
 
@@ -145,7 +158,7 @@ jQuery( document ).ready( function($) {
 			var selection = editor.selection,
 				node = selection.getNode(),
 				range = selection.getRng(),
-				view, clone, right, offset;
+				view, clone, offset;
 
 			if ( tinymce.Env.ie && tinymce.Env.ie < 9 ) {
 				return;
@@ -159,7 +172,6 @@ jQuery( document ).ready( function($) {
 				if ( clone.startContainer.length > 1 ) {
 					if ( clone.startContainer.length > clone.endOffset ) {
 						clone.setEnd( clone.startContainer, clone.endOffset + 1 );
-						right = true;
 					} else {
 						clone.setStart( clone.startContainer, clone.endOffset - 1 );
 					}
@@ -175,7 +187,7 @@ jQuery( document ).ready( function($) {
 			}
 
 			if ( ! offset.height ) {
-				return false;
+				return;
 			}
 
 			return offset;
@@ -285,7 +297,7 @@ jQuery( document ).ready( function($) {
 			$top.css( {
 				position: 'fixed',
 				top: adminBarHeight + toolsHeight,
-				width: editorWidth - ( visual ? 0 : 38 ),
+				width: $editor.parent().width() - ( $top.outerWidth() - $top.width() ),
 				borderTop: '1px solid #e5e5e5'
 			} );
 
@@ -310,7 +322,6 @@ jQuery( document ).ready( function($) {
 				$tools.css( {
 					position: 'absolute',
 					top: 0,
-					borderTop: 'none',
 					width: $contentWrap.width()
 				} );
 			// Handle scrolling down.
@@ -319,14 +330,12 @@ jQuery( document ).ready( function($) {
 
 				$top.css( {
 					position: 'absolute',
-					top: window.pageYOffset - $editor.offset().top + adminBarHeight + $tools.outerHeight(),
-					borderTop: 'none'
+					top: editorHeight - buffer
 				} );
 
 				$tools.css( {
 					position: 'absolute',
-					top: window.pageYOffset - $contentWrap.offset().top + adminBarHeight,
-					borderTop: 'none',
+					top: editorHeight - buffer + 1, // border
 					width: $contentWrap.width()
 				} );
 			}
