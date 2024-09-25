@@ -409,6 +409,9 @@
 			completeCallback: $.noop
 		},
 
+		/**
+		 * @since 4.1.0
+		 */
 		initialize: function ( id, options ) {
 			var control = this;
 			api.Control.prototype.initialize.call( control, id, options );
@@ -668,8 +671,10 @@
 
 					if ( isMoveUp ) {
 						self.moveUp();
+						$( '#screen-reader-messages' ).text( l10n.widgetMovedUp );
 					} else {
 						self.moveDown();
+						$( '#screen-reader-messages' ).text( l10n.widgetMovedDown );
 					}
 
 					$( this ).focus(); // re-focus after the container was moved
@@ -800,8 +805,11 @@
 		 *
 		 * Overrides api.Control.toggle()
 		 *
-		 * @param {Boolean} active
-		 * @param {Object} args
+		 * @since 4.1.0
+		 *
+		 * @param {Boolean}   active
+		 * @param {Object}    args
+		 * @param {Callback}  args.completeCallback
 		 */
 		onChangeActive: function ( active, args ) {
 			// Note: there is a second 'args' parameter being passed, merged on top of this.defaultActiveArguments
@@ -1134,6 +1142,8 @@
 		},
 
 		/**
+		 * @since 4.1.0
+		 *
 		 * @param {Boolean} expanded
 		 * @param {Object} [params]
 		 * @returns {Boolean} false if state already applied
@@ -1141,6 +1151,8 @@
 		_toggleExpanded: api.Section.prototype._toggleExpanded,
 
 		/**
+		 * @since 4.1.0
+		 *
 		 * @param {Object} [params]
 		 * @returns {Boolean} false if already expanded
 		 */
@@ -1149,13 +1161,15 @@
 		/**
 		 * Expand the widget form control
 		 *
-		 * @deprecated alias of expand()
+		 * @deprecated 4.1.0 Use this.expand() instead.
 		 */
 		expandForm: function() {
 			this.expand();
 		},
 
 		/**
+		 * @since 4.1.0
+		 *
 		 * @param {Object} [params]
 		 * @returns {Boolean} false if already collapsed
 		 */
@@ -1164,7 +1178,7 @@
 		/**
 		 * Collapse the widget form control
 		 *
-		 * @deprecated alias of expand()
+		 * @deprecated 4.1.0 Use this.collapse() instead.
 		 */
 		collapseForm: function() {
 			this.collapse();
@@ -1378,6 +1392,8 @@
 
 		/**
 		 * Sync the section's active state back to the Backbone model's is_rendered attribute
+		 *
+		 * @since 4.1.0
 		 */
 		ready: function () {
 			var section = this, registeredSidebar;
@@ -1387,24 +1403,6 @@
 				registeredSidebar.set( 'is_rendered', active );
 			});
 			registeredSidebar.set( 'is_rendered', section.active() );
-		},
-
-		/**
-		 * Override Section.isContextuallyActive() to skip considering
-		 * SidebarControl  as opposed to a WidgetControl.
-		 *
-		 * @returns {boolean}
-		 */
-		isContextuallyActive: function () {
-			var section, activeCount;
-			section = this;
-			activeCount = 0;
-			_( section.controls() ).each( function ( control ) {
-				if ( control.active() && ! control.extended( api.Widgets.SidebarControl ) ) {
-					activeCount += 1;
-				}
-			});
-			return ( activeCount !== 0 );
 		}
 	});
 

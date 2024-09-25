@@ -223,13 +223,13 @@ class WP_Embed {
 			}
 
 			/**
-			 * Filter whether to inspect the given URL for discoverable <link> tags.
+			 * Filter whether to inspect the given URL for discoverable link tags.
 			 *
 			 * @since 2.9.0
 			 *
 			 * @see WP_oEmbed::discover()
 			 *
-			 * @param bool $enable Whether to enable <link> tag discovery. Default false.
+			 * @param bool $enable Whether to enable `<link>` tag discovery. Default false.
 			 */
 			$attr['discover'] = ( apply_filters( 'embed_oembed_discover', false ) && author_can( $post_ID, 'unfiltered_html' ) );
 
@@ -334,7 +334,7 @@ class WP_Embed {
 	 * Conditionally makes a hyperlink based on an internal class variable.
 	 *
 	 * @param string $url URL to potentially be linked.
-	 * @return string|bool Linked URL or the original URL. False if 'return_false_on_fail' is true.
+	 * @return false|string Linked URL or the original URL. False if 'return_false_on_fail' is true.
 	 */
 	public function maybe_make_link( $url ) {
 		if ( $this->return_false_on_fail ) {

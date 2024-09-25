@@ -97,8 +97,8 @@ function get_home_path() {
  *
  * @since 2.6.0
  *
- * @param string $folder Full path to folder
- * @param int $levels (optional) Levels of folders to follow, Default: 100 (PHP Loop limit).
+ * @param string $folder Optional. Full path to folder. Default empty.
+ * @param int    $levels Optional. Levels of folders to follow, Default 100 (PHP Loop limit).
  * @return bool|array False on failure, Else array of files
  */
 function list_files( $folder = '', $levels = 100 ) {
@@ -137,8 +137,8 @@ function list_files( $folder = '', $levels = 100 ) {
  *
  * @since 2.6.0
  *
- * @param string $filename (optional) Filename to base the Unique file off
- * @param string $dir (optional) Directory to store the file in
+ * @param string $filename Optional. Filename to base the Unique file off. Default empty.
+ * @param string $dir      Optional. Directory to store the file in. Default empty.
  * @return string a writable filename
  */
 function wp_tempnam($filename = '', $dir = '') {
@@ -208,10 +208,12 @@ function _wp_handle_upload( &$file, $overrides, $time, $action ) {
 	}
 
 	/**
-	 * The dynamic portion of the hook name, $action, refers to the post action.
+	 * Filter the data for a file before it is uploaded to WordPress.
 	 *
-	 * @since 2.9.0 as 'wp_handle_upload_prefilter'
-	 * @since 4.0.0 Converted to a dynamic hook with $action
+	 * The dynamic portion of the hook name, `$action`, refers to the post action.
+	 *
+	 * @since 2.9.0 as 'wp_handle_upload_prefilter'.
+	 * @since 4.0.0 Converted to a dynamic hook with `$action`.
 	 *
 	 * @param array $file An array of data for a single file.
 	 */
@@ -803,14 +805,18 @@ function copy_dir($from, $to, $skip_list = array() ) {
  * Initialises and connects the WordPress Filesystem Abstraction classes.
  * This function will include the chosen transport and attempt connecting.
  *
- * Plugins may add extra transports, And force WordPress to use them by returning the filename via the 'filesystem_method_file' filter.
+ * Plugins may add extra transports, And force WordPress to use them by returning
+ * the filename via the {@see 'filesystem_method_file'} filter.
  *
  * @since 2.5.0
  *
- * @param array $args (optional) Connection args, These are passed directly to the WP_Filesystem_*() classes.
- * @param string $context (optional) Context for get_filesystem_method(), See function declaration for more information.
- * @param bool $allow_relaxed_file_ownership Whether to allow Group/World writable.
- * @return null|boolean false on failure, true on success
+ * @param array  $args                         Optional. Connection args, These are passed directly to
+ *                                             the `WP_Filesystem_*()` classes. Default false.
+ * @param string $context                      Optional. Context for {@see get_filesystem_method()}.
+ *                                             Default false.
+ * @param bool   $allow_relaxed_file_ownership Optional. Whether to allow Group/World writable.
+ *                                             Default false.
+ * @return null|boolean false on failure, true on success.
  */
 function WP_Filesystem( $args = false, $context = false, $allow_relaxed_file_ownership = false ) {
 	global $wp_filesystem;
@@ -868,15 +874,23 @@ function WP_Filesystem( $args = false, $context = false, $allow_relaxed_file_own
 
 /**
  * Determines which Filesystem Method to use.
- * The priority of the Transports are: Direct, SSH2, FTP PHP Extension, FTP Sockets (Via Sockets class, or fsockopen())
+ *
+ * The priority of the Transports are: Direct, SSH2, FTP PHP Extension,
+ * FTP Sockets (Via Sockets class, or `fsockopen()`).
  *
  * Note that the return value of this function can be overridden in 2 ways
- *  - By defining FS_METHOD in your <code>wp-config.php</code> file
+ *
+ *  - By defining FS_METHOD in your `wp-config.php` file
  *  - By using the filesystem_method filter
- * Valid values for these are: 'direct', 'ssh2', 'ftpext' or 'ftpsockets'
- * Plugins may also define a custom transport handler, See the WP_Filesystem function for more information.
+ *
+ * Valid values for these are: 'direct', 'ssh2', 'ftpext' or 'ftpsockets'.
+ *
+ * Plugins may also define a custom transport handler, See the WP_Filesystem
+ * function for more information.
  *
  * @since 2.5.0
+ *
+ * @todo Properly mark arguments as optional.
  *
  * @param array $args Connection details.
  * @param string $context Full path to the directory that is tested for being writable.
@@ -943,14 +957,20 @@ function get_filesystem_method( $args = array(), $context = false, $allow_relaxe
 }
 
 /**
- * Displays a form to the user to request for their FTP/SSH details in order to connect to the filesystem.
+ * Displays a form to the user to request for their FTP/SSH details in order
+ * to connect to the filesystem.
+ *
  * All chosen/entered details are saved, Excluding the Password.
  *
- * Hostnames may be in the form of hostname:portnumber (eg: wordpress.org:2467) to specify an alternate FTP/SSH port.
+ * Hostnames may be in the form of hostname:portnumber (eg: wordpress.org:2467)
+ * to specify an alternate FTP/SSH port.
  *
- * Plugins may override this form by returning true|false via the <code>request_filesystem_credentials</code> filter.
+ * Plugins may override this form by returning true|false via the
+ * {@see 'request_filesystem_credentials'} filter.
  *
- * @since 2.5.0
+ * @since 2.5.
+ *
+ * @todo Properly mark optional arguments as such
  *
  * @param string $form_post the URL to post the form to
  * @param string $type the chosen Filesystem method in use

@@ -1,6 +1,6 @@
 <?php
 /**
- * Custom template tags for this theme.
+ * Custom template tags for Twenty Fifteen
  *
  * Eventually, some of the functionality here could be replaced by core features.
  *
@@ -52,7 +52,7 @@ function twentyfifteen_entry_meta() {
 	$format = get_post_format();
 	if ( current_theme_supports( 'post-formats', $format ) ) {
 		printf( '<span class="entry-format">%1$s<a href="%2$s">%3$s</a></span>',
-			sprintf( '<span class="screen-reader-text">%s</span>', esc_html_x( 'Format', 'Used before post format.', 'twentyfifteen' ) ),
+			sprintf( '<span class="screen-reader-text">%s </span>', esc_html_x( 'Format', 'Used before post format.', 'twentyfifteen' ) ),
 			esc_url( get_post_format_link( $format ) ),
 			get_post_format_string( $format )
 		);
@@ -72,7 +72,7 @@ function twentyfifteen_entry_meta() {
 			esc_html( get_the_modified_date() )
 		);
 
-		printf( '<span class="posted-on"><span class="screen-reader-text">%1$s</span><a href="%2$s" rel="bookmark">%3$s</a></span>',
+		printf( '<span class="posted-on"><span class="screen-reader-text">%1$s </span><a href="%2$s" rel="bookmark">%3$s</a></span>',
 			esc_html_x( 'Posted on', 'Used before publish date.', 'twentyfifteen' ),
 			esc_url( get_permalink() ),
 			$time_string
@@ -81,7 +81,7 @@ function twentyfifteen_entry_meta() {
 
 	if ( 'post' == get_post_type() ) {
 		if ( is_singular() || is_multi_author() ) {
-			printf( '<span class="byline"><span class="author vcard"><span class="screen-reader-text">%1$s</span><a class="url fn n" href="%2$s">%3$s</a></span></span>',
+			printf( '<span class="byline"><span class="author vcard"><span class="screen-reader-text">%1$s </span><a class="url fn n" href="%2$s">%3$s</a></span></span>',
 				esc_html_x( 'Author', 'Used before post author name.', 'twentyfifteen' ),
 				esc_url( get_author_posts_url( get_the_author_meta( 'ID' ) ) ),
 				esc_html( get_the_author() )
@@ -90,7 +90,7 @@ function twentyfifteen_entry_meta() {
 
 		$categories_list = get_the_category_list( _x( ', ', 'Used between list items, there is a space after the comma.', 'twentyfifteen' ) );
 		if ( $categories_list && twentyfifteen_categorized_blog() ) {
-			printf( '<span class="cat-links"><span class="screen-reader-text">%1$s</span>%2$s</span>',
+			printf( '<span class="cat-links"><span class="screen-reader-text">%1$s </span>%2$s</span>',
 				esc_html_x( 'Categories', 'Used before category names.', 'twentyfifteen' ),
 				$categories_list
 			);
@@ -98,7 +98,7 @@ function twentyfifteen_entry_meta() {
 
 		$tags_list = get_the_tag_list( '', _x( ', ', 'Used between list items, there is a space after the comma.', 'twentyfifteen' ) );
 		if ( $tags_list ) {
-			printf( '<span class="tags-links"><span class="screen-reader-text">%1$s</span>%2$s</span>',
+			printf( '<span class="tags-links"><span class="screen-reader-text">%1$s </span>%2$s</span>',
 				esc_html_x( 'Tags', 'Used before tag names.', 'twentyfifteen' ),
 				$tags_list
 			);
@@ -109,7 +109,7 @@ function twentyfifteen_entry_meta() {
 		// Retrieve attachment metadata.
 		$metadata = wp_get_attachment_metadata();
 
-		printf( '<span class="full-size-link"><span class="screen-reader-text">%1$s</span><a href="%2$s">%3$s &times; %4$s</a></span>',
+		printf( '<span class="full-size-link"><span class="screen-reader-text">%1$s </span><a href="%2$s">%3$s &times; %4$s</a></span>',
 			esc_html_x( 'Full size', 'Used before full size attachment link.', 'twentyfifteen' ),
 			esc_url( wp_get_attachment_url() ),
 			$metadata['width'],
@@ -126,11 +126,11 @@ function twentyfifteen_entry_meta() {
 endif;
 
 /**
- * Returns true if a blog has more than 1 category.
+ * Determine whether blog/site has more than one category.
  *
  * @since Twenty Fifteen 1.0
  *
- * @return bool
+ * @return bool True of there is more than one category, false otherwise.
  */
 function twentyfifteen_categorized_blog() {
 	if ( false === ( $all_the_cool_cats = get_transient( 'twentyfifteen_categories' ) ) ) {
@@ -159,7 +159,7 @@ function twentyfifteen_categorized_blog() {
 }
 
 /**
- * Flush out the transients used in twentyfifteen_categorized_blog.
+ * Flush out the transients used in {@see twentyfifteen_categorized_blog()}.
  *
  * @since Twenty Fifteen 1.0
  */
@@ -210,7 +210,8 @@ if ( ! function_exists( 'twentyfifteen_get_link_url' ) ) :
  * Falls back to the post permalink if no URL is found in the post.
  *
  * @since Twenty Fifteen 1.0
- * @uses get_url_in_content()
+ *
+ * @see get_url_in_content()
  *
  * @return string The Link format URL.
  */
@@ -223,10 +224,11 @@ endif;
 
 if ( ! function_exists( 'twentyfifteen_excerpt_more' ) && ! is_admin() ) :
 /**
- * Replaces "[...]" (appended to automatically generated excerpts) with ... and a Continue reading link.
+ * Replaces "[...]" (appended to automatically generated excerpts) with ... and a 'Continue reading' link.
  *
  * @since Twenty Fifteen 1.0
  *
+ * @return string 'Continue reading' link prepended with an ellipsis.
  */
 function twentyfifteen_excerpt_more( $more ) {
 	$link = sprintf( '<a href="%1$s" class="more-link">%2$s</a>',

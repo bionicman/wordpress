@@ -76,7 +76,7 @@ function get_locale() {
  *
  * If there is no translation, or the text domain isn't loaded, the original text is returned.
  *
- * <strong>Note:</strong> Don't use translate() directly, use __() or related functions.
+ * *Note:* Don't use {@see translate()} directly, use `{@see __()} or related functions.
  *
  * @since 2.2.0
  *
@@ -87,6 +87,7 @@ function get_locale() {
 function translate( $text, $domain = 'default' ) {
 	$translations = get_translations_for_domain( $domain );
 	$translations = $translations->translate( $text );
+
 	/**
 	 * Filter text with its translation.
 	 *
@@ -364,15 +365,14 @@ function _nx($single, $plural, $number, $context, $domain = 'default') {
  * strings and use them later.
  *
  * Example:
- * <code>
- * $messages = array(
- *  	'post' => _n_noop('%s post', '%s posts'),
- *  	'page' => _n_noop('%s pages', '%s pages')
- * );
- * ...
- * $message = $messages[$type];
- * $usable_text = sprintf( translate_nooped_plural( $message, $count ), $count );
- * </code>
+ *
+ *     $messages = array(
+ *      	'post' => _n_noop( '%s post', '%s posts' ),
+ *      	'page' => _n_noop( '%s pages', '%s pages' ),
+ *     );
+ *     ...
+ *     $message = $messages[ $type ];
+ *     $usable_text = sprintf( translate_nooped_plural( $message, $count ), $count );
  *
  * @since 2.5.0
  *
@@ -389,6 +389,11 @@ function _n_noop( $singular, $plural, $domain = null ) {
  * Register plural strings with context in POT file, but don't translate them.
  *
  * @since 2.8.0
+ * @param string $singular
+ * @param string $plural
+ * @param string $context
+ * @param string|null $domain
+ * @return array
  */
 function _nx_noop( $singular, $plural, $context, $domain = null ) {
 	return array( 0 => $singular, 1 => $plural, 2 => $context, 'singular' => $singular, 'plural' => $plural, 'context' => $context, 'domain' => $domain );
@@ -700,7 +705,7 @@ function load_child_theme_textdomain( $domain, $path = false ) {
  * @since 2.8.0
  *
  * @param string $domain Text domain. Unique identifier for retrieving translated strings.
- * @return Translations A Translations instance.
+ * @return NOOP_Translations A Translations instance.
  */
 function get_translations_for_domain( $domain ) {
 	global $l10n;
@@ -905,13 +910,15 @@ function wp_dropdown_languages( $args = array() ) {
 		}
 	}
 
+	$translations_available = ( ! empty( $translations ) && $args['show_available_translations'] );
+
 	printf( '<select name="%s" id="%s">', esc_attr( $args['name'] ), esc_attr( $args['id'] ) );
 
 	// Holds the HTML markup.
 	$structure = array();
 
 	// List installed languages.
-	if ( $args['show_available_translations'] ) {
+	if ( $translations_available ) {
 		$structure[] = '<optgroup label="' . esc_attr_x( 'Installed', 'translations' ) . '">';
 	}
 	$structure[] = '<option value="" lang="en" data-installed="1">English (United States)</option>';
@@ -924,12 +931,12 @@ function wp_dropdown_languages( $args = array() ) {
 			esc_html( $language['native_name'] )
 		);
 	}
-	if ( $args['show_available_translations'] ) {
+	if ( $translations_available ) {
 		$structure[] = '</optgroup>';
 	}
 
 	// List available translations.
-	if ( ! empty( $translations ) && $args['show_available_translations'] ) {
+	if ( $translations_available ) {
 		$structure[] = '<optgroup label="' . esc_attr_x( 'Available', 'translations' ) . '">';
 		foreach ( $translations as $translation ) {
 			$structure[] = sprintf(

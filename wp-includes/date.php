@@ -126,7 +126,7 @@ class WP_Date_Query {
 	 *             @type int          $dayofweek     Optional. The day number of the week. Default empty.
 	 *                                               Accepts numbers 1-7 (1 is Sunday).
 	 *             @type int          $dayofweek_iso Optional. The day number of the week (ISO). Accepts numbers 1-7
-	 *                                               (1 is Monday).Default empty.
+	 *                                               (1 is Monday). Default empty.
 	 *             @type int          $hour          Optional. The hour of the day. Default empty. Accepts numbers 0-23.
 	 *             @type int          $minute        Optional. The minute of the hour. Default empty. Accepts
 	 *                                               numbers 0-60.
@@ -180,12 +180,14 @@ class WP_Date_Query {
 	 *
 	 * Ensures that each query-level clause has a 'relation' key, and that
 	 * each first-order clause contains all the necessary keys from
-	 * $defaults.
+	 * `$defaults`.
 	 *
 	 * @since 4.1.0
 	 * @access public
 	 *
-	 * @param  array $query A tax_query query clause.
+	 * @param array $queries
+	 * @param array $parent_query
+	 *
 	 * @return array Sanitized queries.
 	 */
 	public function sanitize_query( $queries, $parent_query = null ) {
@@ -412,7 +414,7 @@ class WP_Date_Query {
 
 		if ( $day_exists && $month_exists && $year_exists ) {
 			// 1. Checking day, month, year combination.
-			if ( ! checkdate( $date_query['month'], $date_query['day'], $date_query['year'] ) ) {
+			if ( ! wp_checkdate( $date_query['month'], $date_query['day'], $date_query['year'], sprintf( '%s-%s-%s', $date_query['year'], $date_query['month'], $date_query['day'] ) ) ) {
 				/* translators: 1: year, 2: month, 3: day of month */
 				$day_month_year_error_msg = sprintf(
 					__( 'The following values do not describe a valid date: year %1$s, month %2$s, day %3$s.' ),
@@ -429,12 +431,12 @@ class WP_Date_Query {
 			 * 2. checking day, month combination
 			 * We use 2012 because, as a leap year, it's the most permissive.
 			 */
-			if ( ! checkdate( $date_query['month'], $date_query['day'], 2012 ) ) {
+			if ( ! wp_checkdate( $date_query['month'], $date_query['day'], 2012, sprintf( '2012-%s-%s', $date_query['month'], $date_query['day'] ) ) ) {
 				/* translators: 1: month, 2: day of month */
 				$day_month_year_error_msg = sprintf(
-					__( 'The following values do not describe a valid date: month <code>%1$d</code>, day <code>%2$d</code>.' ),
-					esc_html( $date_query['month'] ),
-					esc_html( $date_query['day'] )
+					__( 'The following values do not describe a valid date: month %1$s, day %2$s.' ),
+					'<code>' . esc_html( $date_query['month'] ) . '</code>',
+					'<code>' . esc_html( $date_query['day'] ) . '</code>'
 				);
 
 				$valid = false;
@@ -480,9 +482,9 @@ class WP_Date_Query {
 			 * @since 4.1.0 Added 'user_registered' to the default recognized columns.
 			 *
 			 * @param array $valid_columns An array of valid date query columns. Defaults
-			 *			       are 'post_date', 'post_date_gmt', 'post_modified',
-			 *			       'post_modified_gmt', 'comment_date', 'comment_date_gmt',
-			 *			       'user_registered'
+			 *                             are 'post_date', 'post_date_gmt', 'post_modified',
+			 *                             'post_modified_gmt', 'comment_date', 'comment_date_gmt',
+			 *	                           'user_registered'
 			 */
 			if ( ! in_array( $column, apply_filters( 'date_query_valid_columns', $valid_columns ) ) ) {
 				$column = 'post_date';
@@ -579,7 +581,7 @@ class WP_Date_Query {
 	 *
 	 * @param array $query Query to parse.
 	 * @param int   $depth Optional. Number of tree levels deep we currently are.
-	 *                     Used to calculate indentation.
+	 *                     Used to calculate indentation. Default 0.
 	 * @return array {
 	 *     Array containing JOIN and WHERE SQL clauses to append to a single query array.
 	 *
@@ -777,7 +779,7 @@ class WP_Date_Query {
 	 *
 	 * @param string $compare The compare operator to use
 	 * @param string|array $value The value
-	 * @return string|int|false The value to be used in SQL or false on error.
+	 * @return string|false|int The value to be used in SQL or false on error.
 	 */
 	public function build_value( $compare, $value ) {
 		if ( ! isset( $value ) )

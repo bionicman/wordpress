@@ -1,6 +1,6 @@
 <?php
 /**
- * Twenty Fifteen Customizer.
+ * Twenty Fifteen Customizer functionality
  *
  * @package WordPress
  * @subpackage Twenty_Fifteen
@@ -49,7 +49,7 @@ function twentyfifteen_customize_register( $wp_customize ) {
 
 	$wp_customize->add_control( new WP_Customize_Color_Control( $wp_customize, 'sidebar_textcolor', array(
 		'label'       => esc_html__( 'Header and Sidebar Text Color', 'twentyfifteen' ),
-		'description' => esc_html__( 'Only applied to the sidebar on wider screens. On small screens the sidebar will become the header.', 'twentyfifteen' ),
+		'description' => esc_html__( 'Applied to the header on small screens and the sidebar on wide screens.', 'twentyfifteen' ),
 		'section'     => 'colors',
 	) ) );
 
@@ -65,23 +65,24 @@ function twentyfifteen_customize_register( $wp_customize ) {
 
 	$wp_customize->add_control( new WP_Customize_Color_Control( $wp_customize, 'header_background_color', array(
 		'label'       => esc_html__( 'Header and Sidebar Background Color', 'twentyfifteen' ),
-		'description' => esc_html__( 'Only applied to the sidebar on wider screens. On small screens the sidebar will become the header.', 'twentyfifteen' ),
+		'description' => esc_html__( 'Applied to the header on small screens and the sidebar on wide screens.', 'twentyfifteen' ),
 		'section'     => 'colors',
 	) ) );
 
 	// Add an additional description to the header image section.
-	$wp_customize->get_section( 'header_image' )->description = esc_html__( 'Only applied to the sidebar on wide screens. On small screens it will be applied to the header.', 'twentyfifteen' );
+	$wp_customize->get_section( 'header_image' )->description = esc_html__( 'Applied to the header on small screens and the sidebar on wide screens.', 'twentyfifteen' );
 }
 add_action( 'customize_register', 'twentyfifteen_customize_register', 11 );
 
 /**
  * Register color schemes for Twenty Fifteen.
- * Can be filtered with twentyfifteen_color_schemes.
+ *
+ * Can be filtered with {@see 'twentyfifteen_color_schemes'}.
  *
  * The order of colors in a colors array:
  * 1. Main Background Color.
  * 2. Sidebar Background Color.
- * 3. Box Background Bolor.
+ * 3. Box Background Color.
  * 4. Main Text and Link Color.
  * 5. Sidebar Text and Link Color.
  * 6. Meta Box Background Color.
@@ -163,11 +164,11 @@ function twentyfifteen_get_color_schemes() {
 
 if ( ! function_exists( 'twentyfifteen_get_color_scheme' ) ) :
 /**
- * Returns an array of either the current or default color scheme hex values.
+ * Get the current Twenty Fifteen color scheme.
  *
  * @since Twenty Fifteen 1.0
  *
- * @return array
+ * @return array An associative array of either the current or default color scheme hex values.
  */
 function twentyfifteen_get_color_scheme() {
 	$color_scheme_option = get_theme_mod( 'color_scheme', 'default' );
@@ -181,13 +182,13 @@ function twentyfifteen_get_color_scheme() {
 }
 endif; // twentyfifteen_get_color_scheme
 
-if ( ! function_exists( 'twentyfifteen_get_color_scheme_control_options' ) ) :
+if ( ! function_exists( 'twentyfifteen_get_color_scheme_choices' ) ) :
 /**
  * Returns an array of color scheme choices registered for Twenty Fifteen.
  *
  * @since Twenty Fifteen 1.0
  *
- * @return array
+ * @return array Array of color schemes.
  */
 function twentyfifteen_get_color_scheme_choices() {
 	$color_schemes                = twentyfifteen_get_color_schemes();
@@ -199,7 +200,7 @@ function twentyfifteen_get_color_scheme_choices() {
 
 	return $color_scheme_control_options;
 }
-endif; // twentyfifteen_get_color_scheme_control_options
+endif; // twentyfifteen_get_color_scheme_choices
 
 if ( ! function_exists( 'twentyfifteen_sanitize_color_scheme' ) ) :
 /**
@@ -208,7 +209,6 @@ if ( ! function_exists( 'twentyfifteen_sanitize_color_scheme' ) ) :
  * @since Twenty Fifteen 1.0
  *
  * @param string $value Color scheme name value.
- *
  * @return string Color scheme name.
  */
 function twentyfifteen_sanitize_color_scheme( $value ) {
@@ -226,6 +226,8 @@ endif; // twentyfifteen_sanitize_color_scheme
  * Enqueues front-end CSS for color scheme.
  *
  * @since Twenty Fifteen 1.0
+ *
+ * @see wp_add_inline_style()
  */
 function twentyfifteen_color_scheme_css() {
 	$color_scheme_option = get_theme_mod( 'color_scheme', 'default' );
@@ -242,6 +244,7 @@ add_action( 'wp_enqueue_scripts', 'twentyfifteen_color_scheme_css' );
 
 /**
  * Binds JS listener to make Customizer color_scheme control.
+ *
  * Passes color scheme data as colorScheme global.
  *
  * @since Twenty Fifteen 1.0
@@ -265,8 +268,8 @@ add_action( 'customize_preview_init', 'twentyfifteen_customize_preview_js' );
 /**
  * Output an Underscore template for generating CSS for the color scheme.
  *
- * The template generates the css dynamically for instant display in the Customizer preview,
- * and to be saved in a `theme_mod` for display on the front-end.
+ * The template generates the css dynamically for instant display in the Customizer
+ * preview, and to be saved in a `theme_mod` for display on the front-end.
  *
  * @since Twenty Fifteen 1.0
  */
@@ -305,14 +308,12 @@ function twentyfifteen_color_scheme_css_template() {
 	input[type="submit"],
 	.pagination .prev,
 	.pagination .next,
-	.pagination .prev:before,
-	.pagination .next:before,
 	.widget_calendar tbody a,
 	.widget_calendar tbody a:hover,
 	.widget_calendar tbody a:focus,
-	.entry-content .page-links a,
-	.entry-content .page-links a:hover,
-	.entry-content .page-links a:focus,
+	.page-links a,
+	.page-links a:hover,
+	.page-links a:focus,
 	.sticky-post {
 		color: {{ data.box_background_color }};
 	}
@@ -459,6 +460,7 @@ function twentyfifteen_color_scheme_css_template() {
 	.main-navigation ul,
 	.main-navigation li,
 	.post-navigation,
+	.post-navigation div + div,
 	.pagination,
 	.comment-navigation,
 	.widget li,
@@ -467,23 +469,19 @@ function twentyfifteen_color_scheme_css_template() {
 	.widget_pages .children,
 	.site-header,
 	.site-footer,
-	.hentry .hentry,
+	.hentry + .hentry,
 	.author-info,
 	.entry-content .page-links a,
 	.page-links > span,
 	.page-header,
 	.comments-area,
-	.comment-list .comment-respond,
+	.comment-list + .comment-respond,
 	.comment-list article,
 	.comment-list .pingback,
 	.comment-list .trackback,
 	.comment-list .reply a,
 	.no-comments {
 		border-color: {{ data.textcolor }}; /* Fallback for IE7 and IE8 */
-		border-color: {{ data.border_color }};
-	}
-
-	.post-navigation .nav-previous:not(.has-post-thumbnail) .nav-next:not(.has-post-thumbnail) {
 		border-color: {{ data.border_color }};
 	}
 
