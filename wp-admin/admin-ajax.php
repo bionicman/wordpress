@@ -14,7 +14,9 @@
  * @since 2.1.0
  */
 define( 'DOING_AJAX', true );
-define( 'WP_ADMIN', true );
+if ( ! defined( 'WP_ADMIN' ) ) {
+	define( 'WP_ADMIN', true );
+}
 
 /** Load WordPress Bootstrap */
 require_once( dirname( dirname( __FILE__ ) ) . '/wp-load.php' );
@@ -32,7 +34,7 @@ require_once( ABSPATH . 'wp-admin/includes/admin.php' );
 /** Load Ajax Handlers for WordPress Core */
 require_once( ABSPATH . 'wp-admin/includes/ajax-actions.php' );
 
-@header( 'Content-Type: text/plain; charset=' . get_option( 'blog_charset' ) );
+@header( 'Content-Type: text/html; charset=' . get_option( 'blog_charset' ) );
 @header( 'X-Robots-Tag: noindex' );
 
 send_nosniff_header();
@@ -58,7 +60,7 @@ $core_actions_post = array(
 	'wp-remove-post-lock', 'dismiss-wp-pointer', 'upload-attachment', 'get-attachment',
 	'query-attachments', 'save-attachment', 'save-attachment-compat', 'send-link-to-editor',
 	'send-attachment-to-editor', 'save-attachment-order', 'heartbeat', 'get-revision-diffs',
-	'save-user-color-scheme', 'update-widget', 'query-themes',
+	'save-user-color-scheme', 'update-widget', 'query-themes', 'parse-embed', 'set-attachment-thumbnail'
 );
 
 // Register core Ajax calls.

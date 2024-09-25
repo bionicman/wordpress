@@ -551,13 +551,13 @@ function delete_transient( $transient ) {
 /**
  * Get the value of a transient.
  *
- * If the transient does not exist or does not have a value, then the return value
- * will be false.
+ * If the transient does not exist, does not have a value, or has expired,
+ * then the return value will be false.
  *
  * @since 2.8.0
  *
- * @param string $transient Transient name. Expected to not be SQL-escaped
- * @return mixed Value of transient
+ * @param string $transient Transient name. Expected to not be SQL-escaped.
+ * @return mixed Value of transient.
  */
 function get_transient( $transient ) {
 
@@ -620,9 +620,11 @@ function get_transient( $transient ) {
  *
  * @since 2.8.0
  *
- * @param string $transient Transient name. Expected to not be SQL-escaped.
- * @param mixed $value Transient value. Must be serializable if non-scalar. Expected to not be SQL-escaped.
- * @param int $expiration Time until expiration in seconds, default 0
+ * @param string $transient  Transient name. Expected to not be SQL-escaped. Must be
+ *                           45 characters or fewer in length.
+ * @param mixed  $value      Transient value. Must be serializable if non-scalar.
+ *                           Expected to not be SQL-escaped.
+ * @param int    $expiration Optional. Time until expiration in seconds. Default 0.
  * @return bool False if value was not set and true if value was set.
  */
 function set_transient( $transient, $value, $expiration = 0 ) {
@@ -744,8 +746,9 @@ function wp_user_settings() {
 	}
 
 	// The cookie is not set in the current browser or the saved value is newer.
-	setcookie( 'wp-settings-' . $user_id, $settings, time() + YEAR_IN_SECONDS, SITECOOKIEPATH );
-	setcookie( 'wp-settings-time-' . $user_id, time(), time() + YEAR_IN_SECONDS, SITECOOKIEPATH );
+	$secure = is_https_url( site_url() );
+	setcookie( 'wp-settings-' . $user_id, $settings, time() + YEAR_IN_SECONDS, SITECOOKIEPATH, COOKIE_DOMAIN, $secure );
+	setcookie( 'wp-settings-time-' . $user_id, time(), time() + YEAR_IN_SECONDS, SITECOOKIEPATH, COOKIE_DOMAIN, $secure );
 	$_COOKIE['wp-settings-' . $user_id] = $settings;
 }
 
@@ -1287,15 +1290,15 @@ function delete_site_transient( $transient ) {
 /**
  * Get the value of a site transient.
  *
- * If the transient does not exist or does not have a value, then the return value
- * will be false.
+ * If the transient does not exist, does not have a value, or has expired,
+ * then the return value will be false.
  *
  * @since 2.9.0
  *
  * @see get_transient()
  *
  * @param string $transient Transient name. Expected to not be SQL-escaped.
- * @return mixed Value of transient
+ * @return mixed Value of transient.
  */
 function get_site_transient( $transient ) {
 
@@ -1360,9 +1363,10 @@ function get_site_transient( $transient ) {
  *
  * @see set_transient()
  *
- * @param string $transient Transient name. Expected to not be SQL-escaped.
- * @param mixed $value Transient value. Expected to not be SQL-escaped.
- * @param int $expiration Time until expiration in seconds, default 0
+ * @param string $transient  Transient name. Expected to not be SQL-escaped. Must be
+ *                           40 characters or fewer in length.
+ * @param mixed  $value      Transient value. Expected to not be SQL-escaped.
+ * @param int    $expiration Optional. Time until expiration in seconds. Default 0.
  * @return bool False if value was not set and true if value was set.
  */
 function set_site_transient( $transient, $value, $expiration = 0 ) {

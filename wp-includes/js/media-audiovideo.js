@@ -6,7 +6,7 @@
 		l10n = typeof _wpMediaViewsL10n === 'undefined' ? {} : _wpMediaViewsL10n;
 
 	if ( ! _.isUndefined( window._wpmejsSettings ) ) {
-		baseSettings.pluginPath = _wpmejsSettings.pluginPath;
+		baseSettings = _wpmejsSettings;
 	}
 
 	/**
@@ -26,6 +26,26 @@
 			}
 		},
 
+		removeAllPlayers: function() {
+			var p;
+
+			if ( window.mejs && window.mejs.players ) {
+				for ( p in window.mejs.players ) {
+					window.mejs.players[p].pause();
+					this.removePlayer( window.mejs.players[p] );
+				}
+			}
+		},
+
+		/**
+		 * Pauses the current object's instances of MediaElementPlayer
+		 */
+		pausePlayers: function() {
+			_.each( this.players, function (player) {
+				player.pause();
+			} );
+		},
+
 		/**
 		 * Utility to identify the user's browser
 		 */
@@ -38,7 +58,7 @@
 						passes = ua.match(/MSIE [6-8]/gi) !== null;
 					break;
 					case 'ie':
-						passes = ua.match(/MSIE/gi) !== null;
+						passes = /MSIE /.test( ua ) || ( /Trident\//.test( ua ) && /rv:\d/.test( ua ) ); // IE11
 					break;
 					case 'ff':
 						passes = ua.match(/firefox/gi) !== null;
@@ -131,6 +151,10 @@
 		removePlayer: function(t) {
 			var featureIndex, feature;
 
+			if ( ! t.options ) {
+				return;
+			}
+
 			// invoke features cleanup
 			for ( featureIndex in t.options.features ) {
 				feature = t.options.features[featureIndex];
@@ -164,8 +188,8 @@
 		 */
 		unsetPlayers : function() {
 			if ( this.players && this.players.length ) {
-				wp.media.mixin.pauseAllPlayers();
 				_.each( this.players, function (player) {
+					player.pause();
 					wp.media.mixin.removePlayer( player );
 				} );
 				this.players = [];
@@ -668,10 +692,23 @@
 
 		renderSelectPosterImageToolbar: function() {
 			this.setPrimaryButton( l10n.videoSelectPosterImageTitle, function( controller, state ) {
-				var attachment = state.get( 'selection' ).single();
+				var urls = [], attachment = state.get( 'selection' ).single();
 
 				controller.media.set( 'poster', attachment.get( 'url' ) );
 				state.trigger( 'set-poster-image', controller.media.toJSON() );
+
+				_.each( wp.media.view.settings.embedExts, function (ext) {
+					if ( controller.media.get( ext ) ) {
+						urls.push( controller.media.get( ext ) );
+					}
+				} );
+
+				wp.ajax.send( 'set-attachment-thumbnail', {
+					data : {
+						urls: urls,
+						thumbnail_id: attachment.get( 'id' )
+					}
+				} );
 			} );
 		},
 
@@ -907,7 +944,6 @@
 	 */
 	function init() {
 		$(document.body)
-			.on( 'click', '.wp-switch-editor', wp.media.mixin.pauseAllPlayers )
 			.on( 'click', '.add-media-source', function( e ) {
 				media.frame.lastMime = $( e.currentTarget ).data( 'mime' );
 				media.frame.setState( 'add-' + media.frame.defaults.id + '-source' );

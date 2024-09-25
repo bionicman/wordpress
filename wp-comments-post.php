@@ -108,8 +108,6 @@ if ( $user->exists() ) {
 		) {
 			kses_remove_filters(); // start with a clean slate
 			kses_init_filters(); // set up the filters
-			remove_filter( 'pre_comment_content', 'wp_filter_post_kses' );
-			add_filter( 'pre_comment_content', 'wp_filter_kses' );
 		}
 	}
 } else {
@@ -134,7 +132,11 @@ $comment_parent = isset($_POST['comment_parent']) ? absint($_POST['comment_paren
 $commentdata = compact('comment_post_ID', 'comment_author', 'comment_author_email', 'comment_author_url', 'comment_content', 'comment_type', 'comment_parent', 'user_ID');
 
 $comment_id = wp_new_comment( $commentdata );
-$comment = get_comment($comment_id);
+if ( ! $comment_id ) {
+	wp_die( __( "<strong>ERROR</strong>: The comment could not be saved. Please try again later." ) );
+}
+
+$comment = get_comment( $comment_id );
 
 /**
  * Perform other actions when comment cookies are set.

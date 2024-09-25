@@ -25,7 +25,7 @@ function wp_version_check( $extra_stats = array(), $force_check = false ) {
 		return;
 
 	global $wpdb, $wp_local_package;
-	include ABSPATH . WPINC . '/version.php'; // include an unmodified $wp_version
+	include( ABSPATH . WPINC . '/version.php' ); // include an unmodified $wp_version
 	$php_version = phpversion();
 
 	$current = get_site_transient( 'update_core' );
@@ -183,7 +183,7 @@ function wp_version_check( $extra_stats = array(), $force_check = false ) {
  * @return mixed Returns null if update is unsupported. Returns false if check is too soon.
  */
 function wp_update_plugins( $extra_stats = array() ) {
-	include ABSPATH . WPINC . '/version.php'; // include an unmodified $wp_version
+	include( ABSPATH . WPINC . '/version.php' ); // include an unmodified $wp_version
 
 	if ( defined('WP_INSTALLING') )
 		return false;
@@ -264,8 +264,15 @@ function wp_update_plugins( $extra_stats = array() ) {
 	 */
 	$locales = apply_filters( 'plugins_update_check_locales', $locales );
 
+	if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
+		$timeout = 30;
+	} else {
+		// Three seconds, plus one extra second for every 10 plugins
+		$timeout = 3 + (int) ( count( $plugins ) / 10 );
+	}
+
 	$options = array(
-		'timeout' => ( ( defined('DOING_CRON') && DOING_CRON ) ? 30 : 3),
+		'timeout' => $timeout,
 		'body' => array(
 			'plugins'      => json_encode( $to_send ),
 			'translations' => json_encode( $translations ),
@@ -322,7 +329,7 @@ function wp_update_plugins( $extra_stats = array() ) {
  * @return mixed Returns null if update is unsupported. Returns false if check is too soon.
  */
 function wp_update_themes( $extra_stats = array() ) {
-	include ABSPATH . WPINC . '/version.php'; // include an unmodified $wp_version
+	include( ABSPATH . WPINC . '/version.php' ); // include an unmodified $wp_version
 
 	if ( defined( 'WP_INSTALLING' ) )
 		return false;
@@ -412,8 +419,15 @@ function wp_update_themes( $extra_stats = array() ) {
 	 */
 	$locales = apply_filters( 'themes_update_check_locales', $locales );
 
+	if ( defined( 'DOING_CRON' ) && DOING_CRON ) {
+		$timeout = 30;
+	} else {
+		// Three seconds, plus one extra second for every 10 themes
+		$timeout = 3 + (int) ( count( $themes ) / 10 );
+	}
+
 	$options = array(
-		'timeout' => ( ( defined('DOING_CRON') && DOING_CRON ) ? 30 : 3),
+		'timeout' => $timeout,
 		'body' => array(
 			'themes'       => json_encode( $request ),
 			'translations' => json_encode( $translations ),
@@ -459,8 +473,8 @@ function wp_update_themes( $extra_stats = array() ) {
  * @since 3.7.0
  */
 function wp_maybe_auto_update() {
-	include_once ABSPATH . '/wp-admin/includes/admin.php';
-	include_once ABSPATH . '/wp-admin/includes/class-wp-upgrader.php';
+	include_once( ABSPATH . '/wp-admin/includes/admin.php' );
+	include_once( ABSPATH . '/wp-admin/includes/class-wp-upgrader.php' );
 
 	$upgrader = new WP_Automatic_Updater;
 	$upgrader->run();
@@ -550,7 +564,7 @@ function wp_get_update_data() {
 }
 
 function _maybe_update_core() {
-	include ABSPATH . WPINC . '/version.php'; // include an unmodified $wp_version
+	include( ABSPATH . WPINC . '/version.php' ); // include an unmodified $wp_version
 
 	$current = get_site_transient( 'update_core' );
 
@@ -611,8 +625,19 @@ function wp_schedule_update_checks() {
 	if ( !wp_next_scheduled('wp_update_themes') && !defined('WP_INSTALLING') )
 		wp_schedule_event(time(), 'twicedaily', 'wp_update_themes');
 
-	if ( ( wp_next_scheduled( 'wp_maybe_auto_update' ) > ( time() + HOUR_IN_SECONDS ) ) && ! defined('WP_INSTALLING') )
-		wp_clear_scheduled_hook( 'wp_maybe_auto_update' );
+	if ( ! wp_next_scheduled( 'wp_maybe_auto_update' ) && ! defined( 'WP_INSTALLING' ) ) {
+		// Schedule auto updates for 7 a.m. and 7 p.m. in the timezone of the site.
+		$next = strtotime( 'today 7am' );
+		$now = time();
+		// Find the next instance of 7 a.m. or 7 p.m., but skip it if it is within 3 hours from now.
+		while ( ( $now + 3 * HOUR_IN_SECONDS ) > $next ) {
+			$next += 12 * HOUR_IN_SECONDS;
+		}
+		$next = $next - get_option( 'gmt_offset' ) * HOUR_IN_SECONDS;
+		// Add a random number of minutes, so we don't have all sites trying to update exactly on the hour
+		$next = $next + rand( 0, 59 ) * MINUTE_IN_SECONDS;
+		wp_schedule_event( $next, 'twicedaily', 'wp_maybe_auto_update' );
+	}
 }
 
 if ( ( ! is_main_site() && ! is_network_admin() ) || ( defined( 'DOING_AJAX' ) && DOING_AJAX ) )

@@ -544,21 +544,22 @@ function wp_register( $before = '<li>', $after = '</li>', $echo = true ) {
 		$link = $before . '<a href="' . admin_url() . '">' . __('Site Admin') . '</a>' . $after;
 	}
 
+	/**
+	 * Filter the HTML link to the Registration or Admin page.
+	 *
+	 * Users are sent to the admin page if logged-in, or the registration page
+	 * if enabled and logged-out.
+	 *
+	 * @since 1.5.0
+	 *
+	 * @param string $link The HTML code for the link to the Registration or Admin page.
+	 */
+	$link = apply_filters( 'register', $link );
+
 	if ( $echo ) {
-		/**
-		 * Filter the HTML link to the Registration or Admin page.
-		 *
-		 * Users are sent to the admin page if logged-in, or the registration page
-		 * if enabled and logged-out.
-		 *
-		 * @since 1.5.0
-		 *
-		 * @param string $link The HTML code for the link to the Registration or Admin page.
-		 */
-		echo apply_filters( 'register', $link );
+		echo $link;
 	} else {
-		/** This filter is documented in wp-includes/general-template.php */
-		return apply_filters( 'register', $link );
+		return $link;
 	}
 }
 
@@ -752,7 +753,7 @@ function get_bloginfo( $show = '', $filter = 'raw' ) {
  * @return string|null String on retrieve, null when displaying.
  */
 function wp_title($sep = '&raquo;', $display = true, $seplocation = '') {
-	global $wpdb, $wp_locale;
+	global $wp_locale;
 
 	$m = get_query_var('m');
 	$year = get_query_var('year');
@@ -793,7 +794,7 @@ function wp_title($sep = '&raquo;', $display = true, $seplocation = '') {
 	}
 
 	// If there's an author
-	if ( is_author() ) {
+	if ( is_author() && ! is_post_type_archive() ) {
 		$author = get_queried_object();
 		if ( $author )
 			$title = $author->display_name;
@@ -835,13 +836,20 @@ function wp_title($sep = '&raquo;', $display = true, $seplocation = '') {
 	if ( !empty($title) )
 		$prefix = " $sep ";
 
+	/**
+	 * Filter the parts of the page title.
+	 *
+	 * @since 4.0.0
+	 *
+	 * @param array $title_array Parts of the page title.
+	 */
+	$title_array = apply_filters( 'wp_title_parts', explode( $t_sep, $title ) );
+
  	// Determines position of the separator and direction of the breadcrumb
 	if ( 'right' == $seplocation ) { // sep on right, so reverse the order
-		$title_array = explode( $t_sep, $title );
 		$title_array = array_reverse( $title_array );
 		$title = implode( " $sep ", $title_array ) . $prefix;
 	} else {
-		$title_array = explode( $t_sep, $title );
 		$title = $prefix . implode( " $sep ", $title_array );
 	}
 
@@ -1148,31 +1156,34 @@ function get_archives_link($url, $text, $format = 'html', $before = '', $after =
 /**
  * Display archive links based on type and format.
  *
- * The 'type' argument offers a few choices and by default will display monthly
- * archive links. The other options for values are 'daily', 'weekly', 'monthly',
- * 'yearly', 'postbypost' or 'alpha'. Both 'postbypost' and 'alpha' display the
- * same archive link list, the difference between the two is that 'alpha'
- * will order by post title and 'postbypost' will order by post date.
- *
- * The date archives will logically display dates with links to the archive post
- * page. The 'postbypost' and 'alpha' values for 'type' argument will display
- * the post titles.
- *
- * The 'limit' argument will only display a limited amount of links, specified
- * by the 'limit' integer value. By default, there is no limit. The
- * 'show_post_count' argument will show how many posts are within the archive.
- * By default, the 'show_post_count' argument is set to false.
- *
- * For the 'format', 'before', and 'after' arguments, see {@link
- * get_archives_link()}. The values of these arguments have to do with that
- * function.
- *
  * @since 1.2.0
  *
- * @param string|array $args Optional. Override defaults.
+ * @see get_archives_link()
+ *
+ * @param string|array $args {
+ *     Default archive links arguments. Optional.
+ *
+ *     @type string     $type            Type of archive to retrieve. Accepts 'daily', 'weekly', 'monthly',
+ *                                       'yearly', 'postbypost', or 'alpha'. Both 'postbypost' and 'alpha'
+ *                                       display the same archive link list as well as post titles instead
+ *                                       of displaying dates. The difference between the two is that 'alpha'
+ *                                       will order by post title and 'postbypost' will order by post date.
+ *                                       Default 'monthly'.
+ *     @type string|int $limit           Number of links to limit the query to. Default empty (no limit).
+ *     @type string     $format          Format each link should take using the $before and $after args.
+ *                                       Accepts 'link' (`<link>` tag), 'option' (`<option>` tag), 'html'
+ *                                       (`<li>` tag), or a custom format, which generates a link anchor
+ *                                       with $before preceding and $after succeeding. Default 'html'.
+ *     @type string     $before          Markup to prepend to the beginning of each link. Default empty.
+ *     @type string     $after           Markup to append to the end of each link. Default empty.
+ *     @type bool       $show_post_count Whether to display the post count alongside the link. Default false.
+ *     @type bool       $echo            Whether to echo or return the links list. Default 1|true to echo.
+ *     @type string     $order           Whether to use ascending or descending order. Accepts 'ASC', or 'DESC'.
+ *                                       Default 'DESC'.
+ * }
  * @return string|null String when retrieving, null when displaying.
  */
-function wp_get_archives($args = '') {
+function wp_get_archives( $args = '' ) {
 	global $wpdb, $wp_locale;
 
 	$defaults = array(
@@ -1183,19 +1194,20 @@ function wp_get_archives($args = '') {
 	);
 
 	$r = wp_parse_args( $args, $defaults );
-	extract( $r, EXTR_SKIP );
 
-	if ( '' == $type )
-		$type = 'monthly';
-
-	if ( '' != $limit ) {
-		$limit = absint($limit);
-		$limit = ' LIMIT '.$limit;
+	if ( '' == $r['type'] ) {
+		$r['type'] = 'monthly';
 	}
 
-	$order = strtoupper( $order );
-	if ( $order !== 'ASC' )
+	if ( ! empty( $r['limit'] ) ) {
+		$r['limit'] = absint( $r['limit'] );
+		$r['limit'] = ' LIMIT ' . $r['limit'];
+	}
+
+	$order = strtoupper( $r['order'] );
+	if ( $order !== 'ASC' ) {
 		$order = 'DESC';
+	}
 
 	// this is what will separate dates on weekly archive links
 	$archive_week_separator = '&#8211;';
@@ -1210,10 +1222,10 @@ function wp_get_archives($args = '') {
 	$archive_week_start_date_format = 'Y/m/d';
 	$archive_week_end_date_format	= 'Y/m/d';
 
-	if ( !$archive_date_format_over_ride ) {
-		$archive_day_date_format = get_option('date_format');
-		$archive_week_start_date_format = get_option('date_format');
-		$archive_week_end_date_format = get_option('date_format');
+	if ( ! $archive_date_format_over_ride ) {
+		$archive_day_date_format = get_option( 'date_format' );
+		$archive_week_start_date_format = get_option( 'date_format' );
+		$archive_week_end_date_format = get_option( 'date_format' );
 	}
 
 	/**
@@ -1244,7 +1256,9 @@ function wp_get_archives($args = '') {
 		wp_cache_set( 'last_changed', $last_changed, 'posts' );
 	}
 
-	if ( 'monthly' == $type ) {
+	$limit = $r['limit'];
+
+	if ( 'monthly' == $r['type'] ) {
 		$query = "SELECT YEAR(post_date) AS `year`, MONTH(post_date) AS `month`, count(ID) as posts FROM $wpdb->posts $join $where GROUP BY YEAR(post_date), MONTH(post_date) ORDER BY post_date $order $limit";
 		$key = md5( $query );
 		$key = "wp_get_archives:$key:$last_changed";
@@ -1253,17 +1267,18 @@ function wp_get_archives($args = '') {
 			wp_cache_set( $key, $results, 'posts' );
 		}
 		if ( $results ) {
-			$afterafter = $after;
+			$after = $r['after'];
 			foreach ( (array) $results as $result ) {
 				$url = get_month_link( $result->year, $result->month );
 				/* translators: 1: month name, 2: 4-digit year */
-				$text = sprintf(__('%1$s %2$d'), $wp_locale->get_month($result->month), $result->year);
-				if ( $show_post_count )
-					$after = '&nbsp;('.$result->posts.')' . $afterafter;
-				$output .= get_archives_link($url, $text, $format, $before, $after);
+				$text = sprintf( __( '%1$s %2$d' ), $wp_locale->get_month( $result->month ), $result->year );
+				if ( $r['show_post_count'] ) {
+					$r['after'] = '&nbsp;(' . $result->posts . ')' . $after;
+				}
+				$output .= get_archives_link( $url, $text, $r['format'], $r['before'], $r['after'] );
 			}
 		}
-	} elseif ('yearly' == $type) {
+	} elseif ( 'yearly' == $r['type'] ) {
 		$query = "SELECT YEAR(post_date) AS `year`, count(ID) as posts FROM $wpdb->posts $join $where GROUP BY YEAR(post_date) ORDER BY post_date $order $limit";
 		$key = md5( $query );
 		$key = "wp_get_archives:$key:$last_changed";
@@ -1272,16 +1287,17 @@ function wp_get_archives($args = '') {
 			wp_cache_set( $key, $results, 'posts' );
 		}
 		if ( $results ) {
-			$afterafter = $after;
+			$after = $r['after'];
 			foreach ( (array) $results as $result) {
-				$url = get_year_link($result->year);
-				$text = sprintf('%d', $result->year);
-				if ($show_post_count)
-					$after = '&nbsp;('.$result->posts.')' . $afterafter;
-				$output .= get_archives_link($url, $text, $format, $before, $after);
+				$url = get_year_link( $result->year );
+				$text = sprintf( '%d', $result->year );
+				if ( $r['show_post_count'] ) {
+					$r['after'] = '&nbsp;(' . $result->posts . ')' . $after;
+				}
+				$output .= get_archives_link( $url, $text, $r['format'], $r['before'], $r['after'] );
 			}
 		}
-	} elseif ( 'daily' == $type ) {
+	} elseif ( 'daily' == $r['type'] ) {
 		$query = "SELECT YEAR(post_date) AS `year`, MONTH(post_date) AS `month`, DAYOFMONTH(post_date) AS `dayofmonth`, count(ID) as posts FROM $wpdb->posts $join $where GROUP BY YEAR(post_date), MONTH(post_date), DAYOFMONTH(post_date) ORDER BY post_date $order $limit";
 		$key = md5( $query );
 		$key = "wp_get_archives:$key:$last_changed";
@@ -1291,17 +1307,18 @@ function wp_get_archives($args = '') {
 			wp_cache_set( $key, $results, 'posts' );
 		}
 		if ( $results ) {
-			$afterafter = $after;
+			$after = $r['after'];
 			foreach ( (array) $results as $result ) {
-				$url	= get_day_link($result->year, $result->month, $result->dayofmonth);
-				$date = sprintf('%1$d-%2$02d-%3$02d 00:00:00', $result->year, $result->month, $result->dayofmonth);
-				$text = mysql2date($archive_day_date_format, $date);
-				if ($show_post_count)
-					$after = '&nbsp;('.$result->posts.')'.$afterafter;
-				$output .= get_archives_link($url, $text, $format, $before, $after);
+				$url  = get_day_link( $result->year, $result->month, $result->dayofmonth );
+				$date = sprintf( '%1$d-%2$02d-%3$02d 00:00:00', $result->year, $result->month, $result->dayofmonth );
+				$text = mysql2date( $archive_day_date_format, $date );
+				if ( $r['show_post_count'] ) {
+					$r['after'] = '&nbsp;(' . $result->posts . ')' . $after;
+				}
+				$output .= get_archives_link( $url, $text, $r['format'], $r['before'], $r['after'] );
 			}
 		}
-	} elseif ( 'weekly' == $type ) {
+	} elseif ( 'weekly' == $r['type'] ) {
 		$week = _wp_mysql_week( '`post_date`' );
 		$query = "SELECT DISTINCT $week AS `week`, YEAR( `post_date` ) AS `yr`, DATE_FORMAT( `post_date`, '%Y-%m-%d' ) AS `yyyymmdd`, count( `ID` ) AS `posts` FROM `$wpdb->posts` $join $where GROUP BY $week, YEAR( `post_date` ) ORDER BY `post_date` $order $limit";
 		$key = md5( $query );
@@ -1311,25 +1328,26 @@ function wp_get_archives($args = '') {
 			wp_cache_set( $key, $results, 'posts' );
 		}
 		$arc_w_last = '';
-		$afterafter = $after;
 		if ( $results ) {
-				foreach ( (array) $results as $result ) {
-					if ( $result->week != $arc_w_last ) {
-						$arc_year = $result->yr;
-						$arc_w_last = $result->week;
-						$arc_week = get_weekstartend($result->yyyymmdd, get_option('start_of_week'));
-						$arc_week_start = date_i18n($archive_week_start_date_format, $arc_week['start']);
-						$arc_week_end = date_i18n($archive_week_end_date_format, $arc_week['end']);
-						$url  = sprintf('%1$s/%2$s%3$sm%4$s%5$s%6$sw%7$s%8$d', home_url(), '', '?', '=', $arc_year, '&amp;', '=', $result->week);
-						$text = $arc_week_start . $archive_week_separator . $arc_week_end;
-						if ($show_post_count)
-							$after = '&nbsp;('.$result->posts.')'.$afterafter;
-						$output .= get_archives_link($url, $text, $format, $before, $after);
+			$after = $r['after'];
+			foreach ( (array) $results as $result ) {
+				if ( $result->week != $arc_w_last ) {
+					$arc_year       = $result->yr;
+					$arc_w_last     = $result->week;
+					$arc_week       = get_weekstartend( $result->yyyymmdd, get_option( 'start_of_week' ) );
+					$arc_week_start = date_i18n( $archive_week_start_date_format, $arc_week['start'] );
+					$arc_week_end   = date_i18n( $archive_week_end_date_format, $arc_week['end'] );
+					$url            = sprintf( '%1$s/%2$s%3$sm%4$s%5$s%6$sw%7$s%8$d', home_url(), '', '?', '=', $arc_year, '&amp;', '=', $result->week );
+					$text           = $arc_week_start . $archive_week_separator . $arc_week_end;
+					if ( $r['show_post_count'] ) {
+						$r['after'] = '&nbsp;(' . $result->posts . ')' . $after;
 					}
+					$output .= get_archives_link( $url, $text, $r['format'], $r['before'], $r['after'] );
 				}
+			}
 		}
-	} elseif ( ( 'postbypost' == $type ) || ('alpha' == $type) ) {
-		$orderby = ('alpha' == $type) ? 'post_title ASC ' : 'post_date DESC ';
+	} elseif ( ( 'postbypost' == $r['type'] ) || ('alpha' == $r['type'] ) ) {
+		$orderby = ( 'alpha' == $r['type'] ) ? 'post_title ASC ' : 'post_date DESC ';
 		$query = "SELECT * FROM $wpdb->posts $join $where ORDER BY $orderby $limit";
 		$key = md5( $query );
 		$key = "wp_get_archives:$key:$last_changed";
@@ -1340,22 +1358,23 @@ function wp_get_archives($args = '') {
 		if ( $results ) {
 			foreach ( (array) $results as $result ) {
 				if ( $result->post_date != '0000-00-00 00:00:00' ) {
-					$url  = get_permalink( $result );
+					$url = get_permalink( $result );
 					if ( $result->post_title ) {
 						/** This filter is documented in wp-includes/post-template.php */
 						$text = strip_tags( apply_filters( 'the_title', $result->post_title, $result->ID ) );
 					} else {
 						$text = $result->ID;
 					}
-					$output .= get_archives_link($url, $text, $format, $before, $after);
+					$output .= get_archives_link( $url, $text, $r['format'], $r['before'], $r['after'] );
 				}
 			}
 		}
 	}
-	if ( $echo )
+	if ( $r['echo'] ) {
 		echo $output;
-	else
+	} else {
 		return $output;
+	}
 }
 
 /**
@@ -1387,7 +1406,6 @@ function calendar_week_mod($num) {
 function get_calendar($initial = true, $echo = true) {
 	global $wpdb, $m, $monthnum, $year, $wp_locale, $posts;
 
-	$cache = array();
 	$key = md5( $m . $monthnum . $year );
 	if ( $cache = wp_cache_get( 'get_calendar', 'calendar' ) ) {
 		if ( is_array($cache) && isset( $cache[ $key ] ) ) {
@@ -1976,7 +1994,7 @@ function the_weekday() {
 	 *
 	 * @since 0.71
 	 *
-	 * @param string $the_weekday 
+	 * @param string $the_weekday
 	 */
 	$the_weekday = apply_filters( 'the_weekday', $the_weekday );
 	echo $the_weekday;
@@ -2008,7 +2026,7 @@ function the_weekday_date($before='',$after='') {
 	 *
 	 * @since 0.71
 	 *
-	 * @param string $the_weekday_date 
+	 * @param string $the_weekday_date
 	 * @param string $before           The HTML to output before the date.
 	 * @param string $after            The HTML to output after the date.
 	 */
@@ -2163,8 +2181,8 @@ function rsd_link() {
  * @since 2.3.1
  */
 function wlwmanifest_link() {
-	echo '<link rel="wlwmanifest" type="application/wlwmanifest+xml" href="'
-		. get_bloginfo('wpurl') . '/wp-includes/wlwmanifest.xml" /> ' . "\n";
+	echo '<link rel="wlwmanifest" type="application/wlwmanifest+xml" href="',
+		includes_url( 'wlwmanifest.xml' ), '" /> ', "\n";
 }
 
 /**
@@ -2194,24 +2212,6 @@ function noindex() {
  */
 function wp_no_robots() {
 	echo "<meta name='robots' content='noindex,follow' />\n";
-}
-
-/**
- * Display a noindex,noarchive meta tag and referrer origin-when-cross-origin meta tag.
- *
- * Outputs a noindex,noarchive meta tag that tells web robots not to index or cache the page content.
- * Outputs a referrer origin-when-cross-origin meta tag that tells the browser not to send the full
- * url as a referrer to other sites when cross-origin assets are loaded.
- *
- * Typical usage is as a wp_head callback. add_action( 'wp_head', 'wp_sensitive_page_meta' );
- *
- * @since 5.0.0
- */
-function wp_sensitive_page_meta() {
-	?>
-	<meta name='robots' content='noindex,noarchive' />
-	<meta name='referrer' content='strict-origin-when-cross-origin' />
-	<?php
 }
 
 /**
@@ -2261,7 +2261,7 @@ function user_can_richedit() {
  */
 function wp_default_editor() {
 	$r = user_can_richedit() ? 'tinymce' : 'html'; // defaults
-	if ( $user = wp_get_current_user() ) { // look for cookie
+	if ( wp_get_current_user() ) { // look for cookie
 		$ed = get_user_setting('editor', 'tinymce');
 		$r = ( in_array($ed, array('tinymce', 'html', 'test') ) ) ? $ed : $r;
 	}
@@ -2362,19 +2362,16 @@ function the_search_query() {
  */
 function language_attributes($doctype = 'html') {
 	$attributes = array();
-	$output = '';
 
 	if ( function_exists( 'is_rtl' ) && is_rtl() )
 		$attributes[] = 'dir="rtl"';
 
-	if ( $lang = get_bloginfo( 'language' ) ) {
-		if ( get_option( 'html_type' ) == 'text/html' || $doctype == 'html' ) {
-			$attributes[] = 'lang="' . esc_attr( $lang ) . '"';
-		}
+	if ( $lang = get_bloginfo('language') ) {
+		if ( get_option('html_type') == 'text/html' || $doctype == 'html' )
+			$attributes[] = "lang=\"$lang\"";
 
-		if ( get_option( 'html_type' ) != 'text/html' || $doctype == 'xhtml' ) {
-			$attributes[] = 'xml:lang="' . esc_attr( $lang ) . '"';
-		}
+		if ( get_option('html_type') != 'text/html' || $doctype == 'xhtml' )
+			$attributes[] = "xml:lang=\"$lang\"";
 	}
 
 	$output = implode(' ', $attributes);
@@ -2429,10 +2426,10 @@ function language_attributes($doctype = 'html') {
  * It is possible to add query vars to the link by using the 'add_args' argument
  * and see {@link add_query_arg()} for more information.
  *
- * The 'before_page_number' and 'after_page_number' arguments allow users to 
+ * The 'before_page_number' and 'after_page_number' arguments allow users to
  * augment the links themselves. Typically this might be to add context to the
  * numbered links so that screen reader users understand what the links are for.
- * The text strings are added before and after the page number - within the 
+ * The text strings are added before and after the page number - within the
  * anchor tag.
  *
  * @since 2.1.0
@@ -2441,11 +2438,29 @@ function language_attributes($doctype = 'html') {
  * @return array|string String of page links or array of page links.
  */
 function paginate_links( $args = '' ) {
+	global $wp_query, $wp_rewrite;
+
+	$total        = ( isset( $wp_query->max_num_pages ) ) ? $wp_query->max_num_pages : 1;
+	$current      = ( get_query_var( 'paged' ) ) ? intval( get_query_var( 'paged' ) ) : 1;
+	$pagenum_link = html_entity_decode( get_pagenum_link() );
+	$query_args   = array();
+	$url_parts    = explode( '?', $pagenum_link );
+
+	if ( isset( $url_parts[1] ) ) {
+		wp_parse_str( $url_parts[1], $query_args );
+	}
+
+	$pagenum_link = remove_query_arg( array_keys( $query_args ), $pagenum_link );
+	$pagenum_link = trailingslashit( $pagenum_link ) . '%_%';
+
+	$format  = $wp_rewrite->using_index_permalinks() && ! strpos( $pagenum_link, 'index.php' ) ? 'index.php/' : '';
+	$format .= $wp_rewrite->using_permalinks() ? user_trailingslashit( $wp_rewrite->pagination_base . '/%#%', 'paged' ) : '?paged=%#%';
+
 	$defaults = array(
-		'base' => '%_%', // http://example.com/all_posts.php%_% : %_% is replaced by format (below)
-		'format' => '?page=%#%', // ?page=%#% : %#% is replaced by the page number
-		'total' => 1,
-		'current' => 0,
+		'base' => $pagenum_link, // http://example.com/all_posts.php%_% : %_% is replaced by format (below)
+		'format' => $format, // ?page=%#% : %#% is replaced by the page number
+		'total' => $total,
+		'current' => $current,
 		'show_all' => false,
 		'prev_next' => true,
 		'prev_text' => __('&laquo; Previous'),
@@ -2460,27 +2475,32 @@ function paginate_links( $args = '' ) {
 	);
 
 	$args = wp_parse_args( $args, $defaults );
-	extract($args, EXTR_SKIP);
 
 	// Who knows what else people pass in $args
-	$total = (int) $total;
-	if ( $total < 2 )
+	$total = (int) $args['total'];
+	if ( $total < 2 ) {
 		return;
-	$current  = (int) $current;
-	$end_size = 0  < (int) $end_size ? (int) $end_size : 1; // Out of bounds?  Make it the default.
-	$mid_size = 0 <= (int) $mid_size ? (int) $mid_size : 2;
-	$add_args = is_array($add_args) ? $add_args : false;
+	}
+	$current  = (int) $args['current'];
+	$end_size = (int) $args['end_size']; // Out of bounds?  Make it the default.
+	if ( $end_size < 1 ) {
+		$end_size = 1;
+	}
+	$mid_size = (int) $args['mid_size'];
+	if ( $mid_size < 0 ) {
+		$mid_size = 2;
+	}
+	$add_args = is_array( $args['add_args'] ) ? $args['add_args'] : false;
 	$r = '';
 	$page_links = array();
-	$n = 0;
 	$dots = false;
 
-	if ( $prev_next && $current && 1 < $current ) :
-		$link = str_replace('%_%', 2 == $current ? '' : $format, $base);
-		$link = str_replace('%#%', $current - 1, $link);
+	if ( $args['prev_next'] && $current && 1 < $current ) :
+		$link = str_replace( '%_%', 2 == $current ? '' : $args['format'], $args['base'] );
+		$link = str_replace( '%#%', $current - 1, $link );
 		if ( $add_args )
 			$link = add_query_arg( $add_args, $link );
-		$link .= $add_fragment;
+		$link .= $args['add_fragment'];
 
 		/**
 		 * Filter the paginated links for the given archive pages.
@@ -2489,52 +2509,53 @@ function paginate_links( $args = '' ) {
 		 *
 		 * @param string $link The paginated link URL.
 		 */
-		$page_links[] = '<a class="prev page-numbers" href="' . esc_url( apply_filters( 'paginate_links', $link ) ) . '">' . $prev_text . '</a>';
+		$page_links[] = '<a class="prev page-numbers" href="' . esc_url( apply_filters( 'paginate_links', $link ) ) . '">' . $args['prev_text'] . '</a>';
 	endif;
 	for ( $n = 1; $n <= $total; $n++ ) :
 		if ( $n == $current ) :
-			$page_links[] = "<span class='page-numbers current'>" . $before_page_number . number_format_i18n( $n ) . $after_page_number . "</span>";
+			$page_links[] = "<span class='page-numbers current'>" . $args['before_page_number'] . number_format_i18n( $n ) . $args['after_page_number'] . "</span>";
 			$dots = true;
 		else :
-			if ( $show_all || ( $n <= $end_size || ( $current && $n >= $current - $mid_size && $n <= $current + $mid_size ) || $n > $total - $end_size ) ) :
-				$link = str_replace('%_%', 1 == $n ? '' : $format, $base);
-				$link = str_replace('%#%', $n, $link);
+			if ( $args['show_all'] || ( $n <= $end_size || ( $current && $n >= $current - $mid_size && $n <= $current + $mid_size ) || $n > $total - $end_size ) ) :
+				$link = str_replace( '%_%', 1 == $n ? '' : $args['format'], $args['base'] );
+				$link = str_replace( '%#%', $n, $link );
 				if ( $add_args )
 					$link = add_query_arg( $add_args, $link );
-				$link .= $add_fragment;
+				$link .= $args['add_fragment'];
 
 				/** This filter is documented in wp-includes/general-template.php */
-				$page_links[] = "<a class='page-numbers' href='" . esc_url( apply_filters( 'paginate_links', $link ) ) . "'>" . $before_page_number . number_format_i18n( $n ) . $after_page_number . "</a>";
+				$page_links[] = "<a class='page-numbers' href='" . esc_url( apply_filters( 'paginate_links', $link ) ) . "'>" . $args['before_page_number'] . number_format_i18n( $n ) . $args['after_page_number'] . "</a>";
 				$dots = true;
-			elseif ( $dots && !$show_all ) :
+			elseif ( $dots && ! $args['show_all'] ) :
 				$page_links[] = '<span class="page-numbers dots">' . __( '&hellip;' ) . '</span>';
 				$dots = false;
 			endif;
 		endif;
 	endfor;
-	if ( $prev_next && $current && ( $current < $total || -1 == $total ) ) :
-		$link = str_replace('%_%', $format, $base);
-		$link = str_replace('%#%', $current + 1, $link);
+	if ( $args['prev_next'] && $current && ( $current < $total || -1 == $total ) ) :
+		$link = str_replace( '%_%', $args['format'], $args['base'] );
+		$link = str_replace( '%#%', $current + 1, $link );
 		if ( $add_args )
 			$link = add_query_arg( $add_args, $link );
-		$link .= $add_fragment;
+		$link .= $args['add_fragment'];
 
 		/** This filter is documented in wp-includes/general-template.php */
-		$page_links[] = '<a class="next page-numbers" href="' . esc_url( apply_filters( 'paginate_links', $link ) ) . '">' . $next_text . '</a>';
+		$page_links[] = '<a class="next page-numbers" href="' . esc_url( apply_filters( 'paginate_links', $link ) ) . '">' . $args['next_text'] . '</a>';
 	endif;
-	switch ( $type ) :
+	switch ( $args['type'] ) {
 		case 'array' :
 			return $page_links;
-			break;
+
 		case 'list' :
 			$r .= "<ul class='page-numbers'>\n\t<li>";
 			$r .= join("</li>\n\t<li>", $page_links);
 			$r .= "</li>\n</ul>\n";
 			break;
+
 		default :
 			$r = join("\n", $page_links);
 			break;
-	endswitch;
+	}
 	return $r;
 }
 
@@ -2813,25 +2834,25 @@ function get_the_generator( $type = '' ) {
 
 	switch ( $type ) {
 		case 'html':
-			$gen = '<meta name="generator" content="WordPress ' . esc_attr( get_bloginfo( 'version' ) ) . '">';
+			$gen = '<meta name="generator" content="WordPress ' . get_bloginfo( 'version' ) . '">';
 			break;
 		case 'xhtml':
-			$gen = '<meta name="generator" content="WordPress ' . esc_attr( get_bloginfo( 'version' ) ) . '" />';
+			$gen = '<meta name="generator" content="WordPress ' . get_bloginfo( 'version' ) . '" />';
 			break;
 		case 'atom':
-			$gen = '<generator uri="https://wordpress.org/" version="' . esc_attr( get_bloginfo_rss( 'version' ) ) . '">WordPress</generator>';
+			$gen = '<generator uri="http://wordpress.org/" version="' . get_bloginfo_rss( 'version' ) . '">WordPress</generator>';
 			break;
 		case 'rss2':
-			$gen = '<generator>' . esc_url_raw( 'https://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) ) . '</generator>';
+			$gen = '<generator>http://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) . '</generator>';
 			break;
 		case 'rdf':
-			$gen = '<admin:generatorAgent rdf:resource="' . esc_url_raw( 'https://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) ) . '" />';
+			$gen = '<admin:generatorAgent rdf:resource="http://wordpress.org/?v=' . get_bloginfo_rss( 'version' ) . '" />';
 			break;
 		case 'comment':
-			$gen = '<!-- generator="WordPress/' . esc_attr( get_bloginfo( 'version' ) ) . '" -->';
+			$gen = '<!-- generator="WordPress/' . get_bloginfo( 'version' ) . '" -->';
 			break;
 		case 'export':
-			$gen = '<!-- generator="WordPress/' . esc_attr( get_bloginfo_rss( 'version' ) ) . '" created="' . date( 'Y-m-d H:i' ) . '" -->';
+			$gen = '<!-- generator="WordPress/' . get_bloginfo_rss('version') . '" created="'. date('Y-m-d H:i') . '" -->';
 			break;
 	}
 

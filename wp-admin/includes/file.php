@@ -79,8 +79,8 @@ function get_file_description( $file ) {
  * @return string Full filesystem path to the root of the WordPress installation
  */
 function get_home_path() {
-	$home = get_option( 'home' );
-	$siteurl = get_option( 'siteurl' );
+	$home    = set_url_scheme( get_option( 'home' ), 'http' );
+	$siteurl = set_url_scheme( get_option( 'siteurl' ), 'http' );
 	if ( ! empty( $home ) && 0 !== strcasecmp( $home, $siteurl ) ) {
 		$wp_path_rel_to_home = str_ireplace( $home, '', $siteurl ); /* $siteurl - $home */
 		$pos = strripos( str_replace( '\\', '/', $_SERVER['SCRIPT_FILENAME'] ), trailingslashit( $wp_path_rel_to_home ) );
@@ -201,7 +201,7 @@ function validate_file_to_edit( $file, $allowed_files = '' ) {
  * @uses wp_unique_filename
  * @uses delete_transient
  * @param array $file Reference to a single element of $_FILES. Call the function once for each uploaded file.
- * @param array $overrides Optional. An associative array of names=>values to override default variables with extract( $overrides, EXTR_OVERWRITE ).
+ * @param array $overrides Optional. An associative array of names=>values to override default variables.
  * @param string $time Optional. Time formatted in 'yyyy/mm'.
  * @return array On success, returns an associative array of file attributes. On failure, returns $overrides['upload_error_handler'](&$file, $message ) or array( 'error'=>$message ).
  */
@@ -224,16 +224,27 @@ function wp_handle_upload( &$file, $overrides = false, $time = null ) {
 
 	// You may define your own function and pass the name in $overrides['upload_error_handler']
 	$upload_error_handler = 'wp_handle_upload_error';
+	if ( isset( $overrides['upload_error_handler'] ) ) {
+		$upload_error_handler = $overrides['upload_error_handler'];
+	}
 
 	// You may have had one or more 'wp_handle_upload_prefilter' functions error out the file. Handle that gracefully.
 	if ( isset( $file['error'] ) && !is_numeric( $file['error'] ) && $file['error'] )
 		return $upload_error_handler( $file, $file['error'] );
 
+	// Install user overrides. Did we mention that this voids your warranty?
+
 	// You may define your own function and pass the name in $overrides['unique_filename_callback']
 	$unique_filename_callback = null;
+	if ( isset( $overrides['unique_filename_callback'] ) ) {
+		$unique_filename_callback = $overrides['unique_filename_callback'];
+	}
 
 	// $_POST['action'] must be set and its value must equal $overrides['action'] or this:
 	$action = 'wp_handle_upload';
+	if ( isset( $overrides['action'] ) ) {
+		$action = $overrides['action'];
+	}
 
 	// Courtesy of php.net, the strings that describe the error indicated in $_FILES[{form field}]['error'].
 	$upload_error_strings = array( false,
@@ -246,23 +257,24 @@ function wp_handle_upload( &$file, $overrides = false, $time = null ) {
 		__( "Failed to write file to disk." ),
 		__( "File upload stopped by extension." ));
 
+	// this may not have orignially been intended to be overrideable, but historically has been
+	if ( isset( $overrides['upload_error_strings'] ) ) {
+		$upload_error_strings = $overrides['upload_error_strings'];
+	}
+
 	// All tests are on by default. Most can be turned off by $overrides[{test_name}] = false;
-	$test_form = true;
-	$test_size = true;
-	$test_upload = true;
+	$test_form = isset( $overrides['test_form'] ) ? $overrides['test_form'] : true;
+	$test_size = isset( $overrides['test_size'] ) ? $overrides['test_size'] : true;
+	$test_upload = isset( $overrides['test_upload'] ) ? $overrides['test_upload'] : true;
 
 	// If you override this, you must provide $ext and $type!!!!
-	$test_type = true;
-	$mimes = false;
-
-	// Install user overrides. Did we mention that this voids your warranty?
-	if ( is_array( $overrides ) )
-		extract( $overrides, EXTR_OVERWRITE );
+	$test_type = isset( $overrides['test_type'] ) ? $overrides['test_type'] : true;
+	$mimes = isset( $overrides['mimes'] ) ? $overrides['mimes'] : false;
 
 	// A correct form post will pass this test.
-	if ( $test_form && (!isset( $_POST['action'] ) || ($_POST['action'] != $action ) ) )
-		return call_user_func($upload_error_handler, $file, __( 'Invalid form submission.' ));
-
+	if ( $test_form && ( ! isset( $_POST['action'] ) || ($_POST['action'] != $action ) ) ) {
+		return call_user_func( $upload_error_handler, $file, __( 'Invalid form submission.' ) );
+	}
 	// A successful upload will pass this test. It makes no sense to override this one.
 	if ( isset( $file['error'] ) && $file['error'] > 0 ) {
 		return call_user_func( $upload_error_handler, $file, $upload_error_strings[ $file['error'] ] );
@@ -284,21 +296,20 @@ function wp_handle_upload( &$file, $overrides = false, $time = null ) {
 	// A correct MIME type will pass this test. Override $mimes or use the upload_mimes filter.
 	if ( $test_type ) {
 		$wp_filetype = wp_check_filetype_and_ext( $file['tmp_name'], $file['name'], $mimes );
-
-		extract( $wp_filetype );
+		$ext = empty( $wp_filetype['ext'] ) ? '' : $wp_filetype['ext'];
+		$type = empty( $wp_filetype['type'] ) ? '' : $wp_filetype['type'];
+		$proper_filename = empty( $wp_filetype['proper_filename'] ) ? '' : $wp_filetype['proper_filename'];
 
 		// Check to see if wp_check_filetype_and_ext() determined the filename was incorrect
-		if ( $proper_filename )
+		if ( $proper_filename ) {
 			$file['name'] = $proper_filename;
-
-		if ( ( !$type || !$ext ) && !current_user_can( 'unfiltered_upload' ) )
-			return call_user_func($upload_error_handler, $file, __( 'Sorry, this file type is not permitted for security reasons.' ));
-
-		if ( !$ext )
-			$ext = ltrim(strrchr($file['name'], '.'), '.');
-
-		if ( !$type )
+		}
+		if ( ( ! $type || !$ext ) && ! current_user_can( 'unfiltered_upload' ) ) {
+			return call_user_func( $upload_error_handler, $file, __( 'Sorry, this file type is not permitted for security reasons.' ) );
+		}
+		if ( ! $type ) {
 			$type = $file['type'];
+		}
 	} else {
 		$type = '';
 	}
@@ -361,7 +372,7 @@ function wp_handle_upload( &$file, $overrides = false, $time = null ) {
  * @uses wp_upload_dir
  * @uses wp_unique_filename
  * @param array $file an array similar to that of a PHP $_FILES POST array
- * @param array $overrides Optional. An associative array of names=>values to override default variables with extract( $overrides, EXTR_OVERWRITE ).
+ * @param array $overrides Optional. An associative array of names=>values to override default variables.
  * @param string $time Optional. Time formatted in 'yyyy/mm'.
  * @return array On success, returns an associative array of file attributes. On failure, returns $overrides['upload_error_handler'](&$file, $message ) or array( 'error'=>$message ).
  */
@@ -373,14 +384,25 @@ function wp_handle_sideload( &$file, $overrides = false, $time = null ) {
 		}
 	}
 
+	// Install user overrides. Did we mention that this voids your warranty?
+
 	// You may define your own function and pass the name in $overrides['upload_error_handler']
 	$upload_error_handler = 'wp_handle_upload_error';
+	if ( isset( $overrides['upload_error_handler'] ) ) {
+		$upload_error_handler = $overrides['upload_error_handler'];
+	}
 
 	// You may define your own function and pass the name in $overrides['unique_filename_callback']
 	$unique_filename_callback = null;
+	if ( isset( $overrides['unique_filename_callback'] ) ) {
+		$unique_filename_callback = $overrides['unique_filename_callback'];
+	}
 
 	// $_POST['action'] must be set and its value must equal $overrides['action'] or this:
 	$action = 'wp_handle_sideload';
+	if ( isset( $overrides['action'] ) ) {
+		$action = $overrides['action'];
+	}
 
 	// Courtesy of php.net, the strings that describe the error indicated in $_FILES[{form field}]['error'].
 	$upload_error_strings = array( false,
@@ -393,17 +415,18 @@ function wp_handle_sideload( &$file, $overrides = false, $time = null ) {
 		__( "Failed to write file to disk." ),
 		__( "File upload stopped by extension." ));
 
+	// this may not have orignially been intended to be overrideable, but historically has been
+	if ( isset( $overrides['upload_error_strings'] ) ) {
+		$upload_error_strings = $overrides['upload_error_strings'];
+	}
+
 	// All tests are on by default. Most can be turned off by $overrides[{test_name}] = false;
-	$test_form = true;
-	$test_size = true;
+	$test_form = isset( $overrides['test_form'] ) ? $overrides['test_form'] : true;
+	$test_size = isset( $overrides['test_size'] ) ? $overrides['test_size'] : true;
 
 	// If you override this, you must provide $ext and $type!!!!
-	$test_type = true;
-	$mimes = false;
-
-	// Install user overrides. Did we mention that this voids your warranty?
-	if ( is_array( $overrides ) )
-		extract( $overrides, EXTR_OVERWRITE );
+	$test_type = isset( $overrides['test_type'] ) ? $overrides['test_type'] : true;
+	$mimes = isset( $overrides['mimes'] ) ? $overrides['mimes'] : false;
 
 	// A correct form post will pass this test.
 	if ( $test_form && (!isset( $_POST['action'] ) || ($_POST['action'] != $action ) ) )
@@ -424,21 +447,22 @@ function wp_handle_sideload( &$file, $overrides = false, $time = null ) {
 	// A correct MIME type will pass this test. Override $mimes or use the upload_mimes filter.
 	if ( $test_type ) {
 		$wp_filetype = wp_check_filetype_and_ext( $file['tmp_name'], $file['name'], $mimes );
-
-		extract( $wp_filetype );
+		$ext = empty( $wp_filetype['ext'] ) ? '' : $wp_filetype['ext'];
+		$type = empty( $wp_filetype['type'] ) ? '' : $wp_filetype['type'];
+		$proper_filename = empty( $wp_filetype['proper_filename'] ) ? '' : $wp_filetype['proper_filename'];
 
 		// Check to see if wp_check_filetype_and_ext() determined the filename was incorrect
-		if ( $proper_filename )
+		if ( $proper_filename ) {
 			$file['name'] = $proper_filename;
-
-		if ( ( !$type || !$ext ) && !current_user_can( 'unfiltered_upload' ) )
-			return $upload_error_handler( $file, __( 'Sorry, this file type is not permitted for security reasons.' ));
-
-		if ( !$ext )
-			$ext = ltrim(strrchr($file['name'], '.'), '.');
-
-		if ( !$type )
+		}
+		if ( ( ! $type || ! $ext ) && ! current_user_can( 'unfiltered_upload' ) ) {
+			return $upload_error_handler( $file, __( 'Sorry, this file type is not permitted for security reasons.' ) );
+		}
+		if ( ! $type ) {
 			$type = $file['type'];
+		}
+	} else {
+		$type = '';
 	}
 
 	// A writable uploads dir will pass this test. Again, there's no point overriding this one.
@@ -638,10 +662,6 @@ function _unzip_file_ziparchive($file, $to, $needed_dirs = array() ) {
 		if ( '__MACOSX/' === substr($info['name'], 0, 9) ) // Skip the OS X-created __MACOSX directory
 			continue;
 
-		if ( 0 !== validate_file( $info['name'] ) ) {
-			return new WP_Error( 'invalid_file_ziparchive', __( 'Could not extract file from archive.' ), $info['name'] );
-		}
-
 		$uncompressed_size += $info['size'];
 
 		if ( '/' == substr($info['name'], -1) ) // directory
@@ -794,10 +814,6 @@ function _unzip_file_pclzip($file, $to, $needed_dirs = array()) {
 
 		if ( '__MACOSX/' === substr($file['filename'], 0, 9) ) // Don't extract the OS X-created __MACOSX directory files
 			continue;
-
-		if ( 0 !== validate_file( $file['filename'] ) ) {
-			return new WP_Error( 'invalid_file_pclzip', __( 'Could not extract file from archive.' ), $file['filename'] );
-		}
 
 		if ( ! $wp_filesystem->put_contents( $to . $file['filename'], $file['content'], FS_CHMOD_FILE) )
 			return new WP_Error( 'copy_failed_pclzip', __( 'Could not copy file.' ), $file['filename'] );
@@ -1026,28 +1042,14 @@ function request_filesystem_credentials($form_post, $type = '', $error = false, 
 
 	$credentials = get_option('ftp_credentials', array( 'hostname' => '', 'username' => ''));
 
-	$submitted_form = wp_unslash( $_POST );
-
-	// Verify nonce, or unset submitted form field values on failure
-	if ( ! isset( $_POST['_fs_nonce'] ) || ! wp_verify_nonce( $_POST['_fs_nonce'], 'filesystem-credentials' ) ) {
-		unset(
-			$submitted_form['hostname'],
-			$submitted_form['username'],
-			$submitted_form['password'],
-			$submitted_form['public_key'],
-			$submitted_form['private_key'],
-			$submitted_form['connection_type']
-		);
-	}
-
 	// If defined, set it to that, Else, If POST'd, set it to that, If not, Set it to whatever it previously was(saved details in option)
-	$credentials['hostname'] = defined('FTP_HOST') ? FTP_HOST : (!empty($submitted_form['hostname']) ? $submitted_form['hostname'] : $credentials['hostname']);
-	$credentials['username'] = defined('FTP_USER') ? FTP_USER : (!empty($submitted_form['username']) ? $submitted_form['username'] : $credentials['username']);
-	$credentials['password'] = defined('FTP_PASS') ? FTP_PASS : (!empty($submitted_form['password']) ? $submitted_form['password'] : '');
+	$credentials['hostname'] = defined('FTP_HOST') ? FTP_HOST : (!empty($_POST['hostname']) ? wp_unslash( $_POST['hostname'] ) : $credentials['hostname']);
+	$credentials['username'] = defined('FTP_USER') ? FTP_USER : (!empty($_POST['username']) ? wp_unslash( $_POST['username'] ) : $credentials['username']);
+	$credentials['password'] = defined('FTP_PASS') ? FTP_PASS : (!empty($_POST['password']) ? wp_unslash( $_POST['password'] ) : '');
 
 	// Check to see if we are setting the public/private keys for ssh
-	$credentials['public_key'] = defined('FTP_PUBKEY') ? FTP_PUBKEY : (!empty($submitted_form['public_key']) ? $submitted_form['public_key'] : '');
-	$credentials['private_key'] = defined('FTP_PRIKEY') ? FTP_PRIKEY : (!empty($submitted_form['private_key']) ? $submitted_form['private_key'] : '');
+	$credentials['public_key'] = defined('FTP_PUBKEY') ? FTP_PUBKEY : (!empty($_POST['public_key']) ? wp_unslash( $_POST['public_key'] ) : '');
+	$credentials['private_key'] = defined('FTP_PRIKEY') ? FTP_PRIKEY : (!empty($_POST['private_key']) ? wp_unslash( $_POST['private_key'] ) : '');
 
 	//sanitize the hostname, Some people might pass in odd-data:
 	$credentials['hostname'] = preg_replace('|\w+://|', '', $credentials['hostname']); //Strip any schemes off
@@ -1064,8 +1066,8 @@ function request_filesystem_credentials($form_post, $type = '', $error = false, 
 		$credentials['connection_type'] = 'ssh';
 	else if ( (defined('FTP_SSL') && FTP_SSL) && 'ftpext' == $type ) //Only the FTP Extension understands SSL
 		$credentials['connection_type'] = 'ftps';
-	else if ( !empty($submitted_form['connection_type']) )
-		$credentials['connection_type'] = $submitted_form['connection_type'];
+	else if ( !empty($_POST['connection_type']) )
+		$credentials['connection_type'] = wp_unslash( $_POST['connection_type'] );
 	else if ( !isset($credentials['connection_type']) ) //All else fails (And it's not defaulted to something else saved), Default to FTP
 		$credentials['connection_type'] = 'ftp';
 
@@ -1082,12 +1084,13 @@ function request_filesystem_credentials($form_post, $type = '', $error = false, 
 		update_option('ftp_credentials', $stored_credentials);
 		return $credentials;
 	}
-	$hostname = '';
-	$username = '';
-	$password = '';
-	$connection_type = '';
-	if ( !empty($credentials) )
-		extract($credentials, EXTR_OVERWRITE);
+	$hostname = isset( $credentials['hostname'] ) ? $credentials['hostname'] : '';
+	$username = isset( $credentials['username'] ) ? $credentials['username'] : '';
+	$public_key = isset( $credentials['public_key'] ) ? $credentials['public_key'] : '';
+	$private_key = isset( $credentials['private_key'] ) ? $credentials['private_key'] : '';
+	$port = isset( $credentials['port'] ) ? $credentials['port'] : '';
+	$connection_type = isset( $credentials[''] ) ? $credentials[''] : '';
+
 	if ( $error ) {
 		$error_string = __('<strong>ERROR:</strong> There was an error connecting to the server, Please verify the settings are correct.');
 		if ( is_wp_error($error) )
@@ -1177,7 +1180,8 @@ jQuery(function($){
 <label for="public_key"><?php _e('Public Key:') ?></label ><br />
 <label for="private_key"><?php _e('Private Key:') ?></label>
 </div></th>
-<td><br /><input name="public_key" type="text" id="public_key" value="<?php echo esc_attr($public_key) ?>"<?php disabled( defined('FTP_PUBKEY') ); ?> size="40" /><br /><input name="private_key" type="text" id="private_key" value="<?php echo esc_attr($private_key) ?>"<?php disabled( defined('FTP_PRIKEY') ); ?> size="40" />
+<td><br /><input name="public_key" type="text" id="public_key" value="<?php echo esc_attr($public_key) ?>"<?php disabled( defined('FTP_PUBKEY') ); ?> size="40" />
+	<br /><input name="private_key" type="text" id="private_key" value="<?php echo esc_attr($private_key) ?>"<?php disabled( defined('FTP_PRIKEY') ); ?> size="40" />
 <div><?php _e('Enter the location on the server where the keys are located. If a passphrase is needed, enter that in the password field above.') ?></div></td>
 </tr>
 <?php endif; ?>
@@ -1201,14 +1205,11 @@ jQuery(function($){
 
 <?php
 foreach ( (array) $extra_fields as $field ) {
-	if ( isset( $submitted_form[ $field ] ) )
-		echo '<input type="hidden" name="' . esc_attr( $field ) . '" value="' . esc_attr( $submitted_form[ $field ] ) . '" />';
+	if ( isset( $_POST[ $field ] ) )
+		echo '<input type="hidden" name="' . esc_attr( $field ) . '" value="' . esc_attr( wp_unslash( $_POST[ $field ] ) ) . '" />';
 }
+submit_button( __( 'Proceed' ), 'button', 'upgrade' );
 ?>
-	<p class="request-filesystem-credentials-action-buttons">
-		<?php wp_nonce_field( 'filesystem-credentials', '_fs_nonce', false, true ); ?>
-		<?php submit_button( __( 'Proceed' ), 'button', 'upgrade', false ); ?>
-	</p>
 </div>
 </form>
 <?php

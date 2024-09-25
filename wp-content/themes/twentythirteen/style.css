@@ -7,7 +7,7 @@ Description: The 2013 theme for WordPress takes us back to the blog, featuring a
 Version: 1.2
 License: GNU General Public License v2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
-Tags: black, brown, orange, tan, white, yellow, light, one-column, two-columns, right-sidebar, fluid-layout, responsive-layout, custom-header, custom-menu, editor-style, featured-images, microformats, post-formats, rtl-language-support, sticky-post, translation-ready
+Tags: black, brown, orange, tan, white, yellow, light, one-column, two-columns, right-sidebar, fluid-layout, responsive-layout, custom-header, custom-menu, editor-style, featured-images, microformats, post-formats, rtl-language-support, sticky-post, translation-ready, accessibility-ready
 Text Domain: twentythirteen
 
 This theme, like WordPress, is licensed under the GPL.
@@ -971,7 +971,7 @@ ul.nav-menu .focus > ul,
 	position: relative;
 	-webkit-transition: width 400ms ease, background 400ms ease;
 	transition:         width 400ms ease, background 400ms ease;
-	width: 0;
+	width: 1px;
 }
 
 .site-header .search-field:focus {
@@ -2788,6 +2788,13 @@ footer.entry-meta {
 
 /* Collapse oversized image and pulled images after iPad breakpoint. */
 @media (max-width: 767px) {
+	.site-header .home-link {
+		min-height: 0;
+	}
+	.site-title {
+		font-size: 36px;
+		padding: 8px 0 10px;
+	}
 	.entry-content img.alignleft,
 	.entry-content .wp-caption.alignleft {
 		margin-left: 0;
@@ -2895,8 +2902,8 @@ footer.entry-meta {
 		color: #141412;
 	}
 
-	.toggled-on .nav-menu li a:hover,
-	.toggled-on .nav-menu ul a:hover {
+	.toggled-on .nav-menu > li a:hover,
+	.toggled-on .nav-menu > ul a:hover {
 		background-color: #db572f;
 		color: #fff;
 	}
@@ -2985,6 +2992,13 @@ footer.entry-meta {
 
 /* Mobile devices */
 @media (max-width: 359px) {
+	.site-title {
+		font-weight: normal;
+	}
+	.site-description {
+	    clip: rect(1px, 1px, 1px, 1px);
+	    position: absolute;
+	}
 	.gallery {
 		margin-left: 0;
 	}

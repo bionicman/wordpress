@@ -85,7 +85,7 @@ if ( isset( $_GET['updated'] ) ) {
 
 <div class="wrap">
 	<h2><?php echo esc_html( $title ); ?></h2>
-	<form method="post" action="settings.php">
+	<form method="post" action="settings.php" novalidate="novalidate">
 		<?php wp_nonce_field( 'siteoptions' ); ?>
 		<h3><?php _e( 'Operational Settings' ); ?></h3>
 		<table class="form-table">
@@ -99,7 +99,7 @@ if ( isset( $_GET['updated'] ) ) {
 			<tr>
 				<th scope="row"><label for="admin_email"><?php _e( 'Network Admin Email' ) ?></label></th>
 				<td>
-					<input name="admin_email" type="text" id="admin_email" class="regular-text" value="<?php echo esc_attr( get_site_option('admin_email') ) ?>" />
+					<input name="admin_email" type="email" id="admin_email" class="regular-text" value="<?php echo esc_attr( get_site_option( 'admin_email' ) ) ?>" />
 					<p class="description">
 						<?php _e( 'This email address will receive notifications. Registration and support emails will also come from this address.' ); ?>
 					</p>	
@@ -237,7 +237,7 @@ if ( isset( $_GET['updated'] ) ) {
 			<tr>
 				<th scope="row"><label for="first_comment_author"><?php _e( 'First Comment Author' ) ?></label></th>
 				<td>
-					<input type="text" size="40" name="first_comment_author" id="first_comment_author" value="<?php echo esc_attr( get_site_option('first_comment_author') ); ?>" />
+					<input type="text" size="40" name="first_comment_author" id="first_comment_author" value="<?php echo get_site_option('first_comment_author') ?>" />
 					<p class="description">
 						<?php _e( 'The author of the first comment on a new site.' ) ?>
 					</p>

@@ -176,9 +176,9 @@ if ( ! wp_is_large_network( 'users' ) && apply_filters( 'show_network_site_users
 
 require( ABSPATH . 'wp-admin/admin-header.php' ); ?>
 
-<script type='text/javascript'>
+<script type="text/javascript">
 /* <![CDATA[ */
-var current_site_id = <?php echo absint( $id ); ?>;
+var current_site_id = <?php echo $id; ?>;
 /* ]]> */
 </script>
 

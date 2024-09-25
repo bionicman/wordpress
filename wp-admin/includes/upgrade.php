@@ -32,9 +32,10 @@ if ( !function_exists('wp_install') ) :
  * @param bool $public Whether blog is public.
  * @param null $deprecated Optional. Not used.
  * @param string $user_password Optional. User's chosen password. Will default to a random password.
+ * @param string $language Optional. Language chosen.
  * @return array Array keys 'url', 'user_id', 'password', 'password_message'.
  */
-function wp_install( $blog_title, $user_name, $user_email, $public, $deprecated = '', $user_password = '' ) {
+function wp_install( $blog_title, $user_name, $user_email, $public, $deprecated = '', $user_password = '', $language = '' ) {
 	if ( !empty( $deprecated ) )
 		_deprecated_argument( __FUNCTION__, '2.6' );
 
@@ -47,6 +48,10 @@ function wp_install( $blog_title, $user_name, $user_email, $public, $deprecated 
 	update_option('blogname', $blog_title);
 	update_option('admin_email', $user_email);
 	update_option('blog_public', $public);
+
+	if ( $language ) {
+		update_option( 'WPLANG', $language );
+	}
 
 	$guessurl = wp_guess_url();
 
@@ -430,9 +435,6 @@ function upgrade_all() {
 	if ( $wp_current_db_version < 26691 )
 		upgrade_380();
 
-	if ( $wp_current_db_version < 27918 )
-		upgrade_397();
-
 	maybe_disable_link_manager();
 
 	maybe_disable_automattic_widgets();
@@ -468,9 +470,11 @@ function upgrade_100() {
 		}
 	}
 
-	$wpdb->query("UPDATE $wpdb->options SET option_value = REPLACE(option_value, 'wp-links/links-images/', 'wp-images/links/')
-	WHERE option_name LIKE 'links_rating_image%'
-	AND option_value LIKE 'wp-links/links-images/%'");
+	$sql = "UPDATE $wpdb->options
+		SET option_value = REPLACE(option_value, 'wp-links/links-images/', 'wp-images/links/')
+		WHERE option_name LIKE %s
+		AND option_value LIKE %s";
+	$wpdb->query( $wpdb->prepare( $sql, $wpdb->esc_like( 'links_rating_image' ) . '%', $wpdb->esc_like( 'wp-links/links-images/' ) . '%' ) );
 
 	$done_ids = $wpdb->get_results("SELECT DISTINCT post_id FROM $wpdb->post2cat");
 	if ($done_ids) :
@@ -1057,8 +1061,8 @@ function upgrade_280() {
 		$start = 0;
 		while( $rows = $wpdb->get_results( "SELECT option_name, option_value FROM $wpdb->options ORDER BY option_id LIMIT $start, 20" ) ) {
 			foreach( $rows as $row ) {
-				$value = maybe_unserialize( $row->option_value );
-				if ( $value === $row->option_value )
+				$value = $row->option_value;
+				if ( !@unserialize( $value ) )
 					$value = stripslashes( $value );
 				if ( $value !== $row->option_value ) {
 					update_option( $row->option_name, $value );
@@ -1103,9 +1107,28 @@ function upgrade_300() {
 
 	// 3.0 screen options key name changes.
 	if ( is_main_site() && !defined('DO_NOT_UPGRADE_GLOBAL_TABLES') ) {
-		$prefix = like_escape($wpdb->base_prefix);
-		$wpdb->query( "DELETE FROM $wpdb->usermeta WHERE meta_key LIKE '{$prefix}%meta-box-hidden%' OR meta_key LIKE '{$prefix}%closedpostboxes%' OR meta_key LIKE '{$prefix}%manage-%-columns-hidden%' OR meta_key LIKE '{$prefix}%meta-box-order%' OR meta_key LIKE '{$prefix}%metaboxorder%' OR meta_key LIKE '{$prefix}%screen_layout%'
-					 OR meta_key = 'manageedittagscolumnshidden' OR meta_key='managecategoriescolumnshidden' OR meta_key = 'manageedit-tagscolumnshidden' OR meta_key = 'manageeditcolumnshidden' OR meta_key = 'categories_per_page' OR meta_key = 'edit_tags_per_page'" );
+		$sql = "DELETE FROM $wpdb->usermeta
+			WHERE meta_key LIKE %s
+			OR meta_key LIKE %s
+			OR meta_key LIKE %s
+			OR meta_key LIKE %s
+			OR meta_key LIKE %s
+			OR meta_key LIKE %s
+			OR meta_key = 'manageedittagscolumnshidden'
+			OR meta_key = 'managecategoriescolumnshidden'
+			OR meta_key = 'manageedit-tagscolumnshidden'
+			OR meta_key = 'manageeditcolumnshidden'
+			OR meta_key = 'categories_per_page'
+			OR meta_key = 'edit_tags_per_page'";
+		$prefix = $wpdb->esc_like( $wpdb->base_prefix );
+		$wpdb->query( $wpdb->prepare( $sql,
+			$prefix . '%' . $wpdb->esc_like( 'meta-box-hidden' ) . '%',
+			$prefix . '%' . $wpdb->esc_like( 'closedpostboxes' ) . '%',
+			$prefix . '%' . $wpdb->esc_like( 'manage-'	   ) . '%' . $wpdb->esc_like( '-columns-hidden' ) . '%',
+			$prefix . '%' . $wpdb->esc_like( 'meta-box-order'  ) . '%',
+			$prefix . '%' . $wpdb->esc_like( 'metaboxorder'    ) . '%',
+			$prefix . '%' . $wpdb->esc_like( 'screen_layout'   ) . '%'
+		) );
 	}
 
 }
@@ -1273,63 +1296,6 @@ function upgrade_380() {
 		deactivate_plugins( array( 'mp6/mp6.php' ), true );
 	}
 }
-
-/**
- * Execute changes made in WordPress 3.9.6.
- *
- * @since 3.9.6
- */
-function upgrade_396() {
-}
-
-/**
- * Execute changes made in WordPress 3.9.7.
- *
- * @since 3.9.7
- */
-function upgrade_397() {
-	global $wp_current_db_version, $wpdb;
-
-	if ( $wp_current_db_version < 27918 ) {
-		$content_length = $wpdb->get_col_length( $wpdb->comments, 'comment_content' );
-
-		if ( is_wp_error( $content_length ) ) {
-			return;
-		}
-
-		if ( false === $content_length ) {
-			$content_length = array(
-				'type'   => 'byte',
-				'length' => 65535,
-			);
-		} elseif ( ! is_array( $content_length ) ) {
-			$length = (int) $content_length > 0 ? (int) $content_length : 65535;
-			$content_length = array(
-				'type'	 => 'byte',
-				'length' => $length
-			);
-		}
-
-		if ( 'byte' !== $content_length['type'] || 0 === $content_length['length'] ) {
-			// Sites with malformed DB schemas are on their own.
-			return;
-		}
-
-		$allowed_length = intval( $content_length['length'] ) - 10;
-
-		$comments = $wpdb->get_results(
-			"SELECT `comment_ID` FROM `{$wpdb->comments}`
-				WHERE `comment_date_gmt` > '2015-04-26'
-				AND LENGTH( `comment_content` ) >= {$allowed_length}
-				AND ( `comment_content` LIKE '%<%' OR `comment_content` LIKE '%>%' )"
-		);
-
-		foreach ( $comments as $comment ) {
-			wp_delete_comment( $comment->comment_ID, true );
-		}
-	}
-}
-
 /**
  * Execute network level changes
  *
@@ -1344,11 +1310,12 @@ function upgrade_network() {
 		// The multi-table delete syntax is used to delete the transient record from table a,
 		// and the corresponding transient_timeout record from table b.
 		$time = time();
-		$wpdb->query("DELETE a, b FROM $wpdb->sitemeta a, $wpdb->sitemeta b WHERE
-			a.meta_key LIKE '\_site\_transient\_%' AND
-			a.meta_key NOT LIKE '\_site\_transient\_timeout\_%' AND
-			b.meta_key = CONCAT( '_site_transient_timeout_', SUBSTRING( a.meta_key, 17 ) )
-			AND b.meta_value < $time");
+		$sql = "DELETE a, b FROM $wpdb->sitemeta a, $wpdb->sitemeta b
+			WHERE a.meta_key LIKE %s
+			AND a.meta_key NOT LIKE %s
+			AND b.meta_key = CONCAT( '_site_transient_timeout_', SUBSTRING( a.meta_key, 17 ) )
+			AND b.meta_value < %d";
+		$wpdb->query( $wpdb->prepare( $sql, $wpdb->esc_like( '_site_transient_' ) . '%', $wpdb->esc_like ( '_site_transient_timeout_' ) . '%', $time ) );
 	}
 
 	// 2.8
@@ -1442,13 +1409,18 @@ function upgrade_network() {
  */
 function maybe_create_table($table_name, $create_ddl) {
 	global $wpdb;
-	if ( $wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name )
+	
+	$query = $wpdb->prepare( "SHOW TABLES LIKE %s", $wpdb->esc_like( $table_name ) );
+
+	if ( $wpdb->get_var( $query ) == $table_name ) {
 		return true;
+	}
 	//didn't find it try to create it.
-	$q = $wpdb->query($create_ddl);
+	$wpdb->query($create_ddl);
 	// we cannot directly tell that whether this succeeded!
-	if ( $wpdb->get_var("SHOW TABLES LIKE '$table_name'") == $table_name )
+	if ( $wpdb->get_var( $query ) == $table_name ) {
 		return true;
+	}
 	return false;
 }
 
@@ -1507,7 +1479,7 @@ function maybe_add_column($table_name, $column_name, $create_ddl) {
 		}
 	}
 	//didn't find it try to create it.
-	$q = $wpdb->query($create_ddl);
+	$wpdb->query($create_ddl);
 	// we cannot directly tell that whether this succeeded!
 	foreach ($wpdb->get_col("DESC $table_name", 0) as $column ) {
 		if ($column == $column_name) {
@@ -1615,8 +1587,8 @@ function dbDelta( $queries = '', $execute = true ) {
 		$queries = explode( ';', $queries );
 		$queries = array_filter( $queries );
 	}
-	
-	/** 
+
+	/**
 	 * Filter the dbDelta SQL queries.
 	 *
 	 * @since 3.3.0
@@ -1644,23 +1616,23 @@ function dbDelta( $queries = '', $execute = true ) {
 			// Unrecognized query type
 		}
 	}
-	
-	/** 
+
+	/**
 	 * Filter the dbDelta SQL queries for creating tables and/or databases.
 	 *
 	 * Queries filterable via this hook contain "CREATE TABLE" or "CREATE DATABASE".
-	 * 
+	 *
 	 * @since 3.3.0
 	 *
 	 * @param array $cqueries An array of dbDelta create SQL queries.
 	 */
 	$cqueries = apply_filters( 'dbdelta_create_queries', $cqueries );
 
-	/** 
+	/**
 	 * Filter the dbDelta SQL queries for inserting or updating.
 	 *
 	 * Queries filterable via this hook contain "INSERT INTO" or "UPDATE".
-	 * 
+	 *
 	 * @since 3.3.0
 	 *
 	 * @param array $iqueries An array of dbDelta insert or update SQL queries.
@@ -1854,7 +1826,7 @@ function make_db_current( $tables = 'all' ) {
  * @since 1.5.0
  */
 function make_db_current_silent( $tables = 'all' ) {
-	$alterations = dbDelta( $tables );
+	dbDelta( $tables );
 }
 
 /**
@@ -2186,3 +2158,126 @@ CREATE TABLE $wpdb->sitecategories (
 	dbDelta( $ms_queries );
 }
 endif;
+
+function wp_install_language_form( $languages ) {
+	echo "<fieldset>\n";
+	echo "<legend class='screen-reader-text'>Select a default language</legend>\n";
+	echo '<input type="radio" checked="checked" class="screen-reader-input language-chooser-input" name="language" id="language_default" value="">';
+	echo '<label for="language_default">English (United States)</label>';
+	echo "\n";
+
+	if ( defined( 'WPLANG' ) && ( '' !== WPLANG ) && ( 'en_US' !== WPLANG ) ) {
+		if ( isset( $languages[ WPLANG ] ) ) {
+			$language = $languages[ WPLANG ];
+			echo '<input type="radio" name="language" checked="checked" class="' . esc_attr( $language['language'] ) . ' screen-reader-input" id="language_wplang" value="' . esc_attr( $language['language'] ) . '">';
+			echo '<label for="language_wplang">' . esc_html( $language['native_name'] ) . "</label>\n";
+		}
+	}
+
+	foreach ( $languages as $language ) {
+		echo '<input type="radio" name="language" class="' . esc_attr( $language['language'] ) . ' screen-reader-input language-chooser-input" id="language_'. esc_attr( $language['language'] ) .'" value="' . esc_attr( $language['language'] ) . '">';
+		echo '<label for="language_' . esc_attr( $language['language'] ) . '">' . esc_html( $language['native_name'] ) . "</label>\n";
+	}
+	echo "</fieldset>\n";
+	echo '<p class="step"><span class="spinner"></span><input type="submit" class="button button-primary button-hero" value="&raquo;" /></p>';
+}
+
+/**
+ * Gets available translations from the WordPress.org API.
+ *
+ * @since 4.0.0
+ *
+ * @return array Array of translations, each an array of data.
+ */
+function wp_get_available_translations_from_api() {
+	$url = 'http://api.wordpress.org/translations/core/1.0/';
+	if ( wp_http_supports( array( 'ssl' ) ) ) {
+		$url = set_url_scheme( $url, 'https' );
+	}
+
+	$options = array(
+		'timeout' => 3,
+		'body' => array( 'version' => $GLOBALS['wp_version'] ),
+	);
+
+	$response = wp_remote_post( $url, $options );
+	$body = wp_remote_retrieve_body( $response );
+	if ( $body && $body = json_decode( $body, true ) ) {
+		$translations = array();
+		// Key the array with the language code for now
+		foreach ( $body['translations'] as $translation ) {
+			$translations[ $translation['language'] ] = $translation;
+		}
+		return $translations;
+	}
+	return false;
+}
+
+/**
+ * Downloads a language pack.
+ *
+ * @since 4.0.0
+ *
+ * @param string $download Language code to download.
+ * @return string|false Returns the language code if successfully downloaded
+ *                      (or already installed), or false on failure.
+ */
+function wp_install_download_language_pack( $download ) {
+	// Check if the translation is already installed.
+	if ( in_array( $download, get_available_languages() ) ) {
+		return $download;
+	}
+
+	// Confirm the translation is one we can download.
+	$translations = wp_get_available_translations_from_api();
+	if ( ! $translations ) {
+		return false;
+	}
+	foreach ( $translations as $translation ) {
+		if ( $translation['language'] === $download ) {
+			$translation_to_load = true;
+			break;
+		}
+	}
+
+	if ( empty( $translation_to_load ) ) {
+		return false;
+	}
+	$translation = (object) $translation;
+
+	require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+	$skin = new Automatic_Upgrader_Skin;
+	$upgrader = new Language_Pack_Upgrader( $skin );
+	$translation->type = 'core';
+	/**
+	 * @todo failures (such as non-direct FS)
+	 */
+	$upgrader->upgrade( $translation, array( 'clear_update_cache' => false ) );
+	return $translation->language;
+}
+
+/**
+ * Load a translation during the install process.
+ *
+ * @since 4.0.0
+ *
+ * @param string $translation Translation to load.
+ * @return string|false Returns the language code if successfully loaded,
+ *                      or false on failure.
+ */
+function wp_install_load_language( $translation ) {
+	if ( ! empty( $translation ) ) {
+		if ( in_array( $translation, get_available_languages() ) ) {
+			$translation_to_load = $translation;
+		}
+	}
+
+	if ( empty( $translation_to_load ) ) {
+		return false;
+	}
+
+	unload_textdomain( 'default' ); // Start over.
+	load_textdomain( 'default', WP_LANG_DIR . "/{$translation_to_load}.mo" );
+	load_textdomain( 'default', WP_LANG_DIR . "/admin-{$translation_to_load}.mo" );
+	return $translation_to_load;
+}

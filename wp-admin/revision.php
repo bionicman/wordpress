@@ -29,7 +29,7 @@ if ( ! $revision_id )
 	$revision_id = absint( $to );
 $redirect = 'edit.php';
 
-switch ( $action ) :
+switch ( $action ) {
 case 'restore' :
 	if ( ! $revision = wp_get_post_revision( $revision_id ) )
 		break;
@@ -63,7 +63,7 @@ default :
 	if ( ! $post = get_post( $revision->post_parent ) )
 		break;
 
-	if ( ! current_user_can( 'read_post', $revision->ID ) || ! current_user_can( 'edit_post', $revision->post_parent ) )
+	if ( ! current_user_can( 'read_post', $revision->ID ) || ! current_user_can( 'read_post', $post->ID ) )
 		break;
 
 	// Revisions disabled and we're not looking at an autosave
@@ -80,7 +80,7 @@ default :
 
 	$redirect = false;
 	break;
-endswitch;
+}
 
 // Empty post_type means either malformed object found, or no valid parent was found.
 if ( ! $redirect && empty( $post->post_type ) )

@@ -60,7 +60,8 @@ window.switchEditors = {
 			if ( ed ) {
 				ed.show();
 
-				if ( editorHeight ) {
+				// No point resizing the iframe in iOS
+				if ( ! tinymce.Env.iOS && editorHeight ) {
 					toolbarHeight = getToolbarHeight();
 					editorHeight = editorHeight - toolbarHeight + 14;
 
@@ -84,16 +85,18 @@ window.switchEditors = {
 			}
 
 			if ( ed ) {
-				iframe = DOM.get( id + '_ifr' );
-				editorHeight = iframe ? parseInt( iframe.style.height, 10 ) : 0;
+				if ( ! tinymce.Env.iOS ) {
+					iframe = DOM.get( id + '_ifr' );
+					editorHeight = iframe ? parseInt( iframe.style.height, 10 ) : 0;
 
-				if ( editorHeight ) {
-					toolbarHeight = getToolbarHeight();
-					editorHeight = editorHeight + toolbarHeight - 14;
+					if ( editorHeight ) {
+						toolbarHeight = getToolbarHeight();
+						editorHeight = editorHeight + toolbarHeight - 14;
 
-					// height cannot be under 50 or over 5000
-					if ( editorHeight > 50 && editorHeight < 5000 ) {
-						txtarea_el.style.height = editorHeight + 'px';
+						// height cannot be under 50 or over 5000
+						if ( editorHeight > 50 && editorHeight < 5000 ) {
+							txtarea_el.style.height = editorHeight + 'px';
+						}
 					}
 				}
 
@@ -200,7 +203,7 @@ window.switchEditors = {
 		var preserve_linebreaks = false,
 			preserve_br = false,
 			blocklist = 'table|thead|tfoot|caption|col|colgroup|tbody|tr|td|th|div|dl|dd|dt|ul|ol|li|pre' +
-				'|form|map|area|blockquote|address|math|style|p|h[1-6]|hr|fieldset|noscript|legend|section' +
+				'|form|map|area|blockquote|address|math|style|p|h[1-6]|hr|fieldset|legend|section' +
 				'|article|aside|hgroup|header|footer|nav|figure|details|menu|summary';
 
 		if ( pee.indexOf( '<object' ) !== -1 ) {

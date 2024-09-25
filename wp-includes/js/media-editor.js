@@ -298,6 +298,60 @@
 		}
 	};
 
+	wp.media.embed = {
+		coerce : wp.media.coerce,
+
+		defaults : {
+			url : '',
+			width: '',
+			height: ''
+		},
+
+		edit : function( data, isURL ) {
+			var frame, props = {}, shortcode;
+
+			if ( isURL ) {
+				props.url = data.replace(/<[^>]+>/g, '');
+			} else {
+				shortcode = wp.shortcode.next( 'embed', data ).shortcode;
+
+				props = _.defaults( shortcode.attrs.named, this.defaults );
+				if ( shortcode.content ) {
+					props.url = shortcode.content;
+				}
+			}
+
+			frame = wp.media({
+				frame: 'post',
+				state: 'embed',
+				metadata: props
+			});
+
+			return frame;
+		},
+
+		shortcode : function( model ) {
+			var self = this, content;
+
+			_.each( this.defaults, function( value, key ) {
+				model[ key ] = self.coerce( model, key );
+
+				if ( value === model[ key ] ) {
+					delete model[ key ];
+				}
+			});
+
+			content = model.url;
+			delete model.url;
+
+			return new wp.shortcode({
+				tag: 'embed',
+				attrs: model,
+				content: content
+			});
+		}
+	};
+
 	wp.media.collection = function(attributes) {
 		var collections = {};
 
@@ -523,21 +577,27 @@
 		});
 	};
 
+	wp.media.galleryDefaults = {
+		itemtag: 'dl',
+		icontag: 'dt',
+		captiontag: 'dd',
+		columns: '3',
+		link: 'post',
+		size: 'thumbnail',
+		order: 'ASC',
+		id: wp.media.view.settings.post && wp.media.view.settings.post.id,
+		orderby : 'menu_order ID'
+	};
+
+	if ( wp.media.view.settings.galleryDefaults ) {
+		_.extend( wp.media.galleryDefaults, wp.media.view.settings.galleryDefaults );
+	}
+
 	wp.media.gallery = new wp.media.collection({
 		tag: 'gallery',
 		type : 'image',
 		editTitle : wp.media.view.l10n.editGalleryTitle,
-		defaults : {
-			itemtag: 'dl',
-			icontag: 'dt',
-			captiontag: 'dd',
-			columns: '3',
-			link: 'post',
-			size: 'thumbnail',
-			order: 'ASC',
-			id: wp.media.view.settings.post && wp.media.view.settings.post.id,
-			orderby : 'menu_order ID'
-		}
+		defaults : wp.media.galleryDefaults
 	});
 
 	/**

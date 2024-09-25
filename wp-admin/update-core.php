@@ -174,12 +174,14 @@ function core_upgrade_preamble() {
 	if ( isset( $updates[0] ) && $updates[0]->response == 'development' ) {
 		require_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
 		$upgrader = new WP_Automatic_Updater;
-		if ( wp_http_supports( 'ssl' ) && $upgrader->should_update( 'core', $updates[0], ABSPATH ) )
-			echo '<div class="updated inline"><p><strong>BETA TESTERS:</strong> This site is set up to install updates of future beta versions automatically.</p></div>';
+		if ( wp_http_supports( 'ssl' ) && $upgrader->should_update( 'core', $updates[0], ABSPATH ) ) {
+			echo '<div class="updated inline"><p>';
+			echo '<strong>' . __( 'BETA TESTERS:' ) . '</strong> ' . __( 'This site is set up to install updates of future beta versions automatically.' );
+			echo '</p></div>';
+		}
 	}
 
 	echo '<ul class="core-updates">';
-	$alternate = true;
 	foreach( (array) $updates as $update ) {
 		echo '<li>';
 		list_core_update( $update );
@@ -238,8 +240,6 @@ function list_plugin_updates() {
 	<tbody class="plugins">
 <?php
 	foreach ( (array) $plugins as $plugin_file => $plugin_data) {
-		$plugin_data = (object) _get_plugin_data_markup_translate( $plugin_file, (array) $plugin_data, false, true );
-
 		$info = plugins_api('plugin_information', array('slug' => $plugin_data->update->slug ));
 		// Get plugin compat for running version of WordPress.
 		if ( isset($info->tested) && version_compare($info->tested, $cur_wp_version, '>=') ) {
@@ -363,7 +363,7 @@ function list_translation_updates() {
 function do_core_upgrade( $reinstall = false ) {
 	global $wp_filesystem;
 
-	include_once ABSPATH . 'wp-admin/includes/class-wp-upgrader.php';
+	include_once( ABSPATH . 'wp-admin/includes/class-wp-upgrader.php' );
 
 	if ( $reinstall )
 		$url = 'update-core.php?action=do-core-reinstall';
@@ -582,7 +582,7 @@ if ( 'upgrade-core' == $action ) {
 	require_once(ABSPATH . 'wp-admin/admin-header.php');
 	echo '<div class="wrap">';
 	echo '<h2>' . esc_html__('Update Plugins') . '</h2>';
-	echo "<iframe src='$url' style='width: 100%; height: 100%; min-height: 750px;' frameborder='0'></iframe>";
+	echo '<iframe src="', $url, '" style="width: 100%; height: 100%; min-height: 750px;" frameborder="0"></iframe>';
 	echo '</div>';
 	include(ABSPATH . 'wp-admin/admin-footer.php');
 
@@ -608,10 +608,12 @@ if ( 'upgrade-core' == $action ) {
 	$title = __('Update Themes');
 
 	require_once(ABSPATH . 'wp-admin/admin-header.php');
-	echo '<div class="wrap">';
-	echo '<h2>' . esc_html__('Update Themes') . '</h2>';
-	echo "<iframe src='$url' style='width: 100%; height: 100%; min-height: 750px;' frameborder='0'></iframe>";
-	echo '</div>';
+	?>
+	<div class="wrap">
+		<h2><?php echo esc_html__('Update Themes') ?></h2>
+		<iframe src="<?php echo $url ?>" style="width: 100%; height: 100%; min-height: 750px;" frameborder="0"></iframe>
+	</div>
+	<?php
 	include(ABSPATH . 'wp-admin/admin-footer.php');
 
 } elseif ( 'do-translation-upgrade' == $action ) {

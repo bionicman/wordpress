@@ -62,7 +62,20 @@ final class _WP_Editors {
 	 * @return array Parsed arguments array.
 	 */
 	public static function parse_settings( $editor_id, $settings ) {
-		$set = wp_parse_args( $settings,  array(
+
+		/**
+		 * Filter the wp_editor() settings.
+		 *
+		 * @since 4.0.0
+		 *
+		 * @see _WP_Editors()::parse_settings()
+		 *
+		 * @param array  $settings  Array of editor arguments.
+		 * @param string $editor_id ID for the current editor instance.
+		 */
+		$settings = apply_filters( 'wp_editor_settings', $settings, $editor_id );
+
+		$set = wp_parse_args( $settings, array(
 			'wpautop'           => true,
 			'media_buttons'     => true,
 			'default_editor'    => '',
@@ -102,6 +115,12 @@ final class _WP_Editors {
 		if ( 'content' === $editor_id ) {
 			// A cookie (set when a user resizes the editor) overrides the height.
 			$cookie = (int) get_user_setting( 'ed_size' );
+
+			// Upgrade an old TinyMCE cookie if it is still around, and the new one isn't.
+			if ( ! $cookie && isset( $_COOKIE['TinyMCE_content_size'] ) ) {
+				parse_str( $_COOKIE['TinyMCE_content_size'], $cookie );
+ 				$cookie = $cookie['ch'];
+			}
 
 			if ( $cookie )
 				$set['editor_height'] = $cookie;
@@ -328,6 +347,7 @@ final class _WP_Editors {
 						'textcolor',
 						'fullscreen',
 						'wordpress',
+						'wpautoresize',
 						'wpeditimage',
 						'wpgallery',
 						'wplink',
@@ -467,7 +487,6 @@ final class _WP_Editors {
 					'entities' => '38,amp,60,lt,62,gt',
 					'entity_encoding' => 'raw',
 					'keep_styles' => false,
-					'paste_webkit_styles' => 'font-weight font-style color',
 
 					// Limit the preview styles in the menu/toolbar
 					'preview_styles' => 'font-family font-size font-weight font-style text-decoration text-transform',
@@ -938,7 +957,7 @@ final class _WP_Editors {
 			'Paste is now in plain text mode. Contents will now be pasted as plain text until you toggle this option off.' => __( 'Paste is now in plain text mode. Contents will now be pasted as plain text until you toggle this option off.' ) . "\n\n" . __( 'If you&#8217;re looking to paste rich content from Microsoft Word, try turning this option off. The editor will clean up text pasted from Word automatically.' ),
 			'Rich Text Area. Press ALT-F9 for menu. Press ALT-F10 for toolbar. Press ALT-0 for help' => __( 'Rich Text Area. Press ALT-F9 for menu. Press ALT-F10 for toolbar. Press ALT-0 for help' ),
 			'You have unsaved changes are you sure you want to navigate away?' => __( 'The changes you made will be lost if you navigate away from this page.' ),
-			'Your browser doesn\'t support direct access to the clipboard. Please use the Ctrl+X/C/V keyboard shortcuts instead.' => __( 'Your browser does not support direct access to the clipboard. Please use the Ctrl+X/C/V keyboard shortcuts instead.' ),
+			'Your browser doesn\'t support direct access to the clipboard. Please use the Ctrl+X/C/V keyboard shortcuts instead.' => __( 'Your browser does not support direct access to the clipboard. Please use keyboard shortcuts or your browser&#8217;s edit menu instead.' ),
 
 			// TinyMCE menus
 			'Insert' => _x( 'Insert', 'TinyMCE menu' ),

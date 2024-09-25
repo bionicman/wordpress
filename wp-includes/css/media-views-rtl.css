@@ -228,7 +228,6 @@
 .media-toolbar-secondary > .media-button,
 .media-toolbar-secondary > .media-button-group {
 	margin-left: 10px;
-	float: right;
 	margin-top: 15px;
 }
 
@@ -292,13 +291,14 @@
 }
 
 .media-sidebar .setting .link-to-custom {
-	margin: 3px 0;
+	margin: 3px 2px 0;
 }
 
 .media-sidebar .setting span {
 	min-width: 30%;
 	margin-left: 4%;
 	font-size: 12px;
+	text-align: left;
 }
 
 .media-sidebar .setting select {
@@ -319,16 +319,25 @@
 	min-height: 22px;
 	padding-top: 8px;
 	line-height: 16px;
-	text-align: left;
 	font-weight: normal;
 	color: #666;
 }
 
+.compat-item label span  {
+	text-align: left;
+}
+
 .media-sidebar .setting input,
-.media-sidebar .setting textarea {
+.media-sidebar .setting textarea,
+.media-sidebar .setting .value {
 	margin: 1px;
 	width: 65%;
 	float: left;
+}
+
+.media-sidebar .setting .value {
+	margin: 0 1px;
+	text-align: right;
 }
 
 .media-sidebar .setting textarea,
@@ -478,8 +487,7 @@
 	border-left: 0;
 }
 
-.media-router > a:active,
-.media-router > a:focus {
+.media-router > a:active {
 	outline: none;
 }
 
@@ -696,6 +704,16 @@
 	user-select: none;
 }
 
+.attachment:focus {
+	-webkit-box-shadow:
+		0 0 0 1px #5b9dd9,
+		0 0 2px 2px #5b9dd9;
+	box-shadow:
+		0 0 0 1px #5b9dd9,
+		0 0 2px 2px #5b9dd9;
+	outline: none;
+}
+
 .selected.attachment {
 	-webkit-box-shadow:
 		0 0 0 1px #fff,
@@ -736,6 +754,30 @@
 	max-height: 100%;
 }
 
+.attachment-preview.type-audio .thumbnail,
+.attachment-preview.type-video .thumbnail {
+	z-index: 1;
+	margin: 1%;
+	max-width: 98%;
+	max-height: 98%;
+}
+
+.media-frame-content .attachment-preview.type-audio .icon,
+.media-frame-content .attachment-preview.type-video .icon {
+	z-index: 2;
+	background: #f1f1f1;
+	position: relative;
+	padding: 0;
+	top: 15%;
+	right: auto;
+	left: auto;
+}
+
+.attachment-preview.type-audio .filename,
+.attachment-preview.type-video .filename {
+	z-index: 3;
+}
+
 .attachment-preview .thumbnail:after {
 	content: '';
 	display: block;
@@ -768,9 +810,9 @@
 }
 
 .attachment .thumbnail .centered img {
-	-webkit-transform: translate( 50%, -50% );
-	-ms-transform: translate( 50%, -50% );
-	transform: translate( 50%, -50% );
+	-webkit-transform: translate( -50%, -50% );
+	-ms-transform: translate( -50%, -50% );
+	transform: translate( -50%, -50% );
 }
 
 .attachment .filename {
@@ -895,6 +937,29 @@
 	border-radius: 0;
 }
 
+.attachment .data-fields {
+	margin: 5px 0 0;
+}
+
+.attachment .data-field {
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	overflow: hidden;
+	line-height: 19px;
+	height: 19px;
+	text-align: right;
+	width: 90%;
+	margin: 0 5%;
+}
+
+.attachment .data-hidden {
+	display: none;
+}
+
+.attachment .data-visible {
+	display: block;
+}
+
 /**
  * Attachments Browser
  */
@@ -908,6 +973,10 @@
 .attachments-browser .media-toolbar {
 	left: 300px;
 	height: 50px;
+}
+
+.attachments-browser.hide-sidebar .media-toolbar {
+	left: 0;
 }
 
 .attachments-browser .media-toolbar-primary > .media-button,
@@ -925,6 +994,115 @@
 	left: 300px;
 	bottom: 0;
 	overflow: auto;
+	outline: none;
+	-webkit-transition: 1s ease-in-out;
+    transition: 1s ease-in-out;
+}
+
+.attachments-browser .uploader-inline:not(.hidden) + .attachments {
+	-webkit-transform: translateY( 300px );
+	-ms-transform: translateY( 300px );
+	transform: translateY( 300px );
+}
+
+.attachments-browser .uploader-inline.hidden {
+	display: block;
+	-webkit-transform: translateY( -100% );
+	-ms-transform: translateY( -100% );
+	transform: translateY( -100% );
+}
+
+.attachments-browser .uploader-inline-content {
+	top: 0;
+}
+
+.inline-toolbar {
+	position: absolute;
+	top: 0;
+	right: 0;
+	display: none;
+	z-index: 100;
+}
+
+.inline-toolbar .remove {
+	display: none;
+}
+
+.active-video .inline-toolbar .remove {
+	display: inline-block;
+}
+
+.attachment:hover .inline-toolbar {
+	display: block;
+}
+
+.inline-toolbar div,
+.inline-toolbar .inline-media-control {
+	display: inline-block;
+	margin-top: 4px;
+	margin-right: 4px;
+	padding: 2px;
+	width: 20px;
+	height: 20px;
+	-webkit-box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+	box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+	background-color: #000;
+	background-color: rgba(0,0,0,0.9);
+	cursor: pointer;
+	color: white;
+	font-size: 20px;
+}
+
+.ie8 .inline-toolbar div,
+.ie7 .inline-toolbar div {
+	display: inline;
+	padding: 0;
+}
+
+.inline-media-control span {
+	display: block;
+	width: 16px;
+	height: 16px;
+	margin: 2px;
+	background: url(/wp-includes/js/mediaelement/controls.png) 0 0 no-repeat;
+}
+
+.inline-media-control.active span {
+	margin: 2px;
+	background-position: 0 -16px;
+}
+
+.inline-media-control.paused span {
+	margin: 2px;
+	background-position: 0 0;
+}
+
+audio#inline-media-node {
+	display: none;
+}
+
+video#inline-media-node {
+	position: relative;
+	z-index: 5;
+	top: 0;
+	right: 0;
+}
+
+.inline-video-wrap {
+	width: 100%;
+	height: auto;
+	position: absolute;
+	z-index: 5;
+	background: #000;
+	padding: 10px 0 5px;
+	top: 0;
+	right: 0;
+}
+
+.attachments-browser.hide-sidebar .attachments,
+.attachments-browser.hide-sidebar .uploader-inline {
+	left: 0;
+	margin-left: 0;
 }
 
 .attachments-browser .instructions {
@@ -1390,7 +1568,7 @@
 	margin-top: 35px;
 }
 
-.attachment-info .thumbnail:after {
+.attachment-info .thumbnail-image:after {
 	content: '';
 	display: block;
 	position: absolute;
@@ -1475,18 +1653,18 @@
  * Image Editor
  */
 
-.media-frame .imgedit-wrap {
+.media-modal .imgedit-wrap {
 	position: static;
 }
 
-.media-frame .imgedit-wait {
+.media-modal .imgedit-wait {
 	height: auto !important;
 	left: 0;
 	bottom: 0;
 	right: 0;
 }
 
-.media-frame .imgedit-wrap .imgedit-panel-content {
+.media-modal .imgedit-wrap .imgedit-panel-content {
 	padding: 16px;
 	position: absolute;
 	top: 0;
@@ -1496,7 +1674,7 @@
 	overflow: auto;
 }
 
-.media-frame .imgedit-wrap .imgedit-settings {
+.media-modal .imgedit-wrap .imgedit-settings {
 	background: #f3f3f3;
 	border-right: 1px solid #ddd;
 	padding: 0 16px 16px;
@@ -1508,7 +1686,7 @@
 	overflow: auto;
 }
 
-.media-frame .imgedit-group {
+.media-modal .imgedit-group {
 	background: none;
 	border: none;
 	border-bottom: 1px solid #ddd;
@@ -1520,13 +1698,13 @@
 	padding-bottom: 16px;
 }
 
-.media-frame .imgedit-group:last-of-type {
+.media-modal .imgedit-group:last-of-type {
 	border: none;
 	margin: 0;
 	padding: 0;
 }
 
-.media-frame .imgedit-group-top h3 {
+.media-modal .imgedit-group-top h3 {
 	text-transform: uppercase;
 	font-size: 12px;
 	color: #666;
@@ -1534,26 +1712,26 @@
 	margin-top: 24px;
 }
 
-.media-frame .imgedit-group-top h3 a {
+.media-modal .imgedit-group-top h3 a {
 	text-decoration: none;
 	color: #666;
 }
 
-.media-frame .imgedit-help-toggle {
+.media-modal .imgedit-help-toggle {
 	margin-top: -2px;
 	cursor: pointer;
 	color: #666;
 }
 
-.media-frame .imgedit-help-toggled span.dashicons:before {
+.media-modal .imgedit-help-toggled span.dashicons:before {
 	content: '\f142';
 }
 
-.media-frame .imgedit-group img {
+.media-modal .imgedit-group img {
 	margin-top: 5px;
 }
 
-.media-frame .imgedit-wrap div.updated {
+.media-modal .imgedit-wrap div.updated {
 	margin: 0;
 	margin-bottom: 16px;
 }
@@ -1577,13 +1755,13 @@
 	padding: 12px 14px;
 	width: 100%;
 	min-width: 200px;
-	-webkit-box-shadow: inset -2px 2px 4px -2px rgba( 0, 0, 0, 0.1 );
-	box-shadow: inset -2px 2px 4px -2px rgba( 0, 0, 0, 0.1 );
+	-webkit-box-shadow: inset 2px 2px 4px -2px rgba( 0, 0, 0, 0.1 );
+	box-shadow: inset 2px 2px 4px -2px rgba( 0, 0, 0, 0.1 );
 }
 
 .media-frame .embed-url .spinner {
 	position: absolute;
-	top: 16px;
+	top: 32px;
 	left: 26px;
 }
 
@@ -1594,12 +1772,20 @@
 .embed-link-settings,
 .embed-media-settings {
 	position: absolute;
-	top: 60px;
+	top: 70px;
 	right: 0;
 	left: 0;
 	bottom: 0;
 	padding: 16px 16px 32px;
 	overflow: auto;
+}
+
+.embed-preview img, .embed-preview iframe, .embed-preview embed {
+	max-width: 100%;
+}
+
+.embed-preview img {
+	height: auto;
 }
 
 .image-details .media-modal {
@@ -1674,7 +1860,6 @@
 
 .image-details .advanced-visible .advanced-toggle::after {
 	content: '\f142';
-	margin-top: 0;
 }
 
 .image-details .embed-media-settings .size {
@@ -2349,4 +2534,310 @@
   	.media-frame .spinner {
   		background-image: url(../images/spinner-2x.gif);
   	}
+}
+
+
+/**
+ * Media Grid
+ */
+
+.media-grid-view h1 {
+	color: #222;
+	font-size: 23px;
+	font-weight: 400;
+	margin: 10px 0 0;
+	padding: 9px 22px 4px 15px;
+	line-height: 29px;
+}
+
+.media-grid-view .view-switch,
+.media-grid-field-options {
+	display: inline-block;
+	float: none;
+	margin-top: 13px;
+	vertical-align: middle;
+}
+
+.media-grid-field-options span {
+	padding-left: 5px;
+}
+
+.media-grid-field-options label {
+	margin-left: 10px;
+}
+
+/**
+ * Position both the frame and the uploader window into the content
+ * area of the screen.
+ */
+.media-grid-view {
+	position: fixed;
+	bottom: 0;
+	right: 160px;
+	left: 0;
+	top: 32px;
+}
+@media screen and (max-width: 900px) {
+	.auto-fold .media-grid-view {
+		right: 36px;
+	}
+}
+@media screen and (max-width: 782px) {
+	.media-grid-view {
+		top: 46px;
+	}
+	.auto-fold .media-grid-view {
+		right: 0px;
+		bottom: 0px;
+	}
+}
+
+/* Regions we don't use at all */
+.media-grid-view .media-frame-toolbar,
+.media-grid-view .media-frame-menu {
+	display: none;
+}
+
+/**
+ * Copied styles from the Add theme toolbar.
+ *
+ * This should be OOCSS'd so both use a shared selector.
+ */
+.media-grid-view .media-toolbar {
+	background: #fff;
+	-webkit-box-shadow: 0 1px 1px 0 rgba(0,0,0,.1);
+	box-shadow: 0 1px 1px 0 rgba(0,0,0,.1);
+	-webkit-box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	box-sizing: border-box;
+	color: #555;
+	display: inline-block;
+	font-size: 13px;
+	padding: 0 20px;
+	position: relative;
+	width: 100%;
+}
+
+/**
+ * The left and right buttons are copied from the expanded theme details modal.
+ *
+ * This should be OOCSS'd so both use a shared selector.
+ */
+.edit-attachment-frame .edit-media-header .left,
+.edit-attachment-frame .edit-media-header .right {
+	cursor: pointer;
+	color: #777;
+	background-color: transparent;
+	height: 48px;
+	width: 54px;
+	float: right;
+	text-align: center;
+	border: 0;
+	border-left: 1px solid #ddd;
+}
+
+.edit-attachment-frame .edit-media-header .right:before,
+.edit-attachment-frame .edit-media-header .left:before {
+	font: normal 20px/50px 'dashicons' !important;
+	display: inline;
+	font-weight: 300;
+}
+
+
+.edit-attachment-frame .edit-media-header .left:before {
+	content: '\f340';
+}
+
+.edit-attachment-frame .edit-media-header .right:before {
+	content: '\f344';
+}
+
+.edit-attachment-frame .edit-media-header .left.disabled,
+.edit-attachment-frame .edit-media-header .right.disabled,
+.edit-attachment-frame .edit-media-header .left.disabled:hover,
+.edit-attachment-frame .edit-media-header .right.disabled:hover {
+	color: #ccc;
+	background: inherit;
+	cursor: inherit;
+}
+
+.edit-attachment-frame .edit-media-header .close:hover,
+.edit-attachment-frame .edit-media-header .right:hover,
+.edit-attachment-frame .edit-media-header .left:hover,
+.edit-attachment-frame .edit-media-header .close:focus,
+.edit-attachment-frame .edit-media-header .right:focus,
+.edit-attachment-frame .edit-media-header .left:focus {
+	background: #0074a2;
+	color: #fff;
+}
+
+.edit-attachment-frame .media-frame-content,
+.edit-attachment-frame .media-frame-router {
+	right: 0;
+}
+
+.edit-attachment-frame .media-frame-content {
+	border-bottom: none;
+	bottom: 0;
+}
+
+/* Hiding this for the moment instead of removing it from the template. */
+.edit-attachment-frame h3 {
+	display: none;
+}
+
+.edit-attachment-frame .attachment-details {
+	position: absolute;
+	overflow: auto;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	right: 0;
+}
+
+.edit-attachment-frame .attachment-info {
+	border-bottom: 0;
+	border-left: 1px solid #ddd;
+	bottom: 0;
+	position: absolute;
+	top: 0;
+	right: 0;
+	left: 50%;
+	margin-bottom: 0;
+	padding: 2% 4% 0;
+	height: 98%; /* 100% - padding percentage above */
+}
+
+.edit-attachment-frame .attachment-info .thumbnail {
+	float: none;
+	max-width: none;
+	max-height: 70%;
+	margin-left: 0;
+}
+
+.edit-attachment-frame .attachment-info .thumbnail-image img {
+	margin: 0;
+}
+
+.edit-attachment-frame .attachment-info .thumbnail-image:after {
+	-webkit-box-shadow: none;
+	        box-shadow: none;
+}
+
+.edit-attachment-frame .attachment-info .thumbnail img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+.edit-attachment-frame .attachment-info .details {
+	float: none;
+}
+
+.edit-attachment-frame .wp-media-wrapper {
+	margin-top: 20px;
+}
+
+.edit-attachment-frame .attachment-fields {
+	bottom: 0;
+	padding: 2% 4%;
+	position: absolute;
+	top: 0;
+	right: 50%;
+	left: 0;
+}
+
+.edit-attachment-frame .attachment-fields .setting {
+	display: block;
+	float: right;
+	width: 100%;
+	margin: 1px 0;
+}
+
+.edit-attachment-frame .attachment-fields .setting label {
+	display: block;
+}
+
+.edit-attachment-frame .attachment-fields .setting .link-to-custom {
+	margin: 3px 0;
+}
+
+.edit-attachment-frame .attachment-fields .setting .name {
+	min-width: 30%;
+	margin-left: 4%;
+	font-size: 12px;
+	text-align: left;
+}
+
+.edit-attachment-frame .attachment-fields .setting select {
+	max-width: 65%;
+}
+
+.edit-attachment-frame .attachment-fields .setting input[type="checkbox"],
+.edit-attachment-frame .attachment-fields .field input[type="checkbox"] {
+	width: 16px;
+	float: none;
+	margin: 8px 3px 0;
+	padding: 0;
+}
+
+.edit-attachment-frame .attachment-fields .setting span {
+	float: right;
+	min-height: 22px;
+	padding-top: 8px;
+	line-height: 16px;
+	font-weight: normal;
+	color: #666;
+}
+
+.edit-attachment-frame .attachment-fields .setting input[type="text"],
+.edit-attachment-frame .attachment-fields .setting input[type="password"],
+.edit-attachment-frame .attachment-fields .setting input[type="number"],
+.edit-attachment-frame .attachment-fields .setting input[type="search"],
+.edit-attachment-frame .attachment-fields .setting input[type="email"],
+.edit-attachment-frame .attachment-fields .setting input[type="url"],
+.edit-attachment-frame .attachment-fields .setting textarea,
+.edit-attachment-frame .attachment-fields .setting .value {
+	margin: 1px;
+	width: 65%;
+	float: left;
+	padding: 6px 8px;
+	-webkit-box-sizing: border-box;
+	-moz-box-sizing: border-box;
+	box-sizing: border-box;
+}
+
+.edit-attachment-frame .attachment-fields .setting textarea {
+	height: 62px;
+	resize: vertical;
+}
+
+.edit-attachment-frame .attachment-fields select {
+	margin-top: 3px;
+}
+
+.media-grid-view.hide-router .media-frame-title {
+	-webkit-box-shadow: none;
+	box-shadow: none;
+}
+
+.media-grid-view .media-frame-content {
+	background-color: transparent;
+	bottom: 40px;
+}
+@media screen and (max-width: 782px) {
+	.media-grid-view .media-frame-content {
+		border-bottom: none;
+		bottom: 0;
+	}
+}
+
+@media only screen and (max-width: 640px), screen and (max-height: 400px) {
+	.media-grid-view .media-frame-title {
+		display: block;
+		width: auto;
+		bottom: auto;
+		left: 0;
+		top: 0;
+		height: 60px;
+	}
 }

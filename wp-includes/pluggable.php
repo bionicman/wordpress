@@ -233,11 +233,31 @@ function wp_mail( $to, $subject, $message, $headers = '', $attachments = array()
 	 * @param array $args A compacted array of wp_mail() arguments, including the "to" email,
 	 *                    subject, message, headers, and attachments values.
 	 */
-	extract( apply_filters( 'wp_mail', compact( 'to', 'subject', 'message', 'headers', 'attachments' ) ) );
+	$atts = apply_filters( 'wp_mail', compact( 'to', 'subject', 'message', 'headers', 'attachments' ) );
 
-	if ( !is_array($attachments) )
+	if ( isset( $atts['to'] ) ) {
+		$to = $atts['to'];
+	}
+
+	if ( isset( $atts['subject'] ) ) {
+		$subject = $atts['subject'];
+	}
+
+	if ( isset( $atts['message'] ) ) {
+		$message = $atts['message'];
+	}
+
+	if ( isset( $atts['headers'] ) ) {
+		$headers = $atts['headers'];
+	}
+
+	if ( isset( $atts['attachments'] ) ) {
+		$attachments = $atts['attachments'];
+	}
+
+	if ( ! is_array( $attachments ) ) {
 		$attachments = explode( "\n", str_replace( "\r\n", "\n", $attachments ) );
-
+	}
 	global $phpmailer;
 
 	// (Re)create it, if it's gone missing
@@ -330,8 +350,6 @@ function wp_mail( $to, $subject, $message, $headers = '', $attachments = array()
 	$phpmailer->ClearAttachments();
 	$phpmailer->ClearCustomHeaders();
 	$phpmailer->ClearReplyTos();
-	$phpmailer->Body    = '';
-	$phpmailer->AltBody = '';
 
 	// From email and name
 	// If we don't have a name from the input headers
@@ -610,13 +628,15 @@ function wp_validate_auth_cookie($cookie = '', $scheme = '') {
 		return false;
 	}
 
-	extract($cookie_elements, EXTR_OVERWRITE);
-
-	$expired = $expiration;
+	$scheme = $cookie_elements['scheme'];
+	$username = $cookie_elements['username'];
+	$hmac = $cookie_elements['hmac'];
+	$expired = $expiration = $cookie_elements['expiration'];
 
 	// Allow a grace period for POST and AJAX requests
-	if ( defined('DOING_AJAX') || 'POST' == $_SERVER['REQUEST_METHOD'] )
+	if ( defined('DOING_AJAX') || 'POST' == $_SERVER['REQUEST_METHOD'] ) {
 		$expired += HOUR_IN_SECONDS;
+	}
 
 	// Quick check to see if an honest cookie has expired
 	if ( $expired < time() ) {
@@ -649,7 +669,7 @@ function wp_validate_auth_cookie($cookie = '', $scheme = '') {
 	$key = wp_hash($username . $pass_frag . '|' . $expiration, $scheme);
 	$hash = hash_hmac('md5', $username . '|' . $expiration, $key);
 
-	if ( ! hash_equals( $hash, $hmac ) ) {
+	if ( hash_hmac( 'md5', $hmac, $key ) !== hash_hmac( 'md5', $hash, $key ) ) {
 		/**
 		 * Fires if a bad authentication cookie hash is encountered.
 		 *
@@ -661,8 +681,9 @@ function wp_validate_auth_cookie($cookie = '', $scheme = '') {
 		return false;
 	}
 
-	if ( $expiration < time() ) // AJAX/POST grace period set above
+	if ( $expiration < time() ) {// AJAX/POST grace period set above
 		$GLOBALS['login_grace_period'] = 1;
+	}
 
 	/**
 	 * Fires once an authentication cookie has been validated.
@@ -797,8 +818,12 @@ function wp_set_auth_cookie($user_id, $remember = false, $secure = '') {
 		$expire = 0;
 	}
 
-	if ( '' === $secure )
+	if ( '' === $secure ) {
 		$secure = is_ssl();
+	}
+
+	// Frontend cookie is secure when the auth cookie is secure and the site's home URL is forced HTTPS.
+	$secure_logged_in_cookie = $secure && 'https' === parse_url( get_option( 'home' ), PHP_URL_SCHEME );
 
 	/**
 	 * Filter whether the connection is secure.
@@ -815,11 +840,11 @@ function wp_set_auth_cookie($user_id, $remember = false, $secure = '') {
 	 *
 	 * @since 3.1.0
 	 *
-	 * @param bool $cookie  Whether to use a secure cookie when logged-in.
-	 * @param int  $user_id User ID.
-	 * @param bool $secure  Whether the connection is secure.
+	 * @param bool $secure_logged_in_cookie Whether to use a secure cookie when logged-in.
+	 * @param int  $user_id                 User ID.
+	 * @param bool $secure                  Whether the connection is secure.
 	 */
-	$secure_logged_in_cookie = apply_filters( 'secure_logged_in_cookie', false, $user_id, $secure );
+	$secure_logged_in_cookie = apply_filters( 'secure_logged_in_cookie', $secure_logged_in_cookie, $user_id, $secure );
 
 	if ( $secure ) {
 		$auth_cookie_name = SECURE_AUTH_COOKIE;
@@ -952,14 +977,18 @@ function auth_redirect() {
 		}
 	}
 
-	/**
-	 * Filters the authentication redirect scheme.
-	 *
-	 * @since 2.9.0
-	 *
-	 * @param string $scheme Authentication redirect scheme. Default empty.
-	 */
-	$scheme = apply_filters( 'auth_redirect_scheme', '' );
+	if ( is_user_admin() ) {
+		$scheme = 'logged_in';
+	} else {
+		/**
+		 * Filter the authentication redirect scheme.
+		 *
+		 * @since 2.9.0
+		 *
+		 * @param string $scheme Authentication redirect scheme. Default empty.
+		 */
+		$scheme = apply_filters( 'auth_redirect_scheme', '' );
+	}
 
 	if ( $user_id = wp_validate_auth_cookie( '',  $scheme) ) {
 		/**
@@ -1008,9 +1037,9 @@ if ( !function_exists('check_admin_referer') ) :
  * @param string $action Action nonce
  * @param string $query_arg where to look for nonce in $_REQUEST (since 2.5)
  */
-function check_admin_referer( $action = -1, $query_arg = '_wpnonce' ) {
-	if ( -1 === $action )
-		_doing_it_wrong( __FUNCTION__, __( 'You should specify a nonce action to be verified by using the first parameter.' ), '3.2.0' );
+function check_admin_referer($action = -1, $query_arg = '_wpnonce') {
+	if ( -1 == $action )
+		_doing_it_wrong( __FUNCTION__, __( 'You should specify a nonce action to be verified by using the first parameter.' ), '3.2' );
 
 	$adminurl = strtolower(admin_url());
 	$referer = strtolower(wp_get_referer());
@@ -1029,12 +1058,6 @@ function check_admin_referer( $action = -1, $query_arg = '_wpnonce' ) {
 	 * @param bool   $result Whether the admin request nonce was validated.
 	 */
 	do_action( 'check_admin_referer', $action, $result );
-
-	if ( ! $result && ! ( -1 === $action && strpos( $referer, $adminurl ) === 0 ) ) {
-		wp_nonce_ays( $action );
-		die();
-	}
-
 	return $result;
 }
 endif;
@@ -1049,9 +1072,6 @@ if ( !function_exists('check_ajax_referer') ) :
  * @param string $query_arg where to look for nonce in $_REQUEST (since 2.5)
  */
 function check_ajax_referer( $action = -1, $query_arg = false, $die = true ) {
-	if ( -1 === $action )
-		_doing_it_wrong( __FUNCTION__, __( 'You should specify a nonce action to be verified by using the first parameter.' ), '3.2.0' );
-
 	$nonce = '';
 
 	if ( $query_arg && isset( $_REQUEST[ $query_arg ] ) )
@@ -1140,7 +1160,7 @@ if ( !function_exists('wp_sanitize_redirect') ) :
  * @return string redirect-sanitized URL
  **/
 function wp_sanitize_redirect($location) {
-	$location = preg_replace('|[^a-z0-9-~+_.?#=&;,/:%!@]|i', '', $location);
+	$location = preg_replace('|[^a-z0-9-~+_.?#=&;,/:%!*]|i', '', $location);
 	$location = wp_kses_no_null($location);
 
 	// remove %0d and %0a from location
@@ -1196,7 +1216,7 @@ if ( !function_exists('wp_validate_redirect') ) :
  * @return string redirect-sanitized URL
  **/
 function wp_validate_redirect($location, $default = '') {
-	$location = wp_sanitize_redirect( trim( $location, " \t\n\r\0\x08\x0B" ) );
+	$location = trim( $location );
 	// browsers will assume 'http' is your protocol, and will obey a redirect to a URL starting with '//'
 	if ( substr($location, 0, 2) == '//' )
 		$location = 'http:' . $location;
@@ -1204,8 +1224,7 @@ function wp_validate_redirect($location, $default = '') {
 	// In php 5 parse_url may fail if the URL query part contains http://, bug #38143
 	$test = ( $cut = strpos($location, '?') ) ? substr( $location, 0, $cut ) : $location;
 
-	// @-operator is used to prevent possible warnings in PHP < 5.3.3.
-	$lp = @parse_url($test);
+	$lp  = parse_url($test);
 
 	// Give up if malformed URL
 	if ( false === $lp )
@@ -1215,25 +1234,9 @@ function wp_validate_redirect($location, $default = '') {
 	if ( isset($lp['scheme']) && !('http' == $lp['scheme'] || 'https' == $lp['scheme']) )
 		return $default;
 
-	if ( ! isset( $lp['host'] ) && ! empty( $lp['path'] ) && '/' !== $lp['path'][0] ) {
-		$path = '';
-		if ( ! empty( $_SERVER['REQUEST_URI'] ) ) {
-			$path = dirname( parse_url( 'http://placeholder' . $_SERVER['REQUEST_URI'], PHP_URL_PATH ) . '?' );
-		}
-		$location = '/' . ltrim( $path . '/', '/' ) . $location;
-	}
-
-	// Reject if certain components are set but host is not. This catches urls like https:host.com for which parse_url does not set the host field.
-	if ( ! isset( $lp['host'] ) && ( isset( $lp['scheme'] ) || isset( $lp['user'] ) || isset( $lp['pass'] ) || isset( $lp['port'] ) ) ) {
+	// Reject if scheme is set but host is not. This catches urls like https:host.com for which parse_url does not set the host field.
+	if ( isset($lp['scheme'])  && !isset($lp['host']) )
 		return $default;
-	}
-
-	// Reject malformed components parse_url() can return on odd inputs.
-	foreach ( array( 'user', 'pass', 'host' ) as $component ) {
-		if ( isset( $lp[ $component ] ) && strpbrk( $lp[ $component ], ':/?#@' ) ) {
-			return $default;
-		}
-	}
 
 	$wpp = parse_url(home_url());
 
@@ -1682,17 +1685,11 @@ function wp_verify_nonce($nonce, $action = -1) {
 	$i = wp_nonce_tick();
 
 	// Nonce generated 0-12 hours ago
-	$expected = substr( wp_hash( $i . '|' . $action . '|' . $uid, 'nonce'), -12, 10 );
-	if ( hash_equals( $expected, $nonce ) ) {
+	if ( substr(wp_hash($i . $action . $uid, 'nonce'), -12, 10) === $nonce )
 		return 1;
-	}
-
 	// Nonce generated 12-24 hours ago
-	$expected = substr( wp_hash( ( $i - 1 ) . '|' . $action . '|' . $uid, 'nonce' ), -12, 10 );
-	if ( hash_equals( $expected, $nonce ) ) {
+	if ( substr(wp_hash(($i - 1) . $action . $uid, 'nonce'), -12, 10) === $nonce )
 		return 2;
-	}
-
 	// Invalid nonce
 	return false;
 }
@@ -1700,12 +1697,12 @@ endif;
 
 if ( !function_exists('wp_create_nonce') ) :
 /**
- * Creates a random, one time use token.
+ * Creates a cryptographic token tied to a specific action, user, and window of time.
  *
  * @since 2.0.3
  *
- * @param string|int $action Scalar value to add context to the nonce.
- * @return string The one use form token
+ * @param string $action Scalar value to add context to the nonce.
+ * @return string The token.
  */
 function wp_create_nonce($action = -1) {
 	$user = wp_get_current_user();
@@ -1717,7 +1714,7 @@ function wp_create_nonce($action = -1) {
 
 	$i = wp_nonce_tick();
 
-	return substr(wp_hash($i . '|' . $action . '|' . $uid, 'nonce'), -12, 10);
+	return substr(wp_hash($i . $action . $uid, 'nonce'), -12, 10);
 }
 endif;
 
@@ -1776,45 +1773,51 @@ function wp_salt( $scheme = 'auth' ) {
 		$duplicated_keys = array( 'put your unique phrase here' => true );
 		foreach ( array( 'AUTH', 'SECURE_AUTH', 'LOGGED_IN', 'NONCE', 'SECRET' ) as $first ) {
 			foreach ( array( 'KEY', 'SALT' ) as $second ) {
-				if ( ! defined( "{$first}_{$second}" ) )
+				if ( ! defined( "{$first}_{$second}" ) ) {
 					continue;
+				}
 				$value = constant( "{$first}_{$second}" );
 				$duplicated_keys[ $value ] = isset( $duplicated_keys[ $value ] );
 			}
 		}
 	}
 
-	$key = $salt = '';
-	if ( defined( 'SECRET_KEY' ) && SECRET_KEY && empty( $duplicated_keys[ SECRET_KEY ] ) )
-		$key = SECRET_KEY;
-	if ( 'auth' == $scheme && defined( 'SECRET_SALT' ) && SECRET_SALT && empty( $duplicated_keys[ SECRET_SALT ] ) )
-		$salt = SECRET_SALT;
+	$values = array(
+		'key' => '',
+		'salt' => ''
+	);
+	if ( defined( 'SECRET_KEY' ) && SECRET_KEY && empty( $duplicated_keys[ SECRET_KEY ] ) ) {
+		$values['key'] = SECRET_KEY;
+	}
+	if ( 'auth' == $scheme && defined( 'SECRET_SALT' ) && SECRET_SALT && empty( $duplicated_keys[ SECRET_SALT ] ) ) {
+		$values['salt'] = SECRET_SALT;
+	}
 
 	if ( in_array( $scheme, array( 'auth', 'secure_auth', 'logged_in', 'nonce' ) ) ) {
 		foreach ( array( 'key', 'salt' ) as $type ) {
 			$const = strtoupper( "{$scheme}_{$type}" );
 			if ( defined( $const ) && constant( $const ) && empty( $duplicated_keys[ constant( $const ) ] ) ) {
-				$$type = constant( $const );
-			} elseif ( ! $$type ) {
-				$$type = get_site_option( "{$scheme}_{$type}" );
-				if ( ! $$type ) {
-					$$type = wp_generate_password( 64, true, true );
-					update_site_option( "{$scheme}_{$type}", $$type );
+				$values[ $type ] = constant( $const );
+			} elseif ( ! $values[ $type ] ) {
+				$values[ $type ] = get_site_option( "{$scheme}_{$type}" );
+				if ( ! $values[ $type ] ) {
+					$values[ $type ] = wp_generate_password( 64, true, true );
+					update_site_option( "{$scheme}_{$type}", $values[ $type ] );
 				}
 			}
 		}
 	} else {
-		if ( ! $key ) {
-			$key = get_site_option( 'secret_key' );
-			if ( ! $key ) {
-				$key = wp_generate_password( 64, true, true );
-				update_site_option( 'secret_key', $key );
+		if ( ! $values['key'] ) {
+			$values['key'] = get_site_option( 'secret_key' );
+			if ( ! $values['key'] ) {
+				$values['key'] = wp_generate_password( 64, true, true );
+				update_site_option( 'secret_key', $values['key'] );
 			}
 		}
-		$salt = hash_hmac( 'md5', $scheme, $key );
+		$values['salt'] = hash_hmac( 'md5', $scheme, $values['key'] );
 	}
 
-	$cached_salts[ $scheme ] = $key . $salt;
+	$cached_salts[ $scheme ] = $values['key'] . $values['salt'];
 
 	/** This filter is documented in wp-includes/pluggable.php */
 	return apply_filters( 'salt', $cached_salts[ $scheme ], $scheme );
@@ -1857,7 +1860,7 @@ function wp_hash_password($password) {
 	global $wp_hasher;
 
 	if ( empty($wp_hasher) ) {
-		require_once( ABSPATH . 'wp-includes/class-phpass.php');
+		require_once( ABSPATH . WPINC . '/class-phpass.php');
 		// By default, use the portable hash from phpass
 		$wp_hasher = new PasswordHash(8, true);
 	}
@@ -1893,7 +1896,7 @@ function wp_check_password($password, $hash, $user_id = '') {
 
 	// If the hash is still md5...
 	if ( strlen($hash) <= 32 ) {
-		$check = hash_equals( $hash, md5( $password ) );
+		$check = ( $hash == md5($password) );
 		if ( $check && $user_id ) {
 			// Rehash using new hash.
 			wp_set_password($password, $user_id);
@@ -1915,7 +1918,7 @@ function wp_check_password($password, $hash, $user_id = '') {
 	// If the stored hash is longer than an MD5, presume the
 	// new style phpass portable hash.
 	if ( empty($wp_hasher) ) {
-		require_once( ABSPATH . 'wp-includes/class-phpass.php');
+		require_once( ABSPATH . WPINC . '/class-phpass.php');
 		// By default, use the portable hash from phpass
 		$wp_hasher = new PasswordHash(8, true);
 	}
@@ -2137,8 +2140,7 @@ function get_avatar( $id_or_email, $size = '96', $default = '', $alt = false ) {
 		$out = str_replace( '&#038;', '&amp;', esc_url( $out ) );
 		$avatar = "<img alt='{$safe_alt}' src='{$out}' class='avatar avatar-{$size} photo' height='{$size}' width='{$size}' />";
 	} else {
-		$out = esc_url( $default );
-		$avatar = "<img alt='{$safe_alt}' src='{$out}' class='avatar avatar-{$size} photo avatar-default' height='{$size}' width='{$size}' />";
+		$avatar = "<img alt='{$safe_alt}' src='{$default}' class='avatar avatar-{$size} photo avatar-default' height='{$size}' width='{$size}' />";
 	}
 
 	/**
@@ -2230,3 +2232,4 @@ function wp_text_diff( $left_string, $right_string, $args = null ) {
 	return $r;
 }
 endif;
+

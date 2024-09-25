@@ -892,7 +892,8 @@ jQuery(document).ready( function($) {
 		b.children('.save').click(function() {
 			var new_slug = e.children('input').val();
 			if ( new_slug == $('#editable-post-name-full').text() ) {
-				return $('#edit-slug-buttons .cancel').click();
+				b.children('.cancel').click();
+				return false;
 			}
 			$.post(ajaxurl, {
 				action: 'sample-permalink',
@@ -915,7 +916,7 @@ jQuery(document).ready( function($) {
 			return false;
 		});
 
-		$('#edit-slug-buttons .cancel').click(function() {
+		b.children('.cancel').click(function() {
 			$('#view-post-btn').show();
 			e.html(revert_e);
 			b.html(revert_b);
@@ -1003,7 +1004,8 @@ jQuery(document).ready( function($) {
 	( function() {
 		var editor, offset, mce,
 			$textarea = $('textarea#content'),
-			$handle = $('#post-status-info');
+			$handle = $('#post-status-info'),
+			$contentWrap = $('#wp-content-wrap');
 
 		// No point for touch devices
 		if ( ! $textarea.length || 'ontouchstart' in window ) {
@@ -1011,6 +1013,10 @@ jQuery(document).ready( function($) {
 		}
 
 		function dragging( event ) {
+			if ( $contentWrap.hasClass( 'wp-editor-expand' ) ) {
+				return;
+			}
+
 			if ( mce ) {
 				editor.theme.resizeTo( null, offset + event.pageY );
 			} else {
@@ -1022,6 +1028,10 @@ jQuery(document).ready( function($) {
 
 		function endDrag() {
 			var height, toolbarHeight;
+
+			if ( $contentWrap.hasClass( 'wp-editor-expand' ) ) {
+				return;
+			}
 
 			if ( mce ) {
 				editor.focus();
@@ -1073,14 +1083,11 @@ jQuery(document).ready( function($) {
 		$( '#post-formats-select input.post-format' ).on( 'change.set-editor-class', function() {
 			var editor, body, format = this.id;
 
-			if ( format && $( this ).prop('checked') ) {
-				editor = tinymce.get( 'content' );
-
-				if ( editor ) {
-					body = editor.getBody();
-					body.className = body.className.replace( /\bpost-format-[^ ]+/, '' );
-					editor.dom.addClass( body, format == 'post-format-0' ? 'post-format-standard' : format );
-				}
+			if ( format && $( this ).prop( 'checked' ) && ( editor = tinymce.get( 'content' ) ) ) {
+				body = editor.getBody();
+				body.className = body.className.replace( /\bpost-format-[^ ]+/, '' );
+				editor.dom.addClass( body, format == 'post-format-0' ? 'post-format-standard' : format );
+				$( document ).trigger( 'editor-classchange' );
 			}
 		});
 	}

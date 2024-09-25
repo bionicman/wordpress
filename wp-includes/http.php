@@ -219,7 +219,7 @@ function wp_remote_head($url, $args = array()) {
  * @param array $response HTTP response.
  * @return array The headers of the response. Empty array if incorrect parameter given.
  */
-function wp_remote_retrieve_headers(&$response) {
+function wp_remote_retrieve_headers( $response ) {
 	if ( is_wp_error($response) || ! isset($response['headers']) || ! is_array($response['headers']))
 		return array();
 
@@ -235,7 +235,7 @@ function wp_remote_retrieve_headers(&$response) {
  * @param string $header Header name to retrieve value from.
  * @return string The header value. Empty string on if incorrect parameter given, or if the header doesn't exist.
  */
-function wp_remote_retrieve_header(&$response, $header) {
+function wp_remote_retrieve_header( $response, $header ) {
 	if ( is_wp_error($response) || ! isset($response['headers']) || ! is_array($response['headers']))
 		return '';
 
@@ -255,7 +255,7 @@ function wp_remote_retrieve_header(&$response, $header) {
  * @param array $response HTTP response.
  * @return string the response code. Empty string on incorrect parameter given.
  */
-function wp_remote_retrieve_response_code(&$response) {
+function wp_remote_retrieve_response_code( $response ) {
 	if ( is_wp_error($response) || ! isset($response['response']) || ! is_array($response['response']))
 		return '';
 
@@ -272,7 +272,7 @@ function wp_remote_retrieve_response_code(&$response) {
  * @param array $response HTTP response.
  * @return string The response message. Empty string on incorrect parameter given.
  */
-function wp_remote_retrieve_response_message(&$response) {
+function wp_remote_retrieve_response_message( $response ) {
 	if ( is_wp_error($response) || ! isset($response['response']) || ! is_array($response['response']))
 		return '';
 
@@ -287,7 +287,7 @@ function wp_remote_retrieve_response_message(&$response) {
  * @param array $response HTTP response.
  * @return string The body of the response. Empty string if no body or incorrect parameter given.
  */
-function wp_remote_retrieve_body(&$response) {
+function wp_remote_retrieve_body( $response ) {
 	if ( is_wp_error($response) || ! isset($response['body']) )
 		return '';
 
@@ -451,9 +451,8 @@ function send_origin_headers() {
  * @return mixed URL or false on failure.
  */
 function wp_http_validate_url( $url ) {
-	$original_url = $url;
 	$url = wp_kses_bad_protocol( $url, array( 'http', 'https' ) );
-	if ( ! $url || strtolower( $url ) !== strtolower( $original_url ) )
+	if ( ! $url )
 		return false;
 
 	$parsed_url = @parse_url( $url );
@@ -463,7 +462,7 @@ function wp_http_validate_url( $url ) {
 	if ( isset( $parsed_url['user'] ) || isset( $parsed_url['pass'] ) )
 		return false;
 
-	if ( false !== strpbrk( $parsed_url['host'], ':#?[]' ) )
+	if ( false !== strpos( $parsed_url['host'], ':' ) )
 		return false;
 
 	$parsed_home = @parse_url( get_option( 'home' ) );
@@ -472,17 +471,17 @@ function wp_http_validate_url( $url ) {
 
 	if ( ! $same_host ) {
 		$host = trim( $parsed_url['host'], '.' );
-		if ( preg_match( '#^(([1-9]?\d|1\d\d|25[0-5]|2[0-4]\d)\.){3}([1-9]?\d|1\d\d|25[0-5]|2[0-4]\d)$#', $host ) ) {
+		if ( preg_match( '#^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$#', $host ) ) {
 			$ip = $host;
 		} else {
 			$ip = gethostbyname( $host );
-			if ( $ip === $host ) { // Error condition for gethostbyname()
-				return false;
-			}
+			if ( $ip === $host ) // Error condition for gethostbyname()
+				$ip = false;
 		}
 		if ( $ip ) {
 			$parts = array_map( 'intval', explode( '.', $ip ) );
-			if ( 127 === $parts[0] || 10 === $parts[0] || 0 === $parts[0]
+			if ( '127.0.0.1' === $ip
+				|| ( 10 === $parts[0] )
 				|| ( 172 === $parts[0] && 16 <= $parts[1] && 31 >= $parts[1] )
 				|| ( 192 === $parts[0] && 168 === $parts[1] )
 			) {

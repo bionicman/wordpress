@@ -9,7 +9,7 @@
  */
 class WP_Plugins_List_Table extends WP_List_Table {
 
-	function __construct( $args = array() ) {
+	public function __construct( $args = array() ) {
 		global $status, $page;
 
 		parent::__construct( array(
@@ -27,15 +27,15 @@ class WP_Plugins_List_Table extends WP_List_Table {
 		$page = $this->get_pagenum();
 	}
 
-	function get_table_classes() {
+	protected function get_table_classes() {
 		return array( 'widefat', $this->_args['plural'] );
 	}
 
-	function ajax_user_can() {
+	public function ajax_user_can() {
 		return current_user_can('activate_plugins');
 	}
 
-	function prepare_items() {
+	public function prepare_items() {
 		global $status, $plugins, $totals, $page, $orderby, $order, $s;
 
 		wp_reset_vars( array( 'orderby', 'order', 's' ) );
@@ -172,7 +172,7 @@ class WP_Plugins_List_Table extends WP_List_Table {
 		) );
 	}
 
-	function _search_callback( $plugin ) {
+	public function _search_callback( $plugin ) {
 		static $term;
 		if ( is_null( $term ) )
 			$term = wp_unslash( $_REQUEST['s'] );
@@ -186,7 +186,7 @@ class WP_Plugins_List_Table extends WP_List_Table {
 		return false;
 	}
 
-	function _order_callback( $plugin_a, $plugin_b ) {
+	public function _order_callback( $plugin_a, $plugin_b ) {
 		global $orderby, $order;
 
 		$a = $plugin_a[$orderby];
@@ -201,7 +201,7 @@ class WP_Plugins_List_Table extends WP_List_Table {
 			return ( $a < $b ) ? -1 : 1;
 	}
 
-	function no_items() {
+	public function no_items() {
 		global $plugins;
 
 		if ( !empty( $plugins['all'] ) )
@@ -210,7 +210,7 @@ class WP_Plugins_List_Table extends WP_List_Table {
 			_e( 'You do not appear to have any plugins available at this time.' );
 	}
 
-	function get_columns() {
+	protected function get_columns() {
 		global $status;
 
 		return array(
@@ -220,11 +220,11 @@ class WP_Plugins_List_Table extends WP_List_Table {
 		);
 	}
 
-	function get_sortable_columns() {
+	protected function get_sortable_columns() {
 		return array();
 	}
 
-	function get_views() {
+	protected function get_views() {
 		global $totals, $status;
 
 		$status_links = array();
@@ -268,7 +268,7 @@ class WP_Plugins_List_Table extends WP_List_Table {
 		return $status_links;
 	}
 
-	function get_bulk_actions() {
+	protected function get_bulk_actions() {
 		global $status;
 
 		$actions = array();
@@ -289,7 +289,7 @@ class WP_Plugins_List_Table extends WP_List_Table {
 		return $actions;
 	}
 
-	function bulk_actions() {
+	public function bulk_actions() {
 		global $status;
 
 		if ( in_array( $status, array( 'mustuse', 'dropins' ) ) )
@@ -298,7 +298,7 @@ class WP_Plugins_List_Table extends WP_List_Table {
 		parent::bulk_actions();
 	}
 
-	function extra_tablenav( $which ) {
+	protected function extra_tablenav( $which ) {
 		global $status;
 
 		if ( ! in_array($status, array('recently_activated', 'mustuse', 'dropins') ) )
@@ -316,14 +316,14 @@ class WP_Plugins_List_Table extends WP_List_Table {
 		echo '</div>';
 	}
 
-	function current_action() {
+	public function current_action() {
 		if ( isset($_POST['clear-recent-list']) )
 			return 'clear-recent-list';
 
 		return parent::current_action();
 	}
 
-	function display_rows() {
+	protected function display_rows() {
 		global $status;
 
 		if ( is_multisite() && ! $this->screen->in_admin( 'network' ) && in_array( $status, array( 'mustuse', 'dropins' ) ) )
@@ -333,7 +333,7 @@ class WP_Plugins_List_Table extends WP_List_Table {
 			$this->single_row( array( $plugin_file, $plugin_data ) );
 	}
 
-	function single_row( $item ) {
+	protected function single_row( $item ) {
 		global $status, $page, $s, $totals;
 
 		list( $plugin_file, $plugin_data ) = $item;
@@ -376,26 +376,26 @@ class WP_Plugins_List_Table extends WP_List_Table {
 			if ( $screen->in_admin( 'network' ) ) {
 				if ( $is_active ) {
 					if ( current_user_can( 'manage_network_plugins' ) )
-						$actions['deactivate'] = '<a href="' . wp_nonce_url('plugins.php?action=deactivate&amp;plugin=' . urlencode( $plugin_file ) . '&amp;plugin_status=' . $context . '&amp;paged=' . $page . '&amp;s=' . $s, 'deactivate-plugin_' . $plugin_file) . '" title="' . esc_attr__('Deactivate this plugin') . '">' . __('Network Deactivate') . '</a>';
+						$actions['deactivate'] = '<a href="' . wp_nonce_url('plugins.php?action=deactivate&amp;plugin=' . $plugin_file . '&amp;plugin_status=' . $context . '&amp;paged=' . $page . '&amp;s=' . $s, 'deactivate-plugin_' . $plugin_file) . '" title="' . esc_attr__('Deactivate this plugin') . '">' . __('Network Deactivate') . '</a>';
 				} else {
 					if ( current_user_can( 'manage_network_plugins' ) )
-						$actions['activate'] = '<a href="' . wp_nonce_url('plugins.php?action=activate&amp;plugin=' . urlencode( $plugin_file ) . '&amp;plugin_status=' . $context . '&amp;paged=' . $page . '&amp;s=' . $s, 'activate-plugin_' . $plugin_file) . '" title="' . esc_attr__('Activate this plugin for all sites in this network') . '" class="edit">' . __('Network Activate') . '</a>';
+						$actions['activate'] = '<a href="' . wp_nonce_url('plugins.php?action=activate&amp;plugin=' . $plugin_file . '&amp;plugin_status=' . $context . '&amp;paged=' . $page . '&amp;s=' . $s, 'activate-plugin_' . $plugin_file) . '" title="' . esc_attr__('Activate this plugin for all sites in this network') . '" class="edit">' . __('Network Activate') . '</a>';
 					if ( current_user_can( 'delete_plugins' ) && ! is_plugin_active( $plugin_file ) )
-						$actions['delete'] = '<a href="' . wp_nonce_url('plugins.php?action=delete-selected&amp;checked[]=' . urlencode( $plugin_file ) . '&amp;plugin_status=' . $context . '&amp;paged=' . $page . '&amp;s=' . $s, 'bulk-plugins') . '" title="' . esc_attr__('Delete this plugin') . '" class="delete">' . __('Delete') . '</a>';
+						$actions['delete'] = '<a href="' . wp_nonce_url('plugins.php?action=delete-selected&amp;checked[]=' . $plugin_file . '&amp;plugin_status=' . $context . '&amp;paged=' . $page . '&amp;s=' . $s, 'bulk-plugins') . '" title="' . esc_attr__('Delete this plugin') . '" class="delete">' . __('Delete') . '</a>';
 				}
 			} else {
 				if ( $is_active ) {
-					$actions['deactivate'] = '<a href="' . wp_nonce_url('plugins.php?action=deactivate&amp;plugin=' . urlencode( $plugin_file ) . '&amp;plugin_status=' . $context . '&amp;paged=' . $page . '&amp;s=' . $s, 'deactivate-plugin_' . $plugin_file) . '" title="' . esc_attr__('Deactivate this plugin') . '">' . __('Deactivate') . '</a>';
+					$actions['deactivate'] = '<a href="' . wp_nonce_url('plugins.php?action=deactivate&amp;plugin=' . $plugin_file . '&amp;plugin_status=' . $context . '&amp;paged=' . $page . '&amp;s=' . $s, 'deactivate-plugin_' . $plugin_file) . '" title="' . esc_attr__('Deactivate this plugin') . '">' . __('Deactivate') . '</a>';
 				} else {
-					$actions['activate'] = '<a href="' . wp_nonce_url('plugins.php?action=activate&amp;plugin=' . urlencode( $plugin_file ) . '&amp;plugin_status=' . $context . '&amp;paged=' . $page . '&amp;s=' . $s, 'activate-plugin_' . $plugin_file) . '" title="' . esc_attr__('Activate this plugin') . '" class="edit">' . __('Activate') . '</a>';
+					$actions['activate'] = '<a href="' . wp_nonce_url('plugins.php?action=activate&amp;plugin=' . $plugin_file . '&amp;plugin_status=' . $context . '&amp;paged=' . $page . '&amp;s=' . $s, 'activate-plugin_' . $plugin_file) . '" title="' . esc_attr__('Activate this plugin') . '" class="edit">' . __('Activate') . '</a>';
 
 					if ( ! is_multisite() && current_user_can('delete_plugins') )
-						$actions['delete'] = '<a href="' . wp_nonce_url('plugins.php?action=delete-selected&amp;checked[]=' . urlencode( $plugin_file ) . '&amp;plugin_status=' . $context . '&amp;paged=' . $page . '&amp;s=' . $s, 'bulk-plugins') . '" title="' . esc_attr__('Delete this plugin') . '" class="delete">' . __('Delete') . '</a>';
+						$actions['delete'] = '<a href="' . wp_nonce_url('plugins.php?action=delete-selected&amp;checked[]=' . $plugin_file . '&amp;plugin_status=' . $context . '&amp;paged=' . $page . '&amp;s=' . $s, 'bulk-plugins') . '" title="' . esc_attr__('Delete this plugin') . '" class="delete">' . __('Delete') . '</a>';
 				} // end if $is_active
 			 } // end if $screen->in_admin( 'network' )
 
 			if ( ( ! is_multisite() || $screen->in_admin( 'network' ) ) && current_user_can('edit_plugins') && is_writable(WP_PLUGIN_DIR . '/' . $plugin_file) )
-				$actions['edit'] = '<a href="plugin-editor.php?file=' . urlencode( $plugin_file ) . '" title="' . esc_attr__('Open this file in the Plugin Editor') . '" class="edit">' . __('Edit') . '</a>';
+				$actions['edit'] = '<a href="plugin-editor.php?file=' . $plugin_file . '" title="' . esc_attr__('Open this file in the Plugin Editor') . '" class="edit">' . __('Edit') . '</a>';
 		} // end if $context
 
 		$prefix = $screen->in_admin( 'network' ) ? 'network_admin_' : '';
@@ -494,11 +494,11 @@ class WP_Plugins_List_Table extends WP_List_Table {
 					if ( !empty( $plugin_data['Author'] ) ) {
 						$author = $plugin_data['Author'];
 						if ( !empty( $plugin_data['AuthorURI'] ) )
-							$author = '<a href="' . $plugin_data['AuthorURI'] . '" title="' . esc_attr__( 'Visit author homepage' ) . '">' . $plugin_data['Author'] . '</a>';
+							$author = '<a href="' . $plugin_data['AuthorURI'] . '">' . $plugin_data['Author'] . '</a>';
 						$plugin_meta[] = sprintf( __( 'By %s' ), $author );
 					}
 					if ( ! empty( $plugin_data['PluginURI'] ) )
-						$plugin_meta[] = '<a href="' . $plugin_data['PluginURI'] . '" title="' . esc_attr__( 'Visit plugin site' ) . '">' . __( 'Visit plugin site' ) . '</a>';
+						$plugin_meta[] = '<a href="' . $plugin_data['PluginURI'] . '">' . __( 'Visit plugin site' ) . '</a>';
 
 					/**
 					 * Filter the array of row meta for each plugin in the Plugins list table.

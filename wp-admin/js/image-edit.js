@@ -274,7 +274,7 @@ var imageEdit = window.imageEdit = {
 			var ret = JSON.parse(r);
 
 			if ( ret.error ) {
-				$('#imgedit-response-' + postid).html('<div class="error"><p>' + ret.error + '</p><div>');
+				$('#imgedit-response-' + postid).html('<div class="error"><p>' + ret.error + '</p></div>');
 				imageEdit.close(postid);
 				return;
 			}
@@ -316,8 +316,8 @@ var imageEdit = window.imageEdit = {
 		};
 
 		elem.load(ajaxurl, data, function() {
-			elem.fadeIn('fast');
 			head.fadeOut('fast', function(){
+				elem.fadeIn('fast');
 				btn.removeAttr('disabled');
 				spin.hide();
 			});

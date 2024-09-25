@@ -16,9 +16,7 @@ $submenu_file = 'edit.php';
 
 wp_reset_vars( array( 'action' ) );
 
-if ( isset( $_GET['post'] ) && isset( $_POST['post_ID'] ) && (int) $_GET['post'] !== (int) $_POST['post_ID'] )
-	wp_die( __( 'A post ID mismatch has been detected.' ), __( 'Sorry, you are not allowed to edit this item.' ), 400 );
-elseif ( isset( $_GET['post'] ) )
+if ( isset( $_GET['post'] ) )
  	$post_id = $post_ID = (int) $_GET['post'];
 elseif ( isset( $_POST['post_ID'] ) )
  	$post_id = $post_ID = (int) $_POST['post_ID'];
@@ -84,10 +82,6 @@ function redirect_post($post_id = '') {
 	exit;
 }
 
-if ( isset( $_POST['post_type'] ) && $post && $post_type !== $_POST['post_type'] ) {
-	wp_die( __( 'A post type mismatch has been detected.' ), __( 'Sorry, you are not allowed to edit this item.' ), 400 );
-}
-
 if ( isset( $_POST['deletepost'] ) )
 	$action = 'delete';
 elseif ( isset($_POST['wp-preview']) && 'dopreview' == $_POST['wp-preview'] )
@@ -119,9 +113,8 @@ case 'post-quickdraft-save':
 	if ( ! wp_verify_nonce( $nonce, 'add-post' ) )
 		$error_msg = __( 'Unable to submit this form, please refresh and try again.' );
 
-	if ( ! current_user_can( 'edit_posts' ) ) {
-		exit;
-	}
+	if ( ! current_user_can( 'edit_posts' ) )
+		$error_msg = __( 'Oops, you don&#8217;t have access to add new drafts.' );
 
 	if ( $error_msg )
 		return wp_dashboard_quick_press( $error_msg );
@@ -135,7 +128,6 @@ case 'post-quickdraft-save':
 	edit_post();
 	wp_dashboard_quick_press();
 	exit;
-	break;
 
 case 'postajaxpost':
 case 'post':
@@ -143,7 +135,6 @@ case 'post':
 	$post_id = 'postajaxpost' == $action ? edit_post() : write_post();
 	redirect_post( $post_id );
 	exit();
-	break;
 
 case 'edit':
 	$editing = true;
@@ -166,7 +157,6 @@ case 'edit':
 		wp_die( __( 'You can&#8217;t edit this item because it is in the Trash. Please restore it and try again.' ) );
 
 	if ( ! empty( $_GET['get-post-lock'] ) ) {
-		check_admin_referer( 'lock-post_' . $post_id );
 		wp_set_post_lock( $post_id );
 		wp_redirect( get_edit_post_link( $post_id, 'url' ) );
 		exit();
@@ -229,7 +219,7 @@ case 'editattachment':
 
 	// Update the thumbnail filename
 	$newmeta = wp_get_attachment_metadata( $post_id, true );
-	$newmeta['thumb'] = wp_basename( $_POST['thumb'] );
+	$newmeta['thumb'] = $_POST['thumb'];
 
 	wp_update_attachment_metadata( $post_id, $newmeta );
 
@@ -245,7 +235,6 @@ case 'editpost':
 	redirect_post($post_id); // Send user on their way while we keep working
 
 	exit();
-	break;
 
 case 'trash':
 	check_admin_referer('trash-post_' . $post_id);
@@ -269,7 +258,6 @@ case 'trash':
 
 	wp_redirect( add_query_arg( array('trashed' => 1, 'ids' => $post_id), $sendback ) );
 	exit();
-	break;
 
 case 'untrash':
 	check_admin_referer('untrash-post_' . $post_id);
@@ -288,7 +276,6 @@ case 'untrash':
 
 	wp_redirect( add_query_arg('untrashed', 1, $sendback) );
 	exit();
-	break;
 
 case 'delete':
 	check_admin_referer('delete-post_' . $post_id);
@@ -314,7 +301,6 @@ case 'delete':
 
 	wp_redirect( add_query_arg('deleted', 1, $sendback) );
 	exit();
-	break;
 
 case 'preview':
 	check_admin_referer( 'update-post_' . $post_id );
@@ -323,11 +309,9 @@ case 'preview':
 
 	wp_redirect($url);
 	exit();
-	break;
 
 default:
 	wp_redirect( admin_url('edit.php') );
 	exit();
-	break;
 } // end switch
 include( ABSPATH . 'wp-admin/admin-footer.php' );

@@ -22,9 +22,10 @@ function got_mod_rewrite() {
 	 * This filter was previously used to force URL rewriting for other servers,
 	 * like nginx. Use the got_url_rewrite filter in got_url_rewrite() instead.
 	 *
+	 * @since 2.5.0
+	 *
 	 * @see got_url_rewrite()
 	 *
-	 * @since 2.5.0
 	 * @param bool $got_rewrite Whether Apache and mod_rewrite are present.
 	 */
 	return apply_filters( 'got_rewrite', $got_rewrite );
@@ -46,6 +47,7 @@ function got_url_rewrite() {
 	 * Filter whether URL rewriting is available.
 	 *
 	 * @since 3.7.0
+	 *
 	 * @param bool $got_url_rewrite Whether URL rewriting is available.
 	 */
 	return apply_filters( 'got_url_rewrite', $got_url_rewrite );
@@ -272,17 +274,15 @@ function url_shorten( $url ) {
  * @param array $vars An array of globals to reset.
  */
 function wp_reset_vars( $vars ) {
-	for ( $i=0; $i<count( $vars ); $i += 1 ) {
-		$var = $vars[$i];
-		global $$var;
-
-		if ( empty( $_POST[$var] ) ) {
-			if ( empty( $_GET[$var] ) )
-				$$var = '';
-			else
-				$$var = $_GET[$var];
+	foreach ( $vars as $var ) {
+		if ( empty( $_POST[ $var ] ) ) {
+			if ( empty( $_GET[ $var ] ) ) {
+				$GLOBALS[ $var ] = '';
+			} else {
+				$GLOBALS[ $var ] = $_GET[ $var ];
+			}
 		} else {
-			$$var = $_POST[$var];
+			$GLOBALS[ $var ] = $_POST[ $var ];
 		}
 	}
 }
@@ -336,11 +336,11 @@ function wp_doc_link_parse( $content ) {
 	sort( $functions );
 
 	/**
-	 * Filter the list of functions/classes to be ignored from the documentation lookup.
+	 * Filter the list of functions and classes to be ignored from the documentation lookup.
 	 *
 	 * @since 2.8.0
 	 *
-	 * @param array $ignore_functions Functions/Classes to be ignored.
+	 * @param array $ignore_functions Functions and classes to be ignored.
 	 */
 	$ignore_functions = apply_filters( 'documentation_ignore_functions', $ignore_functions );
 
@@ -403,48 +403,24 @@ function set_screen_options() {
 					return;
 				break;
 			default:
-				$screen_option = false;
-
-				if ( '_page' === substr( $option, -5 ) || 'layout_columns' === $option ) {
-					/**
-					 * Filters a screen option value before it is set.
-					 *
-					 * The filter can also be used to modify non-standard [items]_per_page
-					 * settings. See the parent function for a full list of standard options.
-					 *
-					 * Returning false to the filter will skip saving the current option.
-					 *
-					 * @since 2.8.0
-					 * @since 5.4.2 Only applied to options ending with '_page',
-					 *              or the 'layout_columns' option.
-					 *
-					 * @see set_screen_options()
-					 *
-					 * @param mixed  $screen_option The value to save instead of the option value.
-					 *                              Default false (to skip saving the current option).
-					 * @param string $option        The option name.
-					 * @param int    $value         The option value.
-					 */
-					$screen_option = apply_filters( 'set-screen-option', $screen_option, $option, $value ); // phpcs:ignore WordPress.NamingConventions.ValidHookName.UseUnderscores
-				}
 
 				/**
 				 * Filter a screen option value before it is set.
 				 *
-				 * The dynamic portion of the hook, `$option`, refers to the option name.
+				 * The filter can also be used to modify non-standard [items]_per_page
+				 * settings. See the parent function for a full list of standard options.
 				 *
 				 * Returning false to the filter will skip saving the current option.
 				 *
-				 * @since 5.4.2
+				 * @since 2.8.0
 				 *
 				 * @see set_screen_options()
 				 *
-				 * @param mixed   $screen_option The value to save instead of the option value.
-				 *                               Default false (to skip saving the current option).
-				 * @param string  $option        The option name.
-				 * @param int     $value         The option value.
+				 * @param bool|int $value  Screen option value. Default false to skip.
+				 * @param string   $option The option name.
+				 * @param int      $value  The number of rows to use.
 				 */
-				$value = apply_filters( "set_screen_option_{$option}", $screen_option, $option, $value );
+				$value = apply_filters( 'set-screen-option', false, $option, $value );
 
 				if ( false === $value )
 					return;
@@ -826,7 +802,7 @@ add_filter( 'heartbeat_settings', 'wp_heartbeat_set_suspension' );
 /**
  * Autosave with heartbeat
  *
- * @since 3.9
+ * @since 3.9.0
  */
 function heartbeat_autosave( $response, $data ) {
 	if ( ! empty( $data['wp_autosave'] ) ) {

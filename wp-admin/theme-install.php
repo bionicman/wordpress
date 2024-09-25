@@ -27,6 +27,11 @@ if ( ! is_network_admin() ) {
 	$submenu_file = 'themes.php';
 }
 
+$tabs = array(
+	'upload'        => __( 'Upload Theme' ),
+	'browse-themes' => _x( 'Browse', 'themes' ),
+);
+
 $sections = array(
 	'featured' => __( 'Featured Themes' ),
 	'popular'  => __( 'Popular Themes' ),
@@ -79,7 +84,7 @@ if ( $tab ) {
 
 $help_overview =
 	'<p>' . sprintf(__('You can find additional themes for your site by using the Theme Browser/Installer on this screen, which will display themes from the <a href="%s" target="_blank">WordPress.org Theme Directory</a>. These themes are designed and developed by third parties, are available free of charge, and are compatible with the license WordPress uses.'), 'https://wordpress.org/themes/') . '</p>' .
-	'<p>' . __('You can Search for themes by keyword, author, or tag, or can get more specific and search by criteria listed in the feature filter. Alternately, you can browse the themes that are Featured, Newest, or Recently Updated. When you find a theme you like, you can preview it or install it.') . '</p>' .
+	'<p>' . __('You can Search for themes by keyword, author, or tag, or can get more specific and search by criteria listed in the feature filter. Alternately, you can browse the themes that are Featured, Popular, or Latest. When you find a theme you like, you can preview it or install it.') . '</p>' .
 	'<p>' . __('You can Upload a theme manually if you have already downloaded its ZIP archive onto your computer (make sure it is from a trusted and original source). You can also do it the old-fashioned way and copy a downloaded theme&#8217;s folder via FTP into your <code>/wp-content/themes</code> directory.') . '</p>';
 
 get_current_screen()->add_help_tab( array(
@@ -110,8 +115,19 @@ include(ABSPATH . 'wp-admin/admin-header.php');
 <div class="wrap">
 	<h2>
 		<?php echo esc_html( $title ); ?>
-		<a href="#" class="upload add-new-h2"><?php _e( 'Upload Theme' ); ?></a>
-		<a href="#" class="browse-themes add-new-h2"><?php _ex( 'Browse', 'themes' ); ?></a>
+		<?php
+		/**
+		 * Filter the tabs shown on the Install Themes screen.
+		 * 
+		 * @since 2.8.0
+		 * @param array $tabs The tabs shown on the Install Themes screen. Defaults are
+		 *                    'upload' and 'browse-themes'.
+		 */
+		$tabs = apply_filters( 'install_themes_tabs', $tabs );
+		foreach ( $tabs as $tab_slug => $tab_name ) {
+			echo '<a href="#" class="' . esc_attr( $tab_slug ) . ' add-new-h2">' . $tab_name . '</a>';
+		}
+		?>
 	</h2>
 
 	<div class="upload-theme">
@@ -202,16 +218,18 @@ if ( $tab ) {
 	</div>
 
 	<# if ( data.installed ) { #>
-		<div class="theme-installed"><?php _e( 'Already Installed' ); ?></div>
+		<div class="theme-installed"><?php _ex( 'Already Installed', 'theme' ); ?></div>
 	<# } #>
 </script>
 
 <script id="tmpl-theme-preview" type="text/template">
 	<div class="wp-full-overlay-sidebar">
 		<div class="wp-full-overlay-header">
-			<a href="#" class="close-full-overlay button-secondary"><?php _e( 'Close' ); ?></a>
+			<a href="#" class="close-full-overlay"><span class="screen-reader-text"><?php _e( 'Close' ); ?></span></a>
+			<a href="#" class="previous-theme"><span class="screen-reader-text"><?php _ex( 'Previous', 'Button label for a theme' ); ?></span></a>
+			<a href="#" class="next-theme"><span class="screen-reader-text"><?php _ex( 'Next', 'Button label for a theme' ); ?></span></a>
 		<# if ( data.installed ) { #>
-			<a href="#" class="button button-primary theme-install disabled"><?php _e( 'Installed' ); ?></a>
+			<a href="#" class="button button-primary theme-install disabled"><?php _ex( 'Installed', 'theme' ); ?></a>
 		<# } else { #>
 			<a href="{{ data.install_url }}" class="button button-primary theme-install"><?php _e( 'Install' ); ?></a>
 		<# } #>
@@ -246,10 +264,6 @@ if ( $tab ) {
 				<span class="collapse-sidebar-label"><?php _e( 'Collapse' ); ?></span>
 				<span class="collapse-sidebar-arrow"></span>
 			</a>
-			<div class="theme-navigation">
-				<a class="previous-theme button" href="#"><?php _e( 'Previous' ); ?></a>
-				<a class="next-theme button" href="#"><?php _e( 'Next' ); ?></a>
-			</div>
 		</div>
 	</div>
 	<div class="wp-full-overlay-main">
