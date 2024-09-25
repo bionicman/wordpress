@@ -992,11 +992,12 @@ function gallery_shortcode( $attr ) {
 				</{$captiontag}>";
 		}
 		$output .= "</{$itemtag}>";
-		if ( $columns > 0 && ++$i % $columns == 0 )
+		if ( ! $html5 && $columns > 0 && ++$i % $columns == 0 ) {
 			$output .= '<br style="clear: both" />';
+		}
 	}
 
-	if ( $columns > 0 && $i % $columns !== 0 ) {
+	if ( ! $html5 && $columns > 0 && $i % $columns !== 0 ) {
 		$output .= "
 			<br style='clear: both' />";
 	}
@@ -1008,7 +1009,7 @@ function gallery_shortcode( $attr ) {
 }
 
 /**
- * Output the templates used by playlists
+ * Output the templates used by playlists.
  *
  * @since 3.9.0
  */
@@ -1016,34 +1017,29 @@ function wp_underscore_playlist_templates() {
 ?>
 <script type="text/html" id="tmpl-wp-playlist-current-item">
 	<# if ( data.image ) { #>
-	<img src="{{{ data.thumb.src }}}"/>
+	<img src="{{ data.thumb.src }}"/>
 	<# } #>
-	<# if ( data.meta.title ) { #>
 	<div class="wp-playlist-caption">
-		<span class="wp-caption-meta wp-caption-title">&#8220;{{{ data.meta.title }}}&#8221;</span>
-		<span class="wp-caption-meta wp-caption-album">{{{ data.meta.album }}}</span>
-		<span class="wp-caption-meta wp-caption-artist">{{{ data.meta.artist }}}</span>
+		<span class="wp-playlist-item-meta wp-playlist-item-title">&#8220;{{ data.title }}&#8221;</span>
+		<# if ( data.meta.album ) { #><span class="wp-playlist-item-meta wp-playlist-item-album">{{ data.meta.album }}</span><# } #>
+		<# if ( data.meta.artist ) { #><span class="wp-playlist-item-meta wp-playlist-item-artist">{{ data.meta.artist }}</span><# } #>
 	</div>
-	<# } else { #>
-	<div class="wp-playlist-caption">{{{ data.caption ? data.caption : data.title }}}</div>
-	<# } #>
 </script>
 <script type="text/html" id="tmpl-wp-playlist-item">
 	<div class="wp-playlist-item">
-		<# if ( ( data.title || data.meta.title ) && ( ! data.artists || data.meta.artist ) ) { #>
-		<div class="wp-playlist-caption">
-			{{{ data.index ? ( data.index + '.&nbsp;' ) : '' }}}
-			<span class="wp-caption-title">&#8220;{{{ data.title ? data.title : data.meta.title }}}&#8221;</span>
-			<# if ( data.artists ) { #>
-			<span class="wp-caption-by"><?php _e( 'by' ) ?></span>
-			<span class="wp-caption-artist">{{{ data.meta.artist }}}</span>
+		<a class="wp-playlist-caption" href="{{ data.src }}">
+			{{ data.index ? ( data.index + '. ' ) : '' }}
+			<# if ( data.caption ) { #>
+				{{ data.caption }}
+			<# } else { #>
+				<span class="wp-playlist-item-title">&#8220;{{{ data.title }}}&#8221;</span>
+				<# if ( data.artists && data.meta.artist ) { #>
+				<span class="wp-playlist-item-artist"> &mdash; {{ data.meta.artist }}</span>
+				<# } #>
 			<# } #>
-		</div>
-		<# } else { #>
-		<div class="wp-playlist-caption">{{{ data.index ? ( data.index + '.' ) : '' }}} {{{ data.caption ? data.caption : data.title }}}</div>
-		<# } #>
+		</a>
 		<# if ( data.meta.length_formatted ) { #>
-		<div class="wp-playlist-item-length">{{{ data.meta.length_formatted }}}</div>
+		<div class="wp-playlist-item-length">{{ data.meta.length_formatted }}</div>
 		<# } #>
 	</div>
 </script>
@@ -1055,7 +1051,7 @@ function wp_underscore_playlist_templates() {
  *
  * @since 3.9.0
  *
- * @param string $type Type of playlist: "audio" or "video."
+ * @param string $type Type of playlist. Accepts 'audio' or 'video'.
  */
 function wp_playlist_scripts( $type ) {
 	wp_enqueue_style( 'wp-mediaelement' );
@@ -1068,14 +1064,14 @@ function wp_playlist_scripts( $type ) {
 add_action( 'wp_playlist_scripts', 'wp_playlist_scripts' );
 
 /**
- * The Playlist shortcode.
+ * The playlist shortcode.
  *
- * This implements the functionality of the Playlist Shortcode for displaying
+ * This implements the functionality of the playlist shortcode for displaying
  * a collection of WordPress audio or video files in a post.
  *
  * @since 3.9.0
  *
- * @param array  $attr Attributes of the shortcode.
+ * @param array $attr Playlist shortcode attributes.
  * @return string Playlist output. Empty string if the passed type is unsupported.
  */
 function wp_playlist_shortcode( $attr ) {
@@ -1198,17 +1194,16 @@ function wp_playlist_shortcode( $attr ) {
 		$track = array(
 			'src' => $url,
 			'type' => $ftype['type'],
-			'title' => get_the_title( $attachment->ID ),
-			'caption' => wptexturize( $attachment->post_excerpt ),
-			'description' => wptexturize( $attachment->post_content )
+			'title' => $attachment->post_title,
+			'caption' => $attachment->post_excerpt,
+			'description' => $attachment->post_content
 		);
 
 		$track['meta'] = array();
 		$meta = wp_get_attachment_metadata( $attachment->ID );
 		if ( ! empty( $meta ) ) {
 
-			$keys = array( 'title', 'artist', 'band', 'album', 'genre', 'year', 'length', 'length_formatted' );
-			foreach ( $keys as $key ) {
+			foreach ( wp_get_attachment_id3_keys( $attachment ) as $key => $label ) {
 				if ( ! empty( $meta[ $key ] ) ) {
 					$track['meta'][ $key ] = $meta[ $key ];
 				}
@@ -1265,8 +1260,8 @@ function wp_playlist_shortcode( $attr ) {
 		 *
 		 * @since 3.9.0
 		 *
-		 * @param string $type   Type of playlist: "audio" or "video."
-		 * @param string $style  The "theme" for the playlist. Core provides "light" and "dark."
+		 * @param string $type  Type of playlist. Possible values are 'audio' or 'video'.
+		 * @param string $style The 'theme' for the playlist. Core provides 'light' and 'dark'.
 		 */
 		do_action( 'wp_playlist_scripts', $type, $style );
 	} ?>
@@ -1274,7 +1269,7 @@ function wp_playlist_shortcode( $attr ) {
 	<?php if ( 'audio' === $type ): ?>
 	<div class="wp-playlist-current-item"></div>
 	<?php endif ?>
-	<<?php echo $safe_type ?> controls="controls" preload="metadata" width="<?php
+	<<?php echo $safe_type ?> controls="controls" preload="none" width="<?php
 		echo (int) $theme_width;
 	?>"<?php if ( 'video' === $safe_type ):
 		echo ' height="', (int) $theme_height, '"';
@@ -1317,6 +1312,37 @@ function wp_get_audio_extensions() {
 	return apply_filters( 'wp_audio_extensions', array( 'mp3', 'ogg', 'wma', 'm4a', 'wav' ) );
 }
 
+/**
+ * Return useful keys to use to lookup data from an attachment's stored metadata.
+ *
+ * @since 3.9.0
+ *
+ * @param WP_Post $attachment The current attachment, provided for context.
+ * @param string  $context    The context. Accepts 'edit', 'display'. Default 'display'.
+ * @return array Key/value pairs of field keys to labels.
+ */
+function wp_get_attachment_id3_keys( $attachment, $context = 'display' ) {
+	$fields = array(
+		'artist' => __( 'Artist' ),
+		'album' => __( 'Album' ),
+	);
+
+	if ( 'display' === $context ) {
+		$fields['genre']            = __( 'Genre' );
+		$fields['year']             = __( 'Year' );
+		$fields['length_formatted'] = _x( 'Length', 'video or audio' );
+	}
+
+	/**
+	 * Filter the editable list of keys to lookup data from an attachment's metadata.
+	 *
+	 * @since 3.9.0
+	 *
+	 * @param array   $fields     Key/value pairs of field keys to labels.
+	 * @param WP_Post $attachment Attachment object.
+	 */
+	return apply_filters( 'wp_get_attachment_id3_keys', $fields, $attachment, $context );
+}
 /**
  * The Audio shortcode.
  *
@@ -1366,7 +1392,6 @@ function wp_audio_shortcode( $attr, $content = '' ) {
 
 	$default_types = wp_get_audio_extensions();
 	$defaults_atts = array(
-		'caption'  => '',
 		'src'      => '',
 		'loop'     => '',
 		'autoplay' => '',
@@ -1526,7 +1551,6 @@ function wp_video_shortcode( $attr, $content = '' ) {
 
 	$default_types = wp_get_video_extensions();
 	$defaults_atts = array(
-		'caption'  => '',
 		'src'      => '',
 		'poster'   => '',
 		'loop'     => '',
@@ -2312,8 +2336,7 @@ function wp_prepare_attachment_for_js( $attachment ) {
 			$response['fileLength'] = $meta['length_formatted'];
 
 		$response['meta'] = array();
-		$keys = array( 'title', 'artist', 'band', 'album', 'genre', 'year', 'length', 'length_formatted' );
-		foreach ( $keys as $key ) {
+		foreach ( wp_get_attachment_id3_keys( $attachment ) as $key => $label ) {
 			if ( ! empty( $meta[ $key ] ) ) {
 				$response['meta'][ $key ] = $meta[ $key ];
 			}
@@ -2429,7 +2452,16 @@ function wp_enqueue_media( $args = array() ) {
 			'nonce' => wp_create_nonce( 'update-post_' . $post->ID ),
 		);
 
-		if ( theme_supports_thumbnails( $post ) || post_supports_thumbnails( $post ) ) {
+		$thumbnail_support = current_theme_supports( 'post-thumbnails', $post->post_type ) && post_type_supports( $post->post_type, 'thumbnail' );
+		if ( ! $thumbnail_support && 'attachment' === $post->post_type && $post->post_mime_type ) {
+			if ( 0 === strpos( $post->post_mime_type, 'audio/' ) ) {
+				$thumbnail_support = post_type_supports( 'attachment:audio', 'thumbnail' ) || current_theme_supports( 'post-thumbnails', 'attachment:audio' );
+			} elseif ( 0 === strpos( $post->post_mime_type, 'video/' ) ) {
+				$thumbnail_support = post_type_supports( 'attachment:video', 'thumbnail' ) || current_theme_supports( 'post-thumbnails', 'attachment:video' );
+			}
+		}
+
+		if ( $thumbnail_support ) {
 			$featured_image_id = get_post_meta( $post->ID, '_thumbnail_id', true );
 			$settings['post']['featuredImageId'] = $featured_image_id ? $featured_image_id : -1;
 		}
@@ -2502,10 +2534,8 @@ function wp_enqueue_media( $args = array() ) {
 		'cropImage' => __( 'Crop Image' ),
 		'cropYourImage' => __( 'Crop your image' ),
 		'cropping' => __( 'Cropping&hellip;' ),
-		'suggestedWidth' => __( 'Suggested width is %d pixels.' ),
-		'suggestedHeight' => __( 'Suggested height is %d pixels.' ),
-
-		'mediaHTML5Text'        => __( 'Add alternate sources for maximum HTML5 playback:' ),
+		'suggestedDimensions' => __( 'Suggested image dimensions:' ),
+		'cropError' => __( 'There has been an error cropping your image.' ),
 
 		// Edit Audio
 		'audioDetailsTitle'     => __( 'Audio Details' ),
@@ -2712,11 +2742,11 @@ function get_post_gallery_images( $post = 0 ) {
 }
 
 /**
- * If an attachment is missing its metadata, try to generate it.
+ * Maybe attempt to generate attachment metadata, if missing.
  *
  * @since 3.9.0
  *
- * @param post $attachment Post object.
+ * @param WP_Post $attachment Attachment object.
  */
 function wp_maybe_generate_attachment_metadata( $attachment ) {
 	if ( empty( $attachment ) || ( empty( $attachment->ID ) || ! $attachment_id = (int) $attachment->ID ) ) {
@@ -2734,46 +2764,4 @@ function wp_maybe_generate_attachment_metadata( $attachment ) {
 			delete_transient( $regeneration_lock );
 		}
 	}
-}
-
-/**
- * Determine if a post supports thumbnails based on the passed $post
- *
- * @since 3.9.0
- *
- * @param WP_Post $post
- *
- * @return boolean
- */
-function post_supports_thumbnails( $post ) {
-	if ( 'attachment' === $post->post_type ) {
-		if ( 0 === strpos( $post->post_mime_type, 'audio' ) ) {
-			return post_type_supports( 'attachment:audio', 'thumbnail' );
-		} elseif ( 0 === strpos( $post->post_mime_type, 'video' ) ) {
-			return post_type_supports( 'attachment:video', 'thumbnail' );
-		}
-	}
-
-	return post_type_supports( $post->post_type, 'thumbnail' );
-}
-
-/**
- * Determine if a theme supports thumbnails based on the passed $post
- *
- * @since 3.9.0
- *
- * @param WP_Post $post
- *
- * @return boolean
- */
-function theme_supports_thumbnails( $post ) {
-	if ( 'attachment' === $post->post_type ) {
-		if ( 0 === strpos( $post->post_mime_type, 'audio' ) ) {
-			return current_theme_supports( 'post-thumbnails', 'attachment:audio' );
-		} elseif ( 0 === strpos( $post->post_mime_type, 'video' ) ) {
-			return current_theme_supports( 'post-thumbnails', 'attachment:video' );
-		}
-	}
-
-	return current_theme_supports( 'post-thumbnails', $post->post_type );
 }

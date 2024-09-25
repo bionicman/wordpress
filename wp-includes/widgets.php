@@ -163,6 +163,21 @@ class WP_Widget {
 		return array($this, 'form_callback');
 	}
 
+	/**
+	 * Determine if we're in the Customizer; if true, then the object cache gets
+	 * suspended and widgets should check this to decide whether they should
+	 * store anything persistently to the object cache, to transients, or
+	 * anywhere else.
+	 *
+	 * @since 3.9.0
+	 *
+	 * @return bool True if Customizer is on, false if not.
+	 */
+	function is_preview() {
+		global $wp_customize;
+		return ( isset( $wp_customize ) && $wp_customize->is_preview() ) ;
+	}
+
 	/** Generate the actual widget content.
 	 *	Just finds the instance and calls widget().
 	 *	Do NOT over-ride this function. */
@@ -176,10 +191,34 @@ class WP_Widget {
 
 		if ( array_key_exists( $this->number, $instance ) ) {
 			$instance = $instance[$this->number];
-			// filters the widget's settings, return false to stop displaying the widget
-			$instance = apply_filters('widget_display_callback', $instance, $this, $args);
-			if ( false !== $instance )
-				$this->widget($args, $instance);
+
+			/**
+			 * Filter the settings for a particular widget instance.
+			 *
+			 * Returning false will effectively short-circuit display of the widget.
+			 *
+			 * @since 2.8.0
+			 *
+			 * @param array     $instance The current widget instance's settings.
+			 * @param WP_Widget $this     The current widget instance.
+			 * @param array     $args     An array of default widget arguments.
+			 */
+			$instance = apply_filters( 'widget_display_callback', $instance, $this, $args );
+
+			if ( false === $instance ) {
+				return;
+			}
+
+			$was_cache_addition_suspended = wp_suspend_cache_addition();
+			if ( $this->is_preview() && ! $was_cache_addition_suspended ) {
+				wp_suspend_cache_addition( true );
+			}
+
+			$this->widget( $args, $instance );
+
+			if ( $this->is_preview() ) {
+				wp_suspend_cache_addition( $was_cache_addition_suspended );
+			}
 		}
 	}
 
@@ -230,12 +269,34 @@ class WP_Widget {
 
 				$old_instance = isset($all_instances[$number]) ? $all_instances[$number] : array();
 
-				$instance = $this->update($new_instance, $old_instance);
+				$was_cache_addition_suspended = wp_suspend_cache_addition();
+				if ( $this->is_preview() && ! $was_cache_addition_suspended ) {
+					wp_suspend_cache_addition( true );
+				}
 
-				// filters the widget's settings before saving, return false to cancel saving (keep the old settings if updating)
-				$instance = apply_filters('widget_update_callback', $instance, $new_instance, $old_instance, $this);
-				if ( false !== $instance )
+				$instance = $this->update( $new_instance, $old_instance );
+
+				if ( $this->is_preview() ) {
+					wp_suspend_cache_addition( $was_cache_addition_suspended );
+				}
+
+				/**
+				 * Filter a widget's settings before saving.
+				 *
+				 * Returning false will effectively short-circuit the widget's ability
+				 * to update settings.
+				 *
+				 * @since 2.8.0
+				 *
+				 * @param array     $instance     The current widget instance's settings.
+				 * @param array     $new_instance Array of new widget settings.
+				 * @param array     $old_instance Array of old widget settings.
+				 * @param WP_Widget $this         The current widget instance.
+				 */
+				$instance = apply_filters( 'widget_update_callback', $instance, $new_instance, $old_instance, $this );
+				if ( false !== $instance ) {
 					$all_instances[$number] = $instance;
+				}
 
 				break; // run only once
 			}
@@ -245,8 +306,11 @@ class WP_Widget {
 		$this->updated = true;
 	}
 
-	/** Generate the control form.
-	 *	Do NOT over-ride this function. */
+	/**
+	 * Generate the control form.
+	 *
+	 * Do NOT over-ride this function.
+	 */
 	function form_callback( $widget_args = 1 ) {
 		if ( is_numeric($widget_args) )
 			$widget_args = array( 'number' => $widget_args );
@@ -263,15 +327,39 @@ class WP_Widget {
 			$instance = $all_instances[ $widget_args['number'] ];
 		}
 
-		// filters the widget admin form before displaying, return false to stop displaying it
-		$instance = apply_filters('widget_form_callback', $instance, $this);
+		/**
+		 * Filter the widget instance's settings before displaying the control form.
+		 *
+		 * Returning false effectively short-circuits display of the control form.
+		 *
+		 * @since 2.8.0
+		 *
+		 * @param array     $instance The current widget instance's settings.
+		 * @param WP_Widget $this     The current widget instance.
+		 */
+		$instance = apply_filters( 'widget_form_callback', $instance, $this );
 
 		$return = null;
 		if ( false !== $instance ) {
 			$return = $this->form($instance);
-			// add extra fields in the widget form - be sure to set $return to null if you add any
-			// if the widget has no form the text echoed from the default form method can be hidden using css
-			do_action_ref_array( 'in_widget_form', array(&$this, &$return, $instance) );
+
+			/**
+			 * Fires at the end of the widget control form.
+			 *
+			 * Use this hook to add extra fields to the widget form. The hook
+			 * is only fired if the value passed to the 'widget_form_callback'
+			 * hook is not false.
+			 *
+			 * Note: If the widget has no form, the text echoed from the default
+			 * form method can be hidden using CSS.
+			 *
+			 * @since 2.8.0
+			 *
+			 * @param WP_Widget $this     The widget instance, passed by reference.
+			 * @param null      $return   Return null if new fields are added.
+			 * @param array     $instance An array of the widget's settings.
+			 */
+			do_action_ref_array( 'in_widget_form', array( &$this, &$return, $instance ) );
 		}
 		return $return;
 	}
@@ -386,8 +474,8 @@ $_wp_sidebars_widgets = array();
 /**
  * Private
  */
- $GLOBALS['_wp_deprecated_widgets_callbacks'] = array(
- 	'wp_widget_pages',
+$GLOBALS['_wp_deprecated_widgets_callbacks'] = array(
+	'wp_widget_pages',
 	'wp_widget_pages_control',
 	'wp_widget_calendar',
 	'wp_widget_calendar_control',
@@ -409,7 +497,7 @@ $_wp_sidebars_widgets = array();
 	'wp_widget_rss_control',
 	'wp_widget_recent_comments',
 	'wp_widget_recent_comments_control'
- );
+);
 
 /* Template tags & API functions */
 
@@ -572,6 +660,13 @@ function register_sidebar($args = array()) {
 
 	add_theme_support('widgets');
 
+	/**
+	 * Fires once a sidebar has been registered.
+	 *
+	 * @since 3.0.0
+	 *
+	 * @param array $sidebar Parsed arguments for the registered sidebar.
+	 */
 	do_action( 'register_sidebar', $sidebar );
 
 	return $sidebar['id'];
@@ -645,6 +740,14 @@ function wp_register_sidebar_widget($id, $name, $output_callback, $options = arr
 	$widget = array_merge($widget, $options);
 
 	if ( is_callable($output_callback) && ( !isset($wp_registered_widgets[$id]) || did_action( 'widgets_init' ) ) ) {
+
+		/**
+		 * Fires once for each registered widget.
+		 *
+		 * @since 3.0.0
+		 *
+		 * @param array $widget An array of default widget arguments.
+		 */
 		do_action( 'wp_register_sidebar_widget', $widget );
 		$wp_registered_widgets[$id] = $widget;
 	}
@@ -701,6 +804,14 @@ function wp_sidebar_description( $id ) {
  * @param int|string $id Widget ID.
  */
 function wp_unregister_sidebar_widget($id) {
+
+	/**
+	 * Fires just before a widget is removed from a sidebar.
+	 *
+	 * @since 3.0.0
+	 *
+	 * @param int $id The widget ID.
+	 */
 	do_action( 'wp_unregister_sidebar_widget', $id );
 
 	wp_register_sidebar_widget($id, '', '');
@@ -1128,7 +1239,14 @@ function wp_get_sidebars_widgets($deprecated = true) {
 	if ( is_array( $sidebars_widgets ) && isset($sidebars_widgets['array_version']) )
 		unset($sidebars_widgets['array_version']);
 
-	$sidebars_widgets = apply_filters('sidebars_widgets', $sidebars_widgets);
+	/**
+	 * Filter the list of sidebars and their widgets.
+	 *
+	 * @since 2.7.0
+	 *
+	 * @param array $sidebars_widgets An associative array of sidebars and their widgets.
+	 */
+	$sidebars_widgets = apply_filters( 'sidebars_widgets', $sidebars_widgets );
 	return $sidebars_widgets;
 }
 
@@ -1224,7 +1342,7 @@ function wp_convert_widget_settings($base_name, $option_name, $settings) {
 }
 
 /**
- * Output an arbitrary widget as a template tag
+ * Output an arbitrary widget as a template tag.
  *
  * @since 2.8.0
  *
@@ -1246,6 +1364,15 @@ function the_widget($widget, $instance = array(), $args = array()) {
 	$args = wp_parse_args($args, $default_args);
 	$instance = wp_parse_args($instance);
 
+	/**
+	 * Fires before rendering the requested widget.
+	 *
+	 * @since 3.0.0
+	 *
+	 * @param string $widget   The widget's class name.
+	 * @param array  $instance The current widget instance's settings.
+	 * @param array  $args     An array of the widget's sidebar arguments.
+	 */
 	do_action( 'the_widget', $widget, $instance, $args );
 
 	$widget_obj->_set(-1);

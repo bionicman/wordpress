@@ -216,7 +216,8 @@
  * Displays a theme update notice
  * when an update is available.
  */
-.theme-browser .theme .theme-update {
+.theme-browser .theme .theme-update,
+.theme-browser .theme .theme-installed {
 	background: #d54e21;
 	background: rgba(213, 78, 33, 0.95);
 	color: #fff;
@@ -234,7 +235,8 @@
 	overflow: hidden;
 }
 
-.theme-browser .theme .theme-update:before {
+.theme-browser .theme .theme-update:before,
+.theme-browser .theme .theme-installed:before {
 	content: '\f463';
 	display: inline-block;
 	font: normal 20px/1 'dashicons';
@@ -1074,6 +1076,17 @@ body.folded .theme-overlay .theme-wrap {
   16.2 - Install Themes
 ------------------------------------------------------------------------------*/
 
+/* Already installed theme */
+.theme-browser .theme .theme-installed {
+	background: #0074a2;
+}
+.theme-browser .theme .theme-installed:before {
+	content: '\f147';
+}
+.theme-browser .theme.is-installed .theme-actions .button-primary {
+	display: none !important;
+}
+
 .theme-navigation {
 	background: #fff;
 	-webkit-box-shadow: 0 1px 1px 0 rgba(0,0,0,.1);
@@ -1150,8 +1163,6 @@ body.show-upload-theme .upload-theme + .theme-navigation + .theme-browser {
 	display: inline-block;
 	margin: 0 10px;
 	padding: 15px 0;
-	-webkit-transition: border-color .1s ease-in;
-	transition: border-color .1s ease-in;
 }
 .theme-section.current,
 .theme-filter.current {
@@ -1167,8 +1178,6 @@ body.show-upload-theme .upload-theme + .theme-navigation + .theme-browser {
 	display: inline-block;
 	margin: 0 10px;
 	padding: 4px 6px;
-	-webkit-transition: color .1s ease-in, background .1s ease-in;
-	transition: color .1s ease-in, background .1s ease-in;
 }
 body.more-filters-opened .more-filters,
 body.more-filters-opened .more-filters:before {
@@ -1177,8 +1186,6 @@ body.more-filters-opened .more-filters:before {
 	border-radius: 2px;
 	border: none;
 	color: #fff;
-	-webkit-transition: color .1s ease-in, background .1s ease-in;
-	transition: color .1s ease-in, background .1s ease-in;
 }
 
 body.more-filters-opened .more-filters:hover,
@@ -1222,12 +1229,23 @@ body.more-filters-opened .more-filters:focus:before {
 }
 .more-filters-container {
 	display: none;
-	padding: 30px;
+	padding: 20px;
 	border-top: 1px solid #eee;
 	margin: 0 -20px;
 	background: #fafafa;
 }
 body.more-filters-opened .more-filters-container {
+	display: block;
+	overflow: hidden;
+}
+body.more-filters-opened .theme-section.current {
+	border-bottom: none;
+}
+body.more-filters-opened .theme-browser,
+body.more-filters-opened.filters-applied.loading-themes .theme-browser {
+	display: none;
+}
+body.more-filters-opened.filters-applied .theme-browser {
 	display: block;
 }
 .more-filters-container .filters-group {
@@ -1235,15 +1253,96 @@ body.more-filters-opened .more-filters-container {
 	-moz-box-sizing: border-box;
 	box-sizing: border-box;
 	float: right;
-	width: 20%;
+	width: 19%;
+	background: #fff;
+	margin: 0 0 0 1%;
+	border: 1px solid #e5e5e5;
+	-webkit-box-shadow: 0 1px 1px rgba(0,0,0,0.04);
+	box-shadow: 0 1px 1px rgba(0,0,0,0.04);
+	padding: 10px;
+}
+.more-filters-container .wide-filters-group {
+	width: 38%;
 }
 .more-filters-container .feature-name {
-	margin-top: 0;
+	margin: 0;
+	position: relative;
 }
 .more-filters-container ol {
 	list-style-type: none;
+	margin: 20px 0 0;
+	font-size: 12px;
+}
+.more-filters-container li {
+	display: inline-block;
+	vertical-align: top;
+	list-style-type: none;
+	margin: 5px 0;
+	padding-left: 25px;
+	width: 160px;
+}
+.theme-navigation .more-filters-container .apply-filters {
+	margin: 0 0 20px;
+}
+.theme-navigation .more-filters-container .clear-filters {
+	display: none;
+	margin: 0 10px 20px 0;
+}
+.more-filters-container .apply-filters span {
+	display: inline-block;
+	font-size: 12px;
+	text-indent: 10px;
+	opacity: 0.8;
+}
+.more-filters-container .filtering-by {
+	display: none;
 	margin: 0;
 }
+.more-filters-container .filtering-by > span {
+	font-weight: 600;
+}
+.more-filters-container .filtering-by .tags {
+	display: inline;
+}
+.more-filters-container .filtering-by .tag {
+	background: #fff;
+	border: 1px solid #e5e5e5;
+	-webkit-box-shadow: 0 1px 1px rgba(0,0,0,0.04);
+	box-shadow: 0 1px 1px rgba(0,0,0,0.04);
+	font-size: 11px;
+	margin: 0 5px;
+	padding: 4px 8px;
+}
+.more-filters-container .filtering-by a {
+	margin-right: 10px;
+}
+body.filters-applied .more-filters-container .filters-group,
+body.filters-applied .more-filters-container a.button,
+body.filters-applied .more-filters-container br {
+	display: none !important;
+}
+body.filters-applied .more-filters-container .filtering-by {
+	display: block;
+}
+body.filters-applied .more-filters-container {
+	padding: 20px;
+}
+p.no-themes {
+	color: #999;
+	font-size: 18px;
+	font-style: normal;
+	margin: 0;
+	padding: 0;
+	text-align: center;
+	display: none;
+}
+body.no-results p.no-themes {
+	display: block;
+}
+body.show-upload-theme p.no-themes {
+	display: none !important;
+}
+
 
 .theme-install-php .add-new-theme {
 	display: none !important;
@@ -1268,10 +1367,21 @@ body.more-filters-opened .more-filters-container {
 		text-align: right;
 	}
 	.more-filters-container .filters-group {
-		width: 50%;
+		margin-bottom: 0;
+		margin-top: 5px;
+		width: 100%;
 	}
-	.more-filters-container .filters-group:nth-child(3n) {
-		clear: right;
+	.more-filters-container .filters-group li {
+		margin: 10px 0;
+	}
+}
+
+@media only screen and (max-width: 782px) {
+	.more-filters-container .filters-group {
+		width: 100%;
+	}
+	.more-filters-container .filters-group li {
+		width: 100%;
 	}
 }
 
@@ -1330,10 +1440,11 @@ body.more-filters-opened .more-filters-container {
 .rating-100 span.five:before {
 	content: "\f155";
 }
-.rating .votes {
+.rating .ratings {
 	display: inline;
 	margin-right: 10px;
 	line-height: 20px;
+	color: #999;
 }
 .loading-themes .theme-browser,
 .error .theme-browser {
@@ -1429,7 +1540,7 @@ body.full-overlay-active {
 	margin: 0;
 	z-index: 10;
 	overflow: auto;
-	background: transparent;
+	background: #eee;
 	border-left: none;
 }
 
@@ -1592,6 +1703,16 @@ body.full-overlay-active {
 	display: none;
 }
 
+.wp-full-overlay .theme-navigation {
+	padding: 10px 20px;
+	position: absolute;
+		bottom: 10px;
+	text-align: right;
+}
+.wp-full-overlay .theme-navigation .next-theme {
+	float: left;
+}
+
 /* Animations */
 .wp-full-overlay,
 .wp-full-overlay-sidebar,
@@ -1644,7 +1765,7 @@ body.full-overlay-active {
 }
 
 #customize-container iframe,
-#theme-installer iframe {
+.theme-install-overlay iframe {
 	height: 100%;
 	width: 100%;
 	z-index: 20;
@@ -1660,24 +1781,24 @@ body.full-overlay-active {
 	margin-top: 0;
 }
 
-#theme-installer {
+.theme-install-overlay {
 	display: none;
 }
 
-#theme-installer.single-theme {
+.theme-install-overlay.single-theme {
 	display: block;
 }
 
 .install-theme-info {
 	display: none;
-	padding: 10px 20px 20px;
+	padding: 10px 20px 60px;
 }
 
 .single-theme .install-theme-info {
 	padding-top: 15px;
 }
 
-#theme-installer .install-theme-info {
+.theme-install-overlay .install-theme-info {
 	display: block;
 }
 
@@ -1717,25 +1838,26 @@ body.full-overlay-active {
 	float: right;
 	color: #777;
 	line-height: 20px;
+	max-width: 100%;
 }
 
-#theme-installer .wp-full-overlay-header {
+.theme-install-overlay .wp-full-overlay-header {
 	margin-top: 9px;
 }
 
-#theme-installer .wp-full-overlay-header .theme-install {
+.theme-install-overlay .wp-full-overlay-header .theme-install {
 	float: left;
 	/* For when .theme-install is a span rather than a.button-primary (already installed theme) */
 	line-height: 26px;
 }
 
-#theme-installer .wp-full-overlay-sidebar {
+.theme-install-overlay .wp-full-overlay-sidebar {
 	background: #EEE;
 	border-left: 1px solid #DDD;
 }
 
-#theme-installer .wp-full-overlay-main {
-	background: #fff url(../images/spinner.gif) no-repeat fixed center center;
+.theme-install-overlay .wp-full-overlay-main {
+	background: #fff url(../images/spinner.gif) no-repeat center center;
 	-webkit-background-size: 20px 20px;
 	background-size: 20px 20px;
 }
@@ -1757,7 +1879,7 @@ body.full-overlay-active {
 	}
 
 	.customize-loading #customize-container,
-	#theme-installer .wp-full-overlay-main {
+	.theme-install-overlay .wp-full-overlay-main {
 		background-image: url(../images/spinner-2x.gif);
 	}
 }

@@ -1,4 +1,9 @@
 /* global tinymce, MediaElementPlayer, WPPlaylistView */
+/**
+ * Note: this API is "experimental" meaning that it will probably change
+ * in the next few releases based on feedback from 3.9.0.
+ * If you decide to use it, please follow the development closely.
+ */
 
 // Ensure the global `wp` object exists.
 window.wp = window.wp || {};
@@ -26,7 +31,7 @@ window.wp = window.wp || {};
 
 	_.extend( wp.mce.View.prototype, {
 		initialize: function() {},
-		html: function() {},
+		getHtml: function() {},
 		render: function() {
 			var html = this.getHtml();
 			// Search all tinymce editor instances and update the placeholders
@@ -267,27 +272,32 @@ window.wp = window.wp || {};
 
 			fetch: function() {
 				this.attachments = wp.media.gallery.attachments( this.shortcode, this.postID );
-				this.attachments.more().done( _.bind( this.render, this ) );
+				this.dfd = this.attachments.more().done( _.bind( this.render, this ) );
 			},
 
 			getHtml: function() {
 				var attrs = this.shortcode.attrs.named,
-					options,
-					attachments;
+					attachments = false,
+					options;
 
-				if ( ! this.attachments.length ) {
+				// Don't render errors while still fetching attachments
+				if ( this.dfd && 'pending' === this.dfd.state() && ! this.attachments.length ) {
 					return;
 				}
 
-				attachments = this.attachments.toJSON();
+				if ( this.attachments.length ) {
+					attachments = this.attachments.toJSON();
 
-				_.each( attachments, function( attachment ) {
-					if ( attachment.sizes.thumbnail ) {
-						attachment.thumbnail = attachment.sizes.thumbnail;
-					} else {
-						attachment.thumbnail = attachment.sizes.full;
-					}
-				} );
+					_.each( attachments, function( attachment ) {
+						if ( attachment.sizes ) {
+							if ( attachment.sizes.thumbnail ) {
+								attachment.thumbnail = attachment.sizes.thumbnail;
+							} else if ( attachment.sizes.full ) {
+								attachment.thumbnail = attachment.sizes.full;
+							}
+						}
+					} );
+				}
 
 				options = {
 					attachments: attachments,
@@ -449,14 +459,9 @@ window.wp = window.wp || {};
 
 			media = wp.media.view.MediaDetails.prepareSrc( media.get(0) );
 
-			// Thanks, Firefox!
-			if ( firefox ) {
-				setTimeout( function() {
-					self.player = new MediaElementPlayer( media, this.mejsSettings );
-				}, 50 );
-			} else {
-				this.player = new MediaElementPlayer( media, this.mejsSettings );
-			}
+			setTimeout( function() {
+				self.player = new MediaElementPlayer( media, this.mejsSettings );
+			}, 75 );
 		},
 
 		/**

@@ -771,30 +771,27 @@ final class WP_Customize_Header_Image_Control extends WP_Customize_Image_Control
 		?>
 		<script type="text/template" id="tmpl-header-choice">
 			<# if (data.random) { #>
-
-			<div class="placeholder random">
-				<div class="inner">
-					<span><span class="dashicons dashicons-randomize dice"></span>
-					<# if ( data.type === 'uploaded' ) { #>
-						<?php _e( 'Randomize uploaded headers' ); ?>
-					<# } else if ( data.type === 'default' ) { #>
-						<?php _e( 'Randomize suggested headers' ); ?>
-					<# } #>
-					</span>
-				</div>
-			</div>
+					<button type="button" class="button display-options random">
+						<span class="dashicons dashicons-randomize dice"></span>
+						<# if ( data.type === 'uploaded' ) { #>
+							<?php _e( 'Randomize uploaded headers' ); ?>
+						<# } else if ( data.type === 'default' ) { #>
+							<?php _e( 'Randomize suggested headers' ); ?>
+						<# } #>
+					</button>
 
 			<# } else { #>
 
 			<# if (data.type === 'uploaded') { #>
-			<div class="dashicons dashicons-no close"></div>
+				<div class="dashicons dashicons-no close"></div>
 			<# } #>
 
-			<a href="#" class="choice thumbnail #>"
+			<button type="button" class="choice thumbnail"
 				data-customize-image-value="{{{data.header.url}}}"
 				data-customize-header-image-data="{{JSON.stringify(data.header)}}">
-				<img src="{{{data.header.thumbnail_url}}}">
-			</a>
+				<span class="screen-reader-text"><?php _e( 'Set image' ); ?></span>
+				<img src="{{{data.header.thumbnail_url}}}" alt="{{{data.header.alt_text || data.header.description}}}">
+			</button>
 
 			<# } #>
 		</script>
@@ -817,7 +814,7 @@ final class WP_Customize_Header_Image_Control extends WP_Customize_Image_Control
 
 				<# } else { #>
 
-			<img src="{{{data.header.thumbnail_url}}}" />
+			<img src="{{{data.header.thumbnail_url}}}" alt="{{{data.header.alt_text || data.header.description}}}" tabindex="0"/>
 
 				<# } #>
 			<# } else { #>
@@ -856,7 +853,7 @@ final class WP_Customize_Header_Image_Control extends WP_Customize_Image_Control
 			<p class="customizer-section-intro">
 				<?php
 				// @todo translate (and look to custom-header.php for inspiration)
-				echo ( 'Personalize your site with your own header image.' );
+				echo ( 'Personalize your site with your own header image.' ) . ' ';
 				if ( $width && $height ) {
 					printf( ( 'While you can crop images to your liking after clicking <strong>Add new</strong>, your theme recommends a header size of <strong>%d &times; %d</strong> pixels.' ), $width, $height );
 				} elseif ( $width ) {
@@ -875,9 +872,9 @@ final class WP_Customize_Header_Image_Control extends WP_Customize_Image_Control
 			</div>
 			<div class="actions">
 				<?php /* translators: Hide as in hide header image via the Customizer */ ?>
-				<a href="#" <?php echo $visibility ?> class="button remove"><?php _ex( 'Hide', 'custom header' ); ?></a>
+				<button type="button"<?php echo $visibility ?> class="button remove"><?php _ex( 'Hide image', 'custom header' ); ?></button>
 				<?php /* translators: New as in add new header image via the Customizer */ ?>
-				<a href="#" class="button new"><?php _ex( 'Add new', 'header image' ); ?></a>
+				<button type="button" class="button new"><?php _ex( 'Add new image', 'header image' ); ?></button>
 				<div style="clear:both"></div>
 			</div>
 			<div class="choices">
@@ -920,12 +917,12 @@ class WP_Widget_Area_Customize_Control extends WP_Customize_Control {
 	public function render_content() {
 		?>
 		<span class="button-secondary add-new-widget" tabindex="0">
-			<?php esc_html_e( 'Add a Widget' ); ?>
+			<?php _e( 'Add a Widget' ); ?>
 		</span>
 
 		<span class="reorder-toggle" tabindex="0">
-			<span class="reorder"><?php esc_html_e( 'Reorder' ); ?></span>
-			<span class="reorder-done"><?php esc_html_e( 'Done' ); ?></span>
+			<span class="reorder"><?php _ex( 'Reorder', 'Reorder widgets in Customizer' ); ?></span>
+			<span class="reorder-done"><?php _ex( 'Done', 'Cancel reordering widgets in Customizer'  ); ?></span>
 		</span>
 		<?php
 	}
@@ -943,11 +940,10 @@ class WP_Widget_Form_Customize_Control extends WP_Customize_Control {
 	public $width;
 	public $height;
 	public $is_wide = false;
-	public $is_live_previewable = false;
 
 	public function to_json() {
 		parent::to_json();
-		$exported_properties = array( 'widget_id', 'widget_id_base', 'sidebar_id', 'width', 'height', 'is_wide', 'is_live_previewable' );
+		$exported_properties = array( 'widget_id', 'widget_id_base', 'sidebar_id', 'width', 'height', 'is_wide' );
 		foreach ( $exported_properties as $key ) {
 			$this->json[ $key ] = $this->$key;
 		}

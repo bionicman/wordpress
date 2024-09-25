@@ -57,6 +57,7 @@ tinymce.PluginManager.add( 'wordpress', function( editor ) {
 		cmd: 'WP_Adv',
 		onPostRender: function() {
 			wpAdvButton = this;
+			wpAdvButton.active( getUserSetting( 'hidetb' ) === '1' ? true : false );
 		}
 	});
 
@@ -180,6 +181,7 @@ tinymce.PluginManager.add( 'wordpress', function( editor ) {
 	editor.addCommand( 'WP_Help', function() {
 		editor.windowManager.open({
 			url: tinymce.baseURL + '/wp-mce-help.php',
+			title: 'Keyboard Shortcuts',
 			width: 450,
 			height: 420,
 			inline: 1,
@@ -209,7 +211,7 @@ tinymce.PluginManager.add( 'wordpress', function( editor ) {
 	});
 
 	editor.addButton( 'wp_help', {
-		tooltip: 'Help',
+		tooltip: 'Keyboard Shortcuts',
 		cmd: 'WP_Help'
 	});
 
@@ -310,12 +312,14 @@ tinymce.PluginManager.add( 'wordpress', function( editor ) {
 			window.jQuery( document ).triggerHandler( 'tinymce-editor-init', [editor] );
 		}
 
-		dom.bind( doc, 'dragstart dragend dragover drop', function( event ) {
-			if ( typeof window.jQuery !== 'undefined' ) {
-				// Trigger the jQuery handlers.
-				window.jQuery( document ).triggerHandler( event.type );
-			}
-		});
+		if ( window.tinyMCEPreInit && window.tinyMCEPreInit.dragDropUpload ) {
+			dom.bind( doc, 'dragstart dragend dragover drop', function( event ) {
+				if ( typeof window.jQuery !== 'undefined' ) {
+					// Trigger the jQuery handlers.
+					window.jQuery( document ).triggerHandler( event.type );
+				}
+			});
+		}
 	});
 
 	// Word count

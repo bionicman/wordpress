@@ -33,6 +33,13 @@ $sections = array(
 	'new'      => __( 'Newest Themes' ),
 );
 
+$installed_themes = search_theme_directories();
+foreach ( $installed_themes as $k => $v ) {
+	if ( false !== strpos( $k, '/' ) ) {
+		unset( $installed_themes[ $k ] );
+	}
+}
+
 wp_localize_script( 'theme', '_wpThemeSettings', array(
 	'themes'   => false,
 	'settings' => array(
@@ -51,6 +58,7 @@ wp_localize_script( 'theme', '_wpThemeSettings', array(
 		'back'   => __( 'Back' ),
 		'error'  => ( 'There was a problem trying to load the themes. Please, try again.' ), // @todo improve
 	),
+	'installedThemes' => array_keys( $installed_themes ),
 	'browse' => array(
 		'sections' => $sections,
 	),
@@ -118,15 +126,22 @@ include(ABSPATH . 'wp-admin/admin-header.php');
 		<a class="theme-section" href="#" data-sort="popular"><?php _ex( 'Popular', 'themes' ); ?></a>
 		<a class="theme-section" href="#" data-sort="new"><?php _ex( 'Latest', 'themes' ); ?></a>
 		<div class="theme-top-filters">
-			<!--<span class="theme-filter" data-filter="photoblogging">Photography</span>
-			<span class="theme-filter" data-filter="responsive-layout">Responsive</span>-->
+			<!-- <span class="theme-filter" data-filter="photoblogging">Photography</span>
+			<span class="theme-filter" data-filter="responsive-layout">Responsive</span> -->
 			<a class="more-filters" href="#"><?php _e( 'Feature Filter' ); ?></a>
 		</div>
 		<div class="more-filters-container">
+			<a class="apply-filters button button-secondary" href="#"><?php _e( 'Apply Filters' ); ?><span></span></a>
+			<a class="clear-filters button button-secondary" href="#"><?php _e( 'Clear' ); ?></a>
+			<br class="clear" />
 		<?php
 		$feature_list = get_theme_feature_list();
 		foreach ( $feature_list as $feature_name => $features ) {
-			echo '<div class="filters-group">';
+			if ( $feature_name === 'Features' || $feature_name === __( 'Features' ) ) { // hack hack hack
+				echo '<div class="filters-group wide-filters-group">';
+			} else {
+				echo '<div class="filters-group">';
+			}
 			$feature_name = esc_html( $feature_name );
 			echo '<h4 class="feature-name">' . $feature_name . '</h4>';
 			echo '<ol class="feature-group">';
@@ -139,13 +154,17 @@ include(ABSPATH . 'wp-admin/admin-header.php');
 			echo '</div>';
 		}
 		?>
-			<br class="clear" />
+			<div class="filtering-by">
+				<span><?php _e( 'Filtering by:' ); ?></span>
+				<div class="tags"></div>
+				<a href="#"><?php _e( 'Edit' ); ?></a>
+			</div>
 		</div>
 	</div>
 	<div class="theme-browser"></div>
-	<div class="theme-overlay"></div>
-	<div id="theme-installer" class="wp-full-overlay expanded"></div>
+	<div class="theme-install-overlay wp-full-overlay expanded"></div>
 
+	<p class="no-themes"><?php _e( 'No themes found. Try a different search.' ); ?></p>
 	<span class="spinner"></span>
 
 	<br class="clear" />
@@ -183,13 +202,21 @@ if ( $tab ) {
 		<a class="button button-primary" href="{{ data.installURI }}"><?php esc_html_e( 'Install' ); ?></a>
 		<a class="button button-secondary preview install-theme-preview" href="#"><?php esc_html_e( 'Preview' ); ?></a>
 	</div>
+
+	<# if ( data.installed ) { #>
+		<div class="theme-installed"><?php _e( 'Already Installed' ); ?></div>
+	<# } #>
 </script>
 
 <script id="tmpl-theme-preview" type="text/template">
 	<div class="wp-full-overlay-sidebar">
 		<div class="wp-full-overlay-header">
-			<a href="" class="close-full-overlay button-secondary"><?php _e( 'Close' ); ?></a>
+			<a href="#" class="close-full-overlay button-secondary"><?php _e( 'Close' ); ?></a>
+		<# if ( data.installed ) { #>
+			<a href="#" class="button button-primary theme-install disabled"><?php _e( 'Installed' ); ?></a>
+		<# } else { #>
 			<a href="{{ data.installURI }}" class="button button-primary theme-install"><?php _e( 'Install' ); ?></a>
+		<# } #>
 		</div>
 		<div class="wp-full-overlay-sidebar-content">
 			<div class="install-theme-info">
@@ -205,18 +232,26 @@ if ( $tab ) {
 						<span class="three"></span>
 						<span class="four"></span>
 						<span class="five"></span>
-						<p class="votes"><?php printf( __( 'Based on %s ratings.' ), '{{ data.num_ratings }}' ); ?></p>
+					<# if ( data.num_ratings ) { #>
+						<p class="ratings">({{ data.num_ratings }})</p>
+					<# } else { #>
+						<p class="ratings"><?php _e( 'No ratings.' ); ?></p>
+					<# } #>
 					</div>
 					<div class="theme-version"><?php printf( __( 'Version: %s' ), '{{ data.version }}' ); ?></div>
-					<div class="theme-description">{{ data.description }}</div>
+					<div class="theme-description">{{{ data.description }}}</div>
 				</div>
 			</div>
 		</div>
 		<div class="wp-full-overlay-footer">
-			<a href="" class="collapse-sidebar" title="<?php esc_attr_e( 'Collapse Sidebar' ); ?>">
+			<a href="#" class="collapse-sidebar" title="<?php esc_attr_e( 'Collapse Sidebar' ); ?>">
 				<span class="collapse-sidebar-label"><?php _e( 'Collapse' ); ?></span>
 				<span class="collapse-sidebar-arrow"></span>
 			</a>
+			<div class="theme-navigation">
+				<a class="previous-theme button" href="#"><?php _e( 'Previous' ); ?></a>
+				<a class="next-theme button" href="#"><?php _e( 'Next' ); ?></a>
+			</div>
 		</div>
 	</div>
 	<div class="wp-full-overlay-main">

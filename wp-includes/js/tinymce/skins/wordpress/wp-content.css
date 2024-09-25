@@ -41,7 +41,10 @@ dl.aligncenter {
 }
 
 .html5-captions .wp-caption {
-	padding: 4px;
+	border: none;
+	background-color: transparent;
+	margin: 0;
+	padding: 0;
 }
 
 .mceIEcenter {
@@ -80,6 +83,11 @@ td {
 	margin: 8px;
 }
 
+/* Remove blue highlighting of selected images in WebKit */
+img::selection {
+	background-color: transparent;
+}
+
 /* Styles for the WordPress plugins */
 .mce-content-body img[data-mce-placeholder] {
 	border-radius: 0;
@@ -91,32 +99,25 @@ td {
 	border: 0;
 	-webkit-box-shadow: none;
 	box-shadow: none;
-	width: 95%;
-	height: 10px;
+	width: 96%;
+	height: 16px;
 	display: block;
 	margin: 15px auto 0;
 	outline: 0;
 	cursor: default;
 }
 
-/* Remove blue highlighting of selected images in WebKit */
-img::selection {
-	background-color: transparent;
-}
-
 .mce-content-body img.mce-wp-nextpage[data-mce-selected],
 .mce-content-body img.mce-wp-more[data-mce-selected] {
-	background-color: rgba(128,128,128,0.2);
 	outline: 1px dotted #888;
-	border-color: transparent;
 }
 
 .mce-content-body img.mce-wp-more {
-	border-top: 2px dashed #bbb;
+	background: transparent url( images/more.png ) repeat-y scroll center center;
 }
 
 .mce-content-body img.mce-wp-nextpage {
-    border-top: 3px dotted #bbb;
+    background: transparent url( images/pagebreak.png ) repeat-y scroll center center;
 }
 
 /* Gallery, audio, video placeholders */
@@ -296,17 +297,6 @@ audio {
 	text-align: center;
 }
 
-.wpview-type-video .track-details,
-.wpview-type-audio .track-details {
-	position: absolute;
-	top: 0;
-	left: 5px;
-	width: 85%;
-	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
-}
-
 .wpview-type-gallery:after {
     content: '';
 	display: table;
@@ -326,6 +316,30 @@ audio {
 	padding: 6px 0;
 	line-height: 1;
 	overflow-x: hidden;
+}
+
+.gallery-error {
+	border: 1px solid #dedede;
+	padding: 20px 0;
+	margin: 0;
+}
+
+.selected .gallery-error {
+	border-color: transparent;
+}
+
+.gallery-error .dashicons {
+	display: block;
+	margin: 0 auto;
+	width: 32px;
+	height: 32px;
+	font-size: 32px;
+}
+
+.gallery-error p {
+	margin: 0;
+	text-align: center;
+	font-family: 'Open Sans', sans-serif;
 }
 
 .gallery .gallery-item {
@@ -395,4 +409,20 @@ img.wp-oembed {
 	width: 300px;
 	height: 250px;
 	outline: 0;
+}
+
+@media print,
+	(-o-min-device-pixel-ratio: 5/4),
+	(-webkit-min-device-pixel-ratio: 1.25),
+	(min-resolution: 120dpi) {
+
+	.mce-content-body img.mce-wp-more {
+		background-image: url( images/more-2x.png );
+		background-size: 1900px 20px;
+	}
+
+	.mce-content-body img.mce-wp-nextpage {
+    	background-image: url( images/pagebreak-2x.png );
+		background-size: 1900px 20px;
+	}
 }

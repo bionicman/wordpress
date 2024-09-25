@@ -23,19 +23,22 @@
 	opacity: 0.5;
 }
 
-
-.customize-control-widget_form .widget-control-save {
+.customize-control-widget_form .widget-control-save,
+.customize-control-widget_form .spinner {
 	display: none;
 }
 
-.customize-control-widget_form .spinner {
-	display: inline;
-	opacity: 0.0;
-	-webkit-transition: opacity 0.1s;
-	transition: opacity 0.1s;
-}
 .customize-control-widget_form.previewer-loading .spinner {
-	opacity: 1.0;
+	display: inline;
+}
+
+.customize-control-widget_form.widget-form-disabled .widget-content {
+	opacity: 0.7;
+	pointer-events: none;
+	-moz-user-select: none;
+	-webkit-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
 }
 
 .customize-control-widget_form .widget {
@@ -92,8 +95,8 @@
 	cursor: move;
 }
 
-.control-section.accordion-section.widget-customizer-highlighted > .accordion-section-title,
-.customize-control-widget_form.widget-customizer-highlighted {
+.control-section.accordion-section.highlighted > .accordion-section-title,
+.customize-control-widget_form.highlighted {
 	outline: none;
 	-webkit-box-shadow: 0 0 2px rgba(30,140,190,0.8);
 	box-shadow: 0 0 2px rgba(30,140,190,0.8);
@@ -104,13 +107,6 @@
 #widget-customizer-control-templates {
 	display: none;
 }
-
-
-/* MP6-compat */
-#customize-theme-controls .accordion-section-content .widget {
-	color: black;
-}
-
 
 /**
 * Widget reordering styles
@@ -174,9 +170,11 @@
 	right: 0;
 	width: 100%;
 	height: 100%;
-	font: normal normal 20px/43px 'Genericons';
+	font: normal 20px/43px 'dashicons';
 	text-align: center;
 	text-indent: 0;
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 .widget-reorder-nav span:hover,
@@ -186,15 +184,15 @@
 }
 
 .move-widget:before {
-	content: '\f442';
+	content: '\f504';
 }
 
 .move-widget-down:before {
-	content: '\f431';
+	content: '\f347';
 }
 
 .move-widget-up:before {
-	content: '\f432';
+	content: '\f343';
 }
 
 #customize-theme-controls .first-widget .move-widget-up,
@@ -242,13 +240,13 @@
 
 #customize-theme-controls .widget-area-select li:before {
 	display: none;
-	content: '\f418';
+	content: '\f147';
 	position: absolute;
-	top: 10px;
+	top: 12px;
 	left: 10px;
-	font-family: 'Genericons';
-	font-size: 24px;
-	line-height: 1;
+	font: normal 20px/1 'dashicons';
+	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 #customize-theme-controls .widget-area-select li:last-child {
@@ -312,18 +310,19 @@
 	content: "\f132";
 	display: inline-block;
 	position: relative;
-		left: -2px;
-		top: -1px;
-	font: normal 16px/1 'dashicons';
+	left: -2px;
+	top: -1px;
+	font: normal 20px/1 'dashicons';
 	vertical-align: middle;
 	-webkit-transition: all 0.2s;
 	transition: all 0.2s;
 	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 body.adding-widget .add-new-widget,
 body.adding-widget .add-new-widget:hover {
-	background: #EEE;
+	background: #eee;
 	border-color: #999;
 	color: #333;
 	-webkit-box-shadow: inset 0 2px 5px -3px rgba(0, 0, 0, 0.5);
@@ -422,18 +421,17 @@ body.adding-widget #customize-preview {
 }
 
 
-/** Widget Icon styling **
-
-* No plurals in naming.
-* Ordered from lowest to highest specificity.
-
-**/
+/**
+ * Widget Icon styling
+ * No plurals in naming.
+ * Ordered from lowest to highest specificity.
+ **/
 #available-widgets .widget-title {
 	position: relative;
 }
 
 #available-widgets .widget-title:before {
-	content:"\f132";
+	content: "\f132";
 	position: absolute;
 	top: -3px;
 	right: 100%;
@@ -441,14 +439,13 @@ body.adding-widget #customize-preview {
 	width: 20px;
 	height: 20px;
 	color: #333;
-	font: normal 20px/1 'dashicons', 'widgeticons';
+	font: normal 20px/1 'dashicons';
 	text-align: center;
-	-webkit-border-radius: 2px;
-	border-radius: 2px;
 	-webkit-box-sizing: border-box;
 	-moz-box-sizing: border-box;
 	box-sizing: border-box;
 	-webkit-font-smoothing: antialiased;
+	-moz-osx-font-smoothing: grayscale;
 }
 
 /* smiley */
@@ -610,6 +607,6 @@ body.adding-widget #customize-preview {
 		padding: 9px 15px 11px 42px;
 	}
 	#customize-theme-controls .widget-area-select li:before {
-		top: 6px;
+		top: 8px;
 	}
 }

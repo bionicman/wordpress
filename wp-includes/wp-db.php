@@ -549,6 +549,15 @@ class wpdb {
 	private $use_mysqli = false;
 
 	/**
+	 * Whether we've managed to successfully connect at some point
+	 *
+	 * @since 3.9.0
+	 * @access private
+	 * @var bool
+	 */
+	private $has_connected = false;
+
+	/**
 	 * Connects to the database server and selects a database
 	 *
 	 * PHP5 style constructor for compatibility with PHP5. Does
@@ -570,14 +579,14 @@ class wpdb {
 			$this->show_errors();
 
 		/* Use ext/mysqli if it exists and:
-		 *  - USE_EXT_MYSQL is defined as false, or
+		 *  - WP_USE_EXT_MYSQL is defined as false, or
 		 *  - We are a development version of WordPress, or
 		 *  - We are running PHP 5.5 or greater, or
 		 *  - ext/mysql is not loaded.
 		 */
 		if ( function_exists( 'mysqli_connect' ) ) {
-			if ( defined( 'USE_EXT_MYSQL' ) ) {
-				$this->use_mysqli = ! USE_EXT_MYSQL;
+			if ( defined( 'WP_USE_EXT_MYSQL' ) ) {
+				$this->use_mysqli = ! WP_USE_EXT_MYSQL;
 			} elseif ( version_compare( phpversion(), '5.5', '>=' ) || ! function_exists( 'mysql_connect' ) ) {
 				$this->use_mysqli = true;
 			} elseif ( false !== strpos( $GLOBALS['wp_version'], '-' ) ) {
@@ -1290,12 +1299,13 @@ class wpdb {
 	/**
 	 * Connect to and select database.
 	 *
+	 * If $allow_bail is false, the lack of database connection will need
+	 * to be handled manually.
+	 *
 	 * @since 3.0.0
+	 * @since 3.9.0 $allow_bail parameter added.
 	 *
-	 * @param bool $allow_bail Optional. Allows the function to bail, default true. If this is set
-	 *                         to false, you will need to handle the lack of database connection
-	 *                         manually. Available since 3.9.0.
-	 *
+	 * @param bool $allow_bail Optional. Allows the function to bail. Default true.
 	 * @return bool True with a successful connection, false on failure.
 	 */
 	function db_connect( $allow_bail = true ) {
@@ -1336,6 +1346,26 @@ class wpdb {
 
 			if ( $this->dbh->connect_errno ) {
 				$this->dbh = null;
+
+				/* It's possible ext/mysqli is misconfigured. Fall back to ext/mysql if:
+		 		 *  - We haven't previously connected, and
+		 		 *  - WP_USE_EXT_MYSQL isn't set to false, and
+		 		 *  - ext/mysql is loaded.
+		 		 */
+				$attempt_fallback = true;
+
+				if ( $this->has_connected ) {
+					$attempt_fallback = false;
+				} else if ( defined( 'WP_USE_EXT_MYSQL' ) && ! WP_USE_EXT_MYSQL ) {
+					$attempt_fallback = false;
+				} else if ( ! function_exists( 'mysql_connect' ) ) {
+					$attempt_fallback = false;
+				}
+
+				if ( $attempt_fallback ) {
+					$this->use_mysqli = false;
+					$this->db_connect();
+				}
 			}
 		} else {
 			if ( WP_DEBUG ) {
@@ -1367,6 +1397,7 @@ class wpdb {
 
 			return false;
 		} else if ( $this->dbh ) {
+			$this->has_connected = true;
 			$this->set_charset( $this->dbh );
 			$this->set_sql_mode();
 			$this->ready = true;
@@ -1384,11 +1415,15 @@ class wpdb {
 	 * If this function is unable to reconnect, it will forcibly die, or if after the
 	 * the template_redirect hook has been fired, return false instead.
 	 *
+	 * If $allow_bail is false, the lack of database connection will need
+	 * to be handled manually.
+	 *
 	 * @since 3.9.0
 	 *
+	 * @param bool $allow_bail Optional. Allows the function to bail. Default true.
 	 * @return bool True if the connection is up.
 	 */
-	function check_connection() {
+	function check_connection( $allow_bail = true ) {
 		if ( $this->use_mysqli ) {
 			if ( @mysqli_ping( $this->dbh ) ) {
 				return true;
@@ -1428,6 +1463,10 @@ class wpdb {
 		// If template_redirect has already happened, it's too late for wp_die()/dead_db().
 		// Let's just return and hope for the best.
 		if ( did_action( 'template_redirect' ) ) {
+			return false;
+		}
+
+		if ( ! $allow_bail ) {
 			return false;
 		}
 
@@ -1560,14 +1599,14 @@ class wpdb {
 	}
 
 	/**
-	 * Internal function to perform the mysql_query call
+	 * Internal function to perform the mysql_query() call.
 	 *
 	 * @since 3.9.0
 	 *
 	 * @access private
 	 * @see wpdb::query()
 	 *
-	 * @param string $query The query to run
+	 * @param string $query The query to run.
 	 */
 	private function _do_query( $query ) {
 		if ( defined( 'SAVEQUERIES' ) && SAVEQUERIES ) {
@@ -1924,7 +1963,7 @@ class wpdb {
 
 		if ( $this->use_mysqli ) {
 			for ( $i = 0; $i < @mysqli_num_fields( $this->result ); $i++ ) {
-				$this->col_info[ $i ] = @mysqli_fetch_field( $this->result, $i );
+				$this->col_info[ $i ] = @mysqli_fetch_field( $this->result );
 			}
 		} else {
 			for ( $i = 0; $i < @mysql_num_fields( $this->result ); $i++ ) {
