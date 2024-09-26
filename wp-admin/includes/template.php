@@ -120,7 +120,7 @@ function wp_terms_checklist( $post_id = 0, $args = array() ) {
 	$args['list_only'] = ! empty( $parsed_args['list_only'] );
 
 	if ( is_array( $parsed_args['selected_cats'] ) ) {
-		$args['selected_cats'] = $parsed_args['selected_cats'];
+		$args['selected_cats'] = array_map( 'intval', $parsed_args['selected_cats'] );
 	} elseif ( $post_id ) {
 		$args['selected_cats'] = wp_get_object_terms( $post_id, $taxonomy, array_merge( $args, array( 'fields' => 'ids' ) ) );
 	} else {
@@ -128,7 +128,7 @@ function wp_terms_checklist( $post_id = 0, $args = array() ) {
 	}
 
 	if ( is_array( $parsed_args['popular_cats'] ) ) {
-		$args['popular_cats'] = $parsed_args['popular_cats'];
+		$args['popular_cats'] = array_map( 'intval', $parsed_args['popular_cats'] );
 	} else {
 		$args['popular_cats'] = get_terms(
 			array(
@@ -1014,14 +1014,14 @@ function wp_import_upload_form( $action ) {
  *                                              add_submenu_page() to create a new screen (and hence screen_id),
  *                                              make sure your menu slug conforms to the limits of sanitize_key()
  *                                              otherwise the 'screen' menu may not correctly render on your page.
- * @param string                 $context       Optional. The context within the screen where the boxes
+ * @param string                 $context       Optional. The context within the screen where the box
  *                                              should display. Available contexts vary from screen to
  *                                              screen. Post edit screen contexts include 'normal', 'side',
  *                                              and 'advanced'. Comments screen contexts include 'normal'
  *                                              and 'side'. Menus meta boxes (accordion sections) all use
  *                                              the 'side' context. Global default is 'advanced'.
- * @param string                 $priority      Optional. The priority within the context where the boxes
- *                                              should show ('high', 'low'). Default 'default'.
+ * @param string                 $priority      Optional. The priority within the context where the box should show.
+ *                                              Accepts 'high', 'core', 'default', or 'low'. Default 'default'.
  * @param array                  $callback_args Optional. Data that should be set as the $args property
  *                                              of the box array (which is the second parameter passed
  *                                              to your callback). Default null.
@@ -1321,7 +1321,7 @@ function do_meta_boxes( $screen, $context, $object ) {
 						echo '<span aria-hidden="true" class="dashicons dashicons-warning"></span>';
 						echo '<span class="screen-reader-text">' . __( 'Warning:' ) . ' </span>';
 					}
-					echo "{$box['title']}";
+					echo $box['title'];
 					echo "</h2>\n";
 
 					if ( 'dashboard_browser_nag' !== $box['id'] ) {
@@ -1335,7 +1335,7 @@ function do_meta_boxes( $screen, $context, $object ) {
 
 						echo '<div class="handle-actions hide-if-no-js">';
 
-						echo '<button type="button" class="handle-order-higher" aria-disabled="false" aria-describedby="' . $box['id'] . '-handle-order-higher-description">';
+						echo '<button type="button" class="handle-order-higher postbox-arrange-arrow hidden" aria-disabled="true" aria-describedby="' . $box['id'] . '-handle-order-higher-description">';
 						echo '<span class="screen-reader-text">' . __( 'Move up' ) . '</span>';
 						echo '<span class="order-higher-indicator" aria-hidden="true"></span>';
 						echo '</button>';
@@ -1345,7 +1345,7 @@ function do_meta_boxes( $screen, $context, $object ) {
 							$widget_title
 						) . '</span>';
 
-						echo '<button type="button" class="handle-order-lower" aria-disabled="false" aria-describedby="' . $box['id'] . '-handle-order-lower-description">';
+						echo '<button type="button" class="handle-order-lower postbox-arrange-arrow hidden" aria-disabled="true" aria-describedby="' . $box['id'] . '-handle-order-lower-description">';
 						echo '<span class="screen-reader-text">' . __( 'Move down' ) . '</span>';
 						echo '<span class="order-lower-indicator" aria-hidden="true"></span>';
 						echo '</button>';
@@ -1797,7 +1797,16 @@ function add_settings_error( $setting, $code, $message, $type = 'error' ) {
  *
  * @param string $setting  Optional. Slug title of a specific setting whose errors you want.
  * @param bool   $sanitize Optional. Whether to re-sanitize the setting value before returning errors.
- * @return array Array of settings errors.
+ * @return array {
+ *     Array of settings errors.
+ *
+ *     @type string $setting Slug title of the setting to which this error applies.
+ *     @type string $code    Slug-name to identify the error. Used as part of 'id' attribute in HTML output.
+ *     @type string $message The formatted message text to display to the user (will be shown inside styled
+ *                           `<div>` and `<p>` tags).
+ *     @type string $type    Optional. Message type, controls HTML class. Possible values include 'error',
+ *                           'success', 'warning', 'info'. Default 'error'.
+ * }
  */
 function get_settings_errors( $setting = '', $sanitize = false ) {
 	global $wp_settings_errors;
@@ -2196,16 +2205,16 @@ function get_post_states( $post ) {
 	}
 
 	if ( 'page' === get_option( 'show_on_front' ) ) {
-		if ( intval( get_option( 'page_on_front' ) ) === $post->ID ) {
+		if ( (int) get_option( 'page_on_front' ) === $post->ID ) {
 			$post_states['page_on_front'] = _x( 'Front Page', 'page label' );
 		}
 
-		if ( intval( get_option( 'page_for_posts' ) ) === $post->ID ) {
+		if ( (int) get_option( 'page_for_posts' ) === $post->ID ) {
 			$post_states['page_for_posts'] = _x( 'Posts Page', 'page label' );
 		}
 	}
 
-	if ( intval( get_option( 'wp_page_for_privacy_policy' ) ) === $post->ID ) {
+	if ( (int) get_option( 'wp_page_for_privacy_policy' ) === $post->ID ) {
 		$post_states['page_for_privacy_policy'] = _x( 'Privacy Policy Page', 'page label' );
 	}
 
@@ -2214,6 +2223,9 @@ function get_post_states( $post ) {
 	 *
 	 * @since 2.8.0
 	 * @since 3.6.0 Added the `$post` parameter.
+	 * @since 5.5.0 Also applied in the Customizer context. If any admin functions
+	 *              are used within the filter, their existence should be checked
+	 *              with `function_exists()` before being used.
 	 *
 	 * @param string[] $post_states An array of post display states.
 	 * @param WP_Post  $post        The current post object.
@@ -2225,10 +2237,45 @@ function get_post_states( $post ) {
  * Outputs the attachment media states as HTML.
  *
  * @since 3.2.0
+ * @since 5.6.0 Added the `$echo` parameter and a return value.
  *
  * @param WP_Post $post The attachment post to retrieve states for.
+ * @param bool    $echo Optional. Whether to echo the post states as an HTML string. Default true.
+ * @return string Media states string.
  */
-function _media_states( $post ) {
+function _media_states( $post, $echo = true ) {
+	$media_states        = get_media_states( $post );
+	$media_states_string = '';
+
+	if ( ! empty( $media_states ) ) {
+		$state_count = count( $media_states );
+		$i           = 0;
+
+		$media_states_string .= ' &mdash; ';
+
+		foreach ( $media_states as $state ) {
+			$sep = ( ++$i === $state_count ) ? '' : ', ';
+
+			$media_states_string .= "<span class='post-state'>$state$sep</span>";
+		}
+	}
+
+	if ( $echo ) {
+		echo $media_states_string;
+	}
+
+	return $media_states_string;
+}
+
+/**
+ * Retrieves an array of media states from an attachment.
+ *
+ * @since 5.6.0
+ *
+ * @param WP_Post $post The attachment to retrieve states for.
+ * @return string[] Array of media state labels keyed by their state.
+ */
+function get_media_states( $post ) {
 	static $header_images;
 
 	$media_states = array();
@@ -2256,6 +2303,13 @@ function _media_states( $post ) {
 			// Display "Current Header Image" if the image is currently the header image.
 			if ( $header_image && wp_get_attachment_url( $post->ID ) === $header_image ) {
 				$media_states[] = __( 'Current Header Image' );
+			}
+		}
+
+		if ( get_theme_support( 'custom-header', 'video' ) && has_header_video() ) {
+			$mods = get_theme_mods();
+			if ( isset( $mods['header_video'] ) && $post->ID === $mods['header_video'] ) {
+				$media_states[] = __( 'Current Header Video' );
 			}
 		}
 	}
@@ -2291,20 +2345,7 @@ function _media_states( $post ) {
 	 *                               'Background Image', 'Site Icon', 'Logo'.
 	 * @param WP_Post  $post         The current attachment object.
 	 */
-	$media_states = apply_filters( 'display_media_states', $media_states, $post );
-
-	if ( ! empty( $media_states ) ) {
-		$state_count = count( $media_states );
-		$i           = 0;
-
-		echo ' &mdash; ';
-
-		foreach ( $media_states as $state ) {
-			$sep = ( ++$i === $state_count ) ? '' : ', ';
-
-			echo "<span class='post-state'>$state$sep</span>";
-		}
-	}
+	 return apply_filters( 'display_media_states', $media_states, $post );
 }
 
 /**

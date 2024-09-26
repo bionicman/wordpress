@@ -27,6 +27,10 @@ if ( ! $user_id && IS_PROFILE_PAGE ) {
 
 wp_enqueue_script( 'user-profile' );
 
+if ( wp_is_application_passwords_available_for_user( $user_id ) ) {
+	wp_enqueue_script( 'application-passwords' );
+}
+
 if ( IS_PROFILE_PAGE ) {
 	$title = __( 'Profile' );
 } else {
@@ -628,7 +632,7 @@ endif;
 	<th><label for="pass1"><?php _e( 'New Password' ); ?></label></th>
 	<td>
 		<input class="hidden" value=" " /><!-- #24364 workaround -->
-		<button type="button" class="button wp-generate-pw hide-if-no-js"><?php _e( 'Generate Password' ); ?></button>
+		<button type="button" class="button wp-generate-pw hide-if-no-js" aria-expanded="false"><?php _e( 'Set New Password' ); ?></button>
 		<div class="wp-pwd hide-if-js">
 			<span class="password-input-wrapper">
 				<input type="password" name="pass1" id="pass1" class="regular-text" value="" autocomplete="off" data-pw="<?php echo esc_attr( wp_generate_password( 24 ) ); ?>" aria-describedby="pass-strength-result" />
@@ -637,7 +641,7 @@ endif;
 				<span class="dashicons dashicons-hidden" aria-hidden="true"></span>
 				<span class="text"><?php _e( 'Hide' ); ?></span>
 			</button>
-			<button type="button" class="button wp-cancel-pw hide-if-no-js" data-toggle="0" aria-label="<?php esc_attr_e( 'Cancel password change' ); ?>">
+			<button type="button" class="button wp-cancel-pw hide-if-no-js" data-toggle="0" aria-label="<?php esc_attr_e( 'Cancel' ); ?>">
 				<span class="dashicons dashicons-no" aria-hidden="true"></span>
 				<span class="text"><?php _e( 'Cancel' ); ?></span>
 			</button>
@@ -648,8 +652,12 @@ endif;
 <tr class="user-pass2-wrap hide-if-js">
 	<th scope="row"><label for="pass2"><?php _e( 'Repeat New Password' ); ?></label></th>
 	<td>
-	<input name="pass2" type="password" id="pass2" class="regular-text" value="" autocomplete="off" />
-	<p class="description"><?php _e( 'Type your new password again.' ); ?></p>
+	<input name="pass2" type="password" id="pass2" class="regular-text" value="" autocomplete="off" aria-describedby="pass2-desc" />
+			<?php if ( IS_PROFILE_PAGE ) : ?>
+				<p class="description" id="pass2-desc"><?php _e( 'Type your new password again.' ); ?></p>
+			<?php else : ?>
+				<p class="description" id="pass2-desc"><?php _e( 'Type the new password again.' ); ?></p>
+			<?php endif; ?>
 	</td>
 </tr>
 <tr class="pw-weak">
@@ -657,7 +665,7 @@ endif;
 	<td>
 		<label>
 			<input type="checkbox" name="pw_weak" class="pw-checkbox" />
-			<span id="pw-weak-text-label"><?php _e( 'Confirm use of potentially weak password' ); ?></span>
+			<span id="pw-weak-text-label"><?php _e( 'Confirm use of weak password' ); ?></span>
 		</label>
 	</td>
 </tr>
@@ -701,6 +709,39 @@ endif;
 <?php endif; ?>
 
 	</table>
+
+
+		<?php if ( wp_is_application_passwords_available_for_user( $user_id ) ) : ?>
+	<div class="application-passwords hide-if-no-js" id="application-passwords-section">
+		<h2><?php _e( 'Application Passwords' ); ?></h2>
+		<p><?php _e( 'Application passwords allow authentication via non-interactive systems, such as XML-RPC or the REST API, without providing your actual password. Application passwords can be easily revoked. They cannot be used for traditional logins to your website.' ); ?></p>
+		<div class="create-application-password">
+			<label for="new_application_password_name" class="screen-reader-text"><?php _e( 'New Application Password Name' ); ?></label>
+			<input type="text" size="30" id="new_application_password_name" name="new_application_password_name" placeholder="<?php esc_attr_e( 'New Application Password Name' ); ?>" class="input" />
+
+			<?php
+			/**
+			 * Fires in the create Application Passwords form.
+			 *
+			 * @since 5.6.0
+			 *
+			 * @param WP_User $profileuser The current WP_User object.
+			 */
+			do_action( 'wp_create_application_password_form', $profileuser );
+			?>
+
+			<?php submit_button( __( 'Add New' ), 'secondary', 'do_new_application_password', false ); ?>
+		</div>
+
+		<div class="application-passwords-list-table-wrapper">
+			<?php
+			$application_passwords_list_table = _get_list_table( 'WP_Application_Passwords_List_Table', array( 'screen' => 'application-passwords-user' ) );
+			$application_passwords_list_table->prepare_items();
+			$application_passwords_list_table->display();
+			?>
+		</div>
+	</div>
+<?php endif; ?>
 
 		<?php
 		if ( IS_PROFILE_PAGE ) {
@@ -787,5 +828,30 @@ endif;
 		document.getElementById('pass1').focus();
 	}
 </script>
+
+<?php if ( isset( $application_passwords_list_table ) ) : ?>
+	<script type="text/html" id="tmpl-new-application-password">
+		<div class="notice notice-success is-dismissible new-application-password-notice" role="alert" tabindex="0">
+			<p>
+				<?php
+				printf(
+					/* translators: 1: Application name, 2: Generated password. */
+					esc_html__( 'Your new password for %1$s is: %2$s' ),
+					'<strong>{{ data.name }}</strong>',
+					'<kbd>{{ data.password }}</kbd>'
+				);
+				?>
+			</p>
+			<p><?php esc_attr_e( 'Be sure to save this in a safe location. You will not be able to retrieve it.' ); ?></p>
+			<button type="button" class="notice-dismiss">
+				<span class="screen-reader-text"><?php __( 'Dismiss this notice.' ); ?></span>
+			</button>
+		</div>
+	</script>
+
+	<script type="text/html" id="tmpl-application-password-row">
+		<?php $application_passwords_list_table->print_js_template_row(); ?>
+	</script>
+<?php endif; ?>
 <?php
 require_once ABSPATH . 'wp-admin/admin-footer.php';

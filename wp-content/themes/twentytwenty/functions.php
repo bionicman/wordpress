@@ -105,6 +105,7 @@ function twentytwenty_theme_support() {
 			'caption',
 			'script',
 			'style',
+			'navigation-widgets',
 		)
 	);
 
@@ -486,12 +487,12 @@ function twentytwenty_block_editor_settings() {
 			'color' => twentytwenty_get_color_for_area( 'content', 'accent' ),
 		),
 		array(
-			'name'  => __( 'Primary', 'twentytwenty' ),
+			'name'  => _x( 'Primary', 'color', 'twentytwenty' ),
 			'slug'  => 'primary',
 			'color' => twentytwenty_get_color_for_area( 'content', 'text' ),
 		),
 		array(
-			'name'  => __( 'Secondary', 'twentytwenty' ),
+			'name'  => _x( 'Secondary', 'color', 'twentytwenty' ),
 			'slug'  => 'secondary',
 			'color' => twentytwenty_get_color_for_area( 'content', 'secondary' ),
 		),

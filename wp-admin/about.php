@@ -66,7 +66,7 @@ require_once ABSPATH . 'wp-admin/admin-header.php';
 				<h2><?php _e( 'Speed' ); ?></h2>
 				<p><strong><?php _e( 'Posts and pages feel faster, thanks to lazy-loaded images.' ); ?></strong></p>
 				<p><?php _e( 'Images give your story a lot of impact, but they can sometimes make your site seem slow.' ); ?></p>
-				<p><?php _e( 'In WordPress 5.5, images wait to load until they’re just about to scroll into view. The technical term is ‘lazy loading.’' ); ?></p>
+				<p><?php _e( 'In WordPress 5.5, images wait to load until they’re just about to scroll into view. The technical term is ‘lazy loading’.' ); ?></p>
 				<p><?php _e( 'On mobile, lazy loading can also keep browsers from loading files meant for other devices. That can save your readers money on data — and help preserve battery life.' ); ?></p>
 			</div>
 		</div>
@@ -75,7 +75,7 @@ require_once ABSPATH . 'wp-admin/admin-header.php';
 			<div class="column">
 				<h2><?php _ex( 'Search', 'sitemap' ); ?></h2>
 				<p><strong><?php _e( 'Say hello to your new sitemap.' ); ?></strong></p>
-				<p><?php _e( 'WordPress sites work well with search engines. ' ); ?></p>
+				<p><?php _e( 'WordPress sites work well with search engines.' ); ?></p>
 				<p><?php _e( 'Now, by default, WordPress 5.5 includes an XML sitemap that helps search engines discover your most important pages from the very minute you go live.' ); ?></p>
 				<p><?php _e( 'So more people will find your site sooner, giving you more time to engage, retain and convert them to subscribers, customers or whatever fits your definition of success.' ); ?></p>
 			</div>
@@ -114,18 +114,19 @@ require_once ABSPATH . 'wp-admin/admin-header.php';
 		<div class="about__section has-2-columns has-subtle-background-color">
 			<div class="column about__image is-vertically-aligned-center">
 				<figure aria-labelledby="about-block-pattern" class="about__image">
-					<video controls poster="https://s.w.org/images/core/5.5/temp-block-patterns-poster.png">
-						<source src="https://s.w.org/images/core/5.5/temp-block-patterns.mp4" type="video/mp4" />
-						<source src="https://s.w.org/images/core/5.5/temp-block-patterns.webm" type="video/webm" />
+					<video controls poster="https://s.w.org/images/core/5.5/block-patterns-poster.png">
+						<source src="https://s.w.org/images/core/5.5/block-patterns.mp4" type="video/mp4" />
+						<source src="https://s.w.org/images/core/5.5/block-patterns.webm" type="video/webm" />
 					</video>
 					<figcaption id="about-block-pattern" class="screen-reader-text"><?php _e( 'Video: In the editor, the block inserter shows two tabs, Blocks and Patterns. The Patterns tab is selected. There are different block layouts in this tab. After scrolling through options including buttons and columns, a pattern called "Large header with a heading" is chosen. This adds a cover block, which is customized with a photo and the name of the WordPress 5.5 jazz musician.' ); ?></figcaption>
 				</figure>
 				<hr />
 				<figure aria-labelledby="about-image-editor" class="about__image">
-					<video controls poster="https://make.wordpress.org/core/files/2020/07/image-editor-poster.png">
-						<source src="https://make.wordpress.org/core/files/2020/07/image-editor.mp4" type="video/mp4" />
+					<video controls poster="https://s.w.org/images/core/5.5/inline-image-editing-poster.png">
+						<source src="https://s.w.org/images/core/5.5/inline-image-editing.mp4" type="video/mp4" />
+						<source src="https://s.w.org/images/core/5.5/inline-image-editing-1.webm" type="video/webm" />
 					</video>
-					<figcaption id="about-image-editor" class="screen-reader-text"><?php _e( 'Video: In the new image editor, an image icon gets dragged and dropped into the space, which turns blue to accept the upload. The image expands to fill the editor. Dragging a handle on the right side of the image widens it to scale and resizes the editor to fit. Next the cursor moves to a text area below the image and clicks to bring up standard block text-editing tools and write a caption for the image. Clicking in the image dismisses the text tools, and the cursor now moves to a toolbar at the top of the image space. A click on the Crop icon reveals a dropdown set of common aspect ratios; lingering briefly on one choice demos the crop. Applying it requires a confirmation click in the toolbar.' ); ?></figcaption>
+					<figcaption id="about-image-editor" class="screen-reader-text"><?php _e( 'Video: An image is added with an image block. In the block toolbar, an icon called "Crop" is selected, which changes the toolbar to show image resizing tools. First, zoom is used to zoom into the center of the image. Next, aspect ratio is clicked. This shows a dropdown of common aspect ratios. Square is chosen, and the image is moved within the new square outline. The crop is completed by clicking "Apply."' ); ?></figcaption>
 				</figure>
 			</div>
 			<div class="column">
@@ -148,7 +149,7 @@ require_once ABSPATH . 'wp-admin/admin-header.php';
 		<div class="about__section has-1-column">
 			<div class="column">
 				<h2><?php _e( 'Accessibility' ); ?></h2>
-				<p><?php _e( 'Every release adds improvements to the accessible publishing experience, and that remains true for WordPress 5.5. ' ); ?></p>
+				<p><?php _e( 'Every release adds improvements to the accessible publishing experience, and that remains true for WordPress 5.5.' ); ?></p>
 				<p><?php _e( 'Now you can copy links in media screens and modal dialogs with a button, instead of trying to highlight a line of text.' ); ?></p>
 				<p><?php _e( 'You can also move meta boxes with the keyboard, and edit images in WordPress with your assistive device, as it can read you the instructions in the image editor.' ); ?></p>
 			</div>
