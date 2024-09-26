@@ -318,7 +318,8 @@
 	line-height: 1.4;
 }
 
-.about__container h3 {
+.about__container h3,
+.about__container h2.is-smaller-heading {
 	margin-top: 0;
 	font-size: 1em;
 }
@@ -417,11 +418,11 @@
 	background-repeat: no-repeat;
 	background-position: top left;
 	background-size: contain;
-	background-image: url('https://wordpress.org/images/core/5.4/header-diagonal.svg');
+	background-image: url('https://s.w.org/images/core/5.4/header-diagonal.svg');
 }
 
 .rtl .about__header {
-	background-image: url('https://wordpress.org/images/core/5.4/header-diagonal-rtl.svg');
+	background-image: url('https://s.w.org/images/core/5.4/header-diagonal-rtl.svg');
 }
 
 .about__header > div {
